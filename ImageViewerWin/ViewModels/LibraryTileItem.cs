@@ -1,3 +1,5 @@
+using ImageViewerWin.Core.Models;
+
 namespace ImageViewerWin.ViewModels;
 
 public sealed record LibraryTileItem(
@@ -7,7 +9,13 @@ public sealed record LibraryTileItem(
     bool IsFolder,
     bool IsSelected,
     bool IsAnimated,
-    string IconGlyph)
+    string IconGlyph,
+    ListItem SourceItem,
+    string? ThumbnailPath = null)
 {
     public string KindLabel => IsFolder ? "Folder" : IsAnimated ? "Animated image unsupported" : "Image";
+
+    public bool CanShowThumbnail => !string.IsNullOrWhiteSpace(ThumbnailPath) && !IsAnimated;
+
+    public bool ShouldShowIcon => !CanShowThumbnail;
 }

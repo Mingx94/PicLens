@@ -5,25 +5,35 @@ Native WinUI 3 / MVVM version of the Electron ImageViewer app in `E:\Developer\I
 ## Current Milestone
 
 - Official WinUI 3 MVVM scaffold.
-- Native main-window shell with favorites, folder tree, command bar, image grid, and status bar.
+- Native main-window shell backed by real favorites, folder scanning, thumbnails, selection, and conservative file operations.
+- Secondary image viewer window with previous/next, zoom, pan, fullscreen, keyboard navigation, and animated-image unsupported feedback.
 - Shared core domain project for Electron parity rules.
-- xUnit coverage for supported image formats, animated GIF/WebP detection, sorting, settings merge, startup folder selection, image sequence snapshots, and zoom math.
+- Application and Infrastructure service projects for settings persistence, favorites, scanning, image loading, JPG conversion, recycle-bin trash, and rename planning.
+- xUnit coverage for Core, Application, and Infrastructure behavior.
 
 ## Solution
 
 ```text
 ImageViewerWin.slnx
-ImageViewerWin/                 WinUI 3 app
-src/ImageViewerWin.Core/        Pure models and domain rules
-tests/ImageViewerWin.Core.Tests xUnit domain tests
+ImageViewerWin/                         WinUI 3 app
+src/ImageViewerWin.Application/         Service contracts and deterministic planning
+src/ImageViewerWin.Core/                Pure models and domain rules
+src/ImageViewerWin.Infrastructure/      JSON, filesystem, image, and recycle-bin services
+tests/ImageViewerWin.Application.Tests/ xUnit application tests
+tests/ImageViewerWin.Core.Tests/        xUnit domain tests
+tests/ImageViewerWin.Infrastructure.Tests/ xUnit infrastructure tests
 ```
 
 ## Build And Test
 
 ```powershell
 dotnet restore .\tests\ImageViewerWin.Core.Tests\ImageViewerWin.Core.Tests.csproj --configfile .\NuGet.Config
+dotnet restore .\tests\ImageViewerWin.Application.Tests\ImageViewerWin.Application.Tests.csproj --configfile .\NuGet.Config
+dotnet restore .\tests\ImageViewerWin.Infrastructure.Tests\ImageViewerWin.Infrastructure.Tests.csproj --configfile .\NuGet.Config
 dotnet restore .\ImageViewerWin\ImageViewerWin.csproj --configfile .\NuGet.Config -r win-x64 /p:Platform=x64
 dotnet test .\tests\ImageViewerWin.Core.Tests\ImageViewerWin.Core.Tests.csproj --no-restore
+dotnet test .\tests\ImageViewerWin.Application.Tests\ImageViewerWin.Application.Tests.csproj --no-restore
+dotnet test .\tests\ImageViewerWin.Infrastructure.Tests\ImageViewerWin.Infrastructure.Tests.csproj --no-restore
 dotnet build .\ImageViewerWin\ImageViewerWin.csproj --no-restore /p:Platform=x64
 .\BuildAndRun.ps1 .\ImageViewerWin\ImageViewerWin.csproj
 ```

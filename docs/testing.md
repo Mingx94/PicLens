@@ -1,15 +1,23 @@
 # Testing
 
-## Core Tests
+## Unit Tests
 
 Run:
 
 ```powershell
 dotnet restore .\tests\ImageViewerWin.Core.Tests\ImageViewerWin.Core.Tests.csproj --configfile .\NuGet.Config
+dotnet restore .\tests\ImageViewerWin.Application.Tests\ImageViewerWin.Application.Tests.csproj --configfile .\NuGet.Config
+dotnet restore .\tests\ImageViewerWin.Infrastructure.Tests\ImageViewerWin.Infrastructure.Tests.csproj --configfile .\NuGet.Config
 dotnet test .\tests\ImageViewerWin.Core.Tests\ImageViewerWin.Core.Tests.csproj --no-restore
+dotnet test .\tests\ImageViewerWin.Application.Tests\ImageViewerWin.Application.Tests.csproj --no-restore
+dotnet test .\tests\ImageViewerWin.Infrastructure.Tests\ImageViewerWin.Infrastructure.Tests.csproj --no-restore
 ```
 
-Current coverage is focused on pure product rules in `ImageViewerWin.Core`.
+Current coverage spans:
+
+- `ImageViewerWin.Core`: pure product rules.
+- `ImageViewerWin.Application`: deterministic rename planning and service-facing behavior.
+- `ImageViewerWin.Infrastructure`: JSON settings, favorites, scanning, image data helpers, conversion, trash, and rename operations.
 
 ## WinUI Build
 
@@ -36,7 +44,7 @@ Run:
 .\Release.ps1
 ```
 
-This restores packages, runs tests, publishes a self-contained unpackaged output folder, and verifies that `ImageViewerWin.exe` exists.
+This restores packages, runs Core, Application, and Infrastructure tests, publishes a self-contained unpackaged output folder, and verifies that `ImageViewerWin.exe` exists.
 
 Manual smoke check:
 

@@ -26,7 +26,7 @@ Parity target:
 - Grid containing folders and supported image files
 - Status/error feedback area
 
-The current native shell implements the layout and command surface with seeded data. Real folder and image services are not implemented yet.
+The current native app implements this surface with real filesystem-backed data, persisted favorites/settings, thumbnails for still images, multi-selection, drag/drop rename, and status feedback.
 
 ## Core Behaviors Already Covered
 
@@ -42,15 +42,21 @@ The Core test suite covers:
 
 ## Pending Parity
 
-The next implementation lanes should add:
+Implemented in the current native milestone:
 
 - Settings persistence
 - System and user favorites
 - Direct and recursive folder scanning
 - Thumbnail and full-image loading
-- Image window registry and viewer controls
+- Secondary image window and viewer controls
 - Selection behavior
 - Conservative file operations
+
+Remaining follow-up work should focus on deeper GUI automation and polish rather than missing service wiring:
+
+- Automated WinUI UI tests for add/remove/reorder favorites and file operation dialogs
+- Manual smoke coverage for real Windows recycle-bin behavior across drives
+- Larger-library performance profiling for thumbnail loading
 
 ## File Management Rules To Preserve
 

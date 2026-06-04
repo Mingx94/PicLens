@@ -3,6 +3,7 @@ using ImageViewerWin.Core.Models;
 namespace ImageViewerWin.ViewModels;
 
 public sealed record FavoriteSidebarItem(
+    string Id,
     string Name,
     string Path,
     FavoriteSource Source,

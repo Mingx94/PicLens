@@ -37,18 +37,55 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <StackPanel Spacing="4">
-                <TextBlock Text="Favorites" Style="{StaticResource SubtitleTextBlockStyle}" />
-                <TextBlock
-                    Text="System and user folders"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Style="{StaticResource CaptionTextBlockStyle}" />
-            </StackPanel>
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Favorites" Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <TextBlock
+                        Text="System and user folders"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}" />
+                </StackPanel>
+                <StackPanel
+                    Grid.Column="1"
+                    Orientation="Horizontal"
+                    Spacing="2">
+                    <Button
+                        AutomationProperties.AutomationId="SidebarAddFavoriteButton"
+                        Command="{x:Bind ViewModel.AddFavoriteCommand}"
+                        ToolTipService.ToolTip="Add favorite">
+                        <SymbolIcon Symbol="Add" />
+                    </Button>
+                    <Button
+                        AutomationProperties.AutomationId="SidebarMoveFavoriteUpButton"
+                        Command="{x:Bind ViewModel.MoveFavoriteUpCommand}"
+                        ToolTipService.ToolTip="Move favorite up">
+                        <FontIcon Glyph="&#xE74A;" FontSize="16" />
+                    </Button>
+                    <Button
+                        AutomationProperties.AutomationId="SidebarMoveFavoriteDownButton"
+                        Command="{x:Bind ViewModel.MoveFavoriteDownCommand}"
+                        ToolTipService.ToolTip="Move favorite down">
+                        <FontIcon Glyph="&#xE74B;" FontSize="16" />
+                    </Button>
+                    <Button
+                        AutomationProperties.AutomationId="SidebarRemoveFavoriteButton"
+                        Command="{x:Bind ViewModel.RemoveFavoriteCommand}"
+                        ToolTipService.ToolTip="Remove favorite">
+                        <SymbolIcon Symbol="Delete" />
+                    </Button>
+                </StackPanel>
+            </Grid>
 
             <ListView
+                x:Name="FavoritesList"
                 Grid.Row="1"
                 AutomationProperties.AutomationId="FavoritesList"
                 ItemsSource="{x:Bind ViewModel.Favorites, Mode=OneWay}"
+                SelectedItem="{x:Bind ViewModel.SelectedFavorite, Mode=TwoWay}"
                 SelectionMode="Single">
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="vm:FavoriteSidebarItem">
@@ -94,7 +131,8 @@
             <TreeView
                 Grid.Row="3"
                 AutomationProperties.AutomationId="FolderTree"
-                ItemsSource="{x:Bind ViewModel.FolderRoots, Mode=OneWay}">
+                ItemsSource="{x:Bind ViewModel.FolderRoots, Mode=OneWay}"
+                ItemInvoked="FolderTree_ItemInvoked">
                 <TreeView.ItemTemplate>
                     <DataTemplate x:DataType="vm:FolderTreeItem">
                         <TreeViewItem
@@ -137,10 +175,15 @@
                 Icon="Refresh"
                 Label="Refresh" />
             <AppBarButton
+                AutomationProperties.AutomationId="SortKeyButton"
+                Command="{x:Bind ViewModel.ToggleSortKeyCommand}"
+                Icon="Sort"
+                Label="{x:Bind ViewModel.SortLabel, Mode=OneWay}" />
+            <AppBarButton
                 AutomationProperties.AutomationId="SortDirectionButton"
                 Command="{x:Bind ViewModel.ToggleSortDirectionCommand}"
                 Icon="Sort"
-                Label="{x:Bind ViewModel.SortLabel, Mode=OneWay}" />
+                Label="Direction" />
             <AppBarToggleButton
                 AutomationProperties.AutomationId="RecursiveModeToggle"
                 Icon="SyncFolder"
@@ -201,10 +244,20 @@
             </Grid>
 
             <GridView
+                x:Name="LibraryGrid"
                 Grid.Row="1"
+                AllowDrop="True"
                 AutomationProperties.AutomationId="LibraryGrid"
-                IsItemClickEnabled="True"
+                CanDragItems="True"
+                DragItemsStarting="LibraryGrid_DragItemsStarting"
+                DragOver="LibraryGrid_DragOver"
+                Drop="LibraryGrid_Drop"
+                DoubleTapped="LibraryGrid_DoubleTapped"
+                IsItemClickEnabled="False"
+                IsTabStop="True"
                 ItemsSource="{x:Bind ViewModel.LibraryItems, Mode=OneWay}"
+                KeyDown="LibraryGrid_KeyDown"
+                SelectionChanged="LibraryGrid_SelectionChanged"
                 SelectionMode="Multiple">
                 <GridView.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -237,11 +290,16 @@
                                 <Grid
                                     Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                     CornerRadius="{ThemeResource ControlCornerRadius}">
+                                    <Image
+                                        Source="{x:Bind local:MainPage.CreateBitmapImage(ThumbnailPath), Mode=OneWay}"
+                                        Stretch="Uniform"
+                                        Visibility="{x:Bind local:MainPage.BoolToVisibility(CanShowThumbnail), Mode=OneWay}" />
                                     <FontIcon
                                         HorizontalAlignment="Center"
                                         VerticalAlignment="Center"
-                                        Glyph="{x:Bind IconGlyph}"
-                                        FontSize="36" />
+                                        Glyph="{x:Bind IconGlyph, Mode=OneWay}"
+                                        FontSize="36"
+                                        Visibility="{x:Bind local:MainPage.BoolToVisibility(ShouldShowIcon), Mode=OneWay}" />
                                 </Grid>
                                 <TextBlock
                                     Grid.Row="1"

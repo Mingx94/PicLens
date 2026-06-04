@@ -18,7 +18,11 @@ $ErrorActionPreference = "Stop"
 
 $root = $PSScriptRoot
 $project = Join-Path $root "ImageViewerWin\ImageViewerWin.csproj"
-$testProject = Join-Path $root "tests\ImageViewerWin.Core.Tests\ImageViewerWin.Core.Tests.csproj"
+$testProjects = @(
+    Join-Path $root "tests\ImageViewerWin.Core.Tests\ImageViewerWin.Core.Tests.csproj"
+    Join-Path $root "tests\ImageViewerWin.Application.Tests\ImageViewerWin.Application.Tests.csproj"
+    Join-Path $root "tests\ImageViewerWin.Infrastructure.Tests\ImageViewerWin.Infrastructure.Tests.csproj"
+)
 $nugetConfig = Join-Path $root "NuGet.Config"
 $outputRoot = Join-Path $root "artifacts\portable"
 $outputName = "ImageViewerWin-$RuntimeIdentifier"
@@ -69,6 +73,11 @@ if ($RuntimeIdentifier -eq "win-x86" -and $Platform -ne "x86") {
 if (-not (Test-Path -LiteralPath $project)) {
     throw "Project file not found: $project"
 }
+foreach ($testProject in $testProjects) {
+    if (-not (Test-Path -LiteralPath $testProject)) {
+        throw "Test project file not found: $testProject"
+    }
+}
 if (-not (Test-Path -LiteralPath $nugetConfig)) {
     throw "NuGet.Config not found: $nugetConfig"
 }
@@ -82,20 +91,24 @@ if (-not $NoClean) {
 }
 
 if (-not $SkipTests) {
-    Write-Host "==> Restoring test project" -ForegroundColor Cyan
-    Invoke-Native "dotnet" @(
-        "restore",
-        $testProject,
-        "--configfile",
-        $nugetConfig
-    )
+    foreach ($testProject in $testProjects) {
+        Write-Host "==> Restoring test project: $testProject" -ForegroundColor Cyan
+        Invoke-Native "dotnet" @(
+            "restore",
+            $testProject,
+            "--configfile",
+            $nugetConfig
+        )
+    }
 
-    Write-Host "==> Running tests" -ForegroundColor Cyan
-    Invoke-Native "dotnet" @(
-        "test",
-        $testProject,
-        "--no-restore"
-    )
+    foreach ($testProject in $testProjects) {
+        Write-Host "==> Running tests: $testProject" -ForegroundColor Cyan
+        Invoke-Native "dotnet" @(
+            "test",
+            $testProject,
+            "--no-restore"
+        )
+    }
 }
 
 Write-Host "==> Restoring app for $RuntimeIdentifier" -ForegroundColor Cyan

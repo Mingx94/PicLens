@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Window
+    x:Class="ImageViewerWin.ImageViewerWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:ImageViewerWin"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    Title="{x:Bind ViewModel.WindowTitle, Mode=OneWay}"
+    mc:Ignorable="d">
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <Grid
+        x:Name="Root"
+        Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+        IsTabStop="True"
+        KeyDown="OnRootKeyDown"
+        Loaded="OnRootLoaded">
+        <Grid.Resources>
+            <Storyboard x:Name="UnsupportedPulseStoryboard">
+                <DoubleAnimation
+                    AutoReverse="True"
+                    Duration="0:0:1.2"
+                    RepeatBehavior="Forever"
+                    Storyboard.TargetName="UnsupportedPanel"
+                    Storyboard.TargetProperty="Opacity"
+                    From="0.68"
+                    To="1" />
+            </Storyboard>
+        </Grid.Resources>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <CommandBar
+            Grid.Row="0"
+            AutomationProperties.AutomationId="ViewerCommandBar"
+            DefaultLabelPosition="Right"
+            IsDynamicOverflowEnabled="True">
+            <CommandBar.Content>
+                <StackPanel
+                    MinWidth="220"
+                    Padding="4,0,16,0"
+                    VerticalAlignment="Center">
+                    <TextBlock
+                        Text="{x:Bind ViewModel.CurrentImageName, Mode=OneWay}"
+                        Style="{StaticResource BodyStrongTextBlockStyle}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Text="{x:Bind ViewModel.PositionLabel, Mode=OneWay}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </CommandBar.Content>
+
+            <AppBarButton
+                AutomationProperties.AutomationId="ViewerPreviousButton"
+                AutomationProperties.Name="Previous image"
+                Command="{x:Bind ViewModel.PreviousCommand}"
+                Label="Previous">
+                <AppBarButton.Icon>
+                    <SymbolIcon Symbol="Back" />
+                </AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarButton
+                AutomationProperties.AutomationId="ViewerNextButton"
+                AutomationProperties.Name="Next image"
+                Command="{x:Bind ViewModel.NextCommand}"
+                Label="Next">
+                <AppBarButton.Icon>
+                    <SymbolIcon Symbol="Forward" />
+                </AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarSeparator />
+            <AppBarButton
+                AutomationProperties.AutomationId="ViewerZoomOutButton"
+                AutomationProperties.Name="Zoom out"
+                Command="{x:Bind ViewModel.ZoomOutCommand}"
+                Label="Zoom out">
+                <AppBarButton.Icon>
+                    <SymbolIcon Symbol="ZoomOut" />
+                </AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarButton
+                AutomationProperties.AutomationId="ViewerResetZoomButton"
+                AutomationProperties.Name="Reset zoom"
+                Command="{x:Bind ViewModel.ResetZoomCommand}"
+                Label="{x:Bind ViewModel.ZoomLabel, Mode=OneWay}">
+                <AppBarButton.Icon>
+                    <SymbolIcon Symbol="Refresh" />
+                </AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarButton
+                AutomationProperties.AutomationId="ViewerZoomInButton"
+                AutomationProperties.Name="Zoom in"
+                Command="{x:Bind ViewModel.ZoomInCommand}"
+                Label="Zoom in">
+                <AppBarButton.Icon>
+                    <SymbolIcon Symbol="ZoomIn" />
+                </AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarSeparator />
+            <AppBarButton
+                AutomationProperties.AutomationId="ViewerFullScreenButton"
+                AutomationProperties.Name="{x:Bind ViewModel.FullScreenLabel, Mode=OneWay}"
+                Click="OnToggleFullScreenClicked"
+                Label="{x:Bind ViewModel.FullScreenLabel, Mode=OneWay}">
+                <AppBarButton.Icon>
+                    <SymbolIcon Symbol="FullScreen" />
+                </AppBarButton.Icon>
+            </AppBarButton>
+        </CommandBar>
+
+        <Grid
+            x:Name="ImageSurface"
+            Grid.Row="1"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
+            PointerCanceled="OnImageSurfacePointerReleased"
+            PointerMoved="OnImageSurfacePointerMoved"
+            PointerPressed="OnImageSurfacePointerPressed"
+            PointerReleased="OnImageSurfacePointerReleased"
+            PointerWheelChanged="OnImageSurfacePointerWheelChanged"
+            SizeChanged="OnImageSurfaceSizeChanged">
+            <Image
+                x:Name="ViewerImage"
+                AutomationProperties.AutomationId="ViewerImage"
+                AutomationProperties.Name="{x:Bind ViewModel.CurrentImageName, Mode=OneWay}"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Source="{x:Bind local:ImageViewerWindow.CreateBitmapImage(ViewModel.CurrentImageSourcePath), Mode=OneWay}"
+                Stretch="Uniform"
+                RenderTransformOrigin="0.5,0.5"
+                Visibility="{x:Bind local:ImageViewerWindow.BoolToVisibility(ViewModel.IsImageVisible), Mode=OneWay}">
+                <Image.RenderTransform>
+                    <CompositeTransform
+                        ScaleX="{x:Bind ViewModel.Zoom, Mode=OneWay}"
+                        ScaleY="{x:Bind ViewModel.Zoom, Mode=OneWay}"
+                        TranslateX="{x:Bind ViewModel.OffsetX, Mode=OneWay}"
+                        TranslateY="{x:Bind ViewModel.OffsetY, Mode=OneWay}" />
+                </Image.RenderTransform>
+            </Image>
+
+            <Grid
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Visibility="{x:Bind local:ImageViewerWindow.BoolToVisibility(ViewModel.IsUnsupportedAnimatedImage), Mode=OneWay}">
+                <Border
+                    x:Name="UnsupportedPanel"
+                    MaxWidth="520"
+                    Padding="24"
+                    Background="{ThemeResource AcrylicBackgroundFillColorBaseBrush}"
+                    BackgroundSizing="InnerBorderEdge"
+                    BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{ThemeResource OverlayCornerRadius}">
+                    <StackPanel Spacing="12">
+                        <FontIcon
+                            HorizontalAlignment="Center"
+                            FontSize="32"
+                            Glyph="&#xE783;" />
+                        <TextBlock
+                            Text="Animation preview unavailable"
+                            Style="{StaticResource SubtitleTextBlockStyle}"
+                            TextAlignment="Center" />
+                        <TextBlock
+                            Text="{x:Bind ViewModel.UnsupportedMessage, Mode=OneWay}"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            TextAlignment="Center"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <Grid
+            Grid.Row="2"
+            MinHeight="32"
+            Padding="16,4"
+            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+            BorderThickness="0,1,0,0"
+            ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock
+                Grid.Column="0"
+                VerticalAlignment="Center"
+                Text="{x:Bind ViewModel.CurrentImageName, Mode=OneWay}"
+                TextTrimming="CharacterEllipsis" />
+            <TextBlock
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="{x:Bind ViewModel.ZoomLabel, Mode=OneWay}" />
+        </Grid>
+    </Grid>
+</Window>

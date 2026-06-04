@@ -38,8 +38,8 @@ Do not distribute only `ImageViewerWin.exe`; distribute the full folder.
 
 ## What The Script Does
 
-1. Restores the test project using repo-local `NuGet.Config`.
-2. Runs Core tests unless `-SkipTests` is passed.
+1. Restores the Core, Application, and Infrastructure test projects using repo-local `NuGet.Config`.
+2. Runs Core, Application, and Infrastructure tests unless `-SkipTests` is passed.
 3. Restores the app for the selected Windows RID.
 4. Publishes with:
    - `WindowsPackageType=None`
