@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ImageViewerWin.Core/ImageViewerWin.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ImageViewerWin.Core.Tests/ImageViewerWin.Core.Tests.csproj" />
+  </Folder>
+  <Project Path="ImageViewerWin/ImageViewerWin.csproj" />
+</Solution>

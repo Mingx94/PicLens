@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="ImageViewerWin.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:ImageViewerWin"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:ImageViewerWin.ViewModels"
+    mc:Ignorable="d">
+
+    <Grid
+        Padding="0"
+        Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+        ColumnSpacing="0">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="320" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid
+            Grid.RowSpan="3"
+            Padding="20,16"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+            BorderThickness="0,0,1,0"
+            RowSpacing="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="180" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="Favorites" Style="{StaticResource SubtitleTextBlockStyle}" />
+                <TextBlock
+                    Text="System and user folders"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}" />
+            </StackPanel>
+
+            <ListView
+                Grid.Row="1"
+                AutomationProperties.AutomationId="FavoritesList"
+                ItemsSource="{x:Bind ViewModel.Favorites, Mode=OneWay}"
+                SelectionMode="Single">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:FavoriteSidebarItem">
+                        <Grid Padding="8" RowSpacing="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon
+                                Grid.RowSpan="2"
+                                Width="24"
+                                Margin="0,0,8,0"
+                                Glyph="&#xE8B7;"
+                                FontSize="16" />
+                            <TextBlock
+                                Grid.Column="1"
+                                Text="{x:Bind Name}"
+                                Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                Text="{x:Bind SourceLabel}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}" />
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <StackPanel Grid.Row="2" Spacing="4">
+                <TextBlock Text="Folders" Style="{StaticResource SubtitleTextBlockStyle}" />
+                <TextBlock
+                    Text="{x:Bind ViewModel.CurrentFolderPath, Mode=OneWay}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    TextTrimming="CharacterEllipsis"
+                    Style="{StaticResource CaptionTextBlockStyle}" />
+            </StackPanel>
+
+            <TreeView
+                Grid.Row="3"
+                AutomationProperties.AutomationId="FolderTree"
+                ItemsSource="{x:Bind ViewModel.FolderRoots, Mode=OneWay}">
+                <TreeView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:FolderTreeItem">
+                        <TreeViewItem
+                            IsExpanded="{x:Bind IsExpanded, Mode=OneTime}"
+                            ItemsSource="{x:Bind Children}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE8B7;" FontSize="14" />
+                                <TextBlock Text="{x:Bind Name}" />
+                            </StackPanel>
+                        </TreeViewItem>
+                    </DataTemplate>
+                </TreeView.ItemTemplate>
+            </TreeView>
+        </Grid>
+
+        <CommandBar
+            Grid.Column="1"
+            AutomationProperties.AutomationId="LibraryCommandBar"
+            Background="Transparent"
+            DefaultLabelPosition="Right">
+            <AppBarButton
+                AutomationProperties.AutomationId="BackButton"
+                Command="{x:Bind ViewModel.BackCommand}"
+                Icon="Back"
+                Label="Back" />
+            <AppBarButton
+                AutomationProperties.AutomationId="ForwardButton"
+                Command="{x:Bind ViewModel.ForwardCommand}"
+                Icon="Forward"
+                Label="Forward" />
+            <AppBarSeparator />
+            <AppBarButton
+                AutomationProperties.AutomationId="AddFavoriteButton"
+                Command="{x:Bind ViewModel.AddFavoriteCommand}"
+                Icon="Add"
+                Label="Favorite" />
+            <AppBarButton
+                AutomationProperties.AutomationId="RefreshLibraryButton"
+                Command="{x:Bind ViewModel.RefreshLibraryCommand}"
+                Icon="Refresh"
+                Label="Refresh" />
+            <AppBarButton
+                AutomationProperties.AutomationId="SortDirectionButton"
+                Command="{x:Bind ViewModel.ToggleSortDirectionCommand}"
+                Icon="Sort"
+                Label="{x:Bind ViewModel.SortLabel, Mode=OneWay}" />
+            <AppBarToggleButton
+                AutomationProperties.AutomationId="RecursiveModeToggle"
+                Icon="SyncFolder"
+                IsChecked="{x:Bind ViewModel.IncludeSubfolders, Mode=TwoWay}"
+                Label="{x:Bind ViewModel.RecursiveModeLabel, Mode=OneWay}" />
+            <CommandBar.SecondaryCommands>
+                <AppBarButton
+                    AutomationProperties.AutomationId="ConvertVisibleButton"
+                    Command="{x:Bind ViewModel.ConvertVisibleCommand}"
+                    Icon="Save"
+                    Label="Convert visible to JPG" />
+                <AppBarButton
+                    AutomationProperties.AutomationId="ClearSameBasenameButton"
+                    Command="{x:Bind ViewModel.ClearSameBasenameCommand}"
+                    Icon="Clear"
+                    Label="Clear same-name non-JPG" />
+                <AppBarButton
+                    AutomationProperties.AutomationId="RenameSelectedButton"
+                    Command="{x:Bind ViewModel.RenameSelectedCommand}"
+                    Icon="Edit"
+                    Label="Rename selected image" />
+                <AppBarButton
+                    AutomationProperties.AutomationId="TrashSelectedButton"
+                    Command="{x:Bind ViewModel.TrashSelectedCommand}"
+                    Icon="Delete"
+                    Label="Move selected to trash" />
+            </CommandBar.SecondaryCommands>
+        </CommandBar>
+
+        <Grid
+            Grid.Row="1"
+            Grid.Column="1"
+            Padding="24,12,24,20"
+            RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="2">
+                    <TextBlock Text="Library" Style="{StaticResource TitleTextBlockStyle}" />
+                    <TextBlock
+                        Text="{x:Bind ViewModel.CurrentFolderPath, Mode=OneWay}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <TextBlock
+                    Grid.Column="1"
+                    VerticalAlignment="Bottom"
+                    Text="{x:Bind ViewModel.SortLabel, Mode=OneWay}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}" />
+            </Grid>
+
+            <GridView
+                Grid.Row="1"
+                AutomationProperties.AutomationId="LibraryGrid"
+                IsItemClickEnabled="True"
+                ItemsSource="{x:Bind ViewModel.LibraryItems, Mode=OneWay}"
+                SelectionMode="Multiple">
+                <GridView.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <ItemsWrapGrid Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </GridView.ItemsPanel>
+                <GridView.ItemContainerStyle>
+                    <Style TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
+                        <Setter Property="Margin" Value="0,0,12,12" />
+                        <Setter Property="MinWidth" Value="172" />
+                        <Setter Property="MinHeight" Value="168" />
+                    </Style>
+                </GridView.ItemContainerStyle>
+                <GridView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:LibraryTileItem">
+                        <Border
+                            Width="172"
+                            Height="168"
+                            Padding="12"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{ThemeResource ControlCornerRadius}">
+                            <Grid RowSpacing="8">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                    CornerRadius="{ThemeResource ControlCornerRadius}">
+                                    <FontIcon
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Glyph="{x:Bind IconGlyph}"
+                                        FontSize="36" />
+                                </Grid>
+                                <TextBlock
+                                    Grid.Row="1"
+                                    Text="{x:Bind Name}"
+                                    TextTrimming="CharacterEllipsis"
+                                    Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <StackPanel Grid.Row="2" Spacing="2">
+                                    <TextBlock
+                                        Text="{x:Bind KindLabel}"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        TextTrimming="CharacterEllipsis"
+                                        Style="{StaticResource CaptionTextBlockStyle}" />
+                                    <TextBlock
+                                        Text="{x:Bind Detail}"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        TextTrimming="CharacterEllipsis"
+                                        Style="{StaticResource CaptionTextBlockStyle}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </GridView.ItemTemplate>
+            </GridView>
+        </Grid>
+
+        <InfoBar
+            Grid.Row="2"
+            Grid.Column="1"
+            Margin="24,0,24,20"
+            AutomationProperties.AutomationId="StatusInfoBar"
+            IsClosable="False"
+            IsOpen="True"
+            Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
+            Severity="Informational"
+            Title="File operations" />
+    </Grid>
+</Page>
