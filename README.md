@@ -30,6 +30,26 @@ dotnet build .\ImageViewerWin\ImageViewerWin.csproj --no-restore /p:Platform=x64
 
 Use `.\BuildAndRun.ps1 .\ImageViewerWin\ImageViewerWin.csproj -SkipRun` for build-only verification.
 
+## Portable Release
+
+Build the no-install app folder:
+
+```powershell
+.\Release.ps1
+```
+
+Output:
+
+```text
+artifacts/portable/ImageViewerWin-win-x64/ImageViewerWin.exe
+```
+
+Keep the full folder together; this is a WinUI self-contained unpackaged layout, not a single-file exe.
+
+## Docs
+
+Start at [docs/README.md](docs/README.md).
+
 ## Parallel Lanes Used
 
 - Product map: read the Electron app and summarized native parity scope.
