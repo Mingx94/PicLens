@@ -1,6 +1,7 @@
 using ImageViewerWin.Application.Services;
 using ImageViewerWin.Core.Domain;
 using ImageViewerWin.Core.Models;
+using ImageViewerWin.Diagnostics;
 using ImageViewerWin.ViewModels;
 
 namespace ImageViewerWin.ViewModels.Tests;
@@ -80,10 +81,38 @@ public sealed class MainPageViewModelStartupTests
         Assert.Equal(0, scanner.ScanCount);
     }
 
+    [Fact]
+    public async Task IncludeSubfolders_change_logs_background_reload_failures()
+    {
+        using var workspace = new TempDirectory();
+        var expected = new InvalidOperationException("settings write failed");
+        var settingsStore = new ThrowingUpdateSettingsStore(AppSettings.CreateDefault() with
+        {
+            LastFolderPath = workspace.Path
+        }, expected);
+        var scanner = new CountingFolderScanner([]);
+        var logger = new RecordingAppLogger();
+        var viewModel = CreateViewModel(
+            settingsStore,
+            scanner,
+            () => Task.FromResult<string?>(null),
+            logger);
+
+        await viewModel.InitializeAsync();
+
+        viewModel.IncludeSubfolders = true;
+        var entry = await logger.WaitForErrorAsync();
+
+        Assert.Equal("Toggle include subfolders failed.", entry.Message);
+        Assert.Same(expected, entry.Exception);
+        Assert.Contains("已寫入診斷記錄", viewModel.StatusMessage);
+    }
+
     private static MainPageViewModel CreateViewModel(
         ISettingsStore settingsStore,
         IFolderScanner scanner,
-        Func<Task<string?>> chooseFolderAsync) =>
+        Func<Task<string?>> chooseFolderAsync,
+        IAppLogger? appLogger = null) =>
         new(
             settingsStore,
             scanner,
@@ -92,7 +121,8 @@ public sealed class MainPageViewModelStartupTests
             chooseFolderAsync,
             (_, _) => Task.FromResult(false),
             _ => Task.FromResult<string?>(null),
-            _ => { });
+            _ => { },
+            appLogger: appLogger);
 
     private sealed class CountingFolderScanner(IReadOnlyList<ListItem> items) : IFolderScanner
     {
@@ -128,6 +158,35 @@ public sealed class MainPageViewModelStartupTests
             Settings = SettingsRules.MergeSettingsPatch(Settings, patch);
             return Task.FromResult(Settings);
         }
+    }
+
+    private sealed class ThrowingUpdateSettingsStore(AppSettings initialSettings, Exception exception) : ISettingsStore
+    {
+        public Task<AppSettings> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(initialSettings);
+
+        public Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default) =>
+            throw exception;
+
+        public Task<AppSettings> UpdateAsync(AppSettingsPatch patch, CancellationToken cancellationToken = default) =>
+            throw exception;
+    }
+
+    private sealed class RecordingAppLogger : IAppLogger
+    {
+        private readonly TaskCompletionSource<Entry> errorLogged = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<Entry> WaitForErrorAsync() => errorLogged.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        public void Info(string message)
+        {
+        }
+
+        public void Error(Exception exception, string message)
+        {
+            errorLogged.TrySetResult(new Entry(exception, message));
+        }
+
+        public sealed record Entry(Exception Exception, string Message);
     }
 
     private sealed class ThrowingFileOperationService : IFileOperationService

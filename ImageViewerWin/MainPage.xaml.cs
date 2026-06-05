@@ -1,5 +1,6 @@
 using ImageViewerWin.Core.Models;
 using ImageViewerWin.Core.Domain;
+using ImageViewerWin.Diagnostics;
 using ImageViewerWin.Infrastructure.Services;
 using ImageViewerWin.ViewModels;
 using Microsoft.UI.Xaml;
@@ -33,7 +34,8 @@ public sealed partial class MainPage : Page
             ChooseFolderAsync,
             ConfirmAsync,
             RequestRenameAsync,
-            OpenImageViewer);
+            OpenImageViewer,
+            appLogger: App.Logger);
 
         InitializeComponent();
         Loaded += OnLoaded;

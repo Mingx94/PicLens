@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using ImageViewerWin.Application.Services;
 using ImageViewerWin.Core.Domain;
 using ImageViewerWin.Core.Models;
+using ImageViewerWin.Diagnostics;
 using System.Collections.ObjectModel;
 
 namespace ImageViewerWin.ViewModels;
@@ -16,6 +17,7 @@ public sealed partial class MainPageViewModel : ObservableObject
     private readonly IFolderScanner folderScanner;
     private readonly IFileOperationService fileOperationService;
     private readonly IThumbnailService thumbnailService;
+    private readonly IAppLogger appLogger;
     private readonly Func<Task<string?>> chooseFolderAsync;
     private readonly Func<string, string, Task<bool>> confirmAsync;
     private readonly Func<ImageListItem, Task<string?>> requestRenameAsync;
@@ -41,12 +43,14 @@ public sealed partial class MainPageViewModel : ObservableObject
         Func<string, string, Task<bool>> confirmAsync,
         Func<ImageListItem, Task<string?>> requestRenameAsync,
         Action<ImageSequenceSnapshot> openImageViewer,
-        TimeSpan? thumbnailLoadTimeout = null)
+        TimeSpan? thumbnailLoadTimeout = null,
+        IAppLogger? appLogger = null)
     {
         this.settingsStore = settingsStore;
         this.folderScanner = folderScanner;
         this.fileOperationService = fileOperationService;
         this.thumbnailService = thumbnailService;
+        this.appLogger = appLogger ?? NullAppLogger.Instance;
         this.chooseFolderAsync = chooseFolderAsync;
         this.confirmAsync = confirmAsync;
         this.requestRenameAsync = requestRenameAsync;
@@ -470,12 +474,26 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     private async Task PersistIncludeSubfoldersAndReloadAsync(bool includeSubfolders)
     {
-        settings = await settingsStore.UpdateAsync(new AppSettingsPatch { IncludeSubfolders = includeSubfolders });
-        ClearSelection();
-        await LoadLibraryAsync();
-        StatusMessage = includeSubfolders
-            ? "含子資料夾模式會列出所有子資料夾中的支援圖片。"
-            : "僅目前資料夾模式會列出所選資料夾中的子資料夾與支援圖片。";
+        try
+        {
+            appLogger.Info(
+                $"Toggle include subfolders started. IncludeSubfolders={includeSubfolders}; CurrentFolderPath={CurrentFolderPath}");
+
+            settings = await settingsStore.UpdateAsync(new AppSettingsPatch { IncludeSubfolders = includeSubfolders });
+            ClearSelection();
+            await LoadLibraryAsync();
+            StatusMessage = includeSubfolders
+                ? "含子資料夾模式會列出所有子資料夾中的支援圖片。"
+                : "僅目前資料夾模式會列出所選資料夾中的子資料夾與支援圖片。";
+
+            appLogger.Info(
+                $"Toggle include subfolders completed. IncludeSubfolders={includeSubfolders}; CurrentFolderPath={CurrentFolderPath}; ItemCount={LibraryItems.Count}");
+        }
+        catch (Exception ex)
+        {
+            appLogger.Error(ex, "Toggle include subfolders failed.");
+            StatusMessage = "切換子資料夾模式時發生錯誤，已寫入診斷記錄。";
+        }
     }
 
     private async Task LoadLibraryAsync()
@@ -499,6 +517,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
         {
+            appLogger.Error(ex, $"Load library failed. CurrentFolderPath={CurrentFolderPath}; IncludeSubfolders={IncludeSubfolders}");
             currentItems = [];
             LibraryItems.Clear();
             StatusMessage = $"無法載入資料夾：{ex.Message}";

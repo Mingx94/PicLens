@@ -1,3 +1,4 @@
+using ImageViewerWin.Diagnostics;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
@@ -15,6 +16,8 @@ namespace ImageViewerWin;
 /// </summary>
 public partial class App : Microsoft.UI.Xaml.Application
 {
+    private static bool globalExceptionHooksRegistered;
+
     /// <summary>
     /// The main application window. Use <c>App.Window</c> from any class that needs
     /// the window reference (for dialogs, pickers, interop, etc.).
@@ -27,6 +30,10 @@ public partial class App : Microsoft.UI.Xaml.Application
     /// <see cref="Windows.System.DispatcherQueue"/>.
     /// </summary>
     public static Microsoft.UI.Dispatching.DispatcherQueue DispatcherQueue { get; private set; } = null!;
+
+    public static IAppLogger Logger { get; private set; } = NullAppLogger.Instance;
+
+    public static string LogPath { get; private set; } = FileAppLogger.DefaultLogPath();
 
     /// <summary>
     /// The native window handle (HWND). Use for file pickers,
@@ -42,6 +49,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     public App()
     {
         InitializeComponent();
+        ConfigureLogging();
     }
 
     /// <summary>
@@ -53,5 +61,39 @@ public partial class App : Microsoft.UI.Xaml.Application
         Window = new MainWindow();
         DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         Window.Activate();
+    }
+
+    private void ConfigureLogging()
+    {
+        LogPath = FileAppLogger.DefaultLogPath();
+        Logger = new FileAppLogger(LogPath);
+        Logger.Info($"Application logging initialized. LogPath={LogPath}");
+
+        UnhandledException += OnUnhandledException;
+        if (globalExceptionHooksRegistered)
+        {
+            return;
+        }
+
+        AppDomain.CurrentDomain.UnhandledException += OnCurrentDomainUnhandledException;
+        TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+        globalExceptionHooksRegistered = true;
+    }
+
+    private void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
+    {
+        Logger.Error(e.Exception, "Unhandled XAML exception.");
+    }
+
+    private static void OnCurrentDomainUnhandledException(object sender, System.UnhandledExceptionEventArgs e)
+    {
+        var exception = e.ExceptionObject as Exception
+            ?? new InvalidOperationException($"Unhandled non-exception object: {e.ExceptionObject}");
+        Logger.Error(exception, "Unhandled AppDomain exception.");
+    }
+
+    private static void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+    {
+        Logger.Error(e.Exception, "Unobserved task exception.");
     }
 }
