@@ -3,6 +3,7 @@ using ImageViewerWin.Infrastructure.Services;
 using ImageViewerWin.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -118,6 +119,30 @@ public sealed partial class MainPage : Page
         {
             await ViewModel.OpenLibraryItemAsync(item);
             e.Handled = true;
+        }
+    }
+
+    private async void Root_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        var updateKind = e.GetCurrentPoint(Root).Properties.PointerUpdateKind;
+        switch (updateKind)
+        {
+            case PointerUpdateKind.XButton1Released:
+                if (ViewModel.BackCommand.CanExecute(null))
+                {
+                    await ViewModel.BackCommand.ExecuteAsync(null);
+                    e.Handled = true;
+                }
+
+                break;
+            case PointerUpdateKind.XButton2Released:
+                if (ViewModel.ForwardCommand.CanExecute(null))
+                {
+                    await ViewModel.ForwardCommand.ExecuteAsync(null);
+                    e.Handled = true;
+                }
+
+                break;
         }
     }
 

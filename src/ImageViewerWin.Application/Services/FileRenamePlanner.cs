@@ -35,10 +35,18 @@ public static class FileRenamePlanner
             ?? throw new ArgumentException("Target path must include a directory.", nameof(targetPath));
         var targetBaseName = Path.GetFileNameWithoutExtension(targetPath);
 
-        var items = sourcePaths
-            .Where(source => !PathEquals(source, targetPath))
-            .Select((source, index) => CreatePlanItem(source, targetDirectory, targetBaseName, index + 1, targetExists))
-            .ToList();
+        var items = new List<DropTargetBatchRenamePlanItem>();
+        var sequenceNumber = 1;
+
+        foreach (var source in sourcePaths.Where(source => !PathEquals(source, targetPath)))
+        {
+            var item = CreatePlanItem(source, targetDirectory, targetBaseName, sequenceNumber, targetExists);
+            items.Add(item);
+            if (!item.ShouldSkip)
+            {
+                sequenceNumber = ExtractSequenceNumber(item.TargetPath, targetBaseName) + 1;
+            }
+        }
 
         return new DropTargetBatchRenamePlan(items.Count, items);
     }
@@ -50,20 +58,48 @@ public static class FileRenamePlanner
         int sequenceNumber,
         Func<string, bool> targetExists)
     {
-        var extension = Path.GetExtension(sourcePath);
-        var targetPath = Path.Combine(targetDirectory, $"{targetBaseName}-{sequenceNumber:00}{extension}");
-
         if (IsAlreadyTargetSequence(sourcePath, targetBaseName))
         {
-            return new DropTargetBatchRenamePlanItem(sourcePath, targetPath, true, AlreadyTargetSequenceReason);
+            var skippedTargetPath = CreateSequenceTargetPath(sourcePath, targetDirectory, targetBaseName, sequenceNumber);
+            return new DropTargetBatchRenamePlanItem(sourcePath, skippedTargetPath, true, AlreadyTargetSequenceReason);
         }
 
-        if (targetExists(targetPath))
+        var nextTargetPath = NextAvailableSequenceTargetPath(sourcePath, targetDirectory, targetBaseName, sequenceNumber, targetExists);
+        return new DropTargetBatchRenamePlanItem(sourcePath, nextTargetPath, false, null);
+    }
+
+    private static string NextAvailableSequenceTargetPath(
+        string sourcePath,
+        string targetDirectory,
+        string targetBaseName,
+        int sequenceNumber,
+        Func<string, bool> targetExists)
+    {
+        var candidateSequence = sequenceNumber;
+        while (true)
         {
-            return new DropTargetBatchRenamePlanItem(sourcePath, targetPath, true, "target_exists");
-        }
+            var candidatePath = CreateSequenceTargetPath(sourcePath, targetDirectory, targetBaseName, candidateSequence);
+            if (!targetExists(candidatePath))
+            {
+                return candidatePath;
+            }
 
-        return new DropTargetBatchRenamePlanItem(sourcePath, targetPath, false, null);
+            candidateSequence += 1;
+        }
+    }
+
+    private static string CreateSequenceTargetPath(
+        string sourcePath,
+        string targetDirectory,
+        string targetBaseName,
+        int sequenceNumber) =>
+        Path.Combine(targetDirectory, $"{targetBaseName}-{sequenceNumber:00}{Path.GetExtension(sourcePath)}");
+
+    private static int ExtractSequenceNumber(string targetPath, string targetBaseName)
+    {
+        var targetName = Path.GetFileNameWithoutExtension(targetPath);
+        var suffix = targetName[(targetBaseName.Length + 1)..];
+        return int.Parse(suffix);
     }
 
     private static bool PathEquals(string left, string right) =>

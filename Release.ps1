@@ -121,11 +121,11 @@ Invoke-Native "dotnet" @(
     $RuntimeIdentifier,
     "/p:Platform=$Platform",
     "/p:WindowsPackageType=None",
-    "/p:WindowsAppSDKSelfContained=true",
-    "/p:SelfContained=true"
+    "/p:WindowsAppSDKSelfContained=false",
+    "/p:SelfContained=false"
 )
 
-Write-Host "==> Publishing portable output" -ForegroundColor Cyan
+Write-Host "==> Publishing framework-dependent output" -ForegroundColor Cyan
 Invoke-Native "dotnet" @(
     "publish",
     $project,
@@ -135,13 +135,17 @@ Invoke-Native "dotnet" @(
     "-r",
     $RuntimeIdentifier,
     "--self-contained",
-    "true",
+    "false",
     "/p:Platform=$Platform",
     "/p:WindowsPackageType=None",
-    "/p:WindowsAppSDKSelfContained=true",
+    "/p:WindowsAppSDKSelfContained=false",
+    "/p:PublishSelfContained=false",
     "/p:PublishSingleFile=false",
     "/p:PublishReadyToRun=false",
     "/p:PublishTrimmed=false",
+    "/p:SelfContained=false",
+    "/p:DebugType=None",
+    "/p:DebugSymbols=false",
     "-o",
     $outputDir
 )

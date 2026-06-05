@@ -36,7 +36,7 @@ public sealed partial class ImageViewerWindow : Window
 
         AppWindow.SetIcon("Assets/AppIcon.ico");
         AppWindow.Title = ViewModel.WindowTitle;
-        ResizeToLogicalSize(1100, 760);
+        ResizeToLogicalSize(1120, 760);
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.Maximize();
@@ -105,6 +105,7 @@ public sealed partial class ImageViewerWindow : Window
                 else
                 {
                     Close();
+                    App.Window.Activate();
                 }
 
                 e.Handled = true;

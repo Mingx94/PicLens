@@ -47,12 +47,18 @@ public sealed class FolderScanner : IFolderScanner
     private static IEnumerable<ImageListItem> EnumerateRecursiveImages(string root, CancellationToken cancellationToken)
     {
         var pending = new Stack<string>();
+        var visited = new HashSet<string>(PathKeyComparer);
         pending.Push(root);
 
         while (pending.Count > 0)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var current = pending.Pop();
+            var canonical = CanonicalDirectoryKey(current);
+            if (canonical is null || !visited.Add(canonical))
+            {
+                continue;
+            }
 
             foreach (var directory in SafeEnumerateDirectories(current))
             {
@@ -103,7 +109,7 @@ public sealed class FolderScanner : IFolderScanner
     {
         try
         {
-            return Directory.EnumerateDirectories(folderPath);
+            return Directory.EnumerateDirectories(folderPath).ToArray();
         }
         catch (UnauthorizedAccessException)
         {
@@ -119,7 +125,7 @@ public sealed class FolderScanner : IFolderScanner
     {
         try
         {
-            return Directory.EnumerateFiles(folderPath);
+            return Directory.EnumerateFiles(folderPath).ToArray();
         }
         catch (UnauthorizedAccessException)
         {
@@ -133,4 +139,21 @@ public sealed class FolderScanner : IFolderScanner
 
     private static long ToUnixMs(DateTime value) =>
         new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Utc)).ToUnixTimeMilliseconds();
+
+    private static StringComparer PathKeyComparer =>
+        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+
+    private static string? CanonicalDirectoryKey(string folderPath)
+    {
+        try
+        {
+            var directory = new DirectoryInfo(folderPath);
+            var resolved = directory.ResolveLinkTarget(returnFinalTarget: true);
+            return Path.GetFullPath(resolved?.FullName ?? directory.FullName);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
 }

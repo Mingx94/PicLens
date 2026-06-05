@@ -26,7 +26,7 @@ Parity target:
 - Grid containing folders and supported image files
 - Status/error feedback area
 
-The current native app implements this surface with real filesystem-backed data, persisted favorites/settings, thumbnails for still images, multi-selection, drag/drop rename, and status feedback.
+The current native app implements this surface with real filesystem-backed data, persisted favorites/settings, thumbnails for still images, multi-selection, drag/drop rename, browser-style mouse side-button history navigation, and status feedback.
 
 ## Core Behaviors Already Covered
 
@@ -51,9 +51,13 @@ Implemented in the current native milestone:
 - Secondary image window and viewer controls
 - Selection behavior
 - Conservative file operations
+- Recursive scanner canonical-directory de-duplication for symlink/junction aliases
+- Drop-target batch rename sequencing that advances past existing target paths
+- Image viewer `1120x760` parity size and Escape-to-main-window focus behavior
 
 Remaining follow-up work should focus on deeper GUI automation and polish rather than missing service wiring:
 
+- Rectangle drag selection parity with the Electron main window
 - Automated WinUI UI tests for add/remove/reorder favorites and file operation dialogs
 - Manual smoke coverage for real Windows recycle-bin behavior across drives
 - Larger-library performance profiling for thumbnail loading
@@ -67,4 +71,4 @@ Native file-management behavior should stay conservative:
 - Target collisions are skipped, not overwritten.
 - Batch operations report per-file results.
 - Failures continue item-by-item.
-- Single rename validates a basename only and rejects existing targets.
+- Single rename validates a basename only, reports same-name skips as `same_name`, and rejects existing targets as an invalid request.

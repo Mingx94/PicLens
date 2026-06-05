@@ -107,7 +107,16 @@ public sealed class FileOperationService : IFileOperationService
         var validation = FileRenamePlanner.ValidateImageFileName(newFileName);
         if (!validation.IsValid)
         {
-            return Task.FromResult(new FileOperationResult(sourcePath, FileOperationStatus.Skipped, Reason: validation.Reason));
+            return Task.FromResult(ToInvalidRenameRequest(sourcePath, validation.Reason));
+        }
+
+        if (ImageFormatRules.GetSupportedImageExtension(sourcePath) is null)
+        {
+            return Task.FromResult(new FileOperationResult(
+                sourcePath,
+                FileOperationStatus.Failed,
+                Reason: "invalid_request",
+                Message: "Path must point to a supported image file."));
         }
 
         if (!File.Exists(sourcePath))
@@ -119,12 +128,17 @@ public sealed class FileOperationService : IFileOperationService
         var targetPath = Path.Combine(directory, newFileName);
         if (PathEquals(sourcePath, targetPath))
         {
-            return Task.FromResult(new FileOperationResult(sourcePath, FileOperationStatus.Skipped, targetPath, "same_path"));
+            return Task.FromResult(new FileOperationResult(sourcePath, FileOperationStatus.Skipped, targetPath, "same_name"));
         }
 
         if (File.Exists(targetPath))
         {
-            return Task.FromResult(new FileOperationResult(sourcePath, FileOperationStatus.Skipped, targetPath, "target_exists"));
+            return Task.FromResult(new FileOperationResult(
+                sourcePath,
+                FileOperationStatus.Failed,
+                targetPath,
+                "invalid_request",
+                "A file with that name already exists."));
         }
 
         try
@@ -224,6 +238,15 @@ public sealed class FileOperationService : IFileOperationService
             Skipped: results.Count(item => item.Status == FileOperationStatus.Skipped),
             Failed: results.Count(item => item.Status == FileOperationStatus.Failed),
             Items: results);
+
+    private static FileOperationResult ToInvalidRenameRequest(string sourcePath, string? validationReason) =>
+        new(
+            sourcePath,
+            FileOperationStatus.Failed,
+            Reason: "invalid_request",
+            Message: validationReason == "unsupported_extension"
+                ? "File name must use a supported image extension."
+                : "File name must be a single file name without path separators.");
 
     private static bool PathEquals(string left, string right) =>
         string.Equals(

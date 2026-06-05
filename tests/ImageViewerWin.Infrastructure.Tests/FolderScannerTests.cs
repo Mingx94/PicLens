@@ -46,9 +46,32 @@ public sealed class FolderScannerTests
         Assert.Contains(items.OfType<ImageListItem>(), image => image.Name == "cover.webp" && image.IsAnimated);
     }
 
+    [Fact]
+    public async Task ScanAsync_recursive_mode_visits_canonical_directories_once()
+    {
+        using var temp = TempWorkspace.Create();
+        var realFolder = Directory.CreateDirectory(Path.Combine(temp.Root, "Real")).FullName;
+        var aliasFolder = Path.Combine(temp.Root, "Alias");
+        await File.WriteAllBytesAsync(Path.Combine(realFolder, "photo.jpg"), [1, 2, 3]);
+        CreateDirectoryAlias(aliasFolder, realFolder);
+        var scanner = new FolderScanner();
+
+        var items = await scanner.ScanAsync(new ListQuery(
+            temp.Root,
+            IncludeSubfolders: true,
+            Sort: new SortState(SortKey.Name, SortDirection.Asc)));
+
+        Assert.Equal(["photo.jpg"], items.Select(item => item.Name));
+    }
+
     private static byte[] StaticGifBytes() =>
         [(byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a', 0, 0, 0, 0, 0x2c];
 
     private static byte[] AnimatedWebpBytes() =>
         "RIFF----WEBPVP8X....ANIM"u8.ToArray();
+
+    private static void CreateDirectoryAlias(string aliasPath, string targetPath)
+    {
+        Directory.CreateSymbolicLink(aliasPath, targetPath);
+    }
 }

@@ -30,11 +30,12 @@ The WinUI app uses the official MVVM template with CommunityToolkit.Mvvm. The ro
 - Folder tree rooted at the best matching favorite
 - Library command bar for history, sort key/direction, recursive mode, and file operations
 - Mixed folder/image grid with real thumbnails for still images
+- Browser-style mouse side-button folder history navigation
 - File-operation status bar
 
 `MainPageViewModel` coordinates service-backed browsing, settings persistence, selection, conservative file operations, and opening the secondary viewer window. XAML code-behind is limited to WinUI-only work such as pickers, dialogs, drag/drop events, and launching windows.
 
-`ImageViewerWindow` displays an `ImageSequenceSnapshot` with previous/next navigation, zoom in/out/reset, pointer wheel zoom, drag pan, fullscreen toggle, keyboard shortcuts, and unsupported animated-image feedback.
+`ImageViewerWindow` displays an `ImageSequenceSnapshot` with previous/next navigation, zoom in/out/reset, pointer wheel zoom, drag pan, fullscreen toggle, keyboard shortcuts, Escape close/focus behavior, and unsupported animated-image feedback.
 
 ## Assets
 
@@ -65,10 +66,10 @@ Keep filesystem, Windows UI, thumbnail codecs, and recycle-bin behavior out of C
 
 - JSON settings persistence
 - System and user favorite folder loading
-- Direct and recursive folder scanning
+- Direct and recursive folder scanning with canonical directory de-duplication
 - Image file loading helpers
 - JPG conversion that preserves originals and skips collisions
 - Recycle-bin trash operations
-- Drop-target batch rename execution
+- Drop-target batch rename execution that advances past existing sequence targets
 
 This split keeps WinUI views thin while preserving Electron parity rules in reusable, tested code.

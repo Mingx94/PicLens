@@ -16,8 +16,8 @@ dotnet test .\tests\ImageViewerWin.Infrastructure.Tests\ImageViewerWin.Infrastru
 Current coverage spans:
 
 - `ImageViewerWin.Core`: pure product rules.
-- `ImageViewerWin.Application`: deterministic rename planning and service-facing behavior.
-- `ImageViewerWin.Infrastructure`: JSON settings, favorites, scanning, image data helpers, conversion, trash, and rename operations.
+- `ImageViewerWin.Application`: deterministic rename planning, including drop-target sequence advancement past existing targets.
+- `ImageViewerWin.Infrastructure`: JSON settings, favorites, direct and recursive scanning, canonical directory de-duplication, image data helpers, conversion, trash, and rename operations.
 
 ## WinUI Build
 

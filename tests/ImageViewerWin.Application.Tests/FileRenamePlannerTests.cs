@@ -29,7 +29,7 @@ public sealed class FileRenamePlannerTests
     }
 
     [Fact]
-    public void PlanDropTargetBatchRename_preserves_source_extensions_and_skips_target_and_existing_sequence_names()
+    public void PlanDropTargetBatchRename_preserves_extensions_excludes_target_and_skips_existing_sequence_names()
     {
         var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var target = Path.Combine(root, "Album.jpg");
@@ -65,9 +65,45 @@ public sealed class FileRenamePlannerTests
             item =>
             {
                 Assert.Equal(sources[3], item.SourcePath);
-                Assert.Equal(Path.Combine(root, "Album-03.webp"), item.TargetPath);
-                Assert.True(item.ShouldSkip);
-                Assert.Equal("target_exists", item.Reason);
+                Assert.Equal(Path.Combine(root, "Album-02.webp"), item.TargetPath);
+                Assert.False(item.ShouldSkip);
+            });
+    }
+
+    [Fact]
+    public void PlanDropTargetBatchRename_advances_past_existing_target_paths()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var target = Path.Combine(root, "Album.jpg");
+        var sources = new[]
+        {
+            Path.Combine(root, "first.png"),
+            Path.Combine(root, "second.webp")
+        };
+        var existingTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            Path.Combine(root, "Album-01.png"),
+            Path.Combine(root, "Album-03.webp")
+        };
+
+        var plan = FileRenamePlanner.PlanDropTargetBatchRename(
+            sources,
+            target,
+            targetExists: existingTargets.Contains);
+
+        Assert.Collection(
+            plan.Items,
+            item =>
+            {
+                Assert.Equal(sources[0], item.SourcePath);
+                Assert.Equal(Path.Combine(root, "Album-02.png"), item.TargetPath);
+                Assert.False(item.ShouldSkip);
+            },
+            item =>
+            {
+                Assert.Equal(sources[1], item.SourcePath);
+                Assert.Equal(Path.Combine(root, "Album-04.webp"), item.TargetPath);
+                Assert.False(item.ShouldSkip);
             });
     }
 

@@ -10,9 +10,11 @@
     mc:Ignorable="d">
 
     <Grid
+        x:Name="Root"
         Padding="0"
         Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
-        ColumnSpacing="0">
+        ColumnSpacing="0"
+        PointerReleased="Root_PointerReleased">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="320" />
             <ColumnDefinition Width="*" />
@@ -291,15 +293,15 @@
                                     Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                     CornerRadius="{ThemeResource ControlCornerRadius}">
                                     <Image
-                                        Source="{x:Bind local:MainPage.CreateBitmapImage(ThumbnailPath), Mode=OneWay}"
+                                        Source="{x:Bind local:MainPage.CreateBitmapImage(ThumbnailPath), Mode=OneTime}"
                                         Stretch="Uniform"
-                                        Visibility="{x:Bind local:MainPage.BoolToVisibility(CanShowThumbnail), Mode=OneWay}" />
+                                        Visibility="{x:Bind local:MainPage.BoolToVisibility(CanShowThumbnail), Mode=OneTime}" />
                                     <FontIcon
                                         HorizontalAlignment="Center"
                                         VerticalAlignment="Center"
-                                        Glyph="{x:Bind IconGlyph, Mode=OneWay}"
+                                        Glyph="{x:Bind IconGlyph, Mode=OneTime}"
                                         FontSize="36"
-                                        Visibility="{x:Bind local:MainPage.BoolToVisibility(ShouldShowIcon), Mode=OneWay}" />
+                                        Visibility="{x:Bind local:MainPage.BoolToVisibility(ShouldShowIcon), Mode=OneTime}" />
                                 </Grid>
                                 <TextBlock
                                     Grid.Row="1"

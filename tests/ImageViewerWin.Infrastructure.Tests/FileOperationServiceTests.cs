@@ -70,7 +70,7 @@ public sealed class FileOperationServiceTests
     }
 
     [Fact]
-    public async Task RenameAsync_accepts_leaf_supported_name_and_refuses_collisions()
+    public async Task RenameAsync_accepts_leaf_supported_name_and_reports_collisions_as_invalid_requests()
     {
         using var temp = TempWorkspace.Create();
         var source = await temp.WriteFileAsync("old.png", [1]);
@@ -80,34 +80,53 @@ public sealed class FileOperationServiceTests
         var collision = await service.RenameAsync(source, "taken.png");
         var renamed = await service.RenameAsync(source, "new.png");
 
-        Assert.Equal(FileOperationStatus.Skipped, collision.Status);
-        Assert.Equal("target_exists", collision.Reason);
+        Assert.Equal(FileOperationStatus.Failed, collision.Status);
+        Assert.Equal("invalid_request", collision.Reason);
+        Assert.Equal("A file with that name already exists.", collision.Message);
         Assert.Equal(FileOperationStatus.Renamed, renamed.Status);
         Assert.Equal(Path.Combine(temp.Root, "new.png"), renamed.TargetPath);
         Assert.False(File.Exists(source));
     }
 
     [Fact]
-    public async Task RenameByDropTargetAsync_uses_selection_order_and_continues_past_skips()
+    public async Task RenameAsync_uses_electron_parity_reasons_for_same_name_and_collisions()
+    {
+        using var temp = TempWorkspace.Create();
+        var source = await temp.WriteFileAsync("old.png", [1]);
+        await temp.WriteFileAsync("taken.png", [2]);
+        var service = new FileOperationService(new RecordingJpegEncoder(), new RecordingRecycleBin());
+
+        var sameName = await service.RenameAsync(source, "old.png");
+        var collision = await service.RenameAsync(source, "taken.png");
+
+        Assert.Equal(FileOperationStatus.Skipped, sameName.Status);
+        Assert.Equal("same_name", sameName.Reason);
+        Assert.Equal(FileOperationStatus.Failed, collision.Status);
+        Assert.Equal("invalid_request", collision.Reason);
+        Assert.Equal("A file with that name already exists.", collision.Message);
+    }
+
+    [Fact]
+    public async Task RenameByDropTargetAsync_uses_selection_order_and_advances_past_existing_targets()
     {
         using var temp = TempWorkspace.Create();
         var target = await temp.WriteFileAsync("Album.jpg", [1]);
         var first = await temp.WriteFileAsync("first.png", [2]);
-        var already = await temp.WriteFileAsync("Album-02.gif", [3]);
-        var collision = await temp.WriteFileAsync("third.webp", [4]);
+        var already = await temp.WriteFileAsync("Album-99.gif", [3]);
+        var second = await temp.WriteFileAsync("second.webp", [4]);
+        await temp.WriteFileAsync("Album-01.png", [5]);
         await temp.WriteFileAsync("Album-03.webp", [5]);
         var service = new FileOperationService(new RecordingJpegEncoder(), new RecordingRecycleBin());
 
-        var result = await service.RenameByDropTargetAsync([first, target, already, collision], target);
+        var result = await service.RenameByDropTargetAsync([first, target, already, second], target);
 
         Assert.Equal(3, result.Total);
-        Assert.Equal(1, result.Succeeded);
-        Assert.Equal(2, result.Skipped);
-        Assert.True(File.Exists(Path.Combine(temp.Root, "Album-01.png")));
+        Assert.Equal(2, result.Succeeded);
+        Assert.Equal(1, result.Skipped);
+        Assert.True(File.Exists(Path.Combine(temp.Root, "Album-02.png")));
+        Assert.True(File.Exists(Path.Combine(temp.Root, "Album-04.webp")));
         Assert.True(File.Exists(already));
-        Assert.True(File.Exists(collision));
         Assert.Contains(result.Items, item => item.Path == already && item.Reason == "already_target_sequence");
-        Assert.Contains(result.Items, item => item.Path == collision && item.Reason == "target_exists");
     }
 
     [Fact]
