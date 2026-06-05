@@ -25,7 +25,7 @@ public sealed partial class MainWindow : Window
         SetTitleBar(AppTitleBar);
 
         AppWindow.SetIcon("Assets/AppIcon.ico");
-        AppWindow.Title = "ImageViewer";
+        AppWindow.Title = "圖片瀏覽器";
         ResizeToLogicalSize(1220, 820);
 
         // Navigate the root frame to the main page on startup.

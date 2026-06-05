@@ -11,4 +11,4 @@ ImageViewerWin is the native WinUI 3 / MVVM port of the Electron ImageViewer app
 
 ## Current Status
 
-The current native milestone is an integrated WinUI 3 app with MVVM view models, service-backed favorites, folder scanning, real thumbnail loading, a secondary image viewer window, and conservative file operations. Core, Application, and Infrastructure behavior are covered by focused xUnit projects.
+The current native milestone is an integrated WinUI 3 app with MVVM view models, explicit folder selection, last-folder restore, folder scanning, real thumbnail loading, a secondary image viewer window, Traditional Chinese (Taiwan) runtime copy, and conservative file operations. Core, Application, Infrastructure, and ViewModel behavior are covered by focused xUnit projects.

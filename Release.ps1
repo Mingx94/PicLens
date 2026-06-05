@@ -22,6 +22,7 @@ $testProjects = @(
     Join-Path $root "tests\ImageViewerWin.Core.Tests\ImageViewerWin.Core.Tests.csproj"
     Join-Path $root "tests\ImageViewerWin.Application.Tests\ImageViewerWin.Application.Tests.csproj"
     Join-Path $root "tests\ImageViewerWin.Infrastructure.Tests\ImageViewerWin.Infrastructure.Tests.csproj"
+    Join-Path $root "tests\ImageViewerWin.ViewModels.Tests\ImageViewerWin.ViewModels.Tests.csproj"
 )
 $nugetConfig = Join-Path $root "NuGet.Config"
 $outputRoot = Join-Path $root "artifacts\portable"

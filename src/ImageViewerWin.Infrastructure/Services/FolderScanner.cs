@@ -21,16 +21,28 @@ public sealed class FolderScanner : IFolderScanner
         return Task.FromResult<IReadOnlyList<ListItem>>(sorted);
     }
 
+    public Task<IReadOnlyList<FolderListItem>> ScanChildFoldersAsync(
+        string folderPath,
+        SortState sort,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Directory.Exists(folderPath))
+        {
+            throw new DirectoryNotFoundException(folderPath);
+        }
+
+        var folders = EnumerateDirectFolders(folderPath, cancellationToken).Cast<ListItem>().ToList();
+        var sorted = ListItemSorter.Sort(folders, sort, new SortOptions(KeepFoldersFirst: false))
+            .OfType<FolderListItem>()
+            .ToList();
+        return Task.FromResult<IReadOnlyList<FolderListItem>>(sorted);
+    }
+
     private static IEnumerable<ListItem> EnumerateDirectItems(string folderPath, CancellationToken cancellationToken)
     {
-        foreach (var directory in SafeEnumerateDirectories(folderPath))
+        foreach (var folder in EnumerateDirectFolders(folderPath, cancellationToken))
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            yield return new FolderListItem(
-                Id: $"folder:{directory}",
-                Path: directory,
-                Name: Path.GetFileName(directory),
-                ModifiedAtMs: ToUnixMs(Directory.GetLastWriteTimeUtc(directory)));
+            yield return folder;
         }
 
         foreach (var file in SafeEnumerateFiles(folderPath))
@@ -41,6 +53,19 @@ public sealed class FolderScanner : IFolderScanner
             {
                 yield return image;
             }
+        }
+    }
+
+    private static IEnumerable<FolderListItem> EnumerateDirectFolders(string folderPath, CancellationToken cancellationToken)
+    {
+        foreach (var directory in SafeEnumerateDirectories(folderPath))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return new FolderListItem(
+                Id: $"folder:{directory}",
+                Path: directory,
+                Name: Path.GetFileName(directory),
+                ModifiedAtMs: ToUnixMs(Directory.GetLastWriteTimeUtc(directory)));
         }
     }
 
@@ -87,8 +112,8 @@ public sealed class FolderScanner : IFolderScanner
         try
         {
             var info = new FileInfo(file);
-            var bytes = File.ReadAllBytes(file);
-            var isAnimated = ImageFormatRules.IsPotentiallyAnimatedImage(extension, bytes);
+            var isAnimated = RequiresAnimationDetection(extension)
+                && ImageFormatRules.IsPotentiallyAnimatedImage(extension, File.ReadAllBytes(file));
 
             return new ImageListItem(
                 Id: $"image:{file}",
@@ -104,6 +129,10 @@ public sealed class FolderScanner : IFolderScanner
             return null;
         }
     }
+
+    private static bool RequiresAnimationDetection(string extension) =>
+        extension.Equals("gif", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals("webp", StringComparison.OrdinalIgnoreCase);
 
     private static IEnumerable<string> SafeEnumerateDirectories(string folderPath)
     {

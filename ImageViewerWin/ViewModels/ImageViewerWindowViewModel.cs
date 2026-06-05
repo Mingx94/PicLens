@@ -7,6 +7,8 @@ namespace ImageViewerWin.ViewModels;
 
 public partial class ImageViewerWindowViewModel : ObservableObject
 {
+    private const string AppDisplayName = "圖片瀏覽器";
+
     private double _viewportHeight;
     private double _viewportWidth;
 
@@ -70,23 +72,23 @@ public partial class ImageViewerWindowViewModel : ObservableObject
 
     public bool CanZoomOut => IsImageVisible && Zoom > ZoomMath.MinZoom;
 
-    public string CurrentImageName => CurrentImage?.Name ?? "No image selected";
+    public string CurrentImageName => CurrentImage?.Name ?? "尚未選取圖片";
 
     public string WindowTitle => CurrentImage is null
-        ? "ImageViewer"
-        : $"{CurrentImage.Name} - ImageViewer";
+        ? AppDisplayName
+        : $"{CurrentImage.Name} - {AppDisplayName}";
 
     public string PositionLabel => HasImages && CurrentIndex >= 0
-        ? $"{CurrentIndex + 1} of {Snapshot.Images.Count}"
-        : "0 of 0";
+        ? $"第 {CurrentIndex + 1} 張，共 {Snapshot.Images.Count} 張"
+        : "0 張，共 0 張";
 
     public string ZoomLabel => $"{Zoom * 100:0}%";
 
-    public string FullScreenLabel => IsFullScreen ? "Exit fullscreen" : "Fullscreen";
+    public string FullScreenLabel => IsFullScreen ? "結束全螢幕" : "全螢幕";
 
     public string UnsupportedMessage => CurrentImage is null
-        ? "No image is selected."
-        : $"Animated {CurrentImage.Extension.ToUpperInvariant()} playback is not supported in the native viewer yet.";
+        ? "尚未選取圖片"
+        : $"原生檢視器目前尚不支援播放動畫 {CurrentImage.Extension.TrimStart('.').ToUpperInvariant()}。";
 
     public void UpdateViewport(double width, double height)
     {

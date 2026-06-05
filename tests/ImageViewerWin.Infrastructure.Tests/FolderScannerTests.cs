@@ -47,6 +47,41 @@ public sealed class FolderScannerTests
     }
 
     [Fact]
+    public async Task ScanAsync_lists_locked_jpg_without_reading_file_body()
+    {
+        using var temp = TempWorkspace.Create();
+        var path = await temp.WriteFileAsync("locked.jpg", [1, 2, 3]);
+        await using var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
+        var scanner = new FolderScanner();
+
+        var items = await scanner.ScanAsync(new ListQuery(
+            temp.Root,
+            IncludeSubfolders: false,
+            Sort: new SortState(SortKey.Name, SortDirection.Asc)));
+
+        var image = Assert.Single(items.OfType<ImageListItem>());
+        Assert.Equal("locked.jpg", image.Name);
+        Assert.False(image.IsAnimated);
+    }
+
+    [Fact]
+    public async Task ScanChildFoldersAsync_ignores_locked_images_when_listing_folder_tree_children()
+    {
+        using var temp = TempWorkspace.Create();
+        Directory.CreateDirectory(Path.Combine(temp.Root, "Nested"));
+        var lockedImagePath = await temp.WriteFileAsync("locked.gif", StaticGifBytes());
+        await using var locked = File.Open(lockedImagePath, FileMode.Open, FileAccess.Read, FileShare.None);
+        var scanner = new FolderScanner();
+
+        var folders = await scanner.ScanChildFoldersAsync(
+            temp.Root,
+            new SortState(SortKey.Name, SortDirection.Asc));
+
+        var folder = Assert.Single(folders);
+        Assert.Equal("Nested", folder.Name);
+    }
+
+    [Fact]
     public async Task ScanAsync_recursive_mode_visits_canonical_directories_once()
     {
         using var temp = TempWorkspace.Create();

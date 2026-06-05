@@ -20,13 +20,14 @@ Animated GIF and animated WebP are detected and treated as unsupported for displ
 Parity target:
 
 - Default size: `1220x820`
-- Favorites sidebar
-- Folder tree rooted at the best matching favorite
+- Explicit folder selection before browsing when no valid last folder exists
+- Last opened folder is restored on launch when it is still available
+- Folder tree rooted at the current folder
 - Toolbar for history, sorting, recursive mode, and file operations
 - Grid containing folders and supported image files
 - Status/error feedback area
 
-The current native app implements this surface with real filesystem-backed data, persisted favorites/settings, thumbnails for still images, multi-selection, drag/drop rename, browser-style mouse side-button history navigation, and status feedback.
+The current native app implements this surface with real filesystem-backed data, persisted settings, thumbnails for still images, multi-selection, drag/drop rename, browser-style mouse side-button history navigation, Traditional Chinese (Taiwan) runtime copy, and status feedback.
 
 ## Core Behaviors Already Covered
 
@@ -35,8 +36,8 @@ The Core test suite covers:
 - Image extension support
 - Animated GIF/WebP checks
 - Folder-first sorting with numeric name ordering
-- Settings merge and user-favorite normalization
-- Startup folder fallback
+- Settings merge
+- Last-folder startup selection
 - Image sequence snapshot immutability
 - Zoom clamp and pointer-anchor math
 
@@ -45,7 +46,6 @@ The Core test suite covers:
 Implemented in the current native milestone:
 
 - Settings persistence
-- System and user favorites
 - Direct and recursive folder scanning
 - Thumbnail and full-image loading
 - Secondary image window and viewer controls
@@ -58,7 +58,7 @@ Implemented in the current native milestone:
 Remaining follow-up work should focus on deeper GUI automation and polish rather than missing service wiring:
 
 - Rectangle drag selection parity with the Electron main window
-- Automated WinUI UI tests for add/remove/reorder favorites and file operation dialogs
+- Automated WinUI UI tests for file operation dialogs
 - Manual smoke coverage for real Windows recycle-bin behavior across drives
 - Larger-library performance profiling for thumbnail loading
 

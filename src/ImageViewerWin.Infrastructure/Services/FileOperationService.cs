@@ -116,7 +116,7 @@ public sealed class FileOperationService : IFileOperationService
                 sourcePath,
                 FileOperationStatus.Failed,
                 Reason: "invalid_request",
-                Message: "Path must point to a supported image file."));
+                Message: "路徑必須指向支援的圖片檔案。"));
         }
 
         if (!File.Exists(sourcePath))
@@ -138,7 +138,7 @@ public sealed class FileOperationService : IFileOperationService
                 FileOperationStatus.Failed,
                 targetPath,
                 "invalid_request",
-                "A file with that name already exists."));
+                "已有相同名稱的檔案。"));
         }
 
         try
@@ -245,8 +245,8 @@ public sealed class FileOperationService : IFileOperationService
             FileOperationStatus.Failed,
             Reason: "invalid_request",
             Message: validationReason == "unsupported_extension"
-                ? "File name must use a supported image extension."
-                : "File name must be a single file name without path separators.");
+                ? "檔名必須使用支援的圖片副檔名。"
+                : "檔名必須是不含路徑分隔符號的單一檔名。");
 
     private static bool PathEquals(string left, string right) =>
         string.Equals(
@@ -282,7 +282,7 @@ public sealed class WinRTJpegEncoder : IJpegEncoder
         var decoder = await BitmapDecoder.CreateAsync(inputStream).AsTask(cancellationToken);
 
         var targetDirectory = Path.GetDirectoryName(targetPath)
-            ?? throw new IOException("Target path must include a directory.");
+            ?? throw new IOException("目標路徑必須包含資料夾。");
         var targetFolder = await StorageFolder.GetFolderFromPathAsync(targetDirectory).AsTask(cancellationToken);
         var targetFile = await targetFolder
             .CreateFileAsync(Path.GetFileName(targetPath), CreationCollisionOption.FailIfExists)

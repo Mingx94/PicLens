@@ -12,12 +12,6 @@ public enum SortDirection
     Desc
 }
 
-public enum FavoriteSource
-{
-    System,
-    User
-}
-
 public enum FileOperationStatus
 {
     Converted,
@@ -33,16 +27,14 @@ public sealed record AppSettings(
     int Version,
     string? LastFolderPath,
     SortState Sort,
-    bool IncludeSubfolders,
-    IReadOnlyList<FavoriteFolder> FavoriteFolders)
+    bool IncludeSubfolders)
 {
     public static AppSettings CreateDefault() =>
         new(
             Version: 1,
             LastFolderPath: null,
             Sort: new SortState(SortKey.Name, SortDirection.Asc),
-            IncludeSubfolders: false,
-            FavoriteFolders: []);
+            IncludeSubfolders: false);
 }
 
 public sealed record AppSettingsPatch
@@ -51,16 +43,7 @@ public sealed record AppSettingsPatch
     public bool HasLastFolderPath { get; init; }
     public SortState? Sort { get; init; }
     public bool? IncludeSubfolders { get; init; }
-    public IReadOnlyList<FavoriteFolder>? FavoriteFolders { get; init; }
 }
-
-public sealed record FavoriteFolder(
-    string Id,
-    string Path,
-    FavoriteSource Source,
-    int Order,
-    string? Name = null,
-    bool? IsAvailable = null);
 
 public sealed record FolderNode(
     string Id,

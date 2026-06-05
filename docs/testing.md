@@ -8,16 +8,19 @@ Run:
 dotnet restore .\tests\ImageViewerWin.Core.Tests\ImageViewerWin.Core.Tests.csproj --configfile .\NuGet.Config
 dotnet restore .\tests\ImageViewerWin.Application.Tests\ImageViewerWin.Application.Tests.csproj --configfile .\NuGet.Config
 dotnet restore .\tests\ImageViewerWin.Infrastructure.Tests\ImageViewerWin.Infrastructure.Tests.csproj --configfile .\NuGet.Config
+dotnet restore .\tests\ImageViewerWin.ViewModels.Tests\ImageViewerWin.ViewModels.Tests.csproj --configfile .\NuGet.Config
 dotnet test .\tests\ImageViewerWin.Core.Tests\ImageViewerWin.Core.Tests.csproj --no-restore
 dotnet test .\tests\ImageViewerWin.Application.Tests\ImageViewerWin.Application.Tests.csproj --no-restore
 dotnet test .\tests\ImageViewerWin.Infrastructure.Tests\ImageViewerWin.Infrastructure.Tests.csproj --no-restore
+dotnet test .\tests\ImageViewerWin.ViewModels.Tests\ImageViewerWin.ViewModels.Tests.csproj --no-restore
 ```
 
 Current coverage spans:
 
 - `ImageViewerWin.Core`: pure product rules.
 - `ImageViewerWin.Application`: deterministic rename planning, including drop-target sequence advancement past existing targets.
-- `ImageViewerWin.Infrastructure`: JSON settings, favorites, direct and recursive scanning, canonical directory de-duplication, image data helpers, conversion, trash, and rename operations.
+- `ImageViewerWin.Infrastructure`: JSON settings, direct and recursive scanning, canonical directory de-duplication, image data helpers, conversion, trash, and rename operations.
+- `ImageViewerWin.ViewModels`: startup folder selection flow, sort-without-rescan behavior, and Traditional Chinese runtime copy.
 
 ## WinUI Build
 
@@ -44,7 +47,7 @@ Run:
 .\Release.ps1
 ```
 
-This restores packages, runs Core, Application, and Infrastructure tests, publishes a self-contained unpackaged output folder, and verifies that `ImageViewerWin.exe` exists.
+This restores packages, runs Core, Application, Infrastructure, and ViewModel tests, publishes a self-contained unpackaged output folder, and verifies that `ImageViewerWin.exe` exists.
 
 Manual smoke check:
 

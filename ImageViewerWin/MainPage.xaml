@@ -34,95 +34,11 @@
             RowSpacing="16">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="180" />
-                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <Grid ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <StackPanel Spacing="4">
-                    <TextBlock Text="Favorites" Style="{StaticResource SubtitleTextBlockStyle}" />
-                    <TextBlock
-                        Text="System and user folders"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Style="{StaticResource CaptionTextBlockStyle}" />
-                </StackPanel>
-                <StackPanel
-                    Grid.Column="1"
-                    Orientation="Horizontal"
-                    Spacing="2">
-                    <Button
-                        AutomationProperties.AutomationId="SidebarAddFavoriteButton"
-                        Command="{x:Bind ViewModel.AddFavoriteCommand}"
-                        ToolTipService.ToolTip="Add favorite">
-                        <SymbolIcon Symbol="Add" />
-                    </Button>
-                    <Button
-                        AutomationProperties.AutomationId="SidebarMoveFavoriteUpButton"
-                        Command="{x:Bind ViewModel.MoveFavoriteUpCommand}"
-                        ToolTipService.ToolTip="Move favorite up">
-                        <FontIcon Glyph="&#xE74A;" FontSize="16" />
-                    </Button>
-                    <Button
-                        AutomationProperties.AutomationId="SidebarMoveFavoriteDownButton"
-                        Command="{x:Bind ViewModel.MoveFavoriteDownCommand}"
-                        ToolTipService.ToolTip="Move favorite down">
-                        <FontIcon Glyph="&#xE74B;" FontSize="16" />
-                    </Button>
-                    <Button
-                        AutomationProperties.AutomationId="SidebarRemoveFavoriteButton"
-                        Command="{x:Bind ViewModel.RemoveFavoriteCommand}"
-                        ToolTipService.ToolTip="Remove favorite">
-                        <SymbolIcon Symbol="Delete" />
-                    </Button>
-                </StackPanel>
-            </Grid>
-
-            <ListView
-                x:Name="FavoritesList"
-                Grid.Row="1"
-                AutomationProperties.AutomationId="FavoritesList"
-                ItemsSource="{x:Bind ViewModel.Favorites, Mode=OneWay}"
-                SelectedItem="{x:Bind ViewModel.SelectedFavorite, Mode=TwoWay}"
-                SelectionMode="Single">
-                <ListView.ItemTemplate>
-                    <DataTemplate x:DataType="vm:FavoriteSidebarItem">
-                        <Grid Padding="8" RowSpacing="2">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <FontIcon
-                                Grid.RowSpan="2"
-                                Width="24"
-                                Margin="0,0,8,0"
-                                Glyph="&#xE8B7;"
-                                FontSize="16" />
-                            <TextBlock
-                                Grid.Column="1"
-                                Text="{x:Bind Name}"
-                                Style="{StaticResource BodyStrongTextBlockStyle}" />
-                            <TextBlock
-                                Grid.Row="1"
-                                Grid.Column="1"
-                                Text="{x:Bind SourceLabel}"
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Style="{StaticResource CaptionTextBlockStyle}" />
-                        </Grid>
-                    </DataTemplate>
-                </ListView.ItemTemplate>
-            </ListView>
-
-            <StackPanel Grid.Row="2" Spacing="4">
-                <TextBlock Text="Folders" Style="{StaticResource SubtitleTextBlockStyle}" />
+            <StackPanel Spacing="4">
+                <TextBlock Text="資料夾" Style="{StaticResource SubtitleTextBlockStyle}" />
                 <TextBlock
                     Text="{x:Bind ViewModel.CurrentFolderPath, Mode=OneWay}"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -131,7 +47,7 @@
             </StackPanel>
 
             <TreeView
-                Grid.Row="3"
+                Grid.Row="1"
                 AutomationProperties.AutomationId="FolderTree"
                 ItemsSource="{x:Bind ViewModel.FolderRoots, Mode=OneWay}"
                 ItemInvoked="FolderTree_ItemInvoked">
@@ -159,23 +75,23 @@
                 AutomationProperties.AutomationId="BackButton"
                 Command="{x:Bind ViewModel.BackCommand}"
                 Icon="Back"
-                Label="Back" />
+                Label="返回" />
             <AppBarButton
                 AutomationProperties.AutomationId="ForwardButton"
                 Command="{x:Bind ViewModel.ForwardCommand}"
                 Icon="Forward"
-                Label="Forward" />
+                Label="前進" />
             <AppBarSeparator />
             <AppBarButton
-                AutomationProperties.AutomationId="AddFavoriteButton"
-                Command="{x:Bind ViewModel.AddFavoriteCommand}"
-                Icon="Add"
-                Label="Favorite" />
+                AutomationProperties.AutomationId="OpenFolderButton"
+                Command="{x:Bind ViewModel.OpenFolderCommand}"
+                Icon="OpenFile"
+                Label="選擇資料夾" />
             <AppBarButton
                 AutomationProperties.AutomationId="RefreshLibraryButton"
                 Command="{x:Bind ViewModel.RefreshLibraryCommand}"
                 Icon="Refresh"
-                Label="Refresh" />
+                Label="重新整理" />
             <AppBarButton
                 AutomationProperties.AutomationId="SortKeyButton"
                 Command="{x:Bind ViewModel.ToggleSortKeyCommand}"
@@ -185,7 +101,7 @@
                 AutomationProperties.AutomationId="SortDirectionButton"
                 Command="{x:Bind ViewModel.ToggleSortDirectionCommand}"
                 Icon="Sort"
-                Label="Direction" />
+                Label="方向" />
             <AppBarToggleButton
                 AutomationProperties.AutomationId="RecursiveModeToggle"
                 Icon="SyncFolder"
@@ -196,22 +112,22 @@
                     AutomationProperties.AutomationId="ConvertVisibleButton"
                     Command="{x:Bind ViewModel.ConvertVisibleCommand}"
                     Icon="Save"
-                    Label="Convert visible to JPG" />
+                    Label="將目前顯示項目轉為 JPG" />
                 <AppBarButton
                     AutomationProperties.AutomationId="ClearSameBasenameButton"
                     Command="{x:Bind ViewModel.ClearSameBasenameCommand}"
                     Icon="Clear"
-                    Label="Clear same-name non-JPG" />
+                    Label="清除同名非 JPG 檔案" />
                 <AppBarButton
                     AutomationProperties.AutomationId="RenameSelectedButton"
                     Command="{x:Bind ViewModel.RenameSelectedCommand}"
                     Icon="Edit"
-                    Label="Rename selected image" />
+                    Label="重新命名選取的圖片" />
                 <AppBarButton
                     AutomationProperties.AutomationId="TrashSelectedButton"
                     Command="{x:Bind ViewModel.TrashSelectedCommand}"
                     Icon="Delete"
-                    Label="Move selected to trash" />
+                    Label="將選取項目移至回收筒" />
             </CommandBar.SecondaryCommands>
         </CommandBar>
 
@@ -231,7 +147,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Spacing="2">
-                    <TextBlock Text="Library" Style="{StaticResource TitleTextBlockStyle}" />
+                    <TextBlock Text="圖庫" Style="{StaticResource TitleTextBlockStyle}" />
                     <TextBlock
                         Text="{x:Bind ViewModel.CurrentFolderPath, Mode=OneWay}"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -260,7 +176,8 @@
                 ItemsSource="{x:Bind ViewModel.LibraryItems, Mode=OneWay}"
                 KeyDown="LibraryGrid_KeyDown"
                 SelectionChanged="LibraryGrid_SelectionChanged"
-                SelectionMode="Multiple">
+                SelectionMode="Multiple"
+                Visibility="{x:Bind local:MainPage.BoolToVisibility(ViewModel.HasCurrentFolder), Mode=OneWay}">
                 <GridView.ItemsPanel>
                     <ItemsPanelTemplate>
                         <ItemsWrapGrid Orientation="Horizontal" />
@@ -325,6 +242,35 @@
                     </DataTemplate>
                 </GridView.ItemTemplate>
             </GridView>
+
+            <Grid
+                Grid.Row="1"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                MaxWidth="360"
+                RowSpacing="12"
+                Visibility="{x:Bind local:MainPage.InvertBoolToVisibility(ViewModel.HasCurrentFolder), Mode=OneWay}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <FontIcon
+                    HorizontalAlignment="Center"
+                    Glyph="&#xE8B7;"
+                    FontSize="36" />
+                <TextBlock
+                    Grid.Row="1"
+                    Text="請先選擇資料夾"
+                    TextAlignment="Center"
+                    Style="{StaticResource SubtitleTextBlockStyle}" />
+                <Button
+                    Grid.Row="2"
+                    HorizontalAlignment="Center"
+                    AutomationProperties.AutomationId="EmptyStateOpenFolderButton"
+                    Command="{x:Bind ViewModel.OpenFolderCommand}"
+                    Content="選擇資料夾" />
+            </Grid>
         </Grid>
 
         <InfoBar
@@ -336,6 +282,6 @@
             IsOpen="True"
             Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
             Severity="Informational"
-            Title="File operations" />
+            Title="檔案操作" />
     </Grid>
 </Page>

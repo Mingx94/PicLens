@@ -10,7 +10,6 @@ namespace ImageViewerWin.ViewModels;
 public sealed partial class MainPageViewModel : ObservableObject
 {
     private readonly ISettingsStore settingsStore;
-    private readonly IFavoriteFolderService favoriteFolderService;
     private readonly IFolderScanner folderScanner;
     private readonly IFileOperationService fileOperationService;
     private readonly Func<Task<string?>> chooseFolderAsync;
@@ -22,14 +21,12 @@ public sealed partial class MainPageViewModel : ObservableObject
     private readonly List<ImageListItem> dragSources = [];
 
     private AppSettings settings = AppSettings.CreateDefault();
-    private IReadOnlyList<FavoriteFolder> favoriteFolders = [];
     private IReadOnlyList<ListItem> currentItems = [];
     private int folderHistoryIndex = -1;
     private bool suppressIncludeSubfoldersReload;
 
     public MainPageViewModel(
         ISettingsStore settingsStore,
-        IFavoriteFolderService favoriteFolderService,
         IFolderScanner folderScanner,
         IFileOperationService fileOperationService,
         Func<Task<string?>> chooseFolderAsync,
@@ -38,7 +35,6 @@ public sealed partial class MainPageViewModel : ObservableObject
         Action<ImageSequenceSnapshot> openImageViewer)
     {
         this.settingsStore = settingsStore;
-        this.favoriteFolderService = favoriteFolderService;
         this.folderScanner = folderScanner;
         this.fileOperationService = fileOperationService;
         this.chooseFolderAsync = chooseFolderAsync;
@@ -51,7 +47,7 @@ public sealed partial class MainPageViewModel : ObservableObject
     public partial string CurrentFolderPath { get; set; } = string.Empty;
 
     [ObservableProperty]
-    public partial string StatusMessage { get; set; } = "Ready. Native ImageViewer shell initialized.";
+    public partial string StatusMessage { get; set; } = "就緒。原生 ImageViewer 已初始化。";
 
     [ObservableProperty]
     public partial bool IncludeSubfolders { get; set; }
@@ -62,20 +58,15 @@ public sealed partial class MainPageViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsBusy { get; set; }
 
-    [ObservableProperty]
-    public partial FavoriteSidebarItem? SelectedFavorite { get; set; }
-
-    public ObservableCollection<FavoriteSidebarItem> Favorites { get; } = [];
-
     public ObservableCollection<FolderTreeItem> FolderRoots { get; } = [];
 
     public ObservableCollection<LibraryTileItem> LibraryItems { get; } = [];
 
-    public string RecursiveModeLabel => IncludeSubfolders ? "Recursive" : "Direct";
+    public bool HasCurrentFolder => !string.IsNullOrWhiteSpace(CurrentFolderPath);
 
-    public string SortLabel => Sort.Key == SortKey.Name
-        ? $"Name {Sort.Direction}"
-        : $"Modified {Sort.Direction}";
+    public string RecursiveModeLabel => IncludeSubfolders ? "含子資料夾" : "僅目前資料夾";
+
+    public string SortLabel => $"{SortKeyLabel(Sort.Key)} {SortDirectionLabel(Sort.Direction)}";
 
     public bool HasSingleSelectedImage => SelectedImages().Count == 1;
 
@@ -90,18 +81,29 @@ public sealed partial class MainPageViewModel : ObservableObject
             IncludeSubfolders = settings.IncludeSubfolders;
             suppressIncludeSubfoldersReload = false;
 
-            await LoadFavoritesAsync();
-            var initialFolder = StartupFolderSelector.SelectInitialFolder(settings.LastFolderPath, favoriteFolders)
-                ?? FirstAvailableFavoritePath()
-                ?? Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+            var initialFolder = StartupFolderSelector.SelectInitialFolder(settings.LastFolderPath, Directory.Exists);
+            var shouldPersistInitialFolder = false;
+            if (initialFolder is null)
+            {
+                initialFolder = await chooseFolderAsync();
+                shouldPersistInitialFolder = true;
+            }
 
             if (string.IsNullOrWhiteSpace(initialFolder))
             {
-                initialFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                CurrentFolderPath = string.Empty;
+                currentItems = [];
+                LibraryItems.Clear();
+                FolderRoots.Clear();
+                StatusMessage = "請選擇資料夾以開始瀏覽。";
+                return;
             }
 
-            await NavigateToFolderAsync(initialFolder, replaceHistory: true, persist: false);
-            StatusMessage = $"Loaded {LibraryItems.Count} items from {CurrentFolderPath}.";
+            await NavigateToFolderAsync(initialFolder, replaceHistory: true, persist: shouldPersistInitialFolder);
+            if (HasCurrentFolder)
+            {
+                StatusMessage = $"已從 {CurrentFolderPath} 載入 {LibraryItems.Count} 個項目。";
+            }
         }
         finally
         {
@@ -119,7 +121,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         var normalized = Path.GetFullPath(folderPath);
         if (!Directory.Exists(normalized))
         {
-            StatusMessage = $"Folder is unavailable: {normalized}";
+            StatusMessage = $"資料夾無法使用：{normalized}";
             return;
         }
 
@@ -182,7 +184,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         var result = await fileOperationService.RenameByDropTargetAsync(dragSources.Select(image => image.Path), targetImage.Path);
         dragSources.Clear();
         ClearSelection();
-        StatusMessage = DescribeBatchResult("Drop rename", result);
+        StatusMessage = DescribeBatchResult("拖放重新命名", result);
         await LoadLibraryAsync();
     }
 
@@ -208,21 +210,14 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
     }
 
+    partial void OnCurrentFolderPathChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasCurrentFolder));
+    }
+
     partial void OnSortChanged(SortState value)
     {
         OnPropertyChanged(nameof(SortLabel));
-    }
-
-    partial void OnSelectedFavoriteChanged(FavoriteSidebarItem? value)
-    {
-        RemoveFavoriteCommand.NotifyCanExecuteChanged();
-        MoveFavoriteUpCommand.NotifyCanExecuteChanged();
-        MoveFavoriteDownCommand.NotifyCanExecuteChanged();
-
-        if (value is not null)
-        {
-            _ = NavigateToFolderAsync(value.Path);
-        }
     }
 
     [RelayCommand(CanExecute = nameof(CanNavigateBack))]
@@ -254,7 +249,7 @@ public sealed partial class MainPageViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task AddFavorite()
+    private async Task OpenFolder()
     {
         var folderPath = await chooseFolderAsync();
         if (string.IsNullOrWhiteSpace(folderPath))
@@ -262,51 +257,18 @@ public sealed partial class MainPageViewModel : ObservableObject
             return;
         }
 
-        var normalized = Path.GetFullPath(folderPath);
-        var currentUserFavorites = favoriteFolders
-            .Where(folder => folder.Source == FavoriteSource.User && !PathEquals(folder.Path, normalized))
-            .ToList();
-        currentUserFavorites.Add(new FavoriteFolder(
-            Id: CreateFavoriteId(normalized),
-            Path: normalized,
-            Source: FavoriteSource.User,
-            Order: currentUserFavorites.Count,
-            Name: FolderDisplayName(normalized),
-            IsAvailable: Directory.Exists(normalized)));
-
-        await favoriteFolderService.SaveUserFavoritesAsync(currentUserFavorites);
-        await LoadFavoritesAsync();
-        SelectedFavorite = Favorites.FirstOrDefault(favorite => PathEquals(favorite.Path, normalized));
-        StatusMessage = $"Added favorite: {FolderDisplayName(normalized)}.";
-    }
-
-    [RelayCommand(CanExecute = nameof(CanManageSelectedFavorite))]
-    private async Task RemoveFavorite()
-    {
-        if (SelectedFavorite is null)
+        await NavigateToFolderAsync(folderPath);
+        if (HasCurrentFolder)
         {
-            return;
+            StatusMessage = $"已從 {CurrentFolderPath} 載入 {LibraryItems.Count} 個項目。";
         }
-
-        var next = favoriteFolders
-            .Where(folder => folder.Source == FavoriteSource.User && folder.Id != SelectedFavorite.Id)
-            .ToList();
-        await favoriteFolderService.SaveUserFavoritesAsync(next);
-        await LoadFavoritesAsync();
-        StatusMessage = "Favorite removed.";
     }
-
-    [RelayCommand(CanExecute = nameof(CanMoveFavoriteUp))]
-    private async Task MoveFavoriteUp() => await MoveSelectedFavoriteAsync(-1);
-
-    [RelayCommand(CanExecute = nameof(CanMoveFavoriteDown))]
-    private async Task MoveFavoriteDown() => await MoveSelectedFavoriteAsync(1);
 
     [RelayCommand]
     private async Task RefreshLibrary()
     {
         await LoadLibraryAsync();
-        StatusMessage = $"Library refreshed for {CurrentFolderPath}.";
+        StatusMessage = $"已重新整理 {CurrentFolderPath} 的圖庫。";
     }
 
     [RelayCommand]
@@ -317,8 +279,8 @@ public sealed partial class MainPageViewModel : ObservableObject
             Key = Sort.Key == SortKey.Name ? SortKey.ModifiedAt : SortKey.Name
         };
         settings = await settingsStore.UpdateAsync(new AppSettingsPatch { Sort = Sort });
-        await LoadLibraryAsync();
-        StatusMessage = $"Sort changed to {SortLabel}.";
+        ApplyCurrentSort();
+        StatusMessage = $"排序已變更為 {SortLabel}。";
     }
 
     [RelayCommand]
@@ -329,28 +291,28 @@ public sealed partial class MainPageViewModel : ObservableObject
             Direction = Sort.Direction == SortDirection.Asc ? SortDirection.Desc : SortDirection.Asc
         };
         settings = await settingsStore.UpdateAsync(new AppSettingsPatch { Sort = Sort });
-        await LoadLibraryAsync();
-        StatusMessage = $"Sort changed to {SortLabel}.";
+        ApplyCurrentSort();
+        StatusMessage = $"排序已變更為 {SortLabel}。";
     }
 
     [RelayCommand]
     private async Task ConvertVisible()
     {
         var result = await fileOperationService.ConvertVisibleToJpgAsync(VisibleImages());
-        StatusMessage = DescribeBatchResult("Convert to JPG", result);
+        StatusMessage = DescribeBatchResult("轉換為 JPG", result);
         await LoadLibraryAsync();
     }
 
     [RelayCommand]
     private async Task ClearSameBasename()
     {
-        if (!await confirmAsync("Move same-name non-JPG files to trash?", "Clear same-name files"))
+        if (!await confirmAsync("要將同名的非 JPG 檔案移至回收筒嗎？", "清除同名檔案"))
         {
             return;
         }
 
         var result = await fileOperationService.TrashSameBasenameNonJpgAsync(VisibleImages());
-        StatusMessage = DescribeBatchResult("Clear same-name files", result);
+        StatusMessage = DescribeBatchResult("清除同名檔案", result);
         await LoadLibraryAsync();
     }
 
@@ -371,8 +333,8 @@ public sealed partial class MainPageViewModel : ObservableObject
 
         var result = await fileOperationService.RenameAsync(selected.Path, nextName);
         StatusMessage = result.Status == FileOperationStatus.Renamed
-            ? $"Renamed to {Path.GetFileName(result.TargetPath)}."
-            : result.Message ?? result.Reason ?? "Rename skipped.";
+            ? $"已重新命名為 {Path.GetFileName(result.TargetPath)}。"
+            : result.Message ?? result.Reason ?? "重新命名已略過。";
         ClearSelection();
         await LoadLibraryAsync();
     }
@@ -381,15 +343,15 @@ public sealed partial class MainPageViewModel : ObservableObject
     private async Task TrashSelected()
     {
         var selected = SelectedImages().SingleOrDefault();
-        if (selected is null || !await confirmAsync($"Move \"{selected.Name}\" to trash?", "Move selected image to trash"))
+        if (selected is null || !await confirmAsync($"要將「{selected.Name}」移至回收筒嗎？", "將選取的圖片移至回收筒"))
         {
             return;
         }
 
         var result = await fileOperationService.TrashAsync(selected.Path);
         StatusMessage = result.Status == FileOperationStatus.Trashed
-            ? "Moved to trash."
-            : result.Message ?? result.Reason ?? "Trash operation failed.";
+            ? "已移至回收筒。"
+            : result.Message ?? result.Reason ?? "移至回收筒失敗。";
         ClearSelection();
         await LoadLibraryAsync();
     }
@@ -400,18 +362,8 @@ public sealed partial class MainPageViewModel : ObservableObject
         ClearSelection();
         await LoadLibraryAsync();
         StatusMessage = includeSubfolders
-            ? "Recursive mode lists supported images under all child folders."
-            : "Direct mode lists child folders and supported images in the selected folder.";
-    }
-
-    private async Task LoadFavoritesAsync()
-    {
-        favoriteFolders = await favoriteFolderService.GetFavoriteFoldersAsync();
-        Favorites.Clear();
-        foreach (var favorite in favoriteFolders)
-        {
-            Favorites.Add(ToFavoriteSidebarItem(favorite));
-        }
+            ? "含子資料夾模式會列出所有子資料夾中的支援圖片。"
+            : "僅目前資料夾模式會列出所選資料夾中的子資料夾與支援圖片。";
     }
 
     private async Task LoadLibraryAsync()
@@ -428,11 +380,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         try
         {
             currentItems = await folderScanner.ScanAsync(new ListQuery(CurrentFolderPath, IncludeSubfolders, Sort));
-            LibraryItems.Clear();
-            foreach (var item in currentItems)
-            {
-                LibraryItems.Add(ToTile(item));
-            }
+            RefreshLibraryItems();
 
             await LoadFolderTreeAsync();
             NotifySelectionCommands();
@@ -441,7 +389,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         {
             currentItems = [];
             LibraryItems.Clear();
-            StatusMessage = $"Unable to load folder: {ex.Message}";
+            StatusMessage = $"無法載入資料夾：{ex.Message}";
         }
         finally
         {
@@ -449,10 +397,29 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
     }
 
+    private void ApplyCurrentSort()
+    {
+        currentItems = ListItemSorter.Sort(
+            currentItems,
+            Sort,
+            new SortOptions(KeepFoldersFirst: !IncludeSubfolders));
+        RefreshLibraryItems();
+        NotifySelectionCommands();
+    }
+
+    private void RefreshLibraryItems()
+    {
+        LibraryItems.Clear();
+        foreach (var item in currentItems)
+        {
+            LibraryItems.Add(ToTile(item));
+        }
+    }
+
     private async Task LoadFolderTreeAsync()
     {
         FolderRoots.Clear();
-        var rootPath = BestMatchingFavoriteRoot(CurrentFolderPath) ?? CurrentFolderPath;
+        var rootPath = CurrentFolderPath;
         var root = new FolderTreeItem(FolderDisplayName(rootPath), rootPath, Directory.Exists(rootPath), true);
         await PopulateFolderChildrenAsync(root, rootPath);
         FolderRoots.Add(root);
@@ -460,20 +427,19 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     private async Task PopulateFolderChildrenAsync(FolderTreeItem node, string folderPath)
     {
-        IReadOnlyList<ListItem> items;
+        IReadOnlyList<FolderListItem> folders;
         try
         {
-            items = await folderScanner.ScanAsync(new ListQuery(
+            folders = await folderScanner.ScanChildFoldersAsync(
                 folderPath,
-                IncludeSubfolders: false,
-                Sort: new SortState(SortKey.Name, SortDirection.Asc)));
+                new SortState(SortKey.Name, SortDirection.Asc));
         }
         catch
         {
             return;
         }
 
-        foreach (var folder in items.OfType<FolderListItem>())
+        foreach (var folder in folders)
         {
             var isExpanded = IsPathAncestorOrEqual(folder.Path, CurrentFolderPath);
             var child = new FolderTreeItem(folder.Name, folder.Path, isExpanded: isExpanded);
@@ -502,7 +468,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         var images = VisibleImages();
         if (!images.Any(candidate => PathEquals(candidate.Path, image.Path)))
         {
-            StatusMessage = "Image is no longer visible in the current library.";
+            StatusMessage = "圖片已不在目前圖庫中。";
             return;
         }
 
@@ -513,27 +479,6 @@ public sealed partial class MainPageViewModel : ObservableObject
             Images: images,
             CurrentImagePath: image.Path));
         openImageViewer(snapshot);
-    }
-
-    private async Task MoveSelectedFavoriteAsync(int direction)
-    {
-        if (SelectedFavorite is null)
-        {
-            return;
-        }
-
-        var userFavorites = favoriteFolders.Where(folder => folder.Source == FavoriteSource.User).ToList();
-        var index = userFavorites.FindIndex(folder => PathEquals(folder.Path, SelectedFavorite.Path));
-        var target = index + direction;
-        if (index < 0 || target < 0 || target >= userFavorites.Count)
-        {
-            return;
-        }
-
-        (userFavorites[index], userFavorites[target]) = (userFavorites[target], userFavorites[index]);
-        await favoriteFolderService.SaveUserFavoritesAsync(userFavorites);
-        await LoadFavoritesAsync();
-        SelectedFavorite = Favorites.FirstOrDefault(favorite => PathEquals(favorite.Path, userFavorites[target].Path));
     }
 
     private void ClearSelection()
@@ -559,25 +504,6 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     private bool CanNavigateForward() => folderHistoryIndex >= 0 && folderHistoryIndex < folderHistory.Count - 1;
 
-    private bool CanManageSelectedFavorite() => SelectedFavorite?.Source == FavoriteSource.User;
-
-    private bool CanMoveFavoriteUp() => CanMoveFavorite(-1);
-
-    private bool CanMoveFavoriteDown() => CanMoveFavorite(1);
-
-    private bool CanMoveFavorite(int direction)
-    {
-        if (SelectedFavorite?.Source != FavoriteSource.User)
-        {
-            return false;
-        }
-
-        var userFavorites = favoriteFolders.Where(folder => folder.Source == FavoriteSource.User).ToList();
-        var index = userFavorites.FindIndex(folder => PathEquals(folder.Path, SelectedFavorite.Path));
-        var target = index + direction;
-        return index >= 0 && target >= 0 && target < userFavorites.Count;
-    }
-
     private List<ImageListItem> VisibleImages() => currentItems.OfType<ImageListItem>().ToList();
 
     private List<ImageListItem> SelectedImages() =>
@@ -586,31 +512,13 @@ public sealed partial class MainPageViewModel : ObservableObject
             .OfType<ImageListItem>()
             .ToList();
 
-    private string? FirstAvailableFavoritePath() =>
-        favoriteFolders.FirstOrDefault(favorite => favorite.IsAvailable != false)?.Path;
-
-    private string? BestMatchingFavoriteRoot(string folderPath) =>
-        favoriteFolders
-            .Where(favorite => favorite.IsAvailable != false && IsPathAncestorOrEqual(favorite.Path, folderPath))
-            .OrderByDescending(favorite => favorite.Path.Length)
-            .Select(favorite => favorite.Path)
-            .FirstOrDefault();
-
-    private static FavoriteSidebarItem ToFavoriteSidebarItem(FavoriteFolder favorite) =>
-        new(
-            Name: favorite.Name ?? FolderDisplayName(favorite.Path),
-            Id: favorite.Id,
-            Path: favorite.Path,
-            Source: favorite.Source,
-            IsAvailable: favorite.IsAvailable != false);
-
     private static LibraryTileItem ToTile(ListItem item) =>
         item switch
         {
             FolderListItem folder => new LibraryTileItem(
                 Name: folder.Name,
                 Path: folder.Path,
-                Detail: "Open folder",
+                Detail: "開啟資料夾",
                 IsFolder: true,
                 IsSelected: false,
                 IsAnimated: false,
@@ -635,11 +543,14 @@ public sealed partial class MainPageViewModel : ObservableObject
         return string.IsNullOrWhiteSpace(name) ? path : name;
     }
 
-    private static string CreateFavoriteId(string path) =>
-        $"user:{Uri.EscapeDataString(Path.GetFullPath(path)).Replace("%", "_", StringComparison.Ordinal)}";
-
     private static string DescribeBatchResult(string label, FileOperationBatchResult result) =>
-        $"{label}: {result.Succeeded} succeeded, {result.Skipped} skipped, {result.Failed} failed.";
+        $"{label}：成功 {result.Succeeded} 個，略過 {result.Skipped} 個，失敗 {result.Failed} 個。";
+
+    private static string SortKeyLabel(SortKey key) =>
+        key == SortKey.Name ? "名稱" : "修改時間";
+
+    private static string SortDirectionLabel(SortDirection direction) =>
+        direction == SortDirection.Asc ? "遞增" : "遞減";
 
     private static bool PathEquals(string? left, string? right)
     {

@@ -26,7 +26,6 @@ public sealed partial class MainPage : Page
         var settingsStore = new JsonSettingsStore();
         ViewModel = new MainPageViewModel(
             settingsStore,
-            new FavoriteFolderService(settingsStore),
             new FolderScanner(),
             new FileOperationService(),
             ChooseFolderAsync,
@@ -59,6 +58,9 @@ public sealed partial class MainPage : Page
 
     public static Visibility BoolToVisibility(bool value) =>
         value ? Visibility.Visible : Visibility.Collapsed;
+
+    public static Visibility InvertBoolToVisibility(bool value) =>
+        value ? Visibility.Collapsed : Visibility.Visible;
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
@@ -201,8 +203,8 @@ public sealed partial class MainPage : Page
             XamlRoot = XamlRoot,
             Title = title,
             Content = message,
-            PrimaryButtonText = "Continue",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = "繼續",
+            CloseButtonText = "取消",
             DefaultButton = ContentDialogButton.Close
         };
 
@@ -221,10 +223,10 @@ public sealed partial class MainPage : Page
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "Rename selected image",
+            Title = "重新命名選取的圖片",
             Content = input,
-            PrimaryButtonText = "Rename",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = "重新命名",
+            CloseButtonText = "取消",
             DefaultButton = ContentDialogButton.Primary
         };
 

@@ -82,7 +82,7 @@ public sealed class FileOperationServiceTests
 
         Assert.Equal(FileOperationStatus.Failed, collision.Status);
         Assert.Equal("invalid_request", collision.Reason);
-        Assert.Equal("A file with that name already exists.", collision.Message);
+        Assert.Equal("已有相同名稱的檔案。", collision.Message);
         Assert.Equal(FileOperationStatus.Renamed, renamed.Status);
         Assert.Equal(Path.Combine(temp.Root, "new.png"), renamed.TargetPath);
         Assert.False(File.Exists(source));
@@ -103,7 +103,7 @@ public sealed class FileOperationServiceTests
         Assert.Equal("same_name", sameName.Reason);
         Assert.Equal(FileOperationStatus.Failed, collision.Status);
         Assert.Equal("invalid_request", collision.Reason);
-        Assert.Equal("A file with that name already exists.", collision.Message);
+        Assert.Equal("已有相同名稱的檔案。", collision.Message);
     }
 
     [Fact]

@@ -60,18 +60,18 @@
 
             <AppBarButton
                 AutomationProperties.AutomationId="ViewerPreviousButton"
-                AutomationProperties.Name="Previous image"
+                AutomationProperties.Name="上一張圖片"
                 Command="{x:Bind ViewModel.PreviousCommand}"
-                Label="Previous">
+                Label="上一張">
                 <AppBarButton.Icon>
                     <SymbolIcon Symbol="Back" />
                 </AppBarButton.Icon>
             </AppBarButton>
             <AppBarButton
                 AutomationProperties.AutomationId="ViewerNextButton"
-                AutomationProperties.Name="Next image"
+                AutomationProperties.Name="下一張圖片"
                 Command="{x:Bind ViewModel.NextCommand}"
-                Label="Next">
+                Label="下一張">
                 <AppBarButton.Icon>
                     <SymbolIcon Symbol="Forward" />
                 </AppBarButton.Icon>
@@ -79,27 +79,27 @@
             <AppBarSeparator />
             <AppBarButton
                 AutomationProperties.AutomationId="ViewerZoomOutButton"
-                AutomationProperties.Name="Zoom out"
+                AutomationProperties.Name="縮小"
                 Command="{x:Bind ViewModel.ZoomOutCommand}"
-                Label="Zoom out">
+                Label="縮小">
                 <AppBarButton.Icon>
                     <SymbolIcon Symbol="ZoomOut" />
                 </AppBarButton.Icon>
             </AppBarButton>
             <AppBarButton
                 AutomationProperties.AutomationId="ViewerResetZoomButton"
-                AutomationProperties.Name="Reset zoom"
+                AutomationProperties.Name="重設縮放"
                 Command="{x:Bind ViewModel.ResetZoomCommand}"
-                Label="{x:Bind ViewModel.ZoomLabel, Mode=OneWay}">
+                Label="重設縮放">
                 <AppBarButton.Icon>
                     <SymbolIcon Symbol="Refresh" />
                 </AppBarButton.Icon>
             </AppBarButton>
             <AppBarButton
                 AutomationProperties.AutomationId="ViewerZoomInButton"
-                AutomationProperties.Name="Zoom in"
+                AutomationProperties.Name="放大"
                 Command="{x:Bind ViewModel.ZoomInCommand}"
-                Label="Zoom in">
+                Label="放大">
                 <AppBarButton.Icon>
                     <SymbolIcon Symbol="ZoomIn" />
                 </AppBarButton.Icon>
@@ -164,7 +164,7 @@
                             FontSize="32"
                             Glyph="&#xE783;" />
                         <TextBlock
-                            Text="Animation preview unavailable"
+                            Text="無法預覽動畫"
                             Style="{StaticResource SubtitleTextBlockStyle}"
                             TextAlignment="Center" />
                         <TextBlock

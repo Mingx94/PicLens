@@ -59,49 +59,40 @@ public sealed class DomainParityTests
     }
 
     [Fact]
-    public void Settings_patch_merges_sort_and_normalizes_user_favorites()
+    public void Settings_patch_merges_last_folder_sort_and_recursive_mode()
     {
-        var current = AppSettings.CreateDefault() with
-        {
-            FavoriteFolders =
-            [
-                new FavoriteFolder("system:pictures", @"C:\Users\Me\Pictures", FavoriteSource.System, 0),
-                new FavoriteFolder("user:old", @"C:\Old", FavoriteSource.User, 7)
-            ]
-        };
+        var current = AppSettings.CreateDefault();
 
         var merged = SettingsRules.MergeSettingsPatch(
             current,
             new AppSettingsPatch
             {
+                LastFolderPath = @"D:\Manual",
+                HasLastFolderPath = true,
                 Sort = new SortState(SortKey.ModifiedAt, SortDirection.Desc),
-                FavoriteFolders =
-                [
-                    new FavoriteFolder("system:desktop", @"C:\Users\Me\Desktop", FavoriteSource.System, 0),
-                    new FavoriteFolder("user:a", @"C:\A", FavoriteSource.User, 99),
-                    new FavoriteFolder("user:b", @"C:\B", FavoriteSource.User, 42)
-                ]
+                IncludeSubfolders = true
             });
 
         Assert.Equal(1, merged.Version);
+        Assert.Equal(@"D:\Manual", merged.LastFolderPath);
         Assert.Equal(new SortState(SortKey.ModifiedAt, SortDirection.Desc), merged.Sort);
-        Assert.Equal(["user:a", "user:b"], merged.FavoriteFolders.Select(folder => folder.Id));
-        Assert.Equal([0, 1], merged.FavoriteFolders.Select(folder => folder.Order));
-        Assert.All(merged.FavoriteFolders, folder => Assert.Equal(FavoriteSource.User, folder.Source));
+        Assert.True(merged.IncludeSubfolders);
     }
 
-    [Fact]
-    public void Startup_folder_uses_first_available_favorite_when_last_folder_is_missing_or_unavailable()
+    [Theory]
+    [InlineData(@"C:\Pictures", true, @"C:\Pictures")]
+    [InlineData(@"C:\Missing", false, null)]
+    [InlineData(null, true, null)]
+    [InlineData("", true, null)]
+    [InlineData("   ", true, null)]
+    public void Startup_folder_uses_valid_last_folder_or_requires_user_selection(
+        string? lastFolderPath,
+        bool isAvailable,
+        string? expected)
     {
-        var favorites = new[]
-        {
-            new FavoriteFolder("unavailable", @"C:\Missing", FavoriteSource.System, 0, IsAvailable: false),
-            new FavoriteFolder("available", @"C:\Pictures", FavoriteSource.System, 1, IsAvailable: true)
-        };
+        var selected = StartupFolderSelector.SelectInitialFolder(lastFolderPath, _ => isAvailable);
 
-        Assert.Equal(@"C:\Pictures", StartupFolderSelector.SelectInitialFolder(null, favorites));
-        Assert.Equal(@"C:\Pictures", StartupFolderSelector.SelectInitialFolder(@"C:\Missing", favorites));
-        Assert.Equal(@"D:\Manual", StartupFolderSelector.SelectInitialFolder(@"D:\Manual", favorites));
+        Assert.Equal(expected, selected);
     }
 
     [Fact]

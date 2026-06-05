@@ -4,20 +4,13 @@ namespace ImageViewerWin.Core.Domain;
 
 public static class StartupFolderSelector
 {
-    public static string? FirstAvailableFavoritePath(IEnumerable<FavoriteFolder> favorites) =>
-        favorites.FirstOrDefault(favorite => favorite.IsAvailable != false)?.Path;
-
-    public static string? SelectInitialFolder(string? lastFolderPath, IEnumerable<FavoriteFolder> favorites)
+    public static string? SelectInitialFolder(string? lastFolderPath, Func<string, bool> isAvailable)
     {
-        var favoriteList = favorites.ToList();
-        var fallback = FirstAvailableFavoritePath(favoriteList);
-
-        if (lastFolderPath is null)
+        if (string.IsNullOrWhiteSpace(lastFolderPath))
         {
-            return fallback;
+            return null;
         }
 
-        var matchingFavorite = favoriteList.FirstOrDefault(favorite => favorite.Path == lastFolderPath);
-        return matchingFavorite is { IsAvailable: false } ? fallback : lastFolderPath;
+        return isAvailable(lastFolderPath) ? lastFolderPath : null;
     }
 }

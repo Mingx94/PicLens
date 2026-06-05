@@ -13,7 +13,7 @@ public sealed record LibraryTileItem(
     ListItem SourceItem,
     string? ThumbnailPath = null)
 {
-    public string KindLabel => IsFolder ? "Folder" : IsAnimated ? "Animated image unsupported" : "Image";
+    public string KindLabel => IsFolder ? "資料夾" : IsAnimated ? "不支援動畫圖片" : "圖片";
 
     public bool CanShowThumbnail => !string.IsNullOrWhiteSpace(ThumbnailPath) && !IsAnimated;
 
