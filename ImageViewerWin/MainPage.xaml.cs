@@ -1,4 +1,5 @@
 using ImageViewerWin.Core.Models;
+using ImageViewerWin.Core.Domain;
 using ImageViewerWin.Infrastructure.Services;
 using ImageViewerWin.ViewModels;
 using Microsoft.UI.Xaml;
@@ -182,6 +183,37 @@ public sealed partial class MainPage : Page
             await ViewModel.DropDraggedImagesOnAsync(target);
             e.Handled = true;
         }
+    }
+
+    private async void ThumbnailSizeSlider_CommitValue(object sender, RoutedEventArgs e)
+    {
+        await CommitThumbnailSizeSliderValueAsync();
+    }
+
+    private async void ThumbnailSizeSlider_KeyUp(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key is not VirtualKey.Left
+            and not VirtualKey.Right
+            and not VirtualKey.Home
+            and not VirtualKey.End
+            and not VirtualKey.PageDown
+            and not VirtualKey.PageUp)
+        {
+            return;
+        }
+
+        await CommitThumbnailSizeSliderValueAsync();
+    }
+
+    private async Task CommitThumbnailSizeSliderValueAsync()
+    {
+        var normalizedSize = SettingsRules.NormalizeThumbnailSize(ThumbnailSizeSlider.Value);
+        if (!initialized || ViewModel.ThumbnailSize == normalizedSize)
+        {
+            return;
+        }
+
+        await ViewModel.ChangeThumbnailSizeAsync(normalizedSize);
     }
 
     private async Task<string?> ChooseFolderAsync()

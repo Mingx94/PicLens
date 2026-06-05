@@ -53,6 +53,10 @@ public sealed partial class MainPageViewModel : ObservableObject
     public partial bool IncludeSubfolders { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ThumbnailSizeLabel))]
+    public partial int ThumbnailSize { get; set; } = SettingsRules.DefaultThumbnailSize;
+
+    [ObservableProperty]
     public partial SortState Sort { get; set; } = new(SortKey.Name, SortDirection.Asc);
 
     [ObservableProperty]
@@ -68,6 +72,14 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     public string SortLabel => $"{SortKeyLabel(Sort.Key)} {SortDirectionLabel(Sort.Direction)}";
 
+    public double ThumbnailSizeMinimum => SettingsRules.MinThumbnailSize;
+
+    public double ThumbnailSizeMaximum => SettingsRules.MaxThumbnailSize;
+
+    public double ThumbnailSizeStep => SettingsRules.ThumbnailSizeStep;
+
+    public string ThumbnailSizeLabel => $"縮圖 {ThumbnailSize}";
+
     public bool HasSingleSelectedImage => SelectedImages().Count == 1;
 
     public async Task InitializeAsync()
@@ -79,6 +91,7 @@ public sealed partial class MainPageViewModel : ObservableObject
             suppressIncludeSubfoldersReload = true;
             Sort = settings.Sort;
             IncludeSubfolders = settings.IncludeSubfolders;
+            ThumbnailSize = settings.ThumbnailSize;
             suppressIncludeSubfoldersReload = false;
 
             var initialFolder = StartupFolderSelector.SelectInitialFolder(settings.LastFolderPath, Directory.Exists);
@@ -186,6 +199,20 @@ public sealed partial class MainPageViewModel : ObservableObject
         ClearSelection();
         StatusMessage = DescribeBatchResult("拖放重新命名", result);
         await LoadLibraryAsync();
+    }
+
+    public async Task ChangeThumbnailSizeAsync(double thumbnailSize)
+    {
+        var normalizedSize = SettingsRules.NormalizeThumbnailSize(thumbnailSize);
+        if (ThumbnailSize == normalizedSize)
+        {
+            return;
+        }
+
+        ThumbnailSize = normalizedSize;
+        ApplyThumbnailSizeToLibraryItems();
+        settings = await settingsStore.UpdateAsync(new AppSettingsPatch { ThumbnailSize = normalizedSize });
+        StatusMessage = $"縮圖大小已調整為 {normalizedSize}。";
     }
 
     public async Task OpenLibraryItemAsync(LibraryTileItem item)
@@ -412,7 +439,17 @@ public sealed partial class MainPageViewModel : ObservableObject
         LibraryItems.Clear();
         foreach (var item in currentItems)
         {
-            LibraryItems.Add(ToTile(item));
+            var tile = ToTile(item);
+            tile.ApplyThumbnailSize(ThumbnailSize);
+            LibraryItems.Add(tile);
+        }
+    }
+
+    private void ApplyThumbnailSizeToLibraryItems()
+    {
+        foreach (var item in LibraryItems)
+        {
+            item.ApplyThumbnailSize(ThumbnailSize);
         }
     }
 

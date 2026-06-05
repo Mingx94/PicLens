@@ -36,6 +36,18 @@ public sealed class MainPageTextTests
     }
 
     [Fact]
+    public void Thumbnail_size_slider_commits_after_interaction_finishes()
+    {
+        var xaml = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "MainPage.xaml"));
+
+        Assert.Contains("AutomationProperties.AutomationId=\"ThumbnailSizeSlider\"", xaml);
+        Assert.Contains("PointerCaptureLost=\"ThumbnailSizeSlider_CommitValue\"", xaml);
+        Assert.Contains("LostFocus=\"ThumbnailSizeSlider_CommitValue\"", xaml);
+        Assert.Contains("KeyUp=\"ThumbnailSizeSlider_KeyUp\"", xaml);
+        Assert.DoesNotContain("ValueChanged=\"ThumbnailSizeSlider_ValueChanged\"", xaml);
+    }
+
+    [Fact]
     public void Library_tile_labels_use_zh_tw_copy()
     {
         var folder = new LibraryTileItem(

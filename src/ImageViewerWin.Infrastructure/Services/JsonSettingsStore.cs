@@ -35,14 +35,14 @@ public sealed class JsonSettingsStore : ISettingsStore
         var settings = await JsonSerializer.DeserializeAsync<AppSettings>(stream, JsonOptions, cancellationToken);
         return settings is null
             ? AppSettings.CreateDefault()
-            : settings with { Version = SettingsRules.SettingsVersion };
+            : SettingsRules.NormalizeSettings(settings);
     }
 
     public async Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
         await using var stream = File.Create(settingsPath);
-        var normalized = settings with { Version = SettingsRules.SettingsVersion };
+        var normalized = SettingsRules.NormalizeSettings(settings);
         await JsonSerializer.SerializeAsync(stream, normalized, JsonOptions, cancellationToken);
     }
 

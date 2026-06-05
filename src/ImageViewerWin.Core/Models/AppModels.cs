@@ -27,14 +27,16 @@ public sealed record AppSettings(
     int Version,
     string? LastFolderPath,
     SortState Sort,
-    bool IncludeSubfolders)
+    bool IncludeSubfolders,
+    int ThumbnailSize)
 {
     public static AppSettings CreateDefault() =>
         new(
             Version: 1,
             LastFolderPath: null,
             Sort: new SortState(SortKey.Name, SortDirection.Asc),
-            IncludeSubfolders: false);
+            IncludeSubfolders: false,
+            ThumbnailSize: 200);
 }
 
 public sealed record AppSettingsPatch
@@ -43,6 +45,7 @@ public sealed record AppSettingsPatch
     public bool HasLastFolderPath { get; init; }
     public SortState? Sort { get; init; }
     public bool? IncludeSubfolders { get; init; }
+    public int? ThumbnailSize { get; init; }
 }
 
 public sealed record FolderNode(

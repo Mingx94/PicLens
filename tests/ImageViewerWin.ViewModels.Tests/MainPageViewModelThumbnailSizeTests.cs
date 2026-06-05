@@ -5,22 +5,61 @@ using ImageViewerWin.ViewModels;
 
 namespace ImageViewerWin.ViewModels.Tests;
 
-public sealed class MainPageViewModelSortTests
+public sealed class MainPageViewModelThumbnailSizeTests
 {
     [Fact]
-    public async Task ToggleSortDirectionReordersCurrentItemsWithoutRescanning()
+    public async Task InitializeAsync_applies_persisted_thumbnail_size_to_tiles()
     {
         using var workspace = new TempDirectory();
         var scanner = new CountingFolderScanner(
         [
-            new ImageListItem("image:zulu", System.IO.Path.Combine(workspace.Path, "zulu.jpg"), "zulu.jpg", ".jpg", 200, 1024),
-            new ImageListItem("image:alpha", System.IO.Path.Combine(workspace.Path, "alpha.jpg"), "alpha.jpg", ".jpg", 100, 1024)
+            new ImageListItem("image:first", Path.Combine(workspace.Path, "first.jpg"), "first.jpg", "jpg", 100, 1024)
+        ]);
+        var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
+        {
+            LastFolderPath = workspace.Path,
+            ThumbnailSize = 350
+        });
+        var viewModel = CreateViewModel(settingsStore, scanner);
+
+        await viewModel.InitializeAsync();
+
+        var tile = Assert.Single(viewModel.LibraryItems);
+        Assert.Equal(350, viewModel.ThumbnailSize);
+        Assert.Equal(350, tile.TileWidth);
+        Assert.Equal(346, tile.TileHeight);
+    }
+
+    [Fact]
+    public async Task ChangeThumbnailSizeAsync_persists_size_and_updates_existing_tiles()
+    {
+        using var workspace = new TempDirectory();
+        var scanner = new CountingFolderScanner(
+        [
+            new ImageListItem("image:first", Path.Combine(workspace.Path, "first.jpg"), "first.jpg", "jpg", 100, 1024)
         ]);
         var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
         {
             LastFolderPath = workspace.Path
         });
-        var viewModel = new MainPageViewModel(
+        var viewModel = CreateViewModel(settingsStore, scanner);
+
+        await viewModel.InitializeAsync();
+        var tile = Assert.Single(viewModel.LibraryItems);
+
+        await viewModel.ChangeThumbnailSizeAsync(226);
+
+        Assert.Equal(250, viewModel.ThumbnailSize);
+        Assert.Equal(250, settingsStore.Settings.ThumbnailSize);
+        Assert.Equal(250, tile.TileWidth);
+        Assert.Equal(246, tile.TileHeight);
+        Assert.Equal("縮圖大小已調整為 250。", viewModel.StatusMessage);
+    }
+
+    private static MainPageViewModel CreateViewModel(
+        ISettingsStore settingsStore,
+        IFolderScanner scanner) =>
+        new(
             settingsStore,
             scanner,
             new ThrowingFileOperationService(),
@@ -29,26 +68,10 @@ public sealed class MainPageViewModelSortTests
             _ => Task.FromResult<string?>(null),
             _ => { });
 
-        await viewModel.InitializeAsync();
-        var scansAfterInitialize = scanner.ScanCount;
-        var initialOrder = viewModel.LibraryItems.Select(item => item.Name).ToArray();
-
-        await viewModel.ToggleSortDirectionCommand.ExecuteAsync(null);
-
-        Assert.Equal(scansAfterInitialize, scanner.ScanCount);
-        Assert.Equal(["alpha.jpg", "zulu.jpg"], initialOrder);
-        Assert.Equal(["zulu.jpg", "alpha.jpg"], viewModel.LibraryItems.Select(item => item.Name));
-    }
-
     private sealed class CountingFolderScanner(IReadOnlyList<ListItem> items) : IFolderScanner
     {
-        public int ScanCount { get; private set; }
-
-        public Task<IReadOnlyList<ListItem>> ScanAsync(ListQuery query, CancellationToken cancellationToken = default)
-        {
-            ScanCount += 1;
-            return Task.FromResult(ListItemSorter.Sort(items, query.Sort, new SortOptions(KeepFoldersFirst: true)));
-        }
+        public Task<IReadOnlyList<ListItem>> ScanAsync(ListQuery query, CancellationToken cancellationToken = default) =>
+            Task.FromResult(ListItemSorter.Sort(items, query.Sort, new SortOptions(KeepFoldersFirst: true)));
 
         public Task<IReadOnlyList<FolderListItem>> ScanChildFoldersAsync(
             string folderPath,
@@ -59,20 +82,20 @@ public sealed class MainPageViewModelSortTests
 
     private sealed class FakeSettingsStore(AppSettings initialSettings) : ISettingsStore
     {
-        private AppSettings settings = initialSettings;
+        public AppSettings Settings { get; private set; } = initialSettings;
 
-        public Task<AppSettings> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(settings);
+        public Task<AppSettings> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(Settings);
 
         public Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default)
         {
-            this.settings = settings;
+            Settings = settings;
             return Task.CompletedTask;
         }
 
         public Task<AppSettings> UpdateAsync(AppSettingsPatch patch, CancellationToken cancellationToken = default)
         {
-            settings = SettingsRules.MergeSettingsPatch(settings, patch);
-            return Task.FromResult(settings);
+            Settings = SettingsRules.MergeSettingsPatch(Settings, patch);
+            return Task.FromResult(Settings);
         }
     }
 

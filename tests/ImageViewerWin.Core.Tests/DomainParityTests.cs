@@ -77,6 +77,23 @@ public sealed class DomainParityTests
         Assert.Equal(@"D:\Manual", merged.LastFolderPath);
         Assert.Equal(new SortState(SortKey.ModifiedAt, SortDirection.Desc), merged.Sort);
         Assert.True(merged.IncludeSubfolders);
+        Assert.Equal(SettingsRules.DefaultThumbnailSize, merged.ThumbnailSize);
+    }
+
+    [Theory]
+    [InlineData(64, 200)]
+    [InlineData(226, 250)]
+    [InlineData(625, 600)]
+    public void Settings_patch_normalizes_thumbnail_size(int requestedSize, int expectedSize)
+    {
+        var merged = SettingsRules.MergeSettingsPatch(
+            AppSettings.CreateDefault(),
+            new AppSettingsPatch
+            {
+                ThumbnailSize = requestedSize
+            });
+
+        Assert.Equal(expectedSize, merged.ThumbnailSize);
     }
 
     [Theory]
