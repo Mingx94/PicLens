@@ -88,6 +88,7 @@ public sealed class MainPageViewModelStartupTests
             settingsStore,
             scanner,
             new ThrowingFileOperationService(),
+            new NullThumbnailService(),
             chooseFolderAsync,
             (_, _) => Task.FromResult(false),
             _ => Task.FromResult<string?>(null),
@@ -155,6 +156,15 @@ public sealed class MainPageViewModelStartupTests
             string targetPath,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class NullThumbnailService : IThumbnailService
+    {
+        public Task<string?> GetOrCreateThumbnailAsync(
+            string imagePath,
+            int requestedSize,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<string?>(null);
     }
 
     private sealed class TempDirectory : IDisposable

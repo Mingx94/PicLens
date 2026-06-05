@@ -29,6 +29,7 @@ public sealed partial class MainPage : Page
             settingsStore,
             new FolderScanner(),
             new FileOperationService(),
+            new ThumbnailService(),
             ChooseFolderAsync,
             ConfirmAsync,
             RequestRenameAsync,
@@ -214,6 +215,50 @@ public sealed partial class MainPage : Page
         }
 
         await ViewModel.ChangeThumbnailSizeAsync(normalizedSize);
+        QueueVisibleThumbnailLoads();
+    }
+
+    private void LibraryGrid_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+    {
+        if (args.Item is not LibraryTileItem item)
+        {
+            return;
+        }
+
+        if (args.InRecycleQueue)
+        {
+            ViewModel.CancelThumbnailLoad(item);
+            return;
+        }
+
+        _ = ViewModel.LoadThumbnailAsync(item);
+    }
+
+    private void LibraryTile_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: LibraryTileItem item })
+        {
+            _ = ViewModel.LoadThumbnailAsync(item);
+        }
+    }
+
+    private void LibraryTile_Unloaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: LibraryTileItem item })
+        {
+            ViewModel.CancelThumbnailLoad(item);
+        }
+    }
+
+    private void QueueVisibleThumbnailLoads()
+    {
+        foreach (var item in ViewModel.LibraryItems)
+        {
+            if (LibraryGrid.ContainerFromItem(item) is not null)
+            {
+                _ = ViewModel.LoadThumbnailAsync(item);
+            }
+        }
     }
 
     private async Task<string?> ChooseFolderAsync()

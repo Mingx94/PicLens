@@ -132,6 +132,7 @@
                 AllowDrop="True"
                 AutomationProperties.AutomationId="LibraryGrid"
                 CanDragItems="True"
+                ContainerContentChanging="LibraryGrid_ContainerContentChanging"
                 DragItemsStarting="LibraryGrid_DragItemsStarting"
                 DragOver="LibraryGrid_DragOver"
                 Drop="LibraryGrid_Drop"
@@ -164,7 +165,9 @@
                             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             BorderThickness="1"
-                            CornerRadius="{ThemeResource ControlCornerRadius}">
+                            CornerRadius="{ThemeResource ControlCornerRadius}"
+                            Loaded="LibraryTile_Loaded"
+                            Unloaded="LibraryTile_Unloaded">
                             <Grid RowSpacing="8">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*" />
@@ -175,15 +178,15 @@
                                     Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                     CornerRadius="{ThemeResource ControlCornerRadius}">
                                     <Image
-                                        Source="{x:Bind local:MainPage.CreateBitmapImage(ThumbnailPath), Mode=OneTime}"
+                                        Source="{x:Bind local:MainPage.CreateBitmapImage(ThumbnailPath), Mode=OneWay}"
                                         Stretch="Uniform"
-                                        Visibility="{x:Bind local:MainPage.BoolToVisibility(CanShowThumbnail), Mode=OneTime}" />
+                                        Visibility="{x:Bind local:MainPage.BoolToVisibility(CanShowThumbnail), Mode=OneWay}" />
                                     <FontIcon
                                         HorizontalAlignment="Center"
                                         VerticalAlignment="Center"
                                         Glyph="{x:Bind IconGlyph, Mode=OneTime}"
                                         FontSize="36"
-                                        Visibility="{x:Bind local:MainPage.BoolToVisibility(ShouldShowIcon), Mode=OneTime}" />
+                                        Visibility="{x:Bind local:MainPage.BoolToVisibility(ShouldShowIcon), Mode=OneWay}" />
                                 </Grid>
                                 <TextBlock
                                     Grid.Row="1"

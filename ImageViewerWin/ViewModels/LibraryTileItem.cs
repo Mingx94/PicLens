@@ -14,15 +14,34 @@ public sealed record LibraryTileItem(
     bool IsAnimated,
     string IconGlyph,
     ListItem SourceItem,
-    string? ThumbnailPath = null)
+    string? InitialThumbnailPath = null)
     : INotifyPropertyChanged
 {
+    private string? thumbnailPath = InitialThumbnailPath;
+    private int? thumbnailSize;
     private int tileWidth = SettingsRules.DefaultThumbnailSize;
     private int tileHeight = SettingsRules.DefaultThumbnailSize - 4;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public string KindLabel => IsFolder ? "資料夾" : IsAnimated ? "不支援動畫圖片" : "圖片";
+
+    public string? ThumbnailPath
+    {
+        get => thumbnailPath;
+        private set
+        {
+            if (thumbnailPath == value)
+            {
+                return;
+            }
+
+            thumbnailPath = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanShowThumbnail));
+            OnPropertyChanged(nameof(ShouldShowIcon));
+        }
+    }
 
     public bool CanShowThumbnail => !string.IsNullOrWhiteSpace(ThumbnailPath) && !IsAnimated;
 
@@ -45,6 +64,29 @@ public sealed record LibraryTileItem(
         var normalizedSize = SettingsRules.NormalizeThumbnailSize(thumbnailSize);
         TileWidth = normalizedSize;
         TileHeight = normalizedSize - 4;
+        if (this.thumbnailSize.HasValue && this.thumbnailSize.Value != normalizedSize)
+        {
+            ClearThumbnail();
+        }
+    }
+
+    public bool HasThumbnailFor(int thumbnailSize)
+    {
+        var normalizedSize = SettingsRules.NormalizeThumbnailSize(thumbnailSize);
+        return this.thumbnailSize == normalizedSize && !string.IsNullOrWhiteSpace(ThumbnailPath);
+    }
+
+    public void ApplyThumbnailPath(string? thumbnailPath, int thumbnailSize)
+    {
+        var normalizedSize = SettingsRules.NormalizeThumbnailSize(thumbnailSize);
+        this.thumbnailSize = string.IsNullOrWhiteSpace(thumbnailPath) ? null : normalizedSize;
+        ThumbnailPath = thumbnailPath;
+    }
+
+    public void ClearThumbnail()
+    {
+        thumbnailSize = null;
+        ThumbnailPath = null;
     }
 
     private void SetProperty(ref int field, int value, [CallerMemberName] string? propertyName = null)
@@ -55,6 +97,9 @@ public sealed record LibraryTileItem(
         }
 
         field = value;
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        OnPropertyChanged(propertyName);
     }
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }

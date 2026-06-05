@@ -1,4 +1,5 @@
 using ImageViewerWin.Core.Models;
+using ImageViewerWin.Application.Services;
 using ImageViewerWin.ViewModels;
 
 namespace ImageViewerWin.ViewModels.Tests;
@@ -25,6 +26,7 @@ public sealed class MainPageTextTests
             new ThrowingSettingsStore(),
             new ThrowingFolderScanner(),
             new ThrowingFileOperationService(),
+            new NullThumbnailService(),
             () => Task.FromResult<string?>(null),
             (_, _) => Task.FromResult(false),
             _ => Task.FromResult<string?>(null),
@@ -45,6 +47,19 @@ public sealed class MainPageTextTests
         Assert.Contains("LostFocus=\"ThumbnailSizeSlider_CommitValue\"", xaml);
         Assert.Contains("KeyUp=\"ThumbnailSizeSlider_KeyUp\"", xaml);
         Assert.DoesNotContain("ValueChanged=\"ThumbnailSizeSlider_ValueChanged\"", xaml);
+    }
+
+    [Fact]
+    public void Library_tile_thumbnail_bindings_update_after_async_thumbnail_load()
+    {
+        var xaml = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "MainPage.xaml"));
+
+        Assert.Contains("ContainerContentChanging=\"LibraryGrid_ContainerContentChanging\"", xaml);
+        Assert.Contains("Loaded=\"LibraryTile_Loaded\"", xaml);
+        Assert.Contains("Unloaded=\"LibraryTile_Unloaded\"", xaml);
+        Assert.Contains("Source=\"{x:Bind local:MainPage.CreateBitmapImage(ThumbnailPath), Mode=OneWay}\"", xaml);
+        Assert.Contains("Visibility=\"{x:Bind local:MainPage.BoolToVisibility(CanShowThumbnail), Mode=OneWay}\"", xaml);
+        Assert.Contains("Visibility=\"{x:Bind local:MainPage.BoolToVisibility(ShouldShowIcon), Mode=OneWay}\"", xaml);
     }
 
     [Fact]
@@ -137,5 +152,14 @@ public sealed class MainPageTextTests
             string targetPath,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class NullThumbnailService : IThumbnailService
+    {
+        public Task<string?> GetOrCreateThumbnailAsync(
+            string imagePath,
+            int requestedSize,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<string?>(null);
     }
 }

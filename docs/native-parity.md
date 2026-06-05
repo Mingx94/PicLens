@@ -27,7 +27,7 @@ Parity target:
 - Grid containing folders and supported image files
 - Status/error feedback area
 
-The current native app implements this surface with real filesystem-backed data, persisted settings, thumbnails for still images, multi-selection, drag/drop rename, browser-style mouse side-button history navigation, Traditional Chinese (Taiwan) runtime copy, and status feedback.
+The current native app implements this surface with real filesystem-backed data, persisted settings, disk-cached thumbnails for still images, multi-selection, drag/drop rename, browser-style mouse side-button history navigation, Traditional Chinese (Taiwan) runtime copy, and status feedback.
 
 ## Core Behaviors Already Covered
 
@@ -47,7 +47,8 @@ Implemented in the current native milestone:
 
 - Settings persistence
 - Direct and recursive folder scanning
-- Thumbnail and full-image loading
+- Visible-tile thumbnail loading through GridView container events and a bounded disk cache under local app data, with per-request timeouts so later visible tiles keep loading if a decoder stalls
+- Full-image loading in the secondary viewer
 - Secondary image window and viewer controls
 - Selection behavior
 - Conservative file operations
@@ -60,7 +61,7 @@ Remaining follow-up work should focus on deeper GUI automation and polish rather
 - Rectangle drag selection parity with the Electron main window
 - Automated WinUI UI tests for file operation dialogs
 - Manual smoke coverage for real Windows recycle-bin behavior across drives
-- Larger-library performance profiling for thumbnail loading
+- Larger-library performance profiling for thumbnail cache behavior
 
 ## File Management Rules To Preserve
 

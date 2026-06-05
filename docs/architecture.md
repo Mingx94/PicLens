@@ -31,11 +31,11 @@ The WinUI app uses the official MVVM template with CommunityToolkit.Mvvm. The ro
 - Last opened folder restore on launch
 - Folder tree rooted at the current folder
 - Library command bar for history, sort key/direction, recursive mode, and file operations
-- Mixed folder/image grid with real thumbnails for still images
+- Mixed folder/image grid with asynchronous disk-cached thumbnails for still images
 - Browser-style mouse side-button folder history navigation
 - File-operation status bar
 
-`MainPageViewModel` coordinates service-backed browsing, settings persistence, selection, conservative file operations, and opening the secondary viewer window. XAML code-behind is limited to WinUI-only work such as pickers, dialogs, drag/drop events, and launching windows.
+`MainPageViewModel` coordinates service-backed browsing, settings persistence, selection, conservative file operations, visible-tile thumbnail requests, and opening the secondary viewer window. XAML code-behind is limited to WinUI-only work such as pickers, dialogs, drag/drop events, GridView container preparation/recycling notifications, tile loaded/unloaded notifications, and launching windows.
 
 `ImageViewerWindow` displays an `ImageSequenceSnapshot` with previous/next navigation, zoom in/out/reset, pointer wheel zoom, drag pan, fullscreen toggle, keyboard shortcuts, Escape close/focus behavior, and unsupported animated-image feedback.
 
@@ -61,7 +61,7 @@ Keep filesystem, Windows UI, thumbnail codecs, and recycle-bin behavior out of C
 
 `ImageViewerWin.Application` owns:
 
-- Service contracts for settings, scanning, image data, and file operations
+- Service contracts for settings, scanning, image data, thumbnails, and file operations
 - Deterministic rename planning and validation
 
 `ImageViewerWin.Infrastructure` owns:
@@ -69,8 +69,11 @@ Keep filesystem, Windows UI, thumbnail codecs, and recycle-bin behavior out of C
 - JSON settings persistence
 - Direct and recursive folder scanning with canonical directory de-duplication
 - Image file loading helpers
+- Disk thumbnail cache generation under local app data
 - JPG conversion that preserves originals and skips collisions
 - Recycle-bin trash operations
 - Drop-target batch rename execution that advances past existing sequence targets
+
+Main-grid thumbnails are generated as small PNG files through `IThumbnailService` / `ThumbnailService`. GridView container preparation and tile materialization start requests, recycling or tile unmaterialization cancels them, and the view model limits concurrent thumbnail work so fast scrolling does not decode large source images for off-screen items. Each thumbnail request has a timeout so a problematic decoder operation cannot permanently occupy a background slot and starve later visible tiles. The cache lives under local app data and is pruned to a bounded size, keeping the newest thumbnails while deleting older generated PNGs. Full-size source files are still loaded directly only by the secondary image viewer.
 
 This split keeps WinUI views thin while preserving Electron parity rules in reusable, tested code.

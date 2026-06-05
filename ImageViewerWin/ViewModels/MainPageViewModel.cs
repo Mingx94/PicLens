@@ -9,13 +9,20 @@ namespace ImageViewerWin.ViewModels;
 
 public sealed partial class MainPageViewModel : ObservableObject
 {
+    private const int MaxConcurrentThumbnailLoads = 4;
+    private static readonly TimeSpan DefaultThumbnailLoadTimeout = TimeSpan.FromSeconds(8);
+
     private readonly ISettingsStore settingsStore;
     private readonly IFolderScanner folderScanner;
     private readonly IFileOperationService fileOperationService;
+    private readonly IThumbnailService thumbnailService;
     private readonly Func<Task<string?>> chooseFolderAsync;
     private readonly Func<string, string, Task<bool>> confirmAsync;
     private readonly Func<ImageListItem, Task<string?>> requestRenameAsync;
     private readonly Action<ImageSequenceSnapshot> openImageViewer;
+    private readonly TimeSpan thumbnailLoadTimeout;
+    private readonly SemaphoreSlim thumbnailGate = new(MaxConcurrentThumbnailLoads);
+    private readonly Dictionary<LibraryTileItem, ThumbnailLoadState> thumbnailLoads = new(ReferenceEqualityComparer.Instance);
     private readonly List<string> folderHistory = [];
     private readonly List<string> selectedImagePaths = [];
     private readonly List<ImageListItem> dragSources = [];
@@ -29,18 +36,24 @@ public sealed partial class MainPageViewModel : ObservableObject
         ISettingsStore settingsStore,
         IFolderScanner folderScanner,
         IFileOperationService fileOperationService,
+        IThumbnailService thumbnailService,
         Func<Task<string?>> chooseFolderAsync,
         Func<string, string, Task<bool>> confirmAsync,
         Func<ImageListItem, Task<string?>> requestRenameAsync,
-        Action<ImageSequenceSnapshot> openImageViewer)
+        Action<ImageSequenceSnapshot> openImageViewer,
+        TimeSpan? thumbnailLoadTimeout = null)
     {
         this.settingsStore = settingsStore;
         this.folderScanner = folderScanner;
         this.fileOperationService = fileOperationService;
+        this.thumbnailService = thumbnailService;
         this.chooseFolderAsync = chooseFolderAsync;
         this.confirmAsync = confirmAsync;
         this.requestRenameAsync = requestRenameAsync;
         this.openImageViewer = openImageViewer;
+        this.thumbnailLoadTimeout = thumbnailLoadTimeout is { } timeout && timeout > TimeSpan.Zero
+            ? timeout
+            : DefaultThumbnailLoadTimeout;
     }
 
     [ObservableProperty]
@@ -210,9 +223,81 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
 
         ThumbnailSize = normalizedSize;
+        CancelAllThumbnailLoads();
         ApplyThumbnailSizeToLibraryItems();
         settings = await settingsStore.UpdateAsync(new AppSettingsPatch { ThumbnailSize = normalizedSize });
         StatusMessage = $"縮圖大小已調整為 {normalizedSize}。";
+    }
+
+    public async Task LoadThumbnailAsync(LibraryTileItem tile)
+    {
+        if (tile.IsFolder || tile.IsAnimated || tile.SourceItem is not ImageListItem image)
+        {
+            return;
+        }
+
+        var requestedSize = ThumbnailSize;
+        if (tile.HasThumbnailFor(requestedSize))
+        {
+            return;
+        }
+
+        if (thumbnailLoads.TryGetValue(tile, out var existingLoad)
+            && existingLoad.RequestedSize == requestedSize
+            && !existingLoad.CancellationSource.IsCancellationRequested)
+        {
+            return;
+        }
+
+        CancelThumbnailLoad(tile);
+
+        var loadCts = new CancellationTokenSource();
+        var loadState = new ThumbnailLoadState(loadCts, requestedSize);
+        thumbnailLoads[tile] = loadState;
+
+        try
+        {
+            await thumbnailGate.WaitAsync(loadCts.Token);
+            try
+            {
+                using var timeoutCts = new CancellationTokenSource(thumbnailLoadTimeout);
+                using var operationCts = CancellationTokenSource.CreateLinkedTokenSource(loadCts.Token, timeoutCts.Token);
+                var token = operationCts.Token;
+                var thumbnailTask = thumbnailService.GetOrCreateThumbnailAsync(image.Path, requestedSize, token);
+                var thumbnailPath = await WaitForThumbnailResultAsync(thumbnailTask, token);
+                if (!loadCts.IsCancellationRequested
+                    && ThumbnailSize == requestedSize
+                    && LibraryItems.Contains(tile)
+                    && PathEquals(tile.Path, image.Path))
+                {
+                    tile.ApplyThumbnailPath(thumbnailPath, requestedSize);
+                }
+            }
+            finally
+            {
+                thumbnailGate.Release();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            if (thumbnailLoads.TryGetValue(tile, out var activeLoad) && ReferenceEquals(activeLoad, loadState))
+            {
+                thumbnailLoads.Remove(tile);
+            }
+
+            loadCts.Dispose();
+        }
+    }
+
+    public void CancelThumbnailLoad(LibraryTileItem tile)
+    {
+        if (thumbnailLoads.TryGetValue(tile, out var loadState))
+        {
+            loadState.CancellationSource.Cancel();
+        }
     }
 
     public async Task OpenLibraryItemAsync(LibraryTileItem item)
@@ -436,6 +521,7 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     private void RefreshLibraryItems()
     {
+        CancelAllThumbnailLoads();
         LibraryItems.Clear();
         foreach (var item in currentItems)
         {
@@ -569,8 +655,7 @@ public sealed partial class MainPageViewModel : ObservableObject
                 IsSelected: false,
                 IsAnimated: image.IsAnimated,
                 IconGlyph: image.IsAnimated ? "\uE783" : "\uEB9F",
-                SourceItem: image,
-                ThumbnailPath: image.IsAnimated ? null : image.Path),
+                SourceItem: image),
             _ => throw new ArgumentOutOfRangeException(nameof(item))
         };
 
@@ -601,6 +686,42 @@ public sealed partial class MainPageViewModel : ObservableObject
             Path.GetFullPath(right),
             OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
     }
+
+    private void CancelAllThumbnailLoads()
+    {
+        foreach (var loadState in thumbnailLoads.Values)
+        {
+            loadState.CancellationSource.Cancel();
+        }
+
+        thumbnailLoads.Clear();
+    }
+
+    private static async Task<string?> WaitForThumbnailResultAsync(
+        Task<string?> thumbnailTask,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await thumbnailTask.WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (!thumbnailTask.IsCompleted)
+        {
+            ObserveFaultIfThumbnailTaskFailsLater(thumbnailTask);
+            throw;
+        }
+    }
+
+    private static void ObserveFaultIfThumbnailTaskFailsLater(Task thumbnailTask)
+    {
+        _ = thumbnailTask.ContinueWith(
+            static completedTask => _ = completedTask.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private sealed record ThumbnailLoadState(CancellationTokenSource CancellationSource, int RequestedSize);
 
     private static bool IsPathAncestorOrEqual(string ancestorPath, string childPath)
     {

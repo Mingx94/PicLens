@@ -19,8 +19,8 @@ Current coverage spans:
 
 - `ImageViewerWin.Core`: pure product rules.
 - `ImageViewerWin.Application`: deterministic rename planning, including drop-target sequence advancement past existing targets.
-- `ImageViewerWin.Infrastructure`: JSON settings, direct and recursive scanning, canonical directory de-duplication, image data helpers, conversion, trash, and rename operations.
-- `ImageViewerWin.ViewModels`: startup folder selection flow, sort-without-rescan behavior, and Traditional Chinese runtime copy.
+- `ImageViewerWin.Infrastructure`: JSON settings, direct and recursive scanning, canonical directory de-duplication, image data helpers, disk thumbnail cache generation and pruning, conversion, trash, and rename operations.
+- `ImageViewerWin.ViewModels`: startup folder selection flow, sort-without-rescan behavior, async thumbnail path updates, thumbnail cancellation, stalled-thumbnail timeout recovery, thumbnail-size persistence, GridView thumbnail event wiring, and Traditional Chinese runtime copy.
 
 ## WinUI Build
 
