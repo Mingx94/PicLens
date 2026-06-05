@@ -67,14 +67,88 @@ public sealed class ImageViewerWindowLocalizationTests
     }
 
     [Fact]
+    public void SecondaryViewerUsesWinUiTitleBarShell()
+    {
+        var xaml = ReadRepositoryFile("ImageViewerWin", "ImageViewerWindow.xaml");
+        var code = ReadRepositoryFile("ImageViewerWin", "ImageViewerWindow.xaml.cs");
+
+        Assert.Contains("x:Name=\"ViewerTitleBar\"", xaml);
+        Assert.Contains("Title=\"{x:Bind ViewModel.CurrentImageName, Mode=OneWay}\"", xaml);
+        Assert.Contains("Subtitle=\"{x:Bind ViewModel.PositionLabel, Mode=OneWay}\"", xaml);
+        Assert.Contains("<TitleBar.RightHeader>", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"ViewerTitleCommandBar\"", xaml);
+        Assert.Contains("ExtendsContentIntoTitleBar = true;", code);
+        Assert.Contains("SetTitleBar(ViewerTitleBar);", code);
+    }
+
+    [Fact]
+    public void CustomTitleBarsUseTallSystemCaptionButtons()
+    {
+        var mainWindowCode = ReadRepositoryFile("ImageViewerWin", "MainWindow.xaml.cs");
+        var viewerWindowCode = ReadRepositoryFile("ImageViewerWin", "ImageViewerWindow.xaml.cs");
+        var titleBarLayoutCode = ReadRepositoryFile("ImageViewerWin", "TitleBarLayout.cs");
+
+        Assert.Contains("TitleBarLayout.UseTallCaptionButtonHeight(AppWindow);", mainWindowCode);
+        Assert.Contains("TitleBarLayout.UseTallCaptionButtonHeight(AppWindow);", viewerWindowCode);
+        Assert.Contains("appWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;", titleBarLayoutCode);
+    }
+
+    [Fact]
     public void MainShellUsesTraditionalChineseWindowTitle()
     {
         var xaml = ReadRepositoryFile("ImageViewerWin", "MainWindow.xaml");
         var code = ReadRepositoryFile("ImageViewerWin", "MainWindow.xaml.cs");
 
         Assert.Contains("Title=\"圖片瀏覽器\"", xaml);
-        Assert.Contains("<TitleBar x:Name=\"AppTitleBar\" Title=\"圖片瀏覽器\">", xaml);
+        Assert.Contains("x:Name=\"AppTitleBar\"", xaml);
         Assert.Contains("AppWindow.Title = \"圖片瀏覽器\";", code);
+    }
+
+    [Fact]
+    public void MainShellPromotesLibraryActionsIntoTitleBar()
+    {
+        var shellXaml = ReadRepositoryFile("ImageViewerWin", "MainWindow.xaml");
+        var pageXaml = ReadRepositoryFile("ImageViewerWin", "MainPage.xaml");
+        var code = ReadRepositoryFile("ImageViewerWin", "MainWindow.xaml.cs");
+
+        Assert.Contains("Subtitle=\"原生圖庫\"", shellXaml);
+        Assert.Contains("<TitleBar.RightHeader>", shellXaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarCommandBar\"", shellXaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarOpenFolderButton\"", shellXaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarRefreshLibraryButton\"", shellXaml);
+        Assert.Contains("ConnectTitleBarCommands();", code);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"LibraryCommandBar\"", pageXaml);
+    }
+
+    [Fact]
+    public void MainTitleBarCommandButtonsExposeToolTips()
+    {
+        var xaml = ReadRepositoryFile("ImageViewerWin", "MainWindow.xaml");
+
+        Assert.Contains("ToolTipService.ToolTip=\"返回上一個資料夾\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"前進到下一個資料夾\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"選擇資料夾\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"重新整理圖庫\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"切換排序欄位\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"切換排序方向\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"包含或排除子資料夾\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"將目前顯示項目轉為 JPG\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"清除同名非 JPG 檔案\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"重新命名選取的圖片\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"將選取項目移至回收筒\"", xaml);
+    }
+
+    [Fact]
+    public void ViewerTitleBarCommandButtonsExposeToolTips()
+    {
+        var xaml = ReadRepositoryFile("ImageViewerWin", "ImageViewerWindow.xaml");
+
+        Assert.Contains("ToolTipService.ToolTip=\"上一張圖片\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"下一張圖片\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"縮小\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"重設縮放\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"放大\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"切換全螢幕\"", xaml);
     }
 
     [Fact]

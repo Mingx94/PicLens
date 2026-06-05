@@ -18,10 +18,100 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TitleBar x:Name="AppTitleBar" Title="圖片瀏覽器">
+        <TitleBar
+            x:Name="AppTitleBar"
+            AutomationProperties.AutomationId="AppTitleBar"
+            Title="圖片瀏覽器"
+            Subtitle="原生圖庫">
             <TitleBar.IconSource>
                 <ImageIconSource ImageSource="Assets/AppIcon.ico" />
             </TitleBar.IconSource>
+            <TitleBar.RightHeader>
+                <CommandBar
+                    AutomationProperties.AutomationId="TitleBarCommandBar"
+                    Background="Transparent"
+                    DefaultLabelPosition="Collapsed"
+                    IsDynamicOverflowEnabled="True">
+                    <AppBarButton
+                        x:Name="TitleBarBackButton"
+                        AutomationProperties.AutomationId="TitleBarBackButton"
+                        AutomationProperties.Name="返回"
+                        ToolTipService.ToolTip="返回上一個資料夾"
+                        Icon="Back"
+                        Label="返回" />
+                    <AppBarButton
+                        x:Name="TitleBarForwardButton"
+                        AutomationProperties.AutomationId="TitleBarForwardButton"
+                        AutomationProperties.Name="前進"
+                        ToolTipService.ToolTip="前進到下一個資料夾"
+                        Icon="Forward"
+                        Label="前進" />
+                    <AppBarSeparator />
+                    <AppBarButton
+                        x:Name="TitleBarOpenFolderButton"
+                        AutomationProperties.AutomationId="TitleBarOpenFolderButton"
+                        AutomationProperties.Name="選擇資料夾"
+                        ToolTipService.ToolTip="選擇資料夾"
+                        Icon="OpenFile"
+                        Label="選擇資料夾" />
+                    <AppBarButton
+                        x:Name="TitleBarRefreshLibraryButton"
+                        AutomationProperties.AutomationId="TitleBarRefreshLibraryButton"
+                        AutomationProperties.Name="重新整理"
+                        ToolTipService.ToolTip="重新整理圖庫"
+                        Icon="Refresh"
+                        Label="重新整理" />
+                    <AppBarButton
+                        x:Name="TitleBarSortKeyButton"
+                        AutomationProperties.AutomationId="TitleBarSortKeyButton"
+                        AutomationProperties.Name="排序"
+                        ToolTipService.ToolTip="切換排序欄位"
+                        Icon="Sort"
+                        Label="排序" />
+                    <AppBarButton
+                        x:Name="TitleBarSortDirectionButton"
+                        AutomationProperties.AutomationId="TitleBarSortDirectionButton"
+                        AutomationProperties.Name="切換排序方向"
+                        ToolTipService.ToolTip="切換排序方向"
+                        Icon="Sort"
+                        Label="方向" />
+                    <AppBarToggleButton
+                        x:Name="TitleBarRecursiveModeToggle"
+                        AutomationProperties.AutomationId="TitleBarRecursiveModeToggle"
+                        AutomationProperties.Name="包含子資料夾"
+                        ToolTipService.ToolTip="包含或排除子資料夾"
+                        Checked="OnTitleBarRecursiveModeChanged"
+                        Icon="SyncFolder"
+                        Label="僅目前資料夾"
+                        Unchecked="OnTitleBarRecursiveModeChanged" />
+                    <CommandBar.SecondaryCommands>
+                        <AppBarButton
+                            x:Name="TitleBarConvertVisibleButton"
+                            AutomationProperties.AutomationId="TitleBarConvertVisibleButton"
+                            ToolTipService.ToolTip="將目前顯示項目轉為 JPG"
+                            Icon="Save"
+                            Label="將目前顯示項目轉為 JPG" />
+                        <AppBarButton
+                            x:Name="TitleBarClearSameBasenameButton"
+                            AutomationProperties.AutomationId="TitleBarClearSameBasenameButton"
+                            ToolTipService.ToolTip="清除同名非 JPG 檔案"
+                            Icon="Clear"
+                            Label="清除同名非 JPG 檔案" />
+                        <AppBarButton
+                            x:Name="TitleBarRenameSelectedButton"
+                            AutomationProperties.AutomationId="TitleBarRenameSelectedButton"
+                            ToolTipService.ToolTip="重新命名選取的圖片"
+                            Icon="Edit"
+                            Label="重新命名選取的圖片" />
+                        <AppBarButton
+                            x:Name="TitleBarTrashSelectedButton"
+                            AutomationProperties.AutomationId="TitleBarTrashSelectedButton"
+                            ToolTipService.ToolTip="將選取項目移至回收筒"
+                            Icon="Delete"
+                            Label="將選取項目移至回收筒" />
+                    </CommandBar.SecondaryCommands>
+                </CommandBar>
+            </TitleBar.RightHeader>
         </TitleBar>
 
         <!--

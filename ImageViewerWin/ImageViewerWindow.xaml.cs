@@ -34,6 +34,10 @@ public sealed partial class ImageViewerWindow : Window
         ViewModel = viewModel;
         InitializeComponent();
 
+        ExtendsContentIntoTitleBar = true;
+        TitleBarLayout.UseTallCaptionButtonHeight(AppWindow);
+        SetTitleBar(ViewerTitleBar);
+
         AppWindow.SetIcon("Assets/AppIcon.ico");
         AppWindow.Title = ViewModel.WindowTitle;
         ResizeToLogicalSize(1120, 760);
