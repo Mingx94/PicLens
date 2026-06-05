@@ -101,13 +101,26 @@ public sealed partial class MainPage : Page
         ViewModel.UpdateSelectedLibraryItems(OrderedSelectedLibraryItems());
     }
 
-    private async void LibraryGrid_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    private void LibraryGrid_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
         if (FindDataContext<LibraryTileItem>(e.OriginalSource) is { } item)
         {
-            await ViewModel.OpenLibraryItemAsync(item);
             e.Handled = true;
+            QueueOpenLibraryItemFromDoubleTap(item);
         }
+    }
+
+    private void QueueOpenLibraryItemFromDoubleTap(LibraryTileItem item)
+    {
+        if (!App.DispatcherQueue.TryEnqueue(() => OpenLibraryItemFromDoubleTap(item)))
+        {
+            OpenLibraryItemFromDoubleTap(item);
+        }
+    }
+
+    private async void OpenLibraryItemFromDoubleTap(LibraryTileItem item)
+    {
+        await ViewModel.OpenLibraryItemAsync(item);
     }
 
     private async void LibraryGrid_KeyDown(object sender, KeyRoutedEventArgs e)
@@ -315,7 +328,7 @@ public sealed partial class MainPage : Page
     private static void OpenImageViewer(ImageSequenceSnapshot snapshot)
     {
         var window = new ImageViewerWindow(snapshot);
-        window.Activate();
+        WindowForeground.ActivateOwnedWindow(App.Window, window);
     }
 
     private static T? FindDataContext<T>(object originalSource)
