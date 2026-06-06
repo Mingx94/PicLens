@@ -141,7 +141,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
     }
 
-    public async Task NavigateToFolderAsync(string folderPath, bool replaceHistory = false, bool persist = true)
+    public async Task NavigateToFolderAsync(string folderPath, bool replaceHistory = false, bool persist = false)
     {
         if (string.IsNullOrWhiteSpace(folderPath))
         {
@@ -373,7 +373,7 @@ public sealed partial class MainPageViewModel : ObservableObject
             return;
         }
 
-        await NavigateToFolderAsync(folderPath);
+        await NavigateToFolderAsync(folderPath, persist: true);
         if (HasCurrentFolder)
         {
             StatusMessage = $"已從 {CurrentFolderPath} 載入 {LibraryItems.Count} 個項目。";
@@ -597,11 +597,6 @@ public sealed partial class MainPageViewModel : ObservableObject
     {
         ClearSelection();
         CurrentFolderPath = folderPath;
-        settings = await settingsStore.UpdateAsync(new AppSettingsPatch
-        {
-            LastFolderPath = folderPath,
-            HasLastFolderPath = true
-        });
         await LoadLibraryAsync();
     }
 

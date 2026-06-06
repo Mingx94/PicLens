@@ -59,6 +59,44 @@ public sealed class MainPageViewModelStartupTests
     }
 
     [Fact]
+    public async Task NavigateToFolderAsync_keeps_last_folder_from_picker_selection()
+    {
+        using var workspace = new TempDirectory();
+        var childFolder = System.IO.Path.Combine(workspace.Path, "Child");
+        Directory.CreateDirectory(childFolder);
+        var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault());
+        var scanner = new CountingFolderScanner([]);
+        var viewModel = CreateViewModel(
+            settingsStore,
+            scanner,
+            () => Task.FromResult<string?>(workspace.Path));
+
+        await viewModel.InitializeAsync();
+
+        await viewModel.NavigateToFolderAsync(childFolder);
+
+        Assert.Equal(childFolder, viewModel.CurrentFolderPath);
+        Assert.Equal(workspace.Path, settingsStore.Settings.LastFolderPath);
+    }
+
+    [Fact]
+    public async Task OpenFolderCommand_persists_picker_selection()
+    {
+        using var workspace = new TempDirectory();
+        var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault());
+        var scanner = new CountingFolderScanner([]);
+        var viewModel = CreateViewModel(
+            settingsStore,
+            scanner,
+            () => Task.FromResult<string?>(workspace.Path));
+
+        await viewModel.OpenFolderCommand.ExecuteAsync(null);
+
+        Assert.Equal(workspace.Path, viewModel.CurrentFolderPath);
+        Assert.Equal(workspace.Path, settingsStore.Settings.LastFolderPath);
+    }
+
+    [Fact]
     public async Task InitializeAsync_with_cancelled_folder_picker_leaves_library_empty()
     {
         var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault());
