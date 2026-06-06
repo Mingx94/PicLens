@@ -26,6 +26,8 @@ public sealed record LibraryTileItem(
 
     public string KindLabel => IsFolder ? "資料夾" : IsAnimated ? "不支援動畫圖片" : "圖片";
 
+    public string AutomationName => $"{Name}，{KindLabel}，{Detail}";
+
     public string? ThumbnailPath
     {
         get => thumbnailPath;

@@ -22,6 +22,40 @@ public sealed class ImageViewerWindowLocalizationTests
     }
 
     [Fact]
+    public void FullScreenStateHidesViewerChrome()
+    {
+        var viewModel = new ImageViewerWindowViewModel();
+
+        Assert.True(viewModel.IsChromeVisible);
+
+        viewModel.IsFullScreen = true;
+
+        Assert.False(viewModel.IsChromeVisible);
+
+        viewModel.IsFullScreen = false;
+
+        Assert.True(viewModel.IsChromeVisible);
+    }
+
+    [Fact]
+    public void ZoomedViewerCanBePannedWithKeyboardDeltas()
+    {
+        var viewModel = CreateSingleImageViewModel();
+
+        Assert.False(viewModel.TryPanByKeyboard(48, 0));
+        Assert.Equal(0, viewModel.OffsetX);
+        Assert.Equal(0, viewModel.OffsetY);
+
+        viewModel.UpdateViewport(800, 600);
+        viewModel.ZoomAt(400, 300, 1);
+
+        Assert.True(viewModel.Zoom > 1);
+        Assert.True(viewModel.TryPanByKeyboard(48, -48));
+        Assert.Equal(48, viewModel.OffsetX, precision: 10);
+        Assert.Equal(-48, viewModel.OffsetY, precision: 10);
+    }
+
+    [Fact]
     public void SelectedAnimatedImageUsesTraditionalChinesePositionTitleAndUnsupportedMessage()
     {
         var image = new ImageListItem(
@@ -79,6 +113,45 @@ public sealed class ImageViewerWindowLocalizationTests
         Assert.Contains("AutomationProperties.AutomationId=\"ViewerTitleCommandBar\"", xaml);
         Assert.Contains("ExtendsContentIntoTitleBar = true;", code);
         Assert.Contains("SetTitleBar(ViewerTitleBar);", code);
+    }
+
+    [Fact]
+    public void ViewerFullScreenChromeBindsVisibilityToViewModel()
+    {
+        var xaml = ReadRepositoryFile("ImageViewerWin", "ImageViewerWindow.xaml");
+        const string visibilityBinding = "Visibility=\"{x:Bind local:ImageViewerWindow.BoolToVisibility(ViewModel.IsChromeVisible), Mode=OneWay}\"";
+
+        Assert.Contains("AutomationProperties.AutomationId=\"ViewerTitleBar\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"ViewerStatusBar\"", xaml);
+        Assert.Equal(2, CountOccurrences(xaml, visibilityBinding));
+    }
+
+    [Fact]
+    public void UnsupportedAnimatedImagePanelUsesPersistentSurfaceWithoutPulse()
+    {
+        var xaml = ReadRepositoryFile("ImageViewerWin", "ImageViewerWindow.xaml");
+        var code = ReadRepositoryFile("ImageViewerWin", "ImageViewerWindow.xaml.cs");
+
+        Assert.Contains("CardBackgroundFillColorDefaultBrush", xaml);
+        Assert.DoesNotContain("AcrylicBackgroundFillColorBaseBrush", xaml);
+        Assert.DoesNotContain("UnsupportedPulseStoryboard", xaml);
+        Assert.DoesNotContain("RepeatBehavior=\"Forever\"", xaml);
+        Assert.DoesNotContain("Storyboard.TargetProperty=\"Opacity\"", xaml);
+        Assert.DoesNotContain("UnsupportedPulseStoryboard", code);
+    }
+
+    [Fact]
+    public void ViewerRootKeyHandlingPansZoomedImageFromKeyboard()
+    {
+        var code = ReadRepositoryFile("ImageViewerWin", "ImageViewerWindow.xaml.cs");
+
+        Assert.Contains("KeyboardPanStep", code);
+        Assert.Contains("case VirtualKey.Up:", code);
+        Assert.Contains("case VirtualKey.Down:", code);
+        Assert.Contains("ViewModel.TryPanByKeyboard(0, KeyboardPanStep)", code);
+        Assert.Contains("ViewModel.TryPanByKeyboard(0, -KeyboardPanStep)", code);
+        Assert.Contains("ViewModel.TryPanByKeyboard(KeyboardPanStep, 0)", code);
+        Assert.Contains("ViewModel.TryPanByKeyboard(-KeyboardPanStep, 0)", code);
     }
 
     [Fact]
@@ -146,9 +219,10 @@ public sealed class ImageViewerWindowLocalizationTests
         Assert.DoesNotContain("AutomationProperties.AutomationId=\"LibraryHeaderGrid\"", xaml);
         Assert.DoesNotContain("AutomationProperties.AutomationId=\"LibraryPrimaryActionsPanel\"", xaml);
         Assert.DoesNotContain("AutomationProperties.AutomationId=\"LibraryFileActionsPanel\"", xaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"LibraryCommandScrollViewer\"", xaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"LibraryCommandScrollViewer\"", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"LibraryCommandBar\"", xaml);
         Assert.Contains("DefaultLabelPosition=\"Right\"", xaml);
+        Assert.Contains("IsDynamicOverflowEnabled=\"True\"", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"TitleBarOpenFolderButton\"", xaml);
         Assert.Contains("Glyph=\"&#xE838;\"", xaml);
         Assert.Contains("Label=\"選擇資料夾\"", xaml);
@@ -156,13 +230,13 @@ public sealed class ImageViewerWindowLocalizationTests
         Assert.Contains("AutomationProperties.AutomationId=\"TitleBarSortMenuButton\"", xaml);
         Assert.Contains("<AppBarButton.Flyout>", xaml);
         Assert.Contains("<MenuFlyout>", xaml);
-        Assert.Contains("Text=\"名稱-遞增\"", xaml);
+        Assert.Contains("Text=\"名稱由小到大\"", xaml);
         Assert.Contains("Click=\"SortByNameAscending_Click\"", xaml);
-        Assert.Contains("Text=\"名稱-遞減\"", xaml);
+        Assert.Contains("Text=\"名稱由大到小\"", xaml);
         Assert.Contains("Click=\"SortByNameDescending_Click\"", xaml);
-        Assert.Contains("Text=\"修改時間-遞增\"", xaml);
+        Assert.Contains("Text=\"修改時間最舊到最新\"", xaml);
         Assert.Contains("Click=\"SortByModifiedAtAscending_Click\"", xaml);
-        Assert.Contains("Text=\"修改時間-遞減\"", xaml);
+        Assert.Contains("Text=\"修改時間最新到最舊\"", xaml);
         Assert.Contains("Click=\"SortByModifiedAtDescending_Click\"", xaml);
         Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarSortKeyButton\"", xaml);
         Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarSortDirectionButton\"", xaml);
@@ -233,6 +307,44 @@ public sealed class ImageViewerWindowLocalizationTests
         Assert.Equal("圖片瀏覽器", properties?.Element(foundation + "PublisherDisplayName")?.Value);
         Assert.Equal("圖片瀏覽器", visualElements.Attribute("DisplayName")?.Value);
         Assert.Equal("圖片瀏覽器", visualElements.Attribute("Description")?.Value);
+    }
+
+    private static ImageViewerWindowViewModel CreateSingleImageViewModel()
+    {
+        var image = new ImageListItem(
+            Id: "image:sample",
+            Path: @"C:\Images\sample.jpg",
+            Name: "sample.jpg",
+            Extension: ".jpg",
+            ModifiedAtMs: 123,
+            SizeBytes: 456);
+        var snapshot = new ImageSequenceSnapshot(
+            Id: "sequence:sample",
+            CreatedAtMs: 123,
+            SourceFolderPath: @"C:\Images",
+            IncludeSubfolders: false,
+            Sort: new SortState(SortKey.Name, SortDirection.Asc),
+            Images: [image],
+            CurrentIndex: 0);
+
+        return new ImageViewerWindowViewModel(snapshot);
+    }
+
+    private static int CountOccurrences(string source, string value)
+    {
+        var count = 0;
+        var startIndex = 0;
+        while (true)
+        {
+            var index = source.IndexOf(value, startIndex, StringComparison.Ordinal);
+            if (index < 0)
+            {
+                return count;
+            }
+
+            count++;
+            startIndex = index + value.Length;
+        }
     }
 
     private static string ReadRepositoryFile(params string[] pathParts) =>

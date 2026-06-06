@@ -131,7 +131,7 @@ public sealed class MainPageViewModelFolderTreeTests
             new ThrowingFileOperationService(),
             new NullThumbnailService(),
             chooseFolderAsync ?? (() => Task.FromResult<string?>(null)),
-            (_, _) => Task.FromResult(false),
+            (_, _, _) => Task.FromResult(false),
             _ => Task.FromResult<string?>(null),
             _ => { },
             appLogger: appLogger);

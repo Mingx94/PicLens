@@ -26,7 +26,7 @@ public sealed class MainPageViewModelSortTests
             new ThrowingFileOperationService(),
             new NullThumbnailService(),
             () => Task.FromResult<string?>(null),
-            (_, _) => Task.FromResult(false),
+            (_, _, _) => Task.FromResult(false),
             _ => Task.FromResult<string?>(null),
             _ => { });
 
@@ -60,20 +60,20 @@ public sealed class MainPageViewModelSortTests
             new ThrowingFileOperationService(),
             new NullThumbnailService(),
             () => Task.FromResult<string?>(null),
-            (_, _) => Task.FromResult(false),
+            (_, _, _) => Task.FromResult(false),
             _ => Task.FromResult<string?>(null),
             _ => { });
 
         await viewModel.InitializeAsync();
         var scansAfterInitialize = scanner.ScanCount;
-        var option = Assert.Single(viewModel.SortOptions, option => option.Label == "修改時間-遞減");
+        var option = Assert.Single(viewModel.SortOptions, option => option.Label == "修改時間最新到最舊");
 
         await viewModel.ChangeSortAsync(option.State);
 
         Assert.Equal(scansAfterInitialize, scanner.ScanCount);
         Assert.Equal(new SortState(SortKey.ModifiedAt, SortDirection.Desc), viewModel.Sort);
-        Assert.Equal("修改時間 遞減", viewModel.SortLabel);
-        Assert.Equal("修改時間-遞減", viewModel.SelectedSortOption.Label);
+        Assert.Equal("修改時間最新到最舊", viewModel.SortLabel);
+        Assert.Equal("修改時間最新到最舊", viewModel.SelectedSortOption.Label);
         Assert.Equal(["newer.jpg", "older.jpg"], viewModel.LibraryItems.Select(item => item.Name));
         Assert.Equal(new SortState(SortKey.ModifiedAt, SortDirection.Desc), settingsStore.Current.Sort);
     }
@@ -87,14 +87,14 @@ public sealed class MainPageViewModelSortTests
             new ThrowingFileOperationService(),
             new NullThumbnailService(),
             () => Task.FromResult<string?>(null),
-            (_, _) => Task.FromResult(false),
+            (_, _, _) => Task.FromResult(false),
             _ => Task.FromResult<string?>(null),
             _ => { });
 
         Assert.Equal(
-            ["名稱-遞增", "名稱-遞減", "修改時間-遞增", "修改時間-遞減"],
+            ["名稱由小到大", "名稱由大到小", "修改時間最舊到最新", "修改時間最新到最舊"],
             viewModel.SortOptions.Select(option => option.Label));
-        Assert.Equal("名稱-遞增", viewModel.SelectedSortOption.Label);
+        Assert.Equal("名稱由小到大", viewModel.SelectedSortOption.Label);
     }
 
     [Fact]
@@ -106,14 +106,14 @@ public sealed class MainPageViewModelSortTests
             new ThrowingFileOperationService(),
             new NullThumbnailService(),
             () => Task.FromResult<string?>(null),
-            (_, _) => Task.FromResult(false),
+            (_, _, _) => Task.FromResult(false),
             _ => Task.FromResult<string?>(null),
             _ => { })
         {
             Sort = new SortState((SortKey)999, (SortDirection)999)
         };
 
-        Assert.Equal("名稱-遞增", viewModel.SelectedSortOption.Label);
+        Assert.Equal("名稱由小到大", viewModel.SelectedSortOption.Label);
     }
 
     private sealed class CountingFolderScanner(IReadOnlyList<ListItem> items) : IFolderScanner

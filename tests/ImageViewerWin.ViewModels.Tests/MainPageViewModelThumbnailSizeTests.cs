@@ -227,7 +227,7 @@ public sealed class MainPageViewModelThumbnailSizeTests
             new ThrowingFileOperationService(),
             thumbnailService ?? new RecordingThumbnailService(null),
             () => Task.FromResult<string?>(null),
-            (_, _) => Task.FromResult(false),
+            (_, _, _) => Task.FromResult(false),
             _ => Task.FromResult<string?>(null),
             _ => { },
             thumbnailLoadTimeout);

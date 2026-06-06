@@ -4,6 +4,7 @@ using ImageViewerWin.Application.Services;
 using ImageViewerWin.Core.Domain;
 using ImageViewerWin.Core.Models;
 using ImageViewerWin.Diagnostics;
+using Microsoft.UI.Xaml.Controls;
 using System.Collections.ObjectModel;
 
 namespace ImageViewerWin.ViewModels;
@@ -19,7 +20,7 @@ public sealed partial class MainPageViewModel : ObservableObject
     private readonly IThumbnailService thumbnailService;
     private readonly IAppLogger appLogger;
     private readonly Func<Task<string?>> chooseFolderAsync;
-    private readonly Func<string, string, Task<bool>> confirmAsync;
+    private readonly Func<string, string, string, Task<bool>> confirmAsync;
     private readonly Func<ImageListItem, Task<string?>> requestRenameAsync;
     private readonly Action<ImageSequenceSnapshot> openImageViewer;
     private readonly TimeSpan thumbnailLoadTimeout;
@@ -41,7 +42,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         IFileOperationService fileOperationService,
         IThumbnailService thumbnailService,
         Func<Task<string?>> chooseFolderAsync,
-        Func<string, string, Task<bool>> confirmAsync,
+        Func<string, string, string, Task<bool>> confirmAsync,
         Func<ImageListItem, Task<string?>> requestRenameAsync,
         Action<ImageSequenceSnapshot> openImageViewer,
         TimeSpan? thumbnailLoadTimeout = null,
@@ -68,6 +69,9 @@ public sealed partial class MainPageViewModel : ObservableObject
     public partial string StatusMessage { get; set; } = "就緒。原生 ImageViewer 已初始化。";
 
     [ObservableProperty]
+    public partial InfoBarSeverity StatusSeverity { get; set; } = InfoBarSeverity.Informational;
+
+    [ObservableProperty]
     public partial bool IncludeSubfolders { get; set; }
 
     [ObservableProperty]
@@ -88,14 +92,14 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     public string RecursiveModeLabel => IncludeSubfolders ? "含子資料夾" : "僅目前資料夾";
 
-    public string SortLabel => $"{SortKeyLabel(Sort.Key)} {SortDirectionLabel(Sort.Direction)}";
+    public string SortLabel => SortOptionLabel(Sort);
 
     public IReadOnlyList<SortOption> SortOptions { get; } =
     [
-        new("名稱-遞增", new SortState(SortKey.Name, SortDirection.Asc)),
-        new("名稱-遞減", new SortState(SortKey.Name, SortDirection.Desc)),
-        new("修改時間-遞增", new SortState(SortKey.ModifiedAt, SortDirection.Asc)),
-        new("修改時間-遞減", new SortState(SortKey.ModifiedAt, SortDirection.Desc))
+        new("名稱由小到大", new SortState(SortKey.Name, SortDirection.Asc)),
+        new("名稱由大到小", new SortState(SortKey.Name, SortDirection.Desc)),
+        new("修改時間最舊到最新", new SortState(SortKey.ModifiedAt, SortDirection.Asc)),
+        new("修改時間最新到最舊", new SortState(SortKey.ModifiedAt, SortDirection.Desc))
     ];
 
     public SortOption SelectedSortOption =>
@@ -137,7 +141,7 @@ public sealed partial class MainPageViewModel : ObservableObject
                 currentItems = [];
                 LibraryItems.Clear();
                 FolderRoots.Clear();
-                StatusMessage = "請選擇資料夾以開始瀏覽。";
+                SetStatus("請選擇資料夾以開始瀏覽。");
                 return;
             }
 
@@ -148,7 +152,7 @@ public sealed partial class MainPageViewModel : ObservableObject
                 resetFolderTreeRoot: true);
             if (HasCurrentFolder)
             {
-                StatusMessage = $"已從 {CurrentFolderPath} 載入 {LibraryItems.Count} 個項目。";
+                SetStatus($"已從 {CurrentFolderPath} 載入 {LibraryItems.Count} 個項目。");
             }
         }
         finally
@@ -173,7 +177,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         if (!Directory.Exists(normalized))
         {
             appLogger.Info($"Navigate to folder ignored. FolderPath={normalized}; Reason=DirectoryNotFound");
-            StatusMessage = $"資料夾無法使用：{normalized}";
+            SetStatus($"資料夾無法使用：{normalized}", InfoBarSeverity.Warning);
             return;
         }
 
@@ -257,7 +261,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         {
             var result = await fileOperationService.RenameByDropTargetAsync(dragSources.Select(image => image.Path), targetImage.Path);
             ClearSelection();
-            StatusMessage = DescribeBatchResult("拖放重新命名", result);
+            SetBatchStatus("拖放重新命名", result);
             appLogger.Info(
                 $"Drop dragged images completed. Total={result.Total}; Succeeded={result.Succeeded}; Skipped={result.Skipped}; Failed={result.Failed}; Target={targetImage.Name}");
             await LoadLibraryAsync();
@@ -265,7 +269,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         catch (Exception ex)
         {
             appLogger.Error(ex, "Drop dragged images failed.");
-            StatusMessage = "拖放重新命名時發生錯誤，已寫入診斷記錄。";
+            SetStatus("拖放重新命名時發生錯誤，已寫入診斷記錄。", InfoBarSeverity.Error);
         }
         finally
         {
@@ -285,7 +289,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         CancelAllThumbnailLoads();
         ApplyThumbnailSizeToLibraryItems();
         settings = await settingsStore.UpdateAsync(new AppSettingsPatch { ThumbnailSize = normalizedSize });
-        StatusMessage = $"縮圖大小已調整為 {normalizedSize}。";
+        SetStatus($"縮圖大小已調整為 {normalizedSize}。");
     }
 
     public async Task LoadThumbnailAsync(LibraryTileItem tile)
@@ -439,7 +443,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         await NavigateToFolderAsync(folderPath, persist: true, resetFolderTreeRoot: true);
         if (HasCurrentFolder)
         {
-            StatusMessage = $"已從 {CurrentFolderPath} 載入 {LibraryItems.Count} 個項目。";
+            SetStatus($"已從 {CurrentFolderPath} 載入 {LibraryItems.Count} 個項目。");
         }
     }
 
@@ -447,7 +451,7 @@ public sealed partial class MainPageViewModel : ObservableObject
     private async Task RefreshLibrary()
     {
         await LoadLibraryAsync();
-        StatusMessage = $"已重新整理 {CurrentFolderPath} 的圖庫。";
+        SetStatus($"已重新整理 {CurrentFolderPath} 的圖庫。");
     }
 
     [RelayCommand]
@@ -478,27 +482,27 @@ public sealed partial class MainPageViewModel : ObservableObject
         Sort = sort;
         settings = await settingsStore.UpdateAsync(new AppSettingsPatch { Sort = Sort });
         ApplyCurrentSort();
-        StatusMessage = $"排序已變更為 {SortLabel}。";
+        SetStatus($"排序已變更為 {SortLabel}。");
     }
 
     [RelayCommand]
     private async Task ConvertVisible()
     {
         var result = await fileOperationService.ConvertVisibleToJpgAsync(VisibleImages());
-        StatusMessage = DescribeBatchResult("轉換為 JPG", result);
+        SetBatchStatus("轉換為 JPG", result);
         await LoadLibraryAsync();
     }
 
     [RelayCommand]
     private async Task ClearSameBasename()
     {
-        if (!await confirmAsync("要將同名的非 JPG 檔案移至回收筒嗎？", "清除同名檔案"))
+        if (!await confirmAsync("要將同名的非 JPG 檔案移至回收筒嗎？", "清除同名檔案", "移至回收筒"))
         {
             return;
         }
 
         var result = await fileOperationService.TrashSameBasenameNonJpgAsync(VisibleImages());
-        StatusMessage = DescribeBatchResult("清除同名檔案", result);
+        SetBatchStatus("清除同名檔案", result);
         await LoadLibraryAsync();
     }
 
@@ -518,9 +522,11 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
 
         var result = await fileOperationService.RenameAsync(selected.Path, nextName);
-        StatusMessage = result.Status == FileOperationStatus.Renamed
-            ? $"已重新命名為 {Path.GetFileName(result.TargetPath)}。"
-            : result.Message ?? result.Reason ?? "重新命名已略過。";
+        SetStatus(
+            result.Status == FileOperationStatus.Renamed
+                ? $"已重新命名為 {Path.GetFileName(result.TargetPath)}。"
+                : result.Message ?? result.Reason ?? "重新命名已略過。",
+            result.Status == FileOperationStatus.Renamed ? InfoBarSeverity.Informational : InfoBarSeverity.Warning);
         ClearSelection();
         await LoadLibraryAsync();
     }
@@ -529,15 +535,17 @@ public sealed partial class MainPageViewModel : ObservableObject
     private async Task TrashSelected()
     {
         var selected = SelectedImages().SingleOrDefault();
-        if (selected is null || !await confirmAsync($"要將「{selected.Name}」移至回收筒嗎？", "將選取的圖片移至回收筒"))
+        if (selected is null || !await confirmAsync($"要將「{selected.Name}」移至回收筒嗎？", "將選取的圖片移至回收筒", "移至回收筒"))
         {
             return;
         }
 
         var result = await fileOperationService.TrashAsync(selected.Path);
-        StatusMessage = result.Status == FileOperationStatus.Trashed
-            ? "已移至回收筒。"
-            : result.Message ?? result.Reason ?? "移至回收筒失敗。";
+        SetStatus(
+            result.Status == FileOperationStatus.Trashed
+                ? "已移至回收筒。"
+                : result.Message ?? result.Reason ?? "移至回收筒失敗。",
+            result.Status == FileOperationStatus.Trashed ? InfoBarSeverity.Informational : InfoBarSeverity.Warning);
         ClearSelection();
         await LoadLibraryAsync();
     }
@@ -552,9 +560,9 @@ public sealed partial class MainPageViewModel : ObservableObject
             settings = await settingsStore.UpdateAsync(new AppSettingsPatch { IncludeSubfolders = includeSubfolders });
             ClearSelection();
             await LoadLibraryAsync();
-            StatusMessage = includeSubfolders
+            SetStatus(includeSubfolders
                 ? "含子資料夾模式會列出所有子資料夾中的支援圖片。"
-                : "僅目前資料夾模式會列出所選資料夾中的子資料夾與支援圖片。";
+                : "僅目前資料夾模式會列出所選資料夾中的子資料夾與支援圖片。");
 
             appLogger.Info(
                 $"Toggle include subfolders completed. IncludeSubfolders={includeSubfolders}; CurrentFolderPath={CurrentFolderPath}; ItemCount={LibraryItems.Count}");
@@ -562,7 +570,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         catch (Exception ex)
         {
             appLogger.Error(ex, "Toggle include subfolders failed.");
-            StatusMessage = "切換子資料夾模式時發生錯誤，已寫入診斷記錄。";
+            SetStatus("切換子資料夾模式時發生錯誤，已寫入診斷記錄。", InfoBarSeverity.Error);
         }
     }
 
@@ -590,7 +598,7 @@ public sealed partial class MainPageViewModel : ObservableObject
             appLogger.Error(ex, $"Load library failed. CurrentFolderPath={CurrentFolderPath}; IncludeSubfolders={IncludeSubfolders}");
             currentItems = [];
             LibraryItems.Clear();
-            StatusMessage = $"無法載入資料夾：{ex.Message}";
+            SetStatus($"無法載入資料夾：{ex.Message}", InfoBarSeverity.Error);
         }
         finally
         {
@@ -690,7 +698,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         var images = VisibleImages();
         if (!images.Any(candidate => PathEquals(candidate.Path, image.Path)))
         {
-            StatusMessage = "圖片已不在目前圖庫中。";
+            SetStatus("圖片已不在目前圖庫中。", InfoBarSeverity.Warning);
             return;
         }
 
@@ -713,7 +721,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         catch (Exception ex)
         {
             appLogger.Error(ex, "Open image viewer failed.");
-            StatusMessage = "開啟圖片時發生錯誤，已寫入診斷記錄。";
+            SetStatus("開啟圖片時發生錯誤，已寫入診斷記錄。", InfoBarSeverity.Error);
         }
     }
 
@@ -781,11 +789,26 @@ public sealed partial class MainPageViewModel : ObservableObject
     private static string DescribeBatchResult(string label, FileOperationBatchResult result) =>
         $"{label}：成功 {result.Succeeded} 個，略過 {result.Skipped} 個，失敗 {result.Failed} 個。";
 
-    private static string SortKeyLabel(SortKey key) =>
-        key == SortKey.Name ? "名稱" : "修改時間";
+    private void SetBatchStatus(string label, FileOperationBatchResult result) =>
+        SetStatus(
+            DescribeBatchResult(label, result),
+            result.Failed > 0 ? InfoBarSeverity.Warning : InfoBarSeverity.Informational);
 
-    private static string SortDirectionLabel(SortDirection direction) =>
-        direction == SortDirection.Asc ? "遞增" : "遞減";
+    private void SetStatus(string message, InfoBarSeverity severity = InfoBarSeverity.Informational)
+    {
+        StatusMessage = message;
+        StatusSeverity = severity;
+    }
+
+    private static string SortOptionLabel(SortState sort) =>
+        (sort.Key, sort.Direction) switch
+        {
+            (SortKey.Name, SortDirection.Asc) => "名稱由小到大",
+            (SortKey.Name, SortDirection.Desc) => "名稱由大到小",
+            (SortKey.ModifiedAt, SortDirection.Asc) => "修改時間最舊到最新",
+            (SortKey.ModifiedAt, SortDirection.Desc) => "修改時間最新到最舊",
+            _ => "名稱由小到大"
+        };
 
     private static bool PathEquals(string? left, string? right)
     {

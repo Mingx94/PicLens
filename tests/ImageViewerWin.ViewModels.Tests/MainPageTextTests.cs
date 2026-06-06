@@ -1,6 +1,7 @@
 using ImageViewerWin.Core.Models;
 using ImageViewerWin.Application.Services;
 using ImageViewerWin.ViewModels;
+using Microsoft.UI.Xaml.Controls;
 
 namespace ImageViewerWin.ViewModels.Tests;
 
@@ -30,12 +31,12 @@ public sealed class MainPageTextTests
             new ThrowingFileOperationService(),
             new NullThumbnailService(),
             () => Task.FromResult<string?>(null),
-            (_, _) => Task.FromResult(false),
+            (_, _, _) => Task.FromResult(false),
             _ => Task.FromResult<string?>(null),
             _ => { });
 
         Assert.Equal("僅目前資料夾", viewModel.RecursiveModeLabel);
-        Assert.Equal("名稱 遞增", viewModel.SortLabel);
+        Assert.Equal("名稱由小到大", viewModel.SortLabel);
         Assert.Equal("就緒。原生 ImageViewer 已初始化。", viewModel.StatusMessage);
     }
 
@@ -62,6 +63,47 @@ public sealed class MainPageTextTests
         Assert.Contains("Source=\"{x:Bind local:MainPage.CreateBitmapImage(ThumbnailPath), Mode=OneWay}\"", xaml);
         Assert.Contains("Visibility=\"{x:Bind local:MainPage.BoolToVisibility(CanShowThumbnail), Mode=OneWay}\"", xaml);
         Assert.Contains("Visibility=\"{x:Bind local:MainPage.BoolToVisibility(ShouldShowIcon), Mode=OneWay}\"", xaml);
+    }
+
+    [Fact]
+    public void MainPage_xaml_declares_responsive_and_accessible_contracts()
+    {
+        var xaml = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "MainPage.xaml"));
+
+        Assert.Contains("<VisualStateManager.VisualStateGroups>", xaml);
+        Assert.Contains("AdaptiveTrigger MinWindowWidth=\"1008\"", xaml);
+        Assert.Contains("AdaptiveTrigger MinWindowWidth=\"641\"", xaml);
+        Assert.Contains("AdaptiveTrigger MinWindowWidth=\"0\"", xaml);
+        Assert.Contains("x:Name=\"FolderColumn\"", xaml);
+        Assert.Contains("x:Name=\"FolderPane\"", xaml);
+        Assert.Contains("AutomationProperties.Name=\"資料夾樹\"", xaml);
+        Assert.Contains("AutomationProperties.Name=\"圖庫項目\"", xaml);
+        Assert.Contains("AutomationProperties.Name=\"檔案操作狀態\"", xaml);
+        Assert.Contains("AutomationProperties.LiveSetting=\"Polite\"", xaml);
+        Assert.Contains("AutomationProperties.Name=\"{x:Bind AutomationName}\"", xaml);
+    }
+
+    [Fact]
+    public void MainPage_command_bar_uses_overflow_instead_of_horizontal_scrolling()
+    {
+        var xaml = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "MainPage.xaml"));
+
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"LibraryCommandScrollViewer\"", xaml);
+        Assert.DoesNotContain("<ScrollViewer", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"LibraryCommandBar\"", xaml);
+        Assert.Contains("IsDynamicOverflowEnabled=\"True\"", xaml);
+    }
+
+    [Fact]
+    public void MainPage_dialogs_use_clear_accessible_action_text()
+    {
+        var code = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "MainPage.xaml.cs"));
+
+        Assert.Contains("ConfirmAsync(string message, string title, string primaryButtonText)", code);
+        Assert.Contains("PrimaryButtonText = primaryButtonText", code);
+        Assert.Contains("Header = \"新檔名\"", code);
+        Assert.Contains("PlaceholderText = \"輸入新的檔案名稱\"", code);
+        Assert.Contains("AutomationProperties.SetName(input, \"新檔名\")", code);
     }
 
     [Fact]
@@ -104,6 +146,23 @@ public sealed class MainPageTextTests
         Assert.Equal("資料夾", folder.KindLabel);
         Assert.Equal("圖片", image.KindLabel);
         Assert.Equal("不支援動畫圖片", animated.KindLabel);
+        Assert.Equal("Album，資料夾，開啟資料夾", folder.AutomationName);
+    }
+
+    [Fact]
+    public void Status_severity_defaults_to_informational_and_tracks_load_errors()
+    {
+        var viewModel = new MainPageViewModel(
+            new ThrowingSettingsStore(),
+            new ThrowingFolderScanner(),
+            new ThrowingFileOperationService(),
+            new NullThumbnailService(),
+            () => Task.FromResult<string?>(null),
+            (_, _, _) => Task.FromResult(false),
+            _ => Task.FromResult<string?>(null),
+            _ => { });
+
+        Assert.Equal(InfoBarSeverity.Informational, viewModel.StatusSeverity);
     }
 
     private static string RepositoryRoot()

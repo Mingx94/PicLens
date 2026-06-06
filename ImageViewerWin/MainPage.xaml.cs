@@ -4,6 +4,7 @@ using ImageViewerWin.Diagnostics;
 using ImageViewerWin.Infrastructure.Services;
 using ImageViewerWin.ViewModels;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml.Input;
@@ -368,14 +369,14 @@ public sealed partial class MainPage : Page
         return folder?.Path;
     }
 
-    private async Task<bool> ConfirmAsync(string message, string title)
+    private async Task<bool> ConfirmAsync(string message, string title, string primaryButtonText)
     {
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
             Title = title,
             Content = message,
-            PrimaryButtonText = "繼續",
+            PrimaryButtonText = primaryButtonText,
             CloseButtonText = "取消",
             DefaultButton = ContentDialogButton.Close
         };
@@ -387,11 +388,15 @@ public sealed partial class MainPage : Page
     {
         var input = new TextBox
         {
+            Header = "新檔名",
             Text = image.Name,
+            PlaceholderText = "輸入新的檔案名稱",
             SelectionStart = 0,
             SelectionLength = Path.GetFileNameWithoutExtension(image.Name).Length,
             MinWidth = 320
         };
+        AutomationProperties.SetName(input, "新檔名");
+
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,

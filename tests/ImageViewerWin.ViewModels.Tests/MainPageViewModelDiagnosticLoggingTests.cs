@@ -3,6 +3,7 @@ using ImageViewerWin.Core.Domain;
 using ImageViewerWin.Core.Models;
 using ImageViewerWin.Diagnostics;
 using ImageViewerWin.ViewModels;
+using Microsoft.UI.Xaml.Controls;
 
 namespace ImageViewerWin.ViewModels.Tests;
 
@@ -102,6 +103,7 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
         var entry = Assert.Single(logger.ErrorMessages, error => error.Message == "Drop dragged images failed.");
         Assert.Same(expected, entry.Exception);
         Assert.Contains("拖放重新命名時發生錯誤", viewModel.StatusMessage);
+        Assert.Equal(InfoBarSeverity.Error, viewModel.StatusSeverity);
     }
 
     [Fact]
@@ -145,7 +147,7 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
             fileOperationService ?? new ThrowingFileOperationService(),
             thumbnailService ?? new NullThumbnailService(),
             () => Task.FromResult<string?>(null),
-            (_, _) => Task.FromResult(false),
+            (_, _, _) => Task.FromResult(false),
             _ => Task.FromResult<string?>(null),
             openImageViewer ?? (_ => { }),
             appLogger: logger);

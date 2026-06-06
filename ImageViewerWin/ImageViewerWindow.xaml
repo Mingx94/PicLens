@@ -18,19 +18,6 @@
         IsTabStop="True"
         KeyDown="OnRootKeyDown"
         Loaded="OnRootLoaded">
-        <Grid.Resources>
-            <Storyboard x:Name="UnsupportedPulseStoryboard">
-                <DoubleAnimation
-                    AutoReverse="True"
-                    Duration="0:0:1.2"
-                    RepeatBehavior="Forever"
-                    Storyboard.TargetName="UnsupportedPanel"
-                    Storyboard.TargetProperty="Opacity"
-                    From="0.68"
-                    To="1" />
-            </Storyboard>
-        </Grid.Resources>
-
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -41,7 +28,8 @@
             x:Name="ViewerTitleBar"
             AutomationProperties.AutomationId="ViewerTitleBar"
             Title="{x:Bind ViewModel.CurrentImageName, Mode=OneWay}"
-            Subtitle="{x:Bind ViewModel.PositionLabel, Mode=OneWay}">
+            Subtitle="{x:Bind ViewModel.PositionLabel, Mode=OneWay}"
+            Visibility="{x:Bind local:ImageViewerWindow.BoolToVisibility(ViewModel.IsChromeVisible), Mode=OneWay}">
             <TitleBar.IconSource>
                 <ImageIconSource ImageSource="Assets/AppIcon.ico" />
             </TitleBar.IconSource>
@@ -154,9 +142,9 @@
                     x:Name="UnsupportedPanel"
                     MaxWidth="520"
                     Padding="24"
-                    Background="{ThemeResource AcrylicBackgroundFillColorBaseBrush}"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BackgroundSizing="InnerBorderEdge"
-                    BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1"
                     CornerRadius="{ThemeResource OverlayCornerRadius}">
                     <StackPanel Spacing="12">
@@ -180,11 +168,13 @@
 
         <Grid
             Grid.Row="2"
+            AutomationProperties.AutomationId="ViewerStatusBar"
             MinHeight="32"
             Padding="16,4"
             BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
             BorderThickness="0,1,0,0"
-            ColumnSpacing="12">
+            ColumnSpacing="12"
+            Visibility="{x:Bind local:ImageViewerWindow.BoolToVisibility(ViewModel.IsChromeVisible), Mode=OneWay}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />

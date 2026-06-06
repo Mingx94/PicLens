@@ -157,7 +157,7 @@ public sealed class MainPageViewModelStartupTests
             new ThrowingFileOperationService(),
             new NullThumbnailService(),
             chooseFolderAsync,
-            (_, _) => Task.FromResult(false),
+            (_, _, _) => Task.FromResult(false),
             _ => Task.FromResult<string?>(null),
             _ => { },
             appLogger: appLogger);

@@ -64,6 +64,8 @@ public partial class ImageViewerWindowViewModel : ObservableObject
 
     public bool IsUnsupportedAnimatedImage => CurrentImage?.IsAnimated == true;
 
+    public bool IsChromeVisible => !IsFullScreen;
+
     public bool CanGoPrevious => CurrentIndex > 0;
 
     public bool CanGoNext => CurrentIndex >= 0 && CurrentIndex < Snapshot.Images.Count - 1;
@@ -122,6 +124,18 @@ public partial class ImageViewerWindowViewModel : ObservableObject
 
         OffsetX += deltaX;
         OffsetY += deltaY;
+    }
+
+    public bool TryPanByKeyboard(double deltaX, double deltaY)
+    {
+        if (!IsImageVisible || Zoom <= 1 || (deltaX == 0 && deltaY == 0))
+        {
+            return false;
+        }
+
+        OffsetX += deltaX;
+        OffsetY += deltaY;
+        return true;
     }
 
     [RelayCommand(CanExecute = nameof(CanGoPrevious))]
@@ -188,6 +202,7 @@ public partial class ImageViewerWindowViewModel : ObservableObject
     partial void OnIsFullScreenChanged(bool value)
     {
         OnPropertyChanged(nameof(FullScreenLabel));
+        OnPropertyChanged(nameof(IsChromeVisible));
     }
 
     private static ImageSequenceSnapshot CreateEmptySnapshot() =>

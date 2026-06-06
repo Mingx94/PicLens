@@ -13,6 +13,8 @@ namespace ImageViewerWin;
 
 public sealed partial class ImageViewerWindow : Window
 {
+    private const double KeyboardPanStep = 48;
+
     private bool _isDragging;
     private Windows.Foundation.Point _lastPointerPosition;
 
@@ -86,7 +88,6 @@ public sealed partial class ImageViewerWindow : Window
             $"ImageViewerWindow loaded. ViewportWidth={ImageSurface.ActualWidth}; ViewportHeight={ImageSurface.ActualHeight}; {ViewerContext()}");
         Root.Focus(FocusState.Programmatic);
         ViewModel.UpdateViewport(ImageSurface.ActualWidth, ImageSurface.ActualHeight);
-        UpdateUnsupportedAnimation();
     }
 
     private void OnImageSurfaceSizeChanged(object sender, SizeChangedEventArgs e)
@@ -99,6 +100,12 @@ public sealed partial class ImageViewerWindow : Window
         switch (e.Key)
         {
             case VirtualKey.Left:
+                if (ViewModel.TryPanByKeyboard(KeyboardPanStep, 0))
+                {
+                    e.Handled = true;
+                    break;
+                }
+
                 if (ViewModel.PreviousCommand.CanExecute(null))
                 {
                     ViewModel.PreviousCommand.Execute(null);
@@ -107,12 +114,32 @@ public sealed partial class ImageViewerWindow : Window
                 e.Handled = true;
                 break;
             case VirtualKey.Right:
+                if (ViewModel.TryPanByKeyboard(-KeyboardPanStep, 0))
+                {
+                    e.Handled = true;
+                    break;
+                }
+
                 if (ViewModel.NextCommand.CanExecute(null))
                 {
                     ViewModel.NextCommand.Execute(null);
                 }
 
                 e.Handled = true;
+                break;
+            case VirtualKey.Up:
+                if (ViewModel.TryPanByKeyboard(0, KeyboardPanStep))
+                {
+                    e.Handled = true;
+                }
+
+                break;
+            case VirtualKey.Down:
+                if (ViewModel.TryPanByKeyboard(0, -KeyboardPanStep))
+                {
+                    e.Handled = true;
+                }
+
                 break;
             case VirtualKey.Escape:
                 if (ViewModel.IsFullScreen)
@@ -193,11 +220,6 @@ public sealed partial class ImageViewerWindow : Window
             App.Logger.Info($"Image viewer current image changed. {ViewerContext()}");
             AppWindow.Title = ViewModel.WindowTitle;
         }
-
-        if (e.PropertyName is nameof(ImageViewerWindowViewModel.IsUnsupportedAnimatedImage))
-        {
-            UpdateUnsupportedAnimation();
-        }
     }
 
     private void SetFullScreen(bool enabled)
@@ -208,18 +230,6 @@ public sealed partial class ImageViewerWindow : Window
             : AppWindowPresenterKind.Default);
         ViewModel.IsFullScreen = enabled;
         Root.Focus(FocusState.Programmatic);
-    }
-
-    private void UpdateUnsupportedAnimation()
-    {
-        if (ViewModel.IsUnsupportedAnimatedImage)
-        {
-            UnsupportedPulseStoryboard.Begin();
-        }
-        else
-        {
-            UnsupportedPulseStoryboard.Stop();
-        }
     }
 
     private void ResizeToLogicalSize(int width, int height)
