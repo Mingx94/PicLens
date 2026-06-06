@@ -32,7 +32,9 @@ public sealed partial class ImageViewerWindow : Window
     public ImageViewerWindow(ImageViewerWindowViewModel viewModel)
     {
         ViewModel = viewModel;
+        App.Logger.Info($"ImageViewerWindow constructing. {ViewerContext()}");
         InitializeComponent();
+        App.Logger.Info($"ImageViewerWindow InitializeComponent completed. {ViewerContext()}");
 
         ExtendsContentIntoTitleBar = true;
         TitleBarLayout.UseTallCaptionButtonHeight(AppWindow);
@@ -47,6 +49,7 @@ public sealed partial class ImageViewerWindow : Window
         }
 
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        App.Logger.Info($"ImageViewerWindow constructed. {ViewerContext()}");
     }
 
     public ImageViewerWindowViewModel ViewModel { get; }
@@ -61,16 +64,26 @@ public sealed partial class ImageViewerWindow : Window
             return null;
         }
 
-        if (Uri.TryCreate(source, UriKind.Absolute, out var absoluteUri))
+        try
         {
-            return new BitmapImage(absoluteUri);
-        }
+            if (Uri.TryCreate(source, UriKind.Absolute, out var absoluteUri))
+            {
+                return new BitmapImage(absoluteUri);
+            }
 
-        return new BitmapImage(new Uri(Path.GetFullPath(source)));
+            return new BitmapImage(new Uri(Path.GetFullPath(source)));
+        }
+        catch (Exception ex)
+        {
+            App.Logger.Error(ex, $"Create viewer bitmap image failed. Source={source}");
+            return null;
+        }
     }
 
     private void OnRootLoaded(object sender, RoutedEventArgs e)
     {
+        App.Logger.Info(
+            $"ImageViewerWindow loaded. ViewportWidth={ImageSurface.ActualWidth}; ViewportHeight={ImageSurface.ActualHeight}; {ViewerContext()}");
         Root.Focus(FocusState.Programmatic);
         ViewModel.UpdateViewport(ImageSurface.ActualWidth, ImageSurface.ActualHeight);
         UpdateUnsupportedAnimation();
@@ -108,6 +121,7 @@ public sealed partial class ImageViewerWindow : Window
                 }
                 else
                 {
+                    App.Logger.Info($"Image viewer closing from Escape. {ViewerContext()}");
                     Close();
                     App.Window.Activate();
                 }
@@ -176,6 +190,7 @@ public sealed partial class ImageViewerWindow : Window
     {
         if (e.PropertyName is nameof(ImageViewerWindowViewModel.WindowTitle))
         {
+            App.Logger.Info($"Image viewer current image changed. {ViewerContext()}");
             AppWindow.Title = ViewModel.WindowTitle;
         }
 
@@ -187,6 +202,7 @@ public sealed partial class ImageViewerWindow : Window
 
     private void SetFullScreen(bool enabled)
     {
+        App.Logger.Info($"Image viewer fullscreen changed. Enabled={enabled}; {ViewerContext()}");
         AppWindow.SetPresenter(enabled
             ? AppWindowPresenterKind.FullScreen
             : AppWindowPresenterKind.Default);
@@ -212,4 +228,7 @@ public sealed partial class ImageViewerWindow : Window
         var scale = GetDpiForWindow(hwnd) / 96.0;
         AppWindow.Resize(new SizeInt32((int)(width * scale), (int)(height * scale)));
     }
+
+    private string ViewerContext() =>
+        $"CurrentIndex={ViewModel.CurrentIndex}; ImageCount={ViewModel.Snapshot.Images.Count}; CurrentImage={ViewModel.CurrentImageName}; SourceFolderPath={ViewModel.Snapshot.SourceFolderPath}; IncludeSubfolders={ViewModel.Snapshot.IncludeSubfolders}; Sort={ViewModel.Snapshot.Sort.Key}/{ViewModel.Snapshot.Sort.Direction}";
 }

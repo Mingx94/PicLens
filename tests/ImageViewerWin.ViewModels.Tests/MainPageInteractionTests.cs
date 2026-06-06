@@ -44,6 +44,19 @@ public sealed class MainPageInteractionTests
         Assert.Contains("window.DispatcherQueue.TryEnqueue", foregroundCode);
     }
 
+    [Fact]
+    public void Secondary_viewer_records_lifecycle_breadcrumbs_and_bitmap_binding_failures()
+    {
+        var code = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "ImageViewerWindow.xaml.cs"));
+
+        Assert.Contains("ImageViewerWindow constructing.", code);
+        Assert.Contains("ImageViewerWindow InitializeComponent completed.", code);
+        Assert.Contains("ImageViewerWindow constructed.", code);
+        Assert.Contains("ImageViewerWindow loaded.", code);
+        Assert.Contains("Create viewer bitmap image failed.", code);
+        Assert.Contains("Image viewer fullscreen changed.", code);
+    }
+
     private static string RepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

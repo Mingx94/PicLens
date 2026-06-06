@@ -145,15 +145,20 @@ public sealed partial class MainPageViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(folderPath))
         {
+            appLogger.Info("Navigate to folder ignored. FolderPath is empty.");
             return;
         }
 
         var normalized = Path.GetFullPath(folderPath);
         if (!Directory.Exists(normalized))
         {
+            appLogger.Info($"Navigate to folder ignored. FolderPath={normalized}; Reason=DirectoryNotFound");
             StatusMessage = $"資料夾無法使用：{normalized}";
             return;
         }
+
+        appLogger.Info(
+            $"Navigate to folder started. FolderPath={normalized}; ReplaceHistory={replaceHistory}; Persist={persist}; IncludeSubfolders={IncludeSubfolders}; Sort={Sort.Key}/{Sort.Direction}");
 
         ClearSelection();
         CurrentFolderPath = normalized;
@@ -186,6 +191,9 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
 
         await LoadLibraryAsync();
+
+        appLogger.Info(
+            $"Navigate to folder completed. FolderPath={CurrentFolderPath}; ItemCount={LibraryItems.Count}; IncludeSubfolders={IncludeSubfolders}; Sort={Sort.Key}/{Sort.Direction}");
     }
 
     public void UpdateSelectedLibraryItems(IEnumerable<LibraryTileItem> selectedItems)
@@ -200,22 +208,43 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     public void BeginImageDrag(IEnumerable<LibraryTileItem> selectedItems)
     {
+        var selectedImages = selectedItems.Select(item => item.SourceItem).OfType<ImageListItem>().ToList();
         dragSources.Clear();
-        dragSources.AddRange(selectedItems.Select(item => item.SourceItem).OfType<ImageListItem>());
+        dragSources.AddRange(selectedImages);
+        appLogger.Info(
+            $"Begin image drag. SourceCount={dragSources.Count}; First={dragSources.FirstOrDefault()?.Name ?? "<none>"}");
     }
 
     public async Task DropDraggedImagesOnAsync(LibraryTileItem target)
     {
         if (target.SourceItem is not ImageListItem targetImage || dragSources.Count == 0)
         {
+            appLogger.Info(
+                $"Drop dragged images ignored. HasTargetImage={target.SourceItem is ImageListItem}; SourceCount={dragSources.Count}");
             return;
         }
 
-        var result = await fileOperationService.RenameByDropTargetAsync(dragSources.Select(image => image.Path), targetImage.Path);
-        dragSources.Clear();
-        ClearSelection();
-        StatusMessage = DescribeBatchResult("拖放重新命名", result);
-        await LoadLibraryAsync();
+        appLogger.Info(
+            $"Drop dragged images started. SourceCount={dragSources.Count}; Target={targetImage.Name}; TargetPath={targetImage.Path}");
+
+        try
+        {
+            var result = await fileOperationService.RenameByDropTargetAsync(dragSources.Select(image => image.Path), targetImage.Path);
+            ClearSelection();
+            StatusMessage = DescribeBatchResult("拖放重新命名", result);
+            appLogger.Info(
+                $"Drop dragged images completed. Total={result.Total}; Succeeded={result.Succeeded}; Skipped={result.Skipped}; Failed={result.Failed}; Target={targetImage.Name}");
+            await LoadLibraryAsync();
+        }
+        catch (Exception ex)
+        {
+            appLogger.Error(ex, "Drop dragged images failed.");
+            StatusMessage = "拖放重新命名時發生錯誤，已寫入診斷記錄。";
+        }
+        finally
+        {
+            dragSources.Clear();
+        }
     }
 
     public async Task ChangeThumbnailSizeAsync(double thumbnailSize)
@@ -285,6 +314,10 @@ public sealed partial class MainPageViewModel : ObservableObject
         catch (OperationCanceledException)
         {
         }
+        catch (Exception ex)
+        {
+            appLogger.Error(ex, $"Load thumbnail failed. Image={image.Name}; Path={image.Path}; RequestedSize={requestedSize}");
+        }
         finally
         {
             if (thumbnailLoads.TryGetValue(tile, out var activeLoad) && ReferenceEquals(activeLoad, loadState))
@@ -306,6 +339,9 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     public async Task OpenLibraryItemAsync(LibraryTileItem item)
     {
+        appLogger.Info(
+            $"Open library item requested. Name={item.Name}; Path={item.Path}; IsFolder={item.IsFolder}; CurrentFolderPath={CurrentFolderPath}");
+
         switch (item.SourceItem)
         {
             case FolderListItem folder:
@@ -615,7 +651,21 @@ public sealed partial class MainPageViewModel : ObservableObject
             Sort: Sort,
             Images: images,
             CurrentImagePath: image.Path));
-        openImageViewer(snapshot);
+
+        appLogger.Info(
+            $"Open image viewer requested. Image={image.Name}; CurrentIndex={snapshot.CurrentIndex}; ImageCount={snapshot.Images.Count}; CurrentFolderPath={CurrentFolderPath}; IncludeSubfolders={IncludeSubfolders}; Sort={Sort.Key}/{Sort.Direction}");
+
+        try
+        {
+            openImageViewer(snapshot);
+            appLogger.Info(
+                $"Open image viewer completed. Image={image.Name}; CurrentIndex={snapshot.CurrentIndex}; ImageCount={snapshot.Images.Count}");
+        }
+        catch (Exception ex)
+        {
+            appLogger.Error(ex, "Open image viewer failed.");
+            StatusMessage = "開啟圖片時發生錯誤，已寫入診斷記錄。";
+        }
     }
 
     private void ClearSelection()
