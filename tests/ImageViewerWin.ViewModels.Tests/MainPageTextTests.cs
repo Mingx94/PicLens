@@ -63,6 +63,21 @@ public sealed class MainPageTextTests
     }
 
     [Fact]
+    public void Library_grid_items_are_drop_targets_for_drop_rename()
+    {
+        var xaml = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "MainPage.xaml"));
+        var code = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "MainPage.xaml.cs"));
+
+        Assert.Contains("PointerMoved=\"LibraryGrid_PointerMoved\"", xaml);
+        Assert.Contains("PointerReleased=\"LibraryGrid_PointerReleased\"", xaml);
+        Assert.Contains("PointerPressed=\"LibraryTile_PointerPressed\"", xaml);
+        Assert.Contains("LibraryGrid_PointerMoved", code);
+        Assert.Contains("LibraryGrid_PointerReleased", code);
+        Assert.Contains("LibraryTile_PointerPressed", code);
+        Assert.Contains("DropDraggedImagesOnAsync(target)", code);
+    }
+
+    [Fact]
     public void Library_tile_labels_use_zh_tw_copy()
     {
         var folder = new LibraryTileItem(

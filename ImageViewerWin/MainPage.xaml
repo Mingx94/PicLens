@@ -129,18 +129,15 @@
             <GridView
                 x:Name="LibraryGrid"
                 Grid.Row="1"
-                AllowDrop="True"
                 AutomationProperties.AutomationId="LibraryGrid"
-                CanDragItems="True"
                 ContainerContentChanging="LibraryGrid_ContainerContentChanging"
-                DragItemsStarting="LibraryGrid_DragItemsStarting"
-                DragOver="LibraryGrid_DragOver"
-                Drop="LibraryGrid_Drop"
                 DoubleTapped="LibraryGrid_DoubleTapped"
                 IsItemClickEnabled="False"
                 IsTabStop="True"
                 ItemsSource="{x:Bind ViewModel.LibraryItems, Mode=OneWay}"
                 KeyDown="LibraryGrid_KeyDown"
+                PointerMoved="LibraryGrid_PointerMoved"
+                PointerReleased="LibraryGrid_PointerReleased"
                 SelectionChanged="LibraryGrid_SelectionChanged"
                 SelectionMode="Multiple"
                 Visibility="{x:Bind local:MainPage.BoolToVisibility(ViewModel.HasCurrentFolder), Mode=OneWay}">
@@ -167,6 +164,7 @@
                             BorderThickness="1"
                             CornerRadius="{ThemeResource ControlCornerRadius}"
                             Loaded="LibraryTile_Loaded"
+                            PointerPressed="LibraryTile_PointerPressed"
                             Unloaded="LibraryTile_Unloaded">
                             <Grid RowSpacing="8">
                                 <Grid.RowDefinitions>

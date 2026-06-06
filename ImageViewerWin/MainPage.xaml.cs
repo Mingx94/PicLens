@@ -9,9 +9,9 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
-using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage.Pickers;
 using Windows.System;
+using FoundationPoint = Windows.Foundation.Point;
 
 namespace ImageViewerWin;
 
@@ -20,7 +20,12 @@ namespace ImageViewerWin;
 /// </summary>
 public sealed partial class MainPage : Page
 {
+    private const double PointerDragThreshold = 8;
+
     private readonly List<LibraryTileItem> librarySelectionOrder = [];
+    private LibraryTileItem? pointerDragSource;
+    private FoundationPoint pointerDragStartPosition;
+    private bool pointerDragStarted;
     private bool initialized;
 
     public MainPage()
@@ -165,40 +170,82 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private void LibraryGrid_DragItemsStarting(object sender, DragItemsStartingEventArgs e)
+    private void LibraryTile_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        var eventItems = e.Items.OfType<LibraryTileItem>().ToList();
-        var orderedSelection = OrderedSelectedLibraryItems();
-        var isDraggingOutsideSelection = eventItems.Count == 1
-            && !orderedSelection.Any(item => PathEquals(item.Path, eventItems[0].Path));
-        var dragCandidates = orderedSelection.Count > 0 && !isDraggingOutsideSelection
-            ? orderedSelection
-            : eventItems;
-        var items = dragCandidates.Where(item => !item.IsFolder).ToList();
-        if (items.Count == 0)
+        if (sender is FrameworkElement { DataContext: LibraryTileItem { IsFolder: false } source })
         {
-            e.Cancel = true;
+            pointerDragSource = source;
+            pointerDragStartPosition = e.GetCurrentPoint(LibraryGrid).Position;
+            pointerDragStarted = false;
+        }
+        else
+        {
+            ClearPointerDrag();
+        }
+    }
+
+    private void LibraryGrid_PointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (pointerDragSource is null || pointerDragStarted)
+        {
             return;
         }
 
-        ViewModel.BeginImageDrag(items);
-        e.Data.RequestedOperation = DataPackageOperation.Move;
-        e.Data.SetText(string.Join(Environment.NewLine, items.Select(item => item.Path)));
-    }
+        var position = e.GetCurrentPoint(LibraryGrid).Position;
+        if (Math.Abs(position.X - pointerDragStartPosition.X) < PointerDragThreshold
+            && Math.Abs(position.Y - pointerDragStartPosition.Y) < PointerDragThreshold)
+        {
+            return;
+        }
 
-    private void LibraryGrid_DragOver(object sender, DragEventArgs e)
-    {
-        e.AcceptedOperation = DataPackageOperation.Move;
+        var dragItems = DragItemsFor(pointerDragSource);
+        if (dragItems.Count == 0)
+        {
+            ClearPointerDrag();
+            return;
+        }
+
+        ViewModel.BeginImageDrag(dragItems);
+        pointerDragStarted = true;
         e.Handled = true;
     }
 
-    private async void LibraryGrid_Drop(object sender, DragEventArgs e)
+    private async void LibraryGrid_PointerReleased(object sender, PointerRoutedEventArgs e)
     {
-        if (FindDataContext<LibraryTileItem>(e.OriginalSource) is { IsFolder: false } target)
+        if (pointerDragSource is null)
+        {
+            return;
+        }
+
+        var source = pointerDragSource;
+        var wasDrag = pointerDragStarted;
+        var target = FindDataContext<LibraryTileItem>(e.OriginalSource);
+        ClearPointerDrag();
+
+        if (wasDrag
+            && target is { IsFolder: false }
+            && !PathEquals(source.Path, target.Path))
         {
             await ViewModel.DropDraggedImagesOnAsync(target);
             e.Handled = true;
         }
+    }
+
+    private IReadOnlyList<LibraryTileItem> DragItemsFor(LibraryTileItem source)
+    {
+        var orderedSelection = OrderedSelectedLibraryItems();
+        var isDraggingSelectedItem = orderedSelection.Any(item => PathEquals(item.Path, source.Path));
+        IEnumerable<LibraryTileItem> dragCandidates = orderedSelection.Count > 0 && isDraggingSelectedItem
+            ? orderedSelection
+            : [source];
+
+        return dragCandidates.Where(item => !item.IsFolder).ToList();
+    }
+
+    private void ClearPointerDrag()
+    {
+        pointerDragSource = null;
+        pointerDragStarted = false;
     }
 
     private async void ThumbnailSizeSlider_CommitValue(object sender, RoutedEventArgs e)
