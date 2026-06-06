@@ -1,7 +1,6 @@
 using ImageViewerWin.Core.Models;
 using ImageViewerWin.Application.Services;
 using ImageViewerWin.ViewModels;
-using Microsoft.UI.Xaml.Controls;
 
 namespace ImageViewerWin.ViewModels.Tests;
 
@@ -20,6 +19,29 @@ public sealed class MainPageTextTests
         Assert.DoesNotContain("Text=\"圖庫\"", xaml);
         Assert.DoesNotContain("Favorites", xaml);
         Assert.DoesNotContain("Favorite", xaml);
+    }
+
+    [Fact]
+    public void MainPageViewModel_does_not_depend_on_WinUI_controls()
+    {
+        var code = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "ViewModels", "MainPageViewModel.cs"));
+
+        Assert.DoesNotContain("using Microsoft.UI.Xaml.Controls;", code);
+        Assert.DoesNotContain("InfoBarSeverity", code);
+    }
+
+    [Fact]
+    public void MainPage_maps_status_severity_to_InfoBarSeverity_in_the_view_layer()
+    {
+        var xaml = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "MainPage.xaml"));
+        var code = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "MainPage.xaml.cs"));
+
+        Assert.Contains(
+            "Severity=\"{x:Bind local:MainPage.StatusSeverityToInfoBarSeverity(ViewModel.StatusSeverity), Mode=OneWay}\"",
+            xaml);
+        Assert.Contains("public static InfoBarSeverity StatusSeverityToInfoBarSeverity(MainPageStatusSeverity severity)", code);
+        Assert.Contains("MainPageStatusSeverity.Warning => InfoBarSeverity.Warning", code);
+        Assert.Contains("MainPageStatusSeverity.Error => InfoBarSeverity.Error", code);
     }
 
     [Fact]
@@ -162,7 +184,7 @@ public sealed class MainPageTextTests
             _ => Task.FromResult<string?>(null),
             _ => { });
 
-        Assert.Equal(InfoBarSeverity.Informational, viewModel.StatusSeverity);
+        Assert.Equal(MainPageStatusSeverity.Informational, viewModel.StatusSeverity);
     }
 
     private static string RepositoryRoot()

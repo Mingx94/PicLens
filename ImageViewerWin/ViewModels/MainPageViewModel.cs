@@ -4,7 +4,6 @@ using ImageViewerWin.Application.Services;
 using ImageViewerWin.Core.Domain;
 using ImageViewerWin.Core.Models;
 using ImageViewerWin.Diagnostics;
-using Microsoft.UI.Xaml.Controls;
 using System.Collections.ObjectModel;
 
 namespace ImageViewerWin.ViewModels;
@@ -35,6 +34,8 @@ public sealed partial class MainPageViewModel : ObservableObject
     private string folderTreeRootPath = string.Empty;
     private int folderHistoryIndex = -1;
     private bool suppressIncludeSubfoldersReload;
+    private CancellationTokenSource? libraryLoadCancellationSource;
+    private long libraryLoadVersion;
 
     public MainPageViewModel(
         ISettingsStore settingsStore,
@@ -69,7 +70,7 @@ public sealed partial class MainPageViewModel : ObservableObject
     public partial string StatusMessage { get; set; } = "就緒。原生 ImageViewer 已初始化。";
 
     [ObservableProperty]
-    public partial InfoBarSeverity StatusSeverity { get; set; } = InfoBarSeverity.Informational;
+    public partial MainPageStatusSeverity StatusSeverity { get; set; } = MainPageStatusSeverity.Informational;
 
     [ObservableProperty]
     public partial bool IncludeSubfolders { get; set; }
@@ -177,7 +178,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         if (!Directory.Exists(normalized))
         {
             appLogger.Info($"Navigate to folder ignored. FolderPath={normalized}; Reason=DirectoryNotFound");
-            SetStatus($"資料夾無法使用：{normalized}", InfoBarSeverity.Warning);
+            SetStatus($"資料夾無法使用：{normalized}", MainPageStatusSeverity.Warning);
             return;
         }
 
@@ -269,7 +270,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         catch (Exception ex)
         {
             appLogger.Error(ex, "Drop dragged images failed.");
-            SetStatus("拖放重新命名時發生錯誤，已寫入診斷記錄。", InfoBarSeverity.Error);
+            SetStatus("拖放重新命名時發生錯誤，已寫入診斷記錄。", MainPageStatusSeverity.Error);
         }
         finally
         {
@@ -526,7 +527,7 @@ public sealed partial class MainPageViewModel : ObservableObject
             result.Status == FileOperationStatus.Renamed
                 ? $"已重新命名為 {Path.GetFileName(result.TargetPath)}。"
                 : result.Message ?? result.Reason ?? "重新命名已略過。",
-            result.Status == FileOperationStatus.Renamed ? InfoBarSeverity.Informational : InfoBarSeverity.Warning);
+            result.Status == FileOperationStatus.Renamed ? MainPageStatusSeverity.Informational : MainPageStatusSeverity.Warning);
         ClearSelection();
         await LoadLibraryAsync();
     }
@@ -545,7 +546,7 @@ public sealed partial class MainPageViewModel : ObservableObject
             result.Status == FileOperationStatus.Trashed
                 ? "已移至回收筒。"
                 : result.Message ?? result.Reason ?? "移至回收筒失敗。",
-            result.Status == FileOperationStatus.Trashed ? InfoBarSeverity.Informational : InfoBarSeverity.Warning);
+            result.Status == FileOperationStatus.Trashed ? MainPageStatusSeverity.Informational : MainPageStatusSeverity.Warning);
         ClearSelection();
         await LoadLibraryAsync();
     }
@@ -570,7 +571,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         catch (Exception ex)
         {
             appLogger.Error(ex, "Toggle include subfolders failed.");
-            SetStatus("切換子資料夾模式時發生錯誤，已寫入診斷記錄。", InfoBarSeverity.Error);
+            SetStatus("切換子資料夾模式時發生錯誤，已寫入診斷記錄。", MainPageStatusSeverity.Error);
         }
     }
 
@@ -578,31 +579,73 @@ public sealed partial class MainPageViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(CurrentFolderPath) || !Directory.Exists(CurrentFolderPath))
         {
+            CancelActiveLibraryLoad();
             LibraryItems.Clear();
             FolderRoots.Clear();
             currentItems = [];
             return;
         }
 
+        var folderPath = CurrentFolderPath;
+        var includeSubfolders = IncludeSubfolders;
+        var sort = Sort;
+        var folderTreeRoot = string.IsNullOrWhiteSpace(folderTreeRootPath)
+            ? folderPath
+            : folderTreeRootPath;
+        var load = BeginLibraryLoad();
         IsBusy = true;
         try
         {
-            currentItems = await folderScanner.ScanAsync(new ListQuery(CurrentFolderPath, IncludeSubfolders, Sort));
+            var loadedItems = await folderScanner.ScanAsync(
+                new ListQuery(folderPath, includeSubfolders, sort),
+                load.CancellationSource.Token);
+            var loadedFolderRoots = await BuildFolderTreeAsync(
+                folderTreeRoot,
+                folderPath,
+                load.CancellationSource.Token);
+            if (!IsCurrentLibraryLoad(load)
+                || !PathEquals(CurrentFolderPath, folderPath)
+                || IncludeSubfolders != includeSubfolders
+                || Sort != sort)
+            {
+                return;
+            }
+
+            currentItems = loadedItems;
             RefreshLibraryItems();
 
-            await LoadFolderTreeAsync();
+            FolderRoots.Clear();
+            foreach (var root in loadedFolderRoots)
+            {
+                FolderRoots.Add(root);
+            }
+
             NotifySelectionCommands();
+        }
+        catch (OperationCanceledException) when (load.CancellationSource.IsCancellationRequested)
+        {
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
         {
-            appLogger.Error(ex, $"Load library failed. CurrentFolderPath={CurrentFolderPath}; IncludeSubfolders={IncludeSubfolders}");
+            if (!IsCurrentLibraryLoad(load))
+            {
+                return;
+            }
+
+            appLogger.Error(ex, $"Load library failed. CurrentFolderPath={folderPath}; IncludeSubfolders={includeSubfolders}");
             currentItems = [];
             LibraryItems.Clear();
-            SetStatus($"無法載入資料夾：{ex.Message}", InfoBarSeverity.Error);
+            SetStatus($"無法載入資料夾：{ex.Message}", MainPageStatusSeverity.Error);
         }
         finally
         {
-            IsBusy = false;
+            if (ReferenceEquals(libraryLoadCancellationSource, load.CancellationSource))
+            {
+                libraryLoadCancellationSource = null;
+                IsBusy = false;
+            }
+
+            load.CancellationSource.Dispose();
         }
     }
 
@@ -615,6 +658,29 @@ public sealed partial class MainPageViewModel : ObservableObject
         RefreshLibraryItems();
         NotifySelectionCommands();
     }
+
+    private LibraryLoadState BeginLibraryLoad()
+    {
+        var previous = libraryLoadCancellationSource;
+        var next = new CancellationTokenSource();
+        libraryLoadCancellationSource = next;
+        previous?.Cancel();
+        var version = Interlocked.Increment(ref libraryLoadVersion);
+        return new LibraryLoadState(version, next);
+    }
+
+    private void CancelActiveLibraryLoad()
+    {
+        libraryLoadCancellationSource?.Cancel();
+        libraryLoadCancellationSource = null;
+        Interlocked.Increment(ref libraryLoadVersion);
+        IsBusy = false;
+    }
+
+    private bool IsCurrentLibraryLoad(LibraryLoadState load) =>
+        ReferenceEquals(libraryLoadCancellationSource, load.CancellationSource)
+        && Volatile.Read(ref libraryLoadVersion) == load.Version
+        && !load.CancellationSource.IsCancellationRequested;
 
     private void RefreshLibraryItems()
     {
@@ -636,51 +702,60 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
     }
 
-    private async Task LoadFolderTreeAsync()
+    private async Task<IReadOnlyList<FolderTreeItem>> BuildFolderTreeAsync(
+        string rootPath,
+        string selectedPath,
+        CancellationToken cancellationToken)
     {
-        FolderRoots.Clear();
-        var rootPath = string.IsNullOrWhiteSpace(folderTreeRootPath)
-            ? CurrentFolderPath
-            : folderTreeRootPath;
         var root = new FolderTreeItem(
             FolderDisplayName(rootPath),
             rootPath,
             Directory.Exists(rootPath),
             true,
-            PathEquals(rootPath, CurrentFolderPath));
-        await PopulateFolderChildrenAsync(root, rootPath);
-        FolderRoots.Add(root);
+            PathEquals(rootPath, selectedPath));
+        await PopulateFolderChildrenAsync(root, rootPath, selectedPath, cancellationToken);
+        return [root];
     }
 
-    private async Task PopulateFolderChildrenAsync(FolderTreeItem node, string folderPath)
+    private async Task PopulateFolderChildrenAsync(
+        FolderTreeItem node,
+        string folderPath,
+        string selectedPath,
+        CancellationToken cancellationToken)
     {
         IReadOnlyList<FolderListItem> folders;
         try
         {
             folders = await folderScanner.ScanChildFoldersAsync(
                 folderPath,
-                new SortState(SortKey.Name, SortDirection.Asc));
+                new SortState(SortKey.Name, SortDirection.Asc),
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
             appLogger.Error(
                 ex,
-                $"Load folder tree children failed. FolderPath={folderPath}; FolderTreeRootPath={folderTreeRootPath}; CurrentFolderPath={CurrentFolderPath}");
+                $"Load folder tree children failed. FolderPath={folderPath}; FolderTreeRootPath={folderTreeRootPath}; CurrentFolderPath={selectedPath}");
             return;
         }
 
         foreach (var folder in folders)
         {
-            var isExpanded = IsPathAncestorOrEqual(folder.Path, CurrentFolderPath);
+            cancellationToken.ThrowIfCancellationRequested();
+            var isExpanded = IsPathAncestorOrEqual(folder.Path, selectedPath);
             var child = new FolderTreeItem(
                 folder.Name,
                 folder.Path,
                 isExpanded: isExpanded,
-                isSelected: PathEquals(folder.Path, CurrentFolderPath));
+                isSelected: PathEquals(folder.Path, selectedPath));
             node.Children.Add(child);
             if (isExpanded && !PathEquals(folder.Path, folderPath))
             {
-                await PopulateFolderChildrenAsync(child, folder.Path);
+                await PopulateFolderChildrenAsync(child, folder.Path, selectedPath, cancellationToken);
             }
         }
     }
@@ -698,7 +773,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         var images = VisibleImages();
         if (!images.Any(candidate => PathEquals(candidate.Path, image.Path)))
         {
-            SetStatus("圖片已不在目前圖庫中。", InfoBarSeverity.Warning);
+            SetStatus("圖片已不在目前圖庫中。", MainPageStatusSeverity.Warning);
             return;
         }
 
@@ -721,7 +796,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         catch (Exception ex)
         {
             appLogger.Error(ex, "Open image viewer failed.");
-            SetStatus("開啟圖片時發生錯誤，已寫入診斷記錄。", InfoBarSeverity.Error);
+            SetStatus("開啟圖片時發生錯誤，已寫入診斷記錄。", MainPageStatusSeverity.Error);
         }
     }
 
@@ -792,9 +867,9 @@ public sealed partial class MainPageViewModel : ObservableObject
     private void SetBatchStatus(string label, FileOperationBatchResult result) =>
         SetStatus(
             DescribeBatchResult(label, result),
-            result.Failed > 0 ? InfoBarSeverity.Warning : InfoBarSeverity.Informational);
+            result.Failed > 0 ? MainPageStatusSeverity.Warning : MainPageStatusSeverity.Informational);
 
-    private void SetStatus(string message, InfoBarSeverity severity = InfoBarSeverity.Informational)
+    private void SetStatus(string message, MainPageStatusSeverity severity = MainPageStatusSeverity.Informational)
     {
         StatusMessage = message;
         StatusSeverity = severity;
@@ -861,6 +936,8 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     private sealed record ThumbnailLoadState(CancellationTokenSource CancellationSource, int RequestedSize);
 
+    private sealed record LibraryLoadState(long Version, CancellationTokenSource CancellationSource);
+
     private static bool HistoryEntryEquals(FolderHistoryEntry? left, FolderHistoryEntry right) =>
         left is not null
         && PathEquals(left.FolderPath, right.FolderPath)
@@ -883,3 +960,11 @@ public sealed partial class MainPageViewModel : ObservableObject
 }
 
 public sealed record SortOption(string Label, SortState State);
+
+public enum MainPageStatusSeverity
+{
+    Informational = 0,
+    Success = 1,
+    Warning = 2,
+    Error = 3
+}

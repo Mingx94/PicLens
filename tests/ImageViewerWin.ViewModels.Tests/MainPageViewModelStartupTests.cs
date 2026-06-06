@@ -146,6 +146,49 @@ public sealed class MainPageViewModelStartupTests
         Assert.Contains("已寫入診斷記錄", viewModel.StatusMessage);
     }
 
+    [Fact]
+    public async Task NavigateToFolderAsync_ignores_stale_scan_results_from_previous_folder()
+    {
+        using var firstWorkspace = new TempDirectory();
+        using var secondWorkspace = new TempDirectory();
+        var firstImage = new ImageListItem(
+            "image:first",
+            System.IO.Path.Combine(firstWorkspace.Path, "first.jpg"),
+            "first.jpg",
+            "jpg",
+            100,
+            1024);
+        var secondImage = new ImageListItem(
+            "image:second",
+            System.IO.Path.Combine(secondWorkspace.Path, "second.jpg"),
+            "second.jpg",
+            "jpg",
+            200,
+            1024);
+        var scanner = new ControllableFolderScanner();
+        var viewModel = CreateViewModel(
+            new FakeSettingsStore(AppSettings.CreateDefault()),
+            scanner,
+            () => Task.FromResult<string?>(null));
+
+        var firstNavigation = viewModel.NavigateToFolderAsync(firstWorkspace.Path);
+        await scanner.WaitForScanAsync(firstWorkspace.Path);
+
+        var secondNavigation = viewModel.NavigateToFolderAsync(secondWorkspace.Path);
+        await scanner.WaitForScanAsync(secondWorkspace.Path);
+        scanner.CompleteScan(secondWorkspace.Path, [secondImage]);
+        await secondNavigation;
+
+        Assert.Equal(secondWorkspace.Path, viewModel.CurrentFolderPath);
+        Assert.Equal(["second.jpg"], viewModel.LibraryItems.Select(item => item.Name));
+
+        scanner.CompleteScan(firstWorkspace.Path, [firstImage]);
+        await firstNavigation;
+
+        Assert.Equal(secondWorkspace.Path, viewModel.CurrentFolderPath);
+        Assert.Equal(["second.jpg"], viewModel.LibraryItems.Select(item => item.Name));
+    }
+
     private static MainPageViewModel CreateViewModel(
         ISettingsStore settingsStore,
         IFolderScanner scanner,
@@ -177,6 +220,50 @@ public sealed class MainPageViewModelStartupTests
             SortState sort,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<FolderListItem>>([]);
+    }
+
+    private sealed class ControllableFolderScanner : IFolderScanner
+    {
+        private readonly Dictionary<string, TaskCompletionSource<IReadOnlyList<ListItem>>> scans = new(StringComparer.OrdinalIgnoreCase);
+
+        public Task<IReadOnlyList<ListItem>> ScanAsync(ListQuery query, CancellationToken cancellationToken = default)
+        {
+            var source = new TaskCompletionSource<IReadOnlyList<ListItem>>(TaskCreationOptions.RunContinuationsAsynchronously);
+            scans[query.FolderPath] = source;
+            if (cancellationToken.CanBeCanceled)
+            {
+                cancellationToken.Register(() => source.TrySetCanceled(cancellationToken));
+            }
+
+            return source.Task;
+        }
+
+        public Task<IReadOnlyList<FolderListItem>> ScanChildFoldersAsync(
+            string folderPath,
+            SortState sort,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<FolderListItem>>([]);
+
+        public Task WaitForScanAsync(string folderPath)
+        {
+            if (scans.ContainsKey(folderPath))
+            {
+                return Task.CompletedTask;
+            }
+
+            return Task.Run(async () =>
+            {
+                while (!scans.ContainsKey(folderPath))
+                {
+                    await Task.Delay(10);
+                }
+            }).WaitAsync(TimeSpan.FromSeconds(5));
+        }
+
+        public void CompleteScan(string folderPath, IReadOnlyList<ListItem> items)
+        {
+            scans[folderPath].TrySetResult(items);
+        }
     }
 
     private sealed class FakeSettingsStore(AppSettings initialSettings) : ISettingsStore

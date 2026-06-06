@@ -72,6 +72,15 @@ public sealed partial class MainPage : Page
     public static Visibility InvertBoolToVisibility(bool value) =>
         value ? Visibility.Collapsed : Visibility.Visible;
 
+    public static InfoBarSeverity StatusSeverityToInfoBarSeverity(MainPageStatusSeverity severity) =>
+        severity switch
+        {
+            MainPageStatusSeverity.Success => InfoBarSeverity.Success,
+            MainPageStatusSeverity.Warning => InfoBarSeverity.Warning,
+            MainPageStatusSeverity.Error => InfoBarSeverity.Error,
+            _ => InfoBarSeverity.Informational
+        };
+
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         if (initialized)

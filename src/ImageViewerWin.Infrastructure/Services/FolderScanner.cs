@@ -1,12 +1,28 @@
 using ImageViewerWin.Application.Services;
 using ImageViewerWin.Core.Domain;
 using ImageViewerWin.Core.Models;
+using System.Text;
 
 namespace ImageViewerWin.Infrastructure.Services;
 
 public sealed class FolderScanner : IFolderScanner
 {
+    private const int AnimationProbeBufferSize = 64 * 1024;
+
     public Task<IReadOnlyList<ListItem>> ScanAsync(ListQuery query, CancellationToken cancellationToken = default)
+    {
+        return Task.Run(() => Scan(query, cancellationToken), cancellationToken);
+    }
+
+    public Task<IReadOnlyList<FolderListItem>> ScanChildFoldersAsync(
+        string folderPath,
+        SortState sort,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.Run(() => ScanChildFolders(folderPath, sort, cancellationToken), cancellationToken);
+    }
+
+    private static IReadOnlyList<ListItem> Scan(ListQuery query, CancellationToken cancellationToken)
     {
         if (!Directory.Exists(query.FolderPath))
         {
@@ -18,13 +34,13 @@ public sealed class FolderScanner : IFolderScanner
             : EnumerateDirectItems(query.FolderPath, cancellationToken).ToList();
 
         var sorted = ListItemSorter.Sort(items, query.Sort, new SortOptions(KeepFoldersFirst: !query.IncludeSubfolders));
-        return Task.FromResult<IReadOnlyList<ListItem>>(sorted);
+        return sorted;
     }
 
-    public Task<IReadOnlyList<FolderListItem>> ScanChildFoldersAsync(
+    private static IReadOnlyList<FolderListItem> ScanChildFolders(
         string folderPath,
         SortState sort,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         if (!Directory.Exists(folderPath))
         {
@@ -35,7 +51,7 @@ public sealed class FolderScanner : IFolderScanner
         var sorted = ListItemSorter.Sort(folders, sort, new SortOptions(KeepFoldersFirst: false))
             .OfType<FolderListItem>()
             .ToList();
-        return Task.FromResult<IReadOnlyList<FolderListItem>>(sorted);
+        return sorted;
     }
 
     private static IEnumerable<ListItem> EnumerateDirectItems(string folderPath, CancellationToken cancellationToken)
@@ -48,7 +64,7 @@ public sealed class FolderScanner : IFolderScanner
         foreach (var file in SafeEnumerateFiles(folderPath))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var image = CreateImageItem(file);
+            var image = CreateImageItem(file, cancellationToken);
             if (image is not null)
             {
                 yield return image;
@@ -92,7 +108,7 @@ public sealed class FolderScanner : IFolderScanner
 
             foreach (var file in SafeEnumerateFiles(current))
             {
-                var image = CreateImageItem(file);
+                var image = CreateImageItem(file, cancellationToken);
                 if (image is not null)
                 {
                     yield return image;
@@ -101,7 +117,7 @@ public sealed class FolderScanner : IFolderScanner
         }
     }
 
-    private static ImageListItem? CreateImageItem(string file)
+    private static ImageListItem? CreateImageItem(string file, CancellationToken cancellationToken)
     {
         var extension = ImageFormatRules.GetSupportedImageExtension(file);
         if (extension is null)
@@ -113,7 +129,7 @@ public sealed class FolderScanner : IFolderScanner
         {
             var info = new FileInfo(file);
             var isAnimated = RequiresAnimationDetection(extension)
-                && ImageFormatRules.IsPotentiallyAnimatedImage(extension, File.ReadAllBytes(file));
+                && IsKnownAnimatedImage(file, extension, cancellationToken);
 
             return new ImageListItem(
                 Id: $"image:{file}",
@@ -134,35 +150,170 @@ public sealed class FolderScanner : IFolderScanner
         extension.Equals("gif", StringComparison.OrdinalIgnoreCase)
         || extension.Equals("webp", StringComparison.OrdinalIgnoreCase);
 
-    private static IEnumerable<string> SafeEnumerateDirectories(string folderPath)
+    private static bool IsKnownAnimatedImage(
+        string path,
+        string extension,
+        CancellationToken cancellationToken)
     {
         try
         {
-            return Directory.EnumerateDirectories(folderPath).ToArray();
+            return extension.ToLowerInvariant() switch
+            {
+                "gif" => IsAnimatedGif(path, cancellationToken),
+                "webp" => IsAnimatedWebp(path, cancellationToken),
+                _ => false
+            };
         }
-        catch (UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return [];
+            return false;
         }
-        catch (IOException)
+    }
+
+    private static bool IsAnimatedGif(string path, CancellationToken cancellationToken)
+    {
+        using var stream = OpenProbeStream(path);
+        var buffer = new byte[AnimationProbeBufferSize];
+        var descriptorCount = 0;
+        var checkedSignature = false;
+
+        while (true)
         {
-            return [];
+            cancellationToken.ThrowIfCancellationRequested();
+            var read = stream.Read(buffer, 0, buffer.Length);
+            if (read == 0)
+            {
+                return false;
+            }
+
+            if (!checkedSignature)
+            {
+                if (read < 3 || Encoding.ASCII.GetString(buffer, 0, 3) != "GIF")
+                {
+                    return false;
+                }
+
+                checkedSignature = true;
+            }
+
+            for (var index = 0; index < read; index += 1)
+            {
+                if (buffer[index] != 0x2C)
+                {
+                    continue;
+                }
+
+                descriptorCount += 1;
+                if (descriptorCount > 1)
+                {
+                    return true;
+                }
+            }
         }
+    }
+
+    private static bool IsAnimatedWebp(string path, CancellationToken cancellationToken)
+    {
+        using var stream = OpenProbeStream(path);
+        var header = new byte[12];
+        var headerRead = stream.Read(header, 0, header.Length);
+        if (headerRead < header.Length
+            || Encoding.ASCII.GetString(header, 0, 4) != "RIFF"
+            || Encoding.ASCII.GetString(header, 8, 4) != "WEBP")
+        {
+            return false;
+        }
+
+        var buffer = new byte[AnimationProbeBufferSize + 3];
+        var carry = 0;
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var read = stream.Read(buffer, carry, AnimationProbeBufferSize);
+            if (read == 0)
+            {
+                return false;
+            }
+
+            var scanLength = carry + read;
+            if (ContainsAscii(buffer.AsSpan(0, scanLength), "ANIM"))
+            {
+                return true;
+            }
+
+            carry = Math.Min(3, scanLength);
+            buffer.AsSpan(scanLength - carry, carry).CopyTo(buffer);
+        }
+    }
+
+    private static FileStream OpenProbeStream(string path) =>
+        new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+
+    private static bool ContainsAscii(ReadOnlySpan<byte> buffer, string value)
+    {
+        var bytes = Encoding.ASCII.GetBytes(value);
+        for (var index = 0; index <= buffer.Length - bytes.Length; index += 1)
+        {
+            if (buffer[index..(index + bytes.Length)].SequenceEqual(bytes))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<string> SafeEnumerateDirectories(string folderPath)
+    {
+        return SafeEnumerateFileSystemEntries(() => Directory.EnumerateDirectories(folderPath));
     }
 
     private static IEnumerable<string> SafeEnumerateFiles(string folderPath)
     {
+        return SafeEnumerateFileSystemEntries(() => Directory.EnumerateFiles(folderPath));
+    }
+
+    private static IEnumerable<string> SafeEnumerateFileSystemEntries(Func<IEnumerable<string>> enumerate)
+    {
+        IEnumerator<string> enumerator;
         try
         {
-            return Directory.EnumerateFiles(folderPath).ToArray();
+            enumerator = enumerate().GetEnumerator();
         }
         catch (UnauthorizedAccessException)
         {
-            return [];
+            yield break;
         }
         catch (IOException)
         {
-            return [];
+            yield break;
+        }
+
+        using (enumerator)
+        {
+            while (true)
+            {
+                string current;
+                try
+                {
+                    if (!enumerator.MoveNext())
+                    {
+                        yield break;
+                    }
+
+                    current = enumerator.Current;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    yield break;
+                }
+                catch (IOException)
+                {
+                    yield break;
+                }
+
+                yield return current;
+            }
         }
     }
 

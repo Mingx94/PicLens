@@ -65,6 +65,64 @@ public sealed class FolderScannerTests
     }
 
     [Fact]
+    public async Task ScanAsync_returns_canceled_task_without_throwing_synchronously()
+    {
+        using var temp = TempWorkspace.Create();
+        await temp.WriteFileAsync("photo.jpg", [1, 2, 3]);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var scanner = new FolderScanner();
+
+        Task<IReadOnlyList<ListItem>>? scanTask = null;
+        var exception = Record.Exception(() =>
+        {
+            scanTask = scanner.ScanAsync(new ListQuery(
+                temp.Root,
+                IncludeSubfolders: false,
+                Sort: new SortState(SortKey.Name, SortDirection.Asc)),
+                cts.Token);
+        });
+
+        Assert.Null(exception);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await scanTask!);
+    }
+
+    [Fact]
+    public async Task ScanAsync_lists_locked_gif_when_animation_probe_cannot_read_body()
+    {
+        using var temp = TempWorkspace.Create();
+        var path = await temp.WriteFileAsync("locked.gif", StaticGifBytes());
+        await using var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
+        var scanner = new FolderScanner();
+
+        var items = await scanner.ScanAsync(new ListQuery(
+            temp.Root,
+            IncludeSubfolders: false,
+            Sort: new SortState(SortKey.Name, SortDirection.Asc)));
+
+        var image = Assert.Single(items.OfType<ImageListItem>());
+        Assert.Equal("locked.gif", image.Name);
+        Assert.False(image.IsAnimated);
+    }
+
+    [Fact]
+    public async Task ScanAsync_does_not_mark_non_gif_bytes_as_animated_gif()
+    {
+        using var temp = TempWorkspace.Create();
+        await temp.WriteFileAsync("not-a-gif.gif", [0x00, 0x2C, 0x01, 0x2C, 0x02]);
+        var scanner = new FolderScanner();
+
+        var items = await scanner.ScanAsync(new ListQuery(
+            temp.Root,
+            IncludeSubfolders: false,
+            Sort: new SortState(SortKey.Name, SortDirection.Asc)));
+
+        var image = Assert.Single(items.OfType<ImageListItem>());
+        Assert.Equal("not-a-gif.gif", image.Name);
+        Assert.False(image.IsAnimated);
+    }
+
+    [Fact]
     public async Task ScanChildFoldersAsync_ignores_locked_images_when_listing_folder_tree_children()
     {
         using var temp = TempWorkspace.Create();

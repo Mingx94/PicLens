@@ -390,7 +390,7 @@
             IsClosable="False"
             IsOpen="True"
             Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
-            Severity="{x:Bind ViewModel.StatusSeverity, Mode=OneWay}"
+            Severity="{x:Bind local:MainPage.StatusSeverityToInfoBarSeverity(ViewModel.StatusSeverity), Mode=OneWay}"
             Title="檔案操作" />
     </Grid>
 </Page>
