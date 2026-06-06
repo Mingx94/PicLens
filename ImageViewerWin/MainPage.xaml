@@ -196,18 +196,24 @@
                         AutomationProperties.Name="包含子資料夾"
                         ToolTipService.ToolTip="包含或排除子資料夾"
                         Checked="RecursiveModeToggle_Changed"
-                        Icon="SyncFolder"
                         IsChecked="{x:Bind ViewModel.IncludeSubfolders, Mode=OneWay}"
                         Label="{x:Bind ViewModel.RecursiveModeLabel, Mode=OneWay}"
-                        Unchecked="RecursiveModeToggle_Changed" />
+                        Unchecked="RecursiveModeToggle_Changed">
+                        <AppBarToggleButton.Icon>
+                            <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xF89A;" />
+                        </AppBarToggleButton.Icon>
+                    </AppBarToggleButton>
                     <AppBarButton
                         x:Name="TitleBarConvertVisibleButton"
                         AutomationProperties.AutomationId="TitleBarConvertVisibleButton"
                         AutomationProperties.Name="將目前顯示項目轉為 JPG"
                         ToolTipService.ToolTip="將目前顯示項目轉為 JPG"
                         Command="{x:Bind ViewModel.ConvertVisibleCommand}"
-                        Icon="Save"
-                        Label="將目前顯示項目轉為 JPG" />
+                        Label="將目前顯示項目轉為 JPG">
+                        <AppBarButton.Icon>
+                            <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEE71;" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
                     <AppBarButton
                         x:Name="TitleBarClearSameBasenameButton"
                         AutomationProperties.AutomationId="TitleBarClearSameBasenameButton"

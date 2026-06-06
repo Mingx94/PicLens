@@ -241,7 +241,9 @@ public sealed class ImageViewerWindowLocalizationTests
         Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarSortKeyButton\"", xaml);
         Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarSortDirectionButton\"", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"TitleBarRecursiveModeToggle\"", xaml);
+        Assert.Contains("Glyph=\"&#xF89A;\"", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"TitleBarConvertVisibleButton\"", xaml);
+        Assert.Contains("Glyph=\"&#xEE71;\"", xaml);
         Assert.Contains("Label=\"將目前顯示項目轉為 JPG\"", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"TitleBarClearSameBasenameButton\"", xaml);
         Assert.Contains("Glyph=\"&#xE75C;\"", xaml);
