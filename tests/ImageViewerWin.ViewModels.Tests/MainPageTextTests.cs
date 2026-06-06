@@ -12,9 +12,11 @@ public sealed class MainPageTextTests
         var xaml = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "MainPage.xaml"));
 
         Assert.Contains("資料夾", xaml);
-        Assert.Contains("圖庫", xaml);
         Assert.Contains("選擇資料夾", xaml);
+        Assert.Contains("重新命名", xaml);
+        Assert.Contains("移至回收筒", xaml);
         Assert.Contains("檔案操作", xaml);
+        Assert.DoesNotContain("Text=\"圖庫\"", xaml);
         Assert.DoesNotContain("Favorites", xaml);
         Assert.DoesNotContain("Favorite", xaml);
     }

@@ -27,17 +27,52 @@
 
         <Grid
             Grid.RowSpan="3"
-            Padding="20,16"
+            Padding="20,8,20,16"
             Background="{ThemeResource LayerFillColorDefaultBrush}"
             BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
             BorderThickness="0,0,1,0"
-            RowSpacing="16">
+            RowSpacing="8">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <StackPanel Spacing="4">
+            <StackPanel
+                AutomationProperties.AutomationId="FolderNavigationCommandBar"
+                HorizontalAlignment="Left"
+                Orientation="Horizontal"
+                Spacing="4">
+                <AppBarButton
+                    x:Name="TitleBarBackButton"
+                    AutomationProperties.AutomationId="TitleBarBackButton"
+                    AutomationProperties.Name="返回"
+                    ToolTipService.ToolTip="返回上一個資料夾"
+                    Command="{x:Bind ViewModel.BackCommand}"
+                    Icon="Back"
+                    Label="返回"
+                    LabelPosition="Collapsed" />
+                <AppBarButton
+                    x:Name="TitleBarForwardButton"
+                    AutomationProperties.AutomationId="TitleBarForwardButton"
+                    AutomationProperties.Name="前進"
+                    ToolTipService.ToolTip="前進到下一個資料夾"
+                    Command="{x:Bind ViewModel.ForwardCommand}"
+                    Icon="Forward"
+                    Label="前進"
+                    LabelPosition="Collapsed" />
+                <AppBarButton
+                    x:Name="TitleBarRefreshLibraryButton"
+                    AutomationProperties.AutomationId="TitleBarRefreshLibraryButton"
+                    AutomationProperties.Name="重新整理"
+                    ToolTipService.ToolTip="重新整理圖庫"
+                    Command="{x:Bind ViewModel.RefreshLibraryCommand}"
+                    Icon="Refresh"
+                    Label="重新整理"
+                    LabelPosition="Collapsed" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="1" Spacing="4">
                 <TextBlock Text="資料夾" Style="{StaticResource SubtitleTextBlockStyle}" />
                 <TextBlock
                     Text="{x:Bind ViewModel.CurrentFolderPath, Mode=OneWay}"
@@ -47,7 +82,7 @@
             </StackPanel>
 
             <TreeView
-                Grid.Row="1"
+                Grid.Row="2"
                 AutomationProperties.AutomationId="FolderTree"
                 ItemsSource="{x:Bind ViewModel.FolderRoots, Mode=OneWay}"
                 ItemInvoked="FolderTree_ItemInvoked">
@@ -76,53 +111,120 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <Grid>
+            <Grid ColumnSpacing="16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <StackPanel Spacing="2">
-                    <TextBlock Text="圖庫" Style="{StaticResource TitleTextBlockStyle}" />
-                    <TextBlock
-                        Text="{x:Bind ViewModel.CurrentFolderPath, Mode=OneWay}"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        TextTrimming="CharacterEllipsis" />
-                </StackPanel>
+
+                <ScrollViewer
+                    AutomationProperties.AutomationId="LibraryCommandScrollViewer"
+                    HorizontalScrollBarVisibility="Auto"
+                    HorizontalScrollMode="Enabled"
+                    VerticalScrollBarVisibility="Disabled"
+                    VerticalScrollMode="Disabled"
+                    ZoomMode="Disabled">
+                    <CommandBar
+                        AutomationProperties.AutomationId="LibraryCommandBar"
+                        Background="Transparent"
+                        DefaultLabelPosition="Right"
+                        IsDynamicOverflowEnabled="False">
+                        <AppBarButton
+                            x:Name="TitleBarOpenFolderButton"
+                            AutomationProperties.AutomationId="TitleBarOpenFolderButton"
+                            AutomationProperties.Name="選擇資料夾"
+                            ToolTipService.ToolTip="選擇資料夾"
+                            Command="{x:Bind ViewModel.OpenFolderCommand}"
+                            Label="選擇資料夾">
+                            <AppBarButton.Icon>
+                                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE838;" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                        <AppBarButton
+                            x:Name="TitleBarSortMenuButton"
+                            AutomationProperties.AutomationId="TitleBarSortMenuButton"
+                            AutomationProperties.Name="排序"
+                            ToolTipService.ToolTip="排序"
+                            Icon="Sort"
+                            Label="{x:Bind ViewModel.SelectedSortOption.Label, Mode=OneWay}">
+                            <AppBarButton.Flyout>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem Text="名稱-遞增" Click="SortByNameAscending_Click" />
+                                    <MenuFlyoutItem Text="名稱-遞減" Click="SortByNameDescending_Click" />
+                                    <MenuFlyoutItem Text="修改時間-遞增" Click="SortByModifiedAtAscending_Click" />
+                                    <MenuFlyoutItem Text="修改時間-遞減" Click="SortByModifiedAtDescending_Click" />
+                                </MenuFlyout>
+                            </AppBarButton.Flyout>
+                        </AppBarButton>
+                        <AppBarToggleButton
+                            x:Name="TitleBarRecursiveModeToggle"
+                            AutomationProperties.AutomationId="TitleBarRecursiveModeToggle"
+                            AutomationProperties.Name="包含子資料夾"
+                            ToolTipService.ToolTip="包含或排除子資料夾"
+                            Checked="RecursiveModeToggle_Changed"
+                            Icon="SyncFolder"
+                            IsChecked="{x:Bind ViewModel.IncludeSubfolders, Mode=OneWay}"
+                            Label="{x:Bind ViewModel.RecursiveModeLabel, Mode=OneWay}"
+                            Unchecked="RecursiveModeToggle_Changed" />
+                        <AppBarButton
+                            x:Name="TitleBarConvertVisibleButton"
+                            AutomationProperties.AutomationId="TitleBarConvertVisibleButton"
+                            ToolTipService.ToolTip="將目前顯示項目轉為 JPG"
+                            Command="{x:Bind ViewModel.ConvertVisibleCommand}"
+                            Icon="Save"
+                            Label="將目前顯示項目轉為 JPG" />
+                        <AppBarButton
+                            x:Name="TitleBarClearSameBasenameButton"
+                            AutomationProperties.AutomationId="TitleBarClearSameBasenameButton"
+                            ToolTipService.ToolTip="清除同名非 JPG 檔案"
+                            Command="{x:Bind ViewModel.ClearSameBasenameCommand}"
+                            Label="清除同名非 JPG 檔案">
+                            <AppBarButton.Icon>
+                                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE75C;" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                        <AppBarButton
+                            x:Name="TitleBarRenameSelectedButton"
+                            AutomationProperties.AutomationId="TitleBarRenameSelectedButton"
+                            ToolTipService.ToolTip="重新命名"
+                            Command="{x:Bind ViewModel.RenameSelectedCommand}"
+                            Icon="Edit"
+                            Label="重新命名" />
+                        <AppBarButton
+                            x:Name="TitleBarTrashSelectedButton"
+                            AutomationProperties.AutomationId="TitleBarTrashSelectedButton"
+                            ToolTipService.ToolTip="移至回收筒"
+                            Command="{x:Bind ViewModel.TrashSelectedCommand}"
+                            Icon="Delete"
+                            Label="移至回收筒" />
+                    </CommandBar>
+                </ScrollViewer>
+
                 <StackPanel
                     Grid.Column="1"
-                    VerticalAlignment="Bottom"
+                    VerticalAlignment="Center"
                     Orientation="Horizontal"
-                    Spacing="16">
+                    Spacing="8">
                     <TextBlock
                         VerticalAlignment="Center"
-                        Text="{x:Bind ViewModel.SortLabel, Mode=OneWay}"
+                        Text="{x:Bind ViewModel.ThumbnailSizeLabel, Mode=OneWay}"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Style="{StaticResource CaptionTextBlockStyle}" />
-                    <StackPanel
-                        VerticalAlignment="Center"
-                        Orientation="Horizontal"
-                        Spacing="8">
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            Text="{x:Bind ViewModel.ThumbnailSizeLabel, Mode=OneWay}"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Style="{StaticResource CaptionTextBlockStyle}" />
-                        <Slider
-                            x:Name="ThumbnailSizeSlider"
-                            AutomationProperties.AutomationId="ThumbnailSizeSlider"
-                            AutomationProperties.Name="縮圖大小"
-                            Width="160"
-                            LargeChange="{x:Bind ViewModel.ThumbnailSizeStep, Mode=OneWay}"
-                            Maximum="{x:Bind ViewModel.ThumbnailSizeMaximum, Mode=OneWay}"
-                            Minimum="{x:Bind ViewModel.ThumbnailSizeMinimum, Mode=OneWay}"
-                            SmallChange="{x:Bind ViewModel.ThumbnailSizeStep, Mode=OneWay}"
-                            StepFrequency="{x:Bind ViewModel.ThumbnailSizeStep, Mode=OneWay}"
-                            ToolTipService.ToolTip="調整縮圖大小"
-                            Value="{x:Bind ViewModel.ThumbnailSize, Mode=OneWay}"
-                            KeyUp="ThumbnailSizeSlider_KeyUp"
-                            LostFocus="ThumbnailSizeSlider_CommitValue"
-                            PointerCaptureLost="ThumbnailSizeSlider_CommitValue" />
-                    </StackPanel>
+                    <Slider
+                        x:Name="ThumbnailSizeSlider"
+                        AutomationProperties.AutomationId="ThumbnailSizeSlider"
+                        AutomationProperties.Name="縮圖大小"
+                        Width="160"
+                        LargeChange="{x:Bind ViewModel.ThumbnailSizeStep, Mode=OneWay}"
+                        Maximum="{x:Bind ViewModel.ThumbnailSizeMaximum, Mode=OneWay}"
+                        Minimum="{x:Bind ViewModel.ThumbnailSizeMinimum, Mode=OneWay}"
+                        SmallChange="{x:Bind ViewModel.ThumbnailSizeStep, Mode=OneWay}"
+                        StepFrequency="{x:Bind ViewModel.ThumbnailSizeStep, Mode=OneWay}"
+                        ToolTipService.ToolTip="調整縮圖大小"
+                        Value="{x:Bind ViewModel.ThumbnailSize, Mode=OneWay}"
+                        KeyUp="ThumbnailSizeSlider_KeyUp"
+                        LostFocus="ThumbnailSizeSlider_CommitValue"
+                        PointerCaptureLost="ThumbnailSizeSlider_CommitValue" />
                 </StackPanel>
             </Grid>
 

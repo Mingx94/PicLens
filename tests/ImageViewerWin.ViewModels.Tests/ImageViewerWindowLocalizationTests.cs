@@ -105,37 +105,104 @@ public sealed class ImageViewerWindowLocalizationTests
     }
 
     [Fact]
-    public void MainShellPromotesLibraryActionsIntoTitleBar()
+    public void MainShellUsesPlainTitleBar()
     {
         var shellXaml = ReadRepositoryFile("ImageViewerWin", "MainWindow.xaml");
-        var pageXaml = ReadRepositoryFile("ImageViewerWin", "MainPage.xaml");
-        var code = ReadRepositoryFile("ImageViewerWin", "MainWindow.xaml.cs");
 
-        Assert.Contains("Subtitle=\"原生圖庫\"", shellXaml);
-        Assert.Contains("<TitleBar.RightHeader>", shellXaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarCommandBar\"", shellXaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarOpenFolderButton\"", shellXaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarRefreshLibraryButton\"", shellXaml);
-        Assert.Contains("ConnectTitleBarCommands();", code);
-        Assert.DoesNotContain("AutomationProperties.AutomationId=\"LibraryCommandBar\"", pageXaml);
+        Assert.DoesNotContain("Subtitle=\"原生圖庫\"", shellXaml);
+        Assert.DoesNotContain("<TitleBar.RightHeader>", shellXaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarCommandBar\"", shellXaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarOpenFolderButton\"", shellXaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarRefreshLibraryButton\"", shellXaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarSortKeyButton\"", shellXaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarRecursiveModeToggle\"", shellXaml);
     }
 
     [Fact]
-    public void MainTitleBarCommandButtonsExposeToolTips()
+    public void MainPagePromotesNavigationActionsAboveFolderBlock()
     {
-        var xaml = ReadRepositoryFile("ImageViewerWin", "MainWindow.xaml");
+        var xaml = ReadRepositoryFile("ImageViewerWin", "MainPage.xaml");
+
+        Assert.Contains("Padding=\"20,8,20,16\"", xaml);
+        Assert.Contains("RowSpacing=\"8\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"FolderNavigationCommandBar\"", xaml);
+        Assert.Contains("HorizontalAlignment=\"Left\"", xaml);
+        Assert.Contains("Orientation=\"Horizontal\"", xaml);
+        Assert.Contains("<AppBarButton", xaml);
+        Assert.Contains("x:Name=\"TitleBarBackButton\"", xaml);
+        Assert.Contains("LabelPosition=\"Collapsed\"", xaml);
+        Assert.DoesNotContain("<Button\r\n                    x:Name=\"TitleBarBackButton\"", xaml);
+        Assert.DoesNotContain("DefaultLabelPosition=\"Collapsed\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarBackButton\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarForwardButton\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarRefreshLibraryButton\"", xaml);
+    }
+
+    [Fact]
+    public void MainPagePromotesLibraryActionsIntoHeaderToolbar()
+    {
+        var xaml = ReadRepositoryFile("ImageViewerWin", "MainPage.xaml");
+
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"LibraryHeaderGrid\"", xaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"LibraryPrimaryActionsPanel\"", xaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"LibraryFileActionsPanel\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"LibraryCommandScrollViewer\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"LibraryCommandBar\"", xaml);
+        Assert.Contains("DefaultLabelPosition=\"Right\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarOpenFolderButton\"", xaml);
+        Assert.Contains("Glyph=\"&#xE838;\"", xaml);
+        Assert.Contains("Label=\"選擇資料夾\"", xaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"SortComboBox\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarSortMenuButton\"", xaml);
+        Assert.Contains("<AppBarButton.Flyout>", xaml);
+        Assert.Contains("<MenuFlyout>", xaml);
+        Assert.Contains("Text=\"名稱-遞增\"", xaml);
+        Assert.Contains("Click=\"SortByNameAscending_Click\"", xaml);
+        Assert.Contains("Text=\"名稱-遞減\"", xaml);
+        Assert.Contains("Click=\"SortByNameDescending_Click\"", xaml);
+        Assert.Contains("Text=\"修改時間-遞增\"", xaml);
+        Assert.Contains("Click=\"SortByModifiedAtAscending_Click\"", xaml);
+        Assert.Contains("Text=\"修改時間-遞減\"", xaml);
+        Assert.Contains("Click=\"SortByModifiedAtDescending_Click\"", xaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarSortKeyButton\"", xaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarSortDirectionButton\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarRecursiveModeToggle\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarConvertVisibleButton\"", xaml);
+        Assert.Contains("Label=\"將目前顯示項目轉為 JPG\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarClearSameBasenameButton\"", xaml);
+        Assert.Contains("Glyph=\"&#xE75C;\"", xaml);
+        Assert.Contains("Label=\"清除同名非 JPG 檔案\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarRenameSelectedButton\"", xaml);
+        Assert.Contains("Label=\"重新命名\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarTrashSelectedButton\"", xaml);
+        Assert.Contains("Label=\"移至回收筒\"", xaml);
+        Assert.DoesNotContain("<CommandBar.SecondaryCommands>", xaml);
+        Assert.DoesNotContain("Text=\"圖庫\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"ThumbnailSizeSlider\"", xaml);
+    }
+
+    [Fact]
+    public void MainPageNavigationButtonsExposeToolTips()
+    {
+        var xaml = ReadRepositoryFile("ImageViewerWin", "MainPage.xaml");
 
         Assert.Contains("ToolTipService.ToolTip=\"返回上一個資料夾\"", xaml);
         Assert.Contains("ToolTipService.ToolTip=\"前進到下一個資料夾\"", xaml);
-        Assert.Contains("ToolTipService.ToolTip=\"選擇資料夾\"", xaml);
         Assert.Contains("ToolTipService.ToolTip=\"重新整理圖庫\"", xaml);
-        Assert.Contains("ToolTipService.ToolTip=\"切換排序欄位\"", xaml);
-        Assert.Contains("ToolTipService.ToolTip=\"切換排序方向\"", xaml);
+    }
+
+    [Fact]
+    public void MainPageToolbarCommandButtonsExposeToolTips()
+    {
+        var xaml = ReadRepositoryFile("ImageViewerWin", "MainPage.xaml");
+
+        Assert.Contains("ToolTipService.ToolTip=\"選擇資料夾\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"排序\"", xaml);
         Assert.Contains("ToolTipService.ToolTip=\"包含或排除子資料夾\"", xaml);
         Assert.Contains("ToolTipService.ToolTip=\"將目前顯示項目轉為 JPG\"", xaml);
         Assert.Contains("ToolTipService.ToolTip=\"清除同名非 JPG 檔案\"", xaml);
-        Assert.Contains("ToolTipService.ToolTip=\"重新命名選取的圖片\"", xaml);
-        Assert.Contains("ToolTipService.ToolTip=\"將選取項目移至回收筒\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"重新命名\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"移至回收筒\"", xaml);
     }
 
     [Fact]

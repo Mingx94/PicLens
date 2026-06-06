@@ -41,6 +41,81 @@ public sealed class MainPageViewModelSortTests
         Assert.Equal(["zulu.jpg", "alpha.jpg"], viewModel.LibraryItems.Select(item => item.Name));
     }
 
+    [Fact]
+    public async Task ChangeSortAppliesCombinedSortOptionWithoutRescanning()
+    {
+        using var workspace = new TempDirectory();
+        var scanner = new CountingFolderScanner(
+        [
+            new ImageListItem("image:older", System.IO.Path.Combine(workspace.Path, "older.jpg"), "older.jpg", ".jpg", 100, 1024),
+            new ImageListItem("image:newer", System.IO.Path.Combine(workspace.Path, "newer.jpg"), "newer.jpg", ".jpg", 200, 1024)
+        ]);
+        var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
+        {
+            LastFolderPath = workspace.Path
+        });
+        var viewModel = new MainPageViewModel(
+            settingsStore,
+            scanner,
+            new ThrowingFileOperationService(),
+            new NullThumbnailService(),
+            () => Task.FromResult<string?>(null),
+            (_, _) => Task.FromResult(false),
+            _ => Task.FromResult<string?>(null),
+            _ => { });
+
+        await viewModel.InitializeAsync();
+        var scansAfterInitialize = scanner.ScanCount;
+        var option = Assert.Single(viewModel.SortOptions, option => option.Label == "修改時間-遞減");
+
+        await viewModel.ChangeSortAsync(option.State);
+
+        Assert.Equal(scansAfterInitialize, scanner.ScanCount);
+        Assert.Equal(new SortState(SortKey.ModifiedAt, SortDirection.Desc), viewModel.Sort);
+        Assert.Equal("修改時間 遞減", viewModel.SortLabel);
+        Assert.Equal("修改時間-遞減", viewModel.SelectedSortOption.Label);
+        Assert.Equal(["newer.jpg", "older.jpg"], viewModel.LibraryItems.Select(item => item.Name));
+        Assert.Equal(new SortState(SortKey.ModifiedAt, SortDirection.Desc), settingsStore.Current.Sort);
+    }
+
+    [Fact]
+    public void SortOptionsExposeKeyDirectionLabels()
+    {
+        var viewModel = new MainPageViewModel(
+            new FakeSettingsStore(AppSettings.CreateDefault()),
+            new CountingFolderScanner([]),
+            new ThrowingFileOperationService(),
+            new NullThumbnailService(),
+            () => Task.FromResult<string?>(null),
+            (_, _) => Task.FromResult(false),
+            _ => Task.FromResult<string?>(null),
+            _ => { });
+
+        Assert.Equal(
+            ["名稱-遞增", "名稱-遞減", "修改時間-遞增", "修改時間-遞減"],
+            viewModel.SortOptions.Select(option => option.Label));
+        Assert.Equal("名稱-遞增", viewModel.SelectedSortOption.Label);
+    }
+
+    [Fact]
+    public void SelectedSortOptionFallsBackToDefaultWhenSortIsUnknown()
+    {
+        var viewModel = new MainPageViewModel(
+            new FakeSettingsStore(AppSettings.CreateDefault()),
+            new CountingFolderScanner([]),
+            new ThrowingFileOperationService(),
+            new NullThumbnailService(),
+            () => Task.FromResult<string?>(null),
+            (_, _) => Task.FromResult(false),
+            _ => Task.FromResult<string?>(null),
+            _ => { })
+        {
+            Sort = new SortState((SortKey)999, (SortDirection)999)
+        };
+
+        Assert.Equal("名稱-遞增", viewModel.SelectedSortOption.Label);
+    }
+
     private sealed class CountingFolderScanner(IReadOnlyList<ListItem> items) : IFolderScanner
     {
         public int ScanCount { get; private set; }
@@ -61,6 +136,8 @@ public sealed class MainPageViewModelSortTests
     private sealed class FakeSettingsStore(AppSettings initialSettings) : ISettingsStore
     {
         private AppSettings settings = initialSettings;
+
+        public AppSettings Current => settings;
 
         public Task<AppSettings> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(settings);
 

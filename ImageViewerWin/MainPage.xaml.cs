@@ -170,6 +170,39 @@ public sealed partial class MainPage : Page
         }
     }
 
+    private void RecursiveModeToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        var includeSubfolders = TitleBarRecursiveModeToggle.IsChecked == true;
+        if (ViewModel.IncludeSubfolders != includeSubfolders)
+        {
+            ViewModel.IncludeSubfolders = includeSubfolders;
+        }
+    }
+
+    private async void SortByNameAscending_Click(object sender, RoutedEventArgs e) =>
+        await ChangeSortFromMenuAsync(new SortState(SortKey.Name, SortDirection.Asc));
+
+    private async void SortByNameDescending_Click(object sender, RoutedEventArgs e) =>
+        await ChangeSortFromMenuAsync(new SortState(SortKey.Name, SortDirection.Desc));
+
+    private async void SortByModifiedAtAscending_Click(object sender, RoutedEventArgs e) =>
+        await ChangeSortFromMenuAsync(new SortState(SortKey.ModifiedAt, SortDirection.Asc));
+
+    private async void SortByModifiedAtDescending_Click(object sender, RoutedEventArgs e) =>
+        await ChangeSortFromMenuAsync(new SortState(SortKey.ModifiedAt, SortDirection.Desc));
+
+    private async Task ChangeSortFromMenuAsync(SortState sort)
+    {
+        try
+        {
+            await ViewModel.ChangeSortAsync(sort);
+        }
+        catch (Exception ex)
+        {
+            App.Logger.Error(ex, $"Change sort from menu failed. Sort={sort.Key}/{sort.Direction}");
+        }
+    }
+
     private void LibraryTile_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
         if (sender is FrameworkElement { DataContext: LibraryTileItem { IsFolder: false } source })

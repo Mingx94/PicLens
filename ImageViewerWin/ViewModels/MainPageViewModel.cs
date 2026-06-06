@@ -89,6 +89,17 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     public string SortLabel => $"{SortKeyLabel(Sort.Key)} {SortDirectionLabel(Sort.Direction)}";
 
+    public IReadOnlyList<SortOption> SortOptions { get; } =
+    [
+        new("名稱-遞增", new SortState(SortKey.Name, SortDirection.Asc)),
+        new("名稱-遞減", new SortState(SortKey.Name, SortDirection.Desc)),
+        new("修改時間-遞增", new SortState(SortKey.ModifiedAt, SortDirection.Asc)),
+        new("修改時間-遞減", new SortState(SortKey.ModifiedAt, SortDirection.Desc))
+    ];
+
+    public SortOption SelectedSortOption =>
+        SortOptions.FirstOrDefault(option => option.State == Sort) ?? SortOptions[0];
+
     public double ThumbnailSizeMinimum => SettingsRules.MinThumbnailSize;
 
     public double ThumbnailSizeMaximum => SettingsRules.MaxThumbnailSize;
@@ -370,6 +381,7 @@ public sealed partial class MainPageViewModel : ObservableObject
     partial void OnSortChanged(SortState value)
     {
         OnPropertyChanged(nameof(SortLabel));
+        OnPropertyChanged(nameof(SelectedSortOption));
     }
 
     [RelayCommand(CanExecute = nameof(CanNavigateBack))]
@@ -426,22 +438,29 @@ public sealed partial class MainPageViewModel : ObservableObject
     [RelayCommand]
     private async Task ToggleSortKey()
     {
-        Sort = Sort with
+        await ChangeSortAsync(Sort with
         {
             Key = Sort.Key == SortKey.Name ? SortKey.ModifiedAt : SortKey.Name
-        };
-        settings = await settingsStore.UpdateAsync(new AppSettingsPatch { Sort = Sort });
-        ApplyCurrentSort();
-        StatusMessage = $"排序已變更為 {SortLabel}。";
+        });
     }
 
     [RelayCommand]
     private async Task ToggleSortDirection()
     {
-        Sort = Sort with
+        await ChangeSortAsync(Sort with
         {
             Direction = Sort.Direction == SortDirection.Asc ? SortDirection.Desc : SortDirection.Asc
-        };
+        });
+    }
+
+    public async Task ChangeSortAsync(SortState sort)
+    {
+        if (Sort == sort)
+        {
+            return;
+        }
+
+        Sort = sort;
         settings = await settingsStore.UpdateAsync(new AppSettingsPatch { Sort = Sort });
         ApplyCurrentSort();
         StatusMessage = $"排序已變更為 {SortLabel}。";
@@ -802,3 +821,5 @@ public sealed partial class MainPageViewModel : ObservableObject
             && !Path.IsPathRooted(relative);
     }
 }
+
+public sealed record SortOption(string Label, SortState State);
