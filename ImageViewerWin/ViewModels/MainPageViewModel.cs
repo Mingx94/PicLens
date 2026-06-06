@@ -25,12 +25,13 @@ public sealed partial class MainPageViewModel : ObservableObject
     private readonly TimeSpan thumbnailLoadTimeout;
     private readonly SemaphoreSlim thumbnailGate = new(MaxConcurrentThumbnailLoads);
     private readonly Dictionary<LibraryTileItem, ThumbnailLoadState> thumbnailLoads = new(ReferenceEqualityComparer.Instance);
-    private readonly List<string> folderHistory = [];
+    private readonly List<FolderHistoryEntry> folderHistory = [];
     private readonly List<string> selectedImagePaths = [];
     private readonly List<ImageListItem> dragSources = [];
 
     private AppSettings settings = AppSettings.CreateDefault();
     private IReadOnlyList<ListItem> currentItems = [];
+    private string folderTreeRootPath = string.Empty;
     private int folderHistoryIndex = -1;
     private bool suppressIncludeSubfoldersReload;
 
@@ -140,7 +141,11 @@ public sealed partial class MainPageViewModel : ObservableObject
                 return;
             }
 
-            await NavigateToFolderAsync(initialFolder, replaceHistory: true, persist: shouldPersistInitialFolder);
+            await NavigateToFolderAsync(
+                initialFolder,
+                replaceHistory: true,
+                persist: shouldPersistInitialFolder,
+                resetFolderTreeRoot: true);
             if (HasCurrentFolder)
             {
                 StatusMessage = $"已從 {CurrentFolderPath} 載入 {LibraryItems.Count} 個項目。";
@@ -152,7 +157,11 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
     }
 
-    public async Task NavigateToFolderAsync(string folderPath, bool replaceHistory = false, bool persist = false)
+    public async Task NavigateToFolderAsync(
+        string folderPath,
+        bool replaceHistory = false,
+        bool persist = false,
+        bool resetFolderTreeRoot = false)
     {
         if (string.IsNullOrWhiteSpace(folderPath))
         {
@@ -169,25 +178,31 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
 
         appLogger.Info(
-            $"Navigate to folder started. FolderPath={normalized}; ReplaceHistory={replaceHistory}; Persist={persist}; IncludeSubfolders={IncludeSubfolders}; Sort={Sort.Key}/{Sort.Direction}");
+            $"Navigate to folder started. FolderPath={normalized}; ReplaceHistory={replaceHistory}; Persist={persist}; ResetFolderTreeRoot={resetFolderTreeRoot}; IncludeSubfolders={IncludeSubfolders}; Sort={Sort.Key}/{Sort.Direction}");
 
         ClearSelection();
+        if (resetFolderTreeRoot || string.IsNullOrWhiteSpace(folderTreeRootPath))
+        {
+            folderTreeRootPath = normalized;
+        }
+
         CurrentFolderPath = normalized;
+        var historyEntry = new FolderHistoryEntry(normalized, folderTreeRootPath);
 
         if (replaceHistory)
         {
             folderHistory.Clear();
-            folderHistory.Add(normalized);
+            folderHistory.Add(historyEntry);
             folderHistoryIndex = 0;
         }
-        else if (folderHistoryIndex < 0 || !PathEquals(folderHistory.ElementAtOrDefault(folderHistoryIndex), normalized))
+        else if (folderHistoryIndex < 0 || !HistoryEntryEquals(folderHistory.ElementAtOrDefault(folderHistoryIndex), historyEntry))
         {
             if (folderHistoryIndex >= 0 && folderHistoryIndex < folderHistory.Count - 1)
             {
                 folderHistory.RemoveRange(folderHistoryIndex + 1, folderHistory.Count - folderHistoryIndex - 1);
             }
 
-            folderHistory.Add(normalized);
+            folderHistory.Add(historyEntry);
             folderHistoryIndex = folderHistory.Count - 1;
         }
 
@@ -421,7 +436,7 @@ public sealed partial class MainPageViewModel : ObservableObject
             return;
         }
 
-        await NavigateToFolderAsync(folderPath, persist: true);
+        await NavigateToFolderAsync(folderPath, persist: true, resetFolderTreeRoot: true);
         if (HasCurrentFolder)
         {
             StatusMessage = $"已從 {CurrentFolderPath} 載入 {LibraryItems.Count} 個項目。";
@@ -616,8 +631,15 @@ public sealed partial class MainPageViewModel : ObservableObject
     private async Task LoadFolderTreeAsync()
     {
         FolderRoots.Clear();
-        var rootPath = CurrentFolderPath;
-        var root = new FolderTreeItem(FolderDisplayName(rootPath), rootPath, Directory.Exists(rootPath), true);
+        var rootPath = string.IsNullOrWhiteSpace(folderTreeRootPath)
+            ? CurrentFolderPath
+            : folderTreeRootPath;
+        var root = new FolderTreeItem(
+            FolderDisplayName(rootPath),
+            rootPath,
+            Directory.Exists(rootPath),
+            true,
+            PathEquals(rootPath, CurrentFolderPath));
         await PopulateFolderChildrenAsync(root, rootPath);
         FolderRoots.Add(root);
     }
@@ -631,15 +653,22 @@ public sealed partial class MainPageViewModel : ObservableObject
                 folderPath,
                 new SortState(SortKey.Name, SortDirection.Asc));
         }
-        catch
+        catch (Exception ex)
         {
+            appLogger.Error(
+                ex,
+                $"Load folder tree children failed. FolderPath={folderPath}; FolderTreeRootPath={folderTreeRootPath}; CurrentFolderPath={CurrentFolderPath}");
             return;
         }
 
         foreach (var folder in folders)
         {
             var isExpanded = IsPathAncestorOrEqual(folder.Path, CurrentFolderPath);
-            var child = new FolderTreeItem(folder.Name, folder.Path, isExpanded: isExpanded);
+            var child = new FolderTreeItem(
+                folder.Name,
+                folder.Path,
+                isExpanded: isExpanded,
+                isSelected: PathEquals(folder.Path, CurrentFolderPath));
             node.Children.Add(child);
             if (isExpanded && !PathEquals(folder.Path, folderPath))
             {
@@ -648,10 +677,11 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
     }
 
-    private async Task NavigateToFolderFromHistoryAsync(string folderPath)
+    private async Task NavigateToFolderFromHistoryAsync(FolderHistoryEntry entry)
     {
         ClearSelection();
-        CurrentFolderPath = folderPath;
+        folderTreeRootPath = entry.FolderTreeRootPath;
+        CurrentFolderPath = entry.FolderPath;
         await LoadLibraryAsync();
     }
 
@@ -804,7 +834,14 @@ public sealed partial class MainPageViewModel : ObservableObject
             TaskScheduler.Default);
     }
 
+    private sealed record FolderHistoryEntry(string FolderPath, string FolderTreeRootPath);
+
     private sealed record ThumbnailLoadState(CancellationTokenSource CancellationSource, int RequestedSize);
+
+    private static bool HistoryEntryEquals(FolderHistoryEntry? left, FolderHistoryEntry right) =>
+        left is not null
+        && PathEquals(left.FolderPath, right.FolderPath)
+        && PathEquals(left.FolderTreeRootPath, right.FolderTreeRootPath);
 
     private static bool IsPathAncestorOrEqual(string ancestorPath, string childPath)
     {

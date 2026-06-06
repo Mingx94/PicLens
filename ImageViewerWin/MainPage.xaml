@@ -90,6 +90,7 @@
                     <DataTemplate x:DataType="vm:FolderTreeItem">
                         <TreeViewItem
                             IsExpanded="{x:Bind IsExpanded, Mode=OneTime}"
+                            IsSelected="{x:Bind IsSelected, Mode=OneWay}"
                             ItemsSource="{x:Bind Children}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon Glyph="&#xE8B7;" FontSize="14" />
