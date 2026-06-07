@@ -87,6 +87,23 @@ public sealed class MainPageSelectionTests
         Assert.False(viewModel.TrashSelectedCommand.CanExecute(null));
     }
 
+    [Fact]
+    public async Task RefreshLibraryCommand_clears_selection_when_current_folder_is_unavailable()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.CurrentFolderPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        viewModel.UpdateSelectedLibraryItems([ImageTile("a.jpg", @"C:\Album\a.jpg")]);
+
+        await viewModel.RefreshLibraryCommand.ExecuteAsync(null);
+
+        Assert.Equal(0, viewModel.SelectedImageCount);
+        Assert.False(viewModel.HasSelectedImages);
+        Assert.False(viewModel.HasSingleSelectedImage);
+        Assert.Equal("未選取圖片", viewModel.SelectionSummaryText);
+        Assert.False(viewModel.RenameSelectedCommand.CanExecute(null));
+        Assert.False(viewModel.TrashSelectedCommand.CanExecute(null));
+    }
+
     private static MainPageViewModel CreateViewModel() =>
         new(
             new ThrowingSettingsStore(),

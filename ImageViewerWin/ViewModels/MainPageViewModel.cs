@@ -588,6 +588,8 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     private async Task LoadLibraryAsync()
     {
+        ClearSelection();
+
         if (string.IsNullOrWhiteSpace(CurrentFolderPath) || !Directory.Exists(CurrentFolderPath))
         {
             CancelActiveLibraryLoad();
