@@ -59,6 +59,26 @@ public sealed class DomainParityTests
     }
 
     [Fact]
+    public void Sort_by_name_matches_windows_explorer_logical_order_for_leading_zero_numbers()
+    {
+        List<ListItem> items =
+        [
+            Image("img2.jpg", 20),
+            Image("img02.jpg", 30),
+            Image("img002.jpg", 40),
+            Image("img10.jpg", 50),
+            Image("img1.jpg", 10)
+        ];
+
+        var sorted = ListItemSorter.Sort(
+            items,
+            new SortState(SortKey.Name, SortDirection.Asc),
+            new SortOptions(KeepFoldersFirst: false));
+
+        Assert.Equal(["img1.jpg", "img002.jpg", "img02.jpg", "img2.jpg", "img10.jpg"], sorted.Select(item => item.Name));
+    }
+
+    [Fact]
     public void Settings_patch_merges_last_folder_sort_and_recursive_mode()
     {
         var current = AppSettings.CreateDefault();

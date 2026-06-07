@@ -35,7 +35,7 @@ The Core test suite covers:
 
 - Image extension support
 - Animated GIF/WebP checks
-- Folder-first sorting with numeric name ordering
+- Folder-first sorting with Windows Explorer logical name ordering
 - Settings merge
 - Last-folder startup selection
 - Image sequence snapshot immutability

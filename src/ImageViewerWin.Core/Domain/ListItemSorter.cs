@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using ImageViewerWin.Core.Models;
 using CoreSortKey = ImageViewerWin.Core.Models.SortKey;
@@ -44,6 +45,16 @@ public static partial class ListItemSorter
 
     private static int NaturalCompare(string left, string right)
     {
+        if (OperatingSystem.IsWindows())
+        {
+            return StrCmpLogicalW(left, right);
+        }
+
+        return ManagedNaturalCompare(left, right);
+    }
+
+    private static int ManagedNaturalCompare(string left, string right)
+    {
         var leftParts = NumberRegex().Split(left);
         var rightParts = NumberRegex().Split(right);
         var length = Math.Min(leftParts.Length, rightParts.Length);
@@ -70,11 +81,21 @@ public static partial class ListItemSorter
 
         if (leftIsNumber && rightIsNumber)
         {
-            return leftNumber.CompareTo(rightNumber);
+            var comparison = leftNumber.CompareTo(rightNumber);
+
+            if (comparison != 0)
+            {
+                return comparison;
+            }
+
+            return right.Length.CompareTo(left.Length);
         }
 
         return string.Compare(left, right, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace);
     }
+
+    [DllImport("shlwapi.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+    private static extern int StrCmpLogicalW(string psz1, string psz2);
 
     [GeneratedRegex("(\\d+)", RegexOptions.CultureInvariant)]
     private static partial Regex NumberRegex();
