@@ -149,6 +149,7 @@
             RowSpacing="12">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
@@ -225,22 +226,6 @@
                             <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE75C;" />
                         </AppBarButton.Icon>
                     </AppBarButton>
-                    <AppBarButton
-                        x:Name="TitleBarRenameSelectedButton"
-                        AutomationProperties.AutomationId="TitleBarRenameSelectedButton"
-                        AutomationProperties.Name="重新命名"
-                        ToolTipService.ToolTip="重新命名"
-                        Command="{x:Bind ViewModel.RenameSelectedCommand}"
-                        Icon="Edit"
-                        Label="重新命名" />
-                    <AppBarButton
-                        x:Name="TitleBarTrashSelectedButton"
-                        AutomationProperties.AutomationId="TitleBarTrashSelectedButton"
-                        AutomationProperties.Name="移至回收筒"
-                        ToolTipService.ToolTip="移至回收筒"
-                        Command="{x:Bind ViewModel.TrashSelectedCommand}"
-                        Icon="Delete"
-                        Label="移至回收筒" />
                 </CommandBar>
 
                 <StackPanel
@@ -271,9 +256,78 @@
                 </StackPanel>
             </Grid>
 
+            <Border
+                x:Name="LibrarySelectionActionBar"
+                Grid.Row="1"
+                Padding="12,8"
+                AutomationProperties.AutomationId="LibrarySelectionActionBar"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="{ThemeResource ControlCornerRadius}"
+                Visibility="{x:Bind local:MainPage.BoolToVisibility(ViewModel.HasSelectedImages), Mode=OneWay}">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="8">
+                        <FontIcon
+                            FontFamily="{StaticResource SymbolThemeFontFamily}"
+                            FontSize="16"
+                            Glyph="&#xE762;" />
+                        <TextBlock
+                            x:Name="SelectionSummaryText"
+                            AutomationProperties.AutomationId="SelectionSummaryText"
+                            VerticalAlignment="Center"
+                            Text="{x:Bind ViewModel.SelectionSummaryText, Mode=OneWay}"
+                            Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    </StackPanel>
+
+                    <CommandBar
+                        Grid.Column="1"
+                        AutomationProperties.AutomationId="SelectionCommandBar"
+                        Background="Transparent"
+                        DefaultLabelPosition="Right"
+                        IsDynamicOverflowEnabled="True">
+                        <AppBarButton
+                            x:Name="SelectionRenameButton"
+                            AutomationProperties.AutomationId="SelectionRenameButton"
+                            AutomationProperties.Name="重新命名選取的圖片"
+                            ToolTipService.ToolTip="重新命名選取的圖片"
+                            Command="{x:Bind ViewModel.RenameSelectedCommand}"
+                            Icon="Edit"
+                            Label="重新命名" />
+                        <AppBarButton
+                            x:Name="SelectionTrashButton"
+                            AutomationProperties.AutomationId="SelectionTrashButton"
+                            AutomationProperties.Name="將選取的圖片移至回收筒"
+                            ToolTipService.ToolTip="將選取的圖片移至回收筒"
+                            Command="{x:Bind ViewModel.TrashSelectedCommand}"
+                            Icon="Delete"
+                            Label="移至回收筒" />
+                        <AppBarButton
+                            x:Name="SelectionClearButton"
+                            AutomationProperties.AutomationId="SelectionClearButton"
+                            AutomationProperties.Name="清除選取"
+                            ToolTipService.ToolTip="清除選取"
+                            Click="ClearLibrarySelection_Click"
+                            Label="清除選取">
+                            <AppBarButton.Icon>
+                                <SymbolIcon Symbol="Cancel" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                    </CommandBar>
+                </Grid>
+            </Border>
+
             <GridView
                 x:Name="LibraryGrid"
-                Grid.Row="1"
+                Grid.Row="2"
                 AutomationProperties.AutomationId="LibraryGrid"
                 AutomationProperties.Name="圖庫項目"
                 ContainerContentChanging="LibraryGrid_ContainerContentChanging"
@@ -357,7 +411,7 @@
             </GridView>
 
             <Grid
-                Grid.Row="1"
+                Grid.Row="2"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 MaxWidth="360"

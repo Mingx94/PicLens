@@ -267,9 +267,12 @@ public sealed class ImageViewerWindowLocalizationTests
         Assert.Contains("AutomationProperties.AutomationId=\"TitleBarClearSameBasenameButton\"", xaml);
         Assert.Contains("Glyph=\"&#xE75C;\"", xaml);
         Assert.Contains("Label=\"清除同名非 JPG 檔案\"", xaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarRenameSelectedButton\"", xaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarRenameSelectedButton\"", xaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarTrashSelectedButton\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"SelectionRenameButton\"", xaml);
         Assert.Contains("Label=\"重新命名\"", xaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarTrashSelectedButton\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"SelectionTrashButton\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"SelectionClearButton\"", xaml);
         Assert.Contains("Label=\"移至回收筒\"", xaml);
         Assert.DoesNotContain("<CommandBar.SecondaryCommands>", xaml);
         Assert.DoesNotContain("Text=\"圖庫\"", xaml);
@@ -296,8 +299,9 @@ public sealed class ImageViewerWindowLocalizationTests
         Assert.Contains("ToolTipService.ToolTip=\"包含或排除子資料夾\"", xaml);
         Assert.Contains("ToolTipService.ToolTip=\"將目前顯示項目轉為 JPG\"", xaml);
         Assert.Contains("ToolTipService.ToolTip=\"清除同名非 JPG 檔案\"", xaml);
-        Assert.Contains("ToolTipService.ToolTip=\"重新命名\"", xaml);
-        Assert.Contains("ToolTipService.ToolTip=\"移至回收筒\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"重新命名選取的圖片\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"將選取的圖片移至回收筒\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"清除選取\"", xaml);
     }
 
     [Fact]

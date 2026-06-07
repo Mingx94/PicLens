@@ -117,6 +117,28 @@ public sealed class MainPageTextTests
     }
 
     [Fact]
+    public void MainPage_declares_contextual_selection_action_bar()
+    {
+        var xaml = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "MainPage.xaml"));
+        var code = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "MainPage.xaml.cs"));
+
+        Assert.Contains("AutomationProperties.AutomationId=\"LibrarySelectionActionBar\"", xaml);
+        Assert.Contains("Visibility=\"{x:Bind local:MainPage.BoolToVisibility(ViewModel.HasSelectedImages), Mode=OneWay}\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"SelectionSummaryText\"", xaml);
+        Assert.Contains("Text=\"{x:Bind ViewModel.SelectionSummaryText, Mode=OneWay}\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"SelectionRenameButton\"", xaml);
+        Assert.Contains("Command=\"{x:Bind ViewModel.RenameSelectedCommand}\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"SelectionTrashButton\"", xaml);
+        Assert.Contains("Command=\"{x:Bind ViewModel.TrashSelectedCommand}\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"SelectionClearButton\"", xaml);
+        Assert.Contains("Click=\"ClearLibrarySelection_Click\"", xaml);
+        Assert.Contains("ClearLibrarySelection_Click", code);
+        Assert.Contains("LibraryGrid.SelectedItems.Clear();", code);
+        Assert.Contains("librarySelectionOrder.Clear();", code);
+        Assert.Contains("ViewModel.ClearSelectedLibraryItems();", code);
+    }
+
+    [Fact]
     public void MainPage_dialogs_use_clear_accessible_action_text()
     {
         var code = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "MainPage.xaml.cs"));

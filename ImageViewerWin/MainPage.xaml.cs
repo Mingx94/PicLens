@@ -118,6 +118,13 @@ public sealed partial class MainPage : Page
         ViewModel.UpdateSelectedLibraryItems(OrderedSelectedLibraryItems());
     }
 
+    private void ClearLibrarySelection_Click(object sender, RoutedEventArgs e)
+    {
+        LibraryGrid.SelectedItems.Clear();
+        librarySelectionOrder.Clear();
+        ViewModel.ClearSelectedLibraryItems();
+    }
+
     private void LibraryGrid_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
         if (FindDataContext<LibraryTileItem>(e.OriginalSource) is { } item)
