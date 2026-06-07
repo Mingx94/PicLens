@@ -88,6 +88,49 @@ public sealed class MainPageViewModelThumbnailSizeTests
     }
 
     [Fact]
+    public async Task LoadThumbnailAsync_dispatches_thumbnail_property_update_when_not_on_ui_thread()
+    {
+        using var workspace = new TempDirectory();
+        var imagePath = Path.Combine(workspace.Path, "first.jpg");
+        var cachedThumbnailPath = Path.Combine(workspace.Path, "thumbs", "first.png");
+        var scanner = new CountingFolderScanner(
+        [
+            new ImageListItem("image:first", imagePath, "first.jpg", "jpg", 100, 1024)
+        ]);
+        var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
+        {
+            LastFolderPath = workspace.Path
+        });
+        var thumbnailService = new RecordingThumbnailService(cachedThumbnailPath);
+        var enqueuedActions = new Queue<Action>();
+        var viewModel = CreateViewModel(
+            settingsStore,
+            scanner,
+            thumbnailService,
+            hasUiThreadAccess: () => false,
+            tryEnqueueOnUiThread: action =>
+            {
+                enqueuedActions.Enqueue(action);
+                return true;
+            });
+
+        await viewModel.InitializeAsync();
+        var tile = Assert.Single(viewModel.LibraryItems);
+
+        var loadTask = viewModel.LoadThumbnailAsync(tile);
+
+        var enqueued = Assert.Single(enqueuedActions);
+        Assert.Null(tile.ThumbnailPath);
+
+        enqueued();
+        await loadTask;
+
+        Assert.Equal(cachedThumbnailPath, tile.ThumbnailPath);
+        Assert.True(tile.CanShowThumbnail);
+        Assert.False(tile.ShouldShowIcon);
+    }
+
+    [Fact]
     public async Task CancelThumbnailLoad_cancels_pending_request_without_applying_thumbnail_path()
     {
         using var workspace = new TempDirectory();
@@ -220,7 +263,9 @@ public sealed class MainPageViewModelThumbnailSizeTests
         ISettingsStore settingsStore,
         IFolderScanner scanner,
         IThumbnailService? thumbnailService = null,
-        TimeSpan? thumbnailLoadTimeout = null) =>
+        TimeSpan? thumbnailLoadTimeout = null,
+        Func<bool>? hasUiThreadAccess = null,
+        Func<Action, bool>? tryEnqueueOnUiThread = null) =>
         new(
             settingsStore,
             scanner,
@@ -230,6 +275,8 @@ public sealed class MainPageViewModelThumbnailSizeTests
             (_, _, _) => Task.FromResult(false),
             _ => Task.FromResult<string?>(null),
             _ => { },
+            hasUiThreadAccess,
+            tryEnqueueOnUiThread,
             thumbnailLoadTimeout);
 
     private sealed class CountingFolderScanner(IReadOnlyList<ListItem> items) : IFolderScanner

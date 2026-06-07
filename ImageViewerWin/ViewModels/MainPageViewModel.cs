@@ -22,6 +22,8 @@ public sealed partial class MainPageViewModel : ObservableObject
     private readonly Func<string, string, string, Task<bool>> confirmAsync;
     private readonly Func<ImageListItem, Task<string?>> requestRenameAsync;
     private readonly Action<ImageSequenceSnapshot> openImageViewer;
+    private readonly Func<bool>? hasUiThreadAccess;
+    private readonly Func<Action, bool>? tryEnqueueOnUiThread;
     private readonly TimeSpan thumbnailLoadTimeout;
     private readonly SemaphoreSlim thumbnailGate = new(MaxConcurrentThumbnailLoads);
     private readonly Dictionary<LibraryTileItem, ThumbnailLoadState> thumbnailLoads = new(ReferenceEqualityComparer.Instance);
@@ -46,6 +48,8 @@ public sealed partial class MainPageViewModel : ObservableObject
         Func<string, string, string, Task<bool>> confirmAsync,
         Func<ImageListItem, Task<string?>> requestRenameAsync,
         Action<ImageSequenceSnapshot> openImageViewer,
+        Func<bool>? hasUiThreadAccess = null,
+        Func<Action, bool>? tryEnqueueOnUiThread = null,
         TimeSpan? thumbnailLoadTimeout = null,
         IAppLogger? appLogger = null)
     {
@@ -58,6 +62,8 @@ public sealed partial class MainPageViewModel : ObservableObject
         this.confirmAsync = confirmAsync;
         this.requestRenameAsync = requestRenameAsync;
         this.openImageViewer = openImageViewer;
+        this.hasUiThreadAccess = hasUiThreadAccess;
+        this.tryEnqueueOnUiThread = tryEnqueueOnUiThread;
         this.thumbnailLoadTimeout = thumbnailLoadTimeout is { } timeout && timeout > TimeSpan.Zero
             ? timeout
             : DefaultThumbnailLoadTimeout;
@@ -345,7 +351,7 @@ public sealed partial class MainPageViewModel : ObservableObject
                     && LibraryItems.Contains(tile)
                     && PathEquals(tile.Path, image.Path))
                 {
-                    tile.ApplyThumbnailPath(thumbnailPath, requestedSize);
+                    await ApplyThumbnailPathAsync(tile, image, thumbnailPath, requestedSize);
                 }
             }
             finally
@@ -369,6 +375,51 @@ public sealed partial class MainPageViewModel : ObservableObject
 
             loadCts.Dispose();
         }
+    }
+
+    private Task ApplyThumbnailPathAsync(
+        LibraryTileItem tile,
+        ImageListItem image,
+        string? thumbnailPath,
+        int requestedSize)
+    {
+        void Apply()
+        {
+            if (ThumbnailSize == requestedSize
+                && LibraryItems.Contains(tile)
+                && PathEquals(tile.Path, image.Path))
+            {
+                tile.ApplyThumbnailPath(thumbnailPath, requestedSize);
+            }
+        }
+
+        if (hasUiThreadAccess is null || tryEnqueueOnUiThread is null || hasUiThreadAccess())
+        {
+            Apply();
+            return Task.CompletedTask;
+        }
+
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!tryEnqueueOnUiThread(() =>
+            {
+                try
+                {
+                    Apply();
+                    completion.SetResult();
+                }
+                catch (Exception ex)
+                {
+                    completion.SetException(ex);
+                }
+            }))
+        {
+            appLogger.Error(
+                new InvalidOperationException("Failed to enqueue thumbnail UI update."),
+                $"Queue thumbnail update failed. Image={image.Name}; Path={image.Path}; RequestedSize={requestedSize}");
+            return Task.CompletedTask;
+        }
+
+        return completion.Task;
     }
 
     public void CancelThumbnailLoad(LibraryTileItem tile)

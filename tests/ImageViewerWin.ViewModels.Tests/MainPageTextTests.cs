@@ -166,6 +166,17 @@ public sealed class MainPageTextTests
     }
 
     [Fact]
+    public void MainPage_defers_thumbnail_loads_out_of_xaml_container_callbacks()
+    {
+        var code = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "MainPage.xaml.cs"));
+
+        Assert.Contains("private void QueueThumbnailLoad(LibraryTileItem item)", code);
+        Assert.Contains("DispatcherQueue.TryEnqueue(() => _ = ViewModel.LoadThumbnailAsync(item))", code);
+        Assert.Contains("Queue thumbnail load failed.", code);
+        Assert.Contains("QueueThumbnailLoad(item);", code);
+    }
+
+    [Fact]
     public void Library_tile_labels_use_zh_tw_copy()
     {
         var folder = new LibraryTileItem(

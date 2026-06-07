@@ -41,6 +41,8 @@ public sealed partial class MainPage : Page
             ConfirmAsync,
             RequestRenameAsync,
             OpenImageViewer,
+            () => DispatcherQueue.HasThreadAccess,
+            callback => DispatcherQueue.TryEnqueue(() => callback()),
             appLogger: App.Logger);
 
         InitializeComponent();
@@ -343,14 +345,14 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        _ = ViewModel.LoadThumbnailAsync(item);
+        QueueThumbnailLoad(item);
     }
 
     private void LibraryTile_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { DataContext: LibraryTileItem item })
         {
-            _ = ViewModel.LoadThumbnailAsync(item);
+            QueueThumbnailLoad(item);
         }
     }
 
@@ -368,8 +370,18 @@ public sealed partial class MainPage : Page
         {
             if (LibraryGrid.ContainerFromItem(item) is not null)
             {
-                _ = ViewModel.LoadThumbnailAsync(item);
+                QueueThumbnailLoad(item);
             }
+        }
+    }
+
+    private void QueueThumbnailLoad(LibraryTileItem item)
+    {
+        if (!DispatcherQueue.TryEnqueue(() => _ = ViewModel.LoadThumbnailAsync(item)))
+        {
+            App.Logger.Error(
+                new InvalidOperationException("Failed to enqueue thumbnail load."),
+                $"Queue thumbnail load failed. Name={item.Name}; Path={item.Path}");
         }
     }
 
