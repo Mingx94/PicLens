@@ -114,7 +114,18 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     public string ThumbnailSizeLabel => $"縮圖 {ThumbnailSize}";
 
-    public bool HasSingleSelectedImage => SelectedImages().Count == 1;
+    public int SelectedImageCount => selectedImagePaths.Count;
+
+    public bool HasSelectedImages => SelectedImageCount > 0;
+
+    public bool HasSingleSelectedImage => SelectedImageCount == 1;
+
+    public string SelectionSummaryText => SelectedImageCount switch
+    {
+        0 => "未選取圖片",
+        1 => "已選 1 張圖片",
+        _ => $"已選 {SelectedImageCount} 張圖片"
+    };
 
     public async Task InitializeAsync()
     {
@@ -800,6 +811,11 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
     }
 
+    public void ClearSelectedLibraryItems()
+    {
+        ClearSelection();
+    }
+
     private void ClearSelection()
     {
         selectedImagePaths.Clear();
@@ -808,7 +824,10 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     private void NotifySelectionCommands()
     {
+        OnPropertyChanged(nameof(SelectedImageCount));
+        OnPropertyChanged(nameof(HasSelectedImages));
         OnPropertyChanged(nameof(HasSingleSelectedImage));
+        OnPropertyChanged(nameof(SelectionSummaryText));
         RenameSelectedCommand.NotifyCanExecuteChanged();
         TrashSelectedCommand.NotifyCanExecuteChanged();
     }
