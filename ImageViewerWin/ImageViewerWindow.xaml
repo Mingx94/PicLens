@@ -184,12 +184,14 @@
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="{x:Bind ViewModel.CurrentImageName, Mode=OneWay}"
-                TextTrimming="CharacterEllipsis" />
+                TextTrimming="CharacterEllipsis"
+                Style="{StaticResource BodyStrongTextBlockStyle}" />
             <TextBlock
                 Grid.Column="1"
                 VerticalAlignment="Center"
                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                Text="{x:Bind ViewModel.ZoomLabel, Mode=OneWay}" />
+                Text="{x:Bind ViewModel.ZoomLabel, Mode=OneWay}"
+                Style="{StaticResource CaptionTextBlockStyle}" />
         </Grid>
     </Grid>
 </Window>

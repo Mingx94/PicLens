@@ -127,6 +127,25 @@ public sealed class ImageViewerWindowLocalizationTests
     }
 
     [Fact]
+    public void ViewerStatusBarUsesQuickConfirmationTextStyles()
+    {
+        var xaml = ReadRepositoryFile("ImageViewerWin", "ImageViewerWindow.xaml");
+        var statusBarStart = xaml.IndexOf(
+            "AutomationProperties.AutomationId=\"ViewerStatusBar\"",
+            StringComparison.Ordinal);
+        Assert.True(statusBarStart >= 0, "Could not find ViewerStatusBar.");
+
+        var statusBarEnd = xaml.IndexOf("</Grid>", statusBarStart, StringComparison.Ordinal);
+        Assert.True(statusBarEnd > statusBarStart, "Could not find the end of ViewerStatusBar.");
+
+        var statusBar = xaml[statusBarStart..statusBarEnd];
+        Assert.Contains("Text=\"{x:Bind ViewModel.CurrentImageName, Mode=OneWay}\"", statusBar);
+        Assert.Contains("Style=\"{StaticResource BodyStrongTextBlockStyle}\"", statusBar);
+        Assert.Contains("Text=\"{x:Bind ViewModel.ZoomLabel, Mode=OneWay}\"", statusBar);
+        Assert.Contains("Style=\"{StaticResource CaptionTextBlockStyle}\"", statusBar);
+    }
+
+    [Fact]
     public void UnsupportedAnimatedImagePanelUsesPersistentSurfaceWithoutPulse()
     {
         var xaml = ReadRepositoryFile("ImageViewerWin", "ImageViewerWindow.xaml");
