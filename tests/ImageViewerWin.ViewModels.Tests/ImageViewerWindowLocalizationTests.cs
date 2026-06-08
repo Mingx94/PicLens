@@ -174,15 +174,16 @@ public sealed class ImageViewerWindowLocalizationTests
     }
 
     [Fact]
-    public void CustomTitleBarsUseStandardSystemCaptionButtons()
+    public void PreviewWindowUsesTallerSystemCaptionButtonsThanMainWindow()
     {
         var mainWindowCode = ReadRepositoryFile("ImageViewerWin", "MainWindow.xaml.cs");
         var viewerWindowCode = ReadRepositoryFile("ImageViewerWin", "ImageViewerWindow.xaml.cs");
         var titleBarLayoutCode = ReadRepositoryFile("ImageViewerWin", "TitleBarLayout.cs");
 
-        Assert.Contains("TitleBarLayout.UseTallCaptionButtonHeight(AppWindow);", mainWindowCode);
+        Assert.Contains("TitleBarLayout.UseStandardCaptionButtonHeight(AppWindow);", mainWindowCode);
         Assert.Contains("TitleBarLayout.UseTallCaptionButtonHeight(AppWindow);", viewerWindowCode);
-        Assert.Contains("appWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Standard;", titleBarLayoutCode);
+        Assert.Contains("TitleBarHeightOption.Standard", titleBarLayoutCode);
+        Assert.Contains("TitleBarHeightOption.Tall", titleBarLayoutCode);
     }
 
     [Fact]

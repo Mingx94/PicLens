@@ -22,7 +22,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
 
         ExtendsContentIntoTitleBar = true;
-        TitleBarLayout.UseTallCaptionButtonHeight(AppWindow);
+        TitleBarLayout.UseStandardCaptionButtonHeight(AppWindow);
         SetTitleBar(AppTitleBar);
 
         AppWindow.SetIcon("Assets/AppIcon.ico");
