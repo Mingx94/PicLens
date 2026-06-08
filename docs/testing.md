@@ -20,7 +20,7 @@ Current coverage spans:
 - `ImageViewerWin.Core`: pure product rules.
 - `ImageViewerWin.Application`: deterministic rename planning, including drop-target sequence advancement past existing targets.
 - `ImageViewerWin.Infrastructure`: JSON settings, direct and recursive scanning, canonical directory de-duplication, image data helpers, disk thumbnail cache generation and pruning, conversion, trash, and rename operations.
-- `ImageViewerWin.ViewModels`: startup folder selection flow, sort-without-rescan behavior, async thumbnail path updates, thumbnail cancellation, stalled-thumbnail timeout recovery, thumbnail-size persistence, GridView thumbnail event wiring, and Traditional Chinese runtime copy.
+- `ImageViewerWin.ViewModels`: startup folder selection flow, sort-without-rescan behavior, contextual selection state, stale-selection clearing on library reload, async thumbnail path updates, thumbnail cancellation, stalled-thumbnail timeout recovery, thumbnail-size persistence, GridView thumbnail event wiring, diagnostic error logging for failure paths, and Traditional Chinese runtime copy.
 
 ## WinUI Build
 
@@ -56,3 +56,14 @@ Manual smoke check:
 ```
 
 The app should launch directly without installing an MSIX package.
+
+## Runtime Crash Diagnostics
+
+For WinUI or native/XAML crash work, a successful build is not enough. After the app builds, run a short debug-output launch and inspect the app log:
+
+```powershell
+winapp run --debug-output
+Get-Content "$env:LOCALAPPDATA\ImageViewerWin\Logs\ImageViewerWin.log" -Tail 100
+```
+
+Development paths that can fail should log through the app logger with enough context to identify the item, path, and operation that failed.

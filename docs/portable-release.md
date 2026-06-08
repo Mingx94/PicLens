@@ -44,8 +44,8 @@ The default output is framework-dependent. Target machines must already have:
 
 ## What The Script Does
 
-1. Restores the Core, Application, and Infrastructure test projects using repo-local `NuGet.Config`.
-2. Runs Core, Application, and Infrastructure tests unless `-SkipTests` is passed.
+1. Restores the Core, Application, Infrastructure, and ViewModels test projects using repo-local `NuGet.Config`.
+2. Runs Core, Application, Infrastructure, and ViewModels tests unless `-SkipTests` is passed.
 3. Restores the app for the selected Windows RID.
 4. Publishes with:
    - `WindowsPackageType=None`

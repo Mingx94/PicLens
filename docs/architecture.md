@@ -31,11 +31,14 @@ The WinUI app uses the official MVVM template with CommunityToolkit.Mvvm. The ro
 - Last opened folder restore on launch
 - Folder tree rooted at the current folder
 - Library command bar for history, sort key/direction, recursive mode, and file operations
+- Contextual selected-image action bar for rename, recycle-bin trash, and clearing selection
 - Mixed folder/image grid with asynchronous disk-cached thumbnails for still images
 - Browser-style mouse side-button folder history navigation
 - File-operation status bar
 
-`MainPageViewModel` coordinates service-backed browsing, settings persistence, selection, conservative file operations, visible-tile thumbnail requests, and opening the secondary viewer window. XAML code-behind is limited to WinUI-only work such as pickers, dialogs, drag/drop events, GridView container preparation/recycling notifications, tile loaded/unloaded notifications, and launching windows.
+`MainPageViewModel` coordinates service-backed browsing, settings persistence, selection-derived state, conservative file operations, visible-tile thumbnail requests, and opening the secondary viewer window. XAML code-behind is limited to WinUI-only work such as pickers, dialogs, drag/drop events, GridView selection synchronization, GridView container preparation/recycling notifications, tile loaded/unloaded notifications, and launching windows.
+
+Selection ownership is split along the WinUI boundary: `GridView.SelectedItems` remains the source of visual selection, while `MainPageViewModel` owns the selected image paths, command availability, and Traditional Chinese selection summary shown in the contextual action bar. Clearing selection must clear the visual `GridView` selection and then reset the view-model selection state so reloads and failed folder loads cannot leave stale selected paths behind.
 
 `ImageViewerWindow` displays an `ImageSequenceSnapshot` with previous/next navigation, zoom in/out/reset, pointer wheel zoom, drag pan, fullscreen toggle, keyboard shortcuts, Escape close/focus behavior, and unsupported animated-image feedback.
 

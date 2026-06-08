@@ -24,10 +24,11 @@ Parity target:
 - Last opened folder is restored on launch when it is still available
 - Folder tree rooted at the current folder
 - Toolbar for history, sorting, recursive mode, and file operations
+- Contextual action bar for selected-image rename, recycle-bin trash, and selection clearing
 - Grid containing folders and supported image files
 - Status/error feedback area
 
-The current native app implements this surface with real filesystem-backed data, persisted settings, disk-cached thumbnails for still images, multi-selection, drag/drop rename, browser-style mouse side-button history navigation, Traditional Chinese (Taiwan) runtime copy, and status feedback.
+The current native app implements this surface with real filesystem-backed data, persisted settings, disk-cached thumbnails for still images, multi-selection with contextual actions, drag/drop rename, browser-style mouse side-button history navigation, Traditional Chinese (Taiwan) runtime copy, and status feedback.
 
 ## Core Behaviors Already Covered
 
@@ -50,7 +51,7 @@ Implemented in the current native milestone:
 - Visible-tile thumbnail loading through GridView container events and a bounded disk cache under local app data, with per-request timeouts so later visible tiles keep loading if a decoder stalls
 - Full-image loading in the secondary viewer
 - Secondary image window and viewer controls
-- Selection behavior
+- Selection behavior, including selected-image summaries, single-image rename/trash command gating, and stale-selection clearing on library reload
 - Conservative file operations
 - Recursive scanner canonical-directory de-duplication for symlink/junction aliases
 - Drop-target batch rename sequencing that advances past existing target paths
