@@ -101,9 +101,10 @@ public sealed class DomainParityTests
     }
 
     [Theory]
-    [InlineData(64, 200)]
-    [InlineData(226, 250)]
-    [InlineData(625, 600)]
+    [InlineData(64, 140)]
+    [InlineData(188, 180)]
+    [InlineData(226, 200)]
+    [InlineData(625, 200)]
     public void Settings_patch_normalizes_thumbnail_size(int requestedSize, int expectedSize)
     {
         var merged = SettingsRules.MergeSettingsPatch(

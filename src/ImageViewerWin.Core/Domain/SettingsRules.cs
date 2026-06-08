@@ -5,10 +5,10 @@ namespace ImageViewerWin.Core.Domain;
 public static class SettingsRules
 {
     public const int SettingsVersion = 1;
-    public const int DefaultThumbnailSize = 200;
-    public const int MinThumbnailSize = 200;
-    public const int MaxThumbnailSize = 600;
-    public const int ThumbnailSizeStep = 50;
+    public const int DefaultThumbnailSize = 160;
+    public const int MinThumbnailSize = 140;
+    public const int MaxThumbnailSize = 200;
+    public const int ThumbnailSizeStep = 20;
 
     public static AppSettings NormalizeSettings(AppSettings settings)
     {

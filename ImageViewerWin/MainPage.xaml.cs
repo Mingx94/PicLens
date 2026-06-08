@@ -83,6 +83,27 @@ public sealed partial class MainPage : Page
             _ => InfoBarSeverity.Informational
         };
 
+    public static string FolderNameFromPath(string? path) =>
+        FolderSegmentFromPath(path, fallback: "未選擇資料夾");
+
+    public static string ParentFolderNameFromPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return "資料夾";
+        }
+
+        try
+        {
+            var parent = Directory.GetParent(Path.GetFullPath(path));
+            return FolderSegmentFromPath(parent?.FullName, fallback: "資料夾");
+        }
+        catch (Exception)
+        {
+            return "資料夾";
+        }
+    }
+
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         if (initialized)
@@ -491,4 +512,24 @@ public sealed partial class MainPage : Page
 
     private static bool PathEquals(string left, string right) =>
         PathComparer.Equals(PathKey(left), PathKey(right));
+
+    private static string FolderSegmentFromPath(string? path, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return fallback;
+        }
+
+        try
+        {
+            var normalized = Path.GetFullPath(path);
+            var trimmed = normalized.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var name = Path.GetFileName(trimmed);
+            return string.IsNullOrWhiteSpace(name) ? normalized : name;
+        }
+        catch (Exception)
+        {
+            return path;
+        }
+    }
 }

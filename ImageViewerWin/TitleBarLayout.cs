@@ -8,7 +8,7 @@ internal static class TitleBarLayout
     {
         if (AppWindowTitleBar.IsCustomizationSupported())
         {
-            appWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
+            appWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Standard;
         }
     }
 }

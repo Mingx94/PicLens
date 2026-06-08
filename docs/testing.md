@@ -62,8 +62,16 @@ App 應可不安裝 MSIX package 直接啟動。
 處理 WinUI 或 native/XAML crash 時，build 成功還不夠。App build 完後，執行短時間 debug-output launch 並檢查 app log：
 
 ```powershell
-winapp run --debug-output
+.\BuildAndRun.ps1 .\ImageViewerWin\ImageViewerWin.csproj
 Get-Content "$env:LOCALAPPDATA\ImageViewerWin\Logs\ImageViewerWin.log" -Tail 100
 ```
 
 可能失敗的 development paths 應透過 app logger 記錄，並包含足夠 context 來辨識失敗的 item、path 與 operation。
+
+若要直接使用 `winapp run`，請讓它指向 build output folder 並自動偵測 output manifest，例如：
+
+```powershell
+winapp run .\ImageViewerWin\bin\x64\Debug\net10.0-windows10.0.26100.0\win-x64 --debug-output
+```
+
+不要把 source `ImageViewerWin\Package.appxmanifest` 手動套到 build output folder；source manifest 尚未展開 `$targetnametoken$` / `$targetentrypoint$`，可能導致早期 `System.TypeInitializationException` / `REGDB_E_CLASSNOTREG (0x80040154)` 假陽性 crash。

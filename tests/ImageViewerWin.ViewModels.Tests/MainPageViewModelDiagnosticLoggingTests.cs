@@ -130,7 +130,7 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
         var entry = Assert.Single(logger.ErrorMessages, error => error.Message.StartsWith("Load thumbnail failed.", StringComparison.Ordinal));
         Assert.Same(expected, entry.Exception);
         Assert.Contains("Image=first.jpg", entry.Message);
-        Assert.Contains("RequestedSize=200", entry.Message);
+        Assert.Contains("RequestedSize=160", entry.Message);
     }
 
     private static MainPageViewModel CreateViewModel(

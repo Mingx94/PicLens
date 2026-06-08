@@ -8,7 +8,7 @@ namespace ImageViewerWin.ViewModels.Tests;
 public sealed class MainPageViewModelThumbnailSizeTests
 {
     [Fact]
-    public async Task InitializeAsync_applies_persisted_thumbnail_size_to_tiles()
+    public async Task InitializeAsync_clamps_oversized_persisted_thumbnail_size_to_tiles()
     {
         using var workspace = new TempDirectory();
         var scanner = new CountingFolderScanner(
@@ -25,9 +25,9 @@ public sealed class MainPageViewModelThumbnailSizeTests
         await viewModel.InitializeAsync();
 
         var tile = Assert.Single(viewModel.LibraryItems);
-        Assert.Equal(350, viewModel.ThumbnailSize);
-        Assert.Equal(350, tile.TileWidth);
-        Assert.Equal(346, tile.TileHeight);
+        Assert.Equal(200, viewModel.ThumbnailSize);
+        Assert.Equal(200, tile.TileWidth);
+        Assert.Equal(196, tile.TileHeight);
     }
 
     [Fact]
@@ -47,13 +47,13 @@ public sealed class MainPageViewModelThumbnailSizeTests
         await viewModel.InitializeAsync();
         var tile = Assert.Single(viewModel.LibraryItems);
 
-        await viewModel.ChangeThumbnailSizeAsync(226);
+        await viewModel.ChangeThumbnailSizeAsync(188);
 
-        Assert.Equal(250, viewModel.ThumbnailSize);
-        Assert.Equal(250, settingsStore.Settings.ThumbnailSize);
-        Assert.Equal(250, tile.TileWidth);
-        Assert.Equal(246, tile.TileHeight);
-        Assert.Equal("縮圖大小已調整為 250。", viewModel.StatusMessage);
+        Assert.Equal(180, viewModel.ThumbnailSize);
+        Assert.Equal(180, settingsStore.Settings.ThumbnailSize);
+        Assert.Equal(180, tile.TileWidth);
+        Assert.Equal(176, tile.TileHeight);
+        Assert.Equal("縮圖大小已調整為 180。", viewModel.StatusMessage);
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public sealed class MainPageViewModelThumbnailSizeTests
         Assert.Equal(cachedThumbnailPath, tile.ThumbnailPath);
         Assert.True(tile.CanShowThumbnail);
         Assert.False(tile.ShouldShowIcon);
-        Assert.Equal([(imagePath, 350)], thumbnailService.Requests);
+        Assert.Equal([(imagePath, 200)], thumbnailService.Requests);
     }
 
     [Fact]
@@ -170,8 +170,7 @@ public sealed class MainPageViewModelThumbnailSizeTests
         ]);
         var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
         {
-            LastFolderPath = workspace.Path,
-            ThumbnailSize = 350
+            LastFolderPath = workspace.Path
         });
         var thumbnailService = new BlockingThumbnailService(Path.Combine(workspace.Path, "old-size.png"));
         var viewModel = CreateViewModel(settingsStore, scanner, thumbnailService);
@@ -181,11 +180,11 @@ public sealed class MainPageViewModelThumbnailSizeTests
         var loadTask = viewModel.LoadThumbnailAsync(tile);
         await thumbnailService.WaitForRequestAsync();
 
-        await viewModel.ChangeThumbnailSizeAsync(226);
+        await viewModel.ChangeThumbnailSizeAsync(188);
         await loadTask;
         await thumbnailService.WaitForCancellationAsync();
 
-        Assert.Equal(250, viewModel.ThumbnailSize);
+        Assert.Equal(180, viewModel.ThumbnailSize);
         Assert.True(thumbnailService.WasCanceled);
         Assert.Null(tile.ThumbnailPath);
     }

@@ -103,6 +103,46 @@ public sealed class MainPageTextTests
         Assert.Contains("AutomationProperties.Name=\"檔案操作狀態\"", xaml);
         Assert.Contains("AutomationProperties.LiveSetting=\"Polite\"", xaml);
         Assert.Contains("AutomationProperties.Name=\"{x:Bind AutomationName}\"", xaml);
+        Assert.Contains("<AppBarButton", xaml);
+        Assert.Contains("x:Name=\"TitleBarRefreshLibraryButton\"", xaml);
+        Assert.Contains("VerticalAlignment=\"Center\"", xaml);
+        Assert.Contains("x:Name=\"LibraryHeaderPath\"", xaml);
+        Assert.Contains("x:Name=\"LibraryHeaderParentText\"", xaml);
+        Assert.Contains("x:Name=\"LibraryHeaderCurrentText\"", xaml);
+        Assert.Contains("TextTrimming=\"CharacterEllipsis\"", xaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"LibrarySearchBox\"", xaml);
+        Assert.DoesNotContain("<AutoSuggestBox", xaml);
+        Assert.DoesNotContain("SearchQuery", xaml);
+    }
+
+    [Fact]
+    public void MainPage_top_right_commands_use_compact_centered_height()
+    {
+        var xaml = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "MainPage.xaml"));
+
+        Assert.Contains("x:Name=\"TitleBarBackButton\"", xaml);
+        Assert.Contains("x:Name=\"TitleBarForwardButton\"", xaml);
+        Assert.Contains("x:Name=\"TitleBarRefreshLibraryButton\"", xaml);
+        Assert.Contains("x:Name=\"TitleBarOpenFolderButton\"", xaml);
+        Assert.Contains("x:Name=\"TitleBarSortMenuButton\"", xaml);
+        Assert.Contains("x:Name=\"TitleBarRecursiveModeToggle\"", xaml);
+        Assert.Equal(3, xaml.Split("IsCompact=\"True\"").Length - 1);
+        Assert.Contains("LabelPosition=\"Collapsed\"", xaml);
+        Assert.Contains("VerticalAlignment=\"Center\"", xaml);
+    }
+
+    [Fact]
+    public void MainPage_xaml_uses_dense_gallery_spacing()
+    {
+        var xaml = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "MainPage.xaml"));
+
+        Assert.Contains("<Setter Target=\"FolderColumn.Width\" Value=\"280\" />", xaml);
+        Assert.Contains("<ColumnDefinition x:Name=\"FolderColumn\" Width=\"280\" />", xaml);
+        Assert.Contains("<Setter Target=\"LibraryContent.Padding\" Value=\"20,16,20,16\" />", xaml);
+        Assert.Contains("Padding=\"20,16,20,16\"", xaml);
+        Assert.Contains("<Setter Property=\"Margin\" Value=\"0,0,12,12\" />", xaml);
+        Assert.Contains("<Setter Property=\"MinWidth\" Value=\"128\" />", xaml);
+        Assert.Contains("<Setter Property=\"MinHeight\" Value=\"136\" />", xaml);
     }
 
     [Fact]
@@ -123,13 +163,24 @@ public sealed class MainPageTextTests
         var code = File.ReadAllText(Path.Combine(RepositoryRoot(), "ImageViewerWin", "MainPage.xaml.cs"));
 
         Assert.Contains("AutomationProperties.AutomationId=\"LibrarySelectionActionBar\"", xaml);
+        Assert.Contains("Background=\"{ThemeResource CardBackgroundFillColorDefaultBrush}\"", xaml);
+        Assert.Contains("BorderBrush=\"{ThemeResource CardStrokeColorDefaultBrush}\"", xaml);
         Assert.Contains("Visibility=\"{x:Bind local:MainPage.BoolToVisibility(ViewModel.HasSelectedImages), Mode=OneWay}\"", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"SelectionSummaryText\"", xaml);
+        Assert.Contains("TextTrimming=\"CharacterEllipsis\"", xaml);
         Assert.Contains("Text=\"{x:Bind ViewModel.SelectionSummaryText, Mode=OneWay}\"", xaml);
+        Assert.Contains("x:Name=\"SelectionCommandBar\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"SelectionCommandBar\"", xaml);
+        Assert.Contains("IsDynamicOverflowEnabled=\"True\"", xaml);
+        Assert.Contains("<Setter Target=\"SelectionCommandBar.(Grid.Row)\" Value=\"1\" />", xaml);
+        Assert.Contains("<Setter Target=\"SelectionCommandBar.DefaultLabelPosition\" Value=\"Collapsed\" />", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"SelectionRenameButton\"", xaml);
         Assert.Contains("Command=\"{x:Bind ViewModel.RenameSelectedCommand}\"", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"SelectionTrashButton\"", xaml);
         Assert.Contains("Command=\"{x:Bind ViewModel.TrashSelectedCommand}\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"SelectionConvertButton\"", xaml);
+        Assert.Contains("Command=\"{x:Bind ViewModel.ConvertSelectedCommand}\"", xaml);
+        Assert.Contains("Label=\"轉成 JPG\"", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"SelectionClearButton\"", xaml);
         Assert.Contains("Click=\"ClearLibrarySelection_Click\"", xaml);
         Assert.Contains("ClearLibrarySelection_Click", code);

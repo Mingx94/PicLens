@@ -72,7 +72,7 @@ public sealed class JsonSettingsStoreTests
         var original = AppSettings.CreateDefault() with
         {
             LastFolderPath = temp.Root,
-            ThumbnailSize = 300
+            ThumbnailSize = 180
         };
         await store.SaveAsync(original);
         using var cancellation = new CancellationTokenSource();
@@ -94,7 +94,7 @@ public sealed class JsonSettingsStoreTests
         var original = AppSettings.CreateDefault() with
         {
             LastFolderPath = temp.Root,
-            ThumbnailSize = 300
+            ThumbnailSize = 180
         };
         await store.SaveAsync(original);
         await using var locked = new FileStream(settingsPath, FileMode.Open, FileAccess.Read, FileShare.None);

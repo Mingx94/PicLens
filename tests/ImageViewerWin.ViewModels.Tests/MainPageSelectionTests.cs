@@ -15,6 +15,7 @@ public sealed class MainPageSelectionTests
         Assert.False(viewModel.HasSelectedImages);
         Assert.False(viewModel.HasSingleSelectedImage);
         Assert.Equal("未選取圖片", viewModel.SelectionSummaryText);
+        Assert.False(viewModel.ConvertSelectedCommand.CanExecute(null));
         Assert.False(viewModel.RenameSelectedCommand.CanExecute(null));
         Assert.False(viewModel.TrashSelectedCommand.CanExecute(null));
     }
@@ -31,6 +32,7 @@ public sealed class MainPageSelectionTests
         Assert.True(viewModel.HasSelectedImages);
         Assert.True(viewModel.HasSingleSelectedImage);
         Assert.Equal("已選 1 張圖片", viewModel.SelectionSummaryText);
+        Assert.True(viewModel.ConvertSelectedCommand.CanExecute(null));
         Assert.True(viewModel.RenameSelectedCommand.CanExecute(null));
         Assert.True(viewModel.TrashSelectedCommand.CanExecute(null));
     }
@@ -50,6 +52,7 @@ public sealed class MainPageSelectionTests
         Assert.True(viewModel.HasSelectedImages);
         Assert.False(viewModel.HasSingleSelectedImage);
         Assert.Equal("已選 2 張圖片", viewModel.SelectionSummaryText);
+        Assert.True(viewModel.ConvertSelectedCommand.CanExecute(null));
         Assert.False(viewModel.RenameSelectedCommand.CanExecute(null));
         Assert.False(viewModel.TrashSelectedCommand.CanExecute(null));
     }
@@ -69,6 +72,7 @@ public sealed class MainPageSelectionTests
         Assert.True(viewModel.HasSelectedImages);
         Assert.True(viewModel.HasSingleSelectedImage);
         Assert.Equal("已選 1 張圖片", viewModel.SelectionSummaryText);
+        Assert.True(viewModel.ConvertSelectedCommand.CanExecute(null));
     }
 
     [Fact]
@@ -83,6 +87,7 @@ public sealed class MainPageSelectionTests
         Assert.False(viewModel.HasSelectedImages);
         Assert.False(viewModel.HasSingleSelectedImage);
         Assert.Equal("未選取圖片", viewModel.SelectionSummaryText);
+        Assert.False(viewModel.ConvertSelectedCommand.CanExecute(null));
         Assert.False(viewModel.RenameSelectedCommand.CanExecute(null));
         Assert.False(viewModel.TrashSelectedCommand.CanExecute(null));
     }
@@ -100,6 +105,7 @@ public sealed class MainPageSelectionTests
         Assert.False(viewModel.HasSelectedImages);
         Assert.False(viewModel.HasSingleSelectedImage);
         Assert.Equal("未選取圖片", viewModel.SelectionSummaryText);
+        Assert.False(viewModel.ConvertSelectedCommand.CanExecute(null));
         Assert.False(viewModel.RenameSelectedCommand.CanExecute(null));
         Assert.False(viewModel.TrashSelectedCommand.CanExecute(null));
     }

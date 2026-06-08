@@ -120,6 +120,8 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     public string ThumbnailSizeLabel => $"縮圖 {ThumbnailSize}";
 
+    public string LibraryItemCountText => $"{LibraryItems.Count} 個項目";
+
     public int SelectedImageCount => selectedImagePaths.Count;
 
     public bool HasSelectedImages => SelectedImageCount > 0;
@@ -138,7 +140,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            settings = await settingsStore.LoadAsync();
+            settings = SettingsRules.NormalizeSettings(await settingsStore.LoadAsync());
             suppressIncludeSubfoldersReload = true;
             Sort = settings.Sort;
             IncludeSubfolders = settings.IncludeSubfolders;
@@ -158,6 +160,7 @@ public sealed partial class MainPageViewModel : ObservableObject
                 CurrentFolderPath = string.Empty;
                 currentItems = [];
                 LibraryItems.Clear();
+                NotifyLibraryItemCount();
                 FolderRoots.Clear();
                 SetStatus("請選擇資料夾以開始瀏覽。");
                 return;
@@ -556,6 +559,21 @@ public sealed partial class MainPageViewModel : ObservableObject
         await LoadLibraryAsync();
     }
 
+    [RelayCommand(CanExecute = nameof(HasSelectedImages))]
+    private async Task ConvertSelected()
+    {
+        var selected = SelectedImages();
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        var result = await fileOperationService.ConvertVisibleToJpgAsync(selected);
+        SetBatchStatus("轉成 JPG", result);
+        ClearSelection();
+        await LoadLibraryAsync();
+    }
+
     [RelayCommand]
     private async Task ClearSameBasename()
     {
@@ -645,6 +663,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         {
             CancelActiveLibraryLoad();
             LibraryItems.Clear();
+            NotifyLibraryItemCount();
             FolderRoots.Clear();
             currentItems = [];
             return;
@@ -699,6 +718,7 @@ public sealed partial class MainPageViewModel : ObservableObject
             appLogger.Error(ex, $"Load library failed. CurrentFolderPath={folderPath}; IncludeSubfolders={includeSubfolders}");
             currentItems = [];
             LibraryItems.Clear();
+            NotifyLibraryItemCount();
             SetStatus($"無法載入資料夾：{ex.Message}", MainPageStatusSeverity.Error);
         }
         finally
@@ -756,6 +776,8 @@ public sealed partial class MainPageViewModel : ObservableObject
             tile.ApplyThumbnailSize(ThumbnailSize);
             LibraryItems.Add(tile);
         }
+
+        NotifyLibraryItemCount();
     }
 
     private void ApplyThumbnailSizeToLibraryItems()
@@ -881,8 +903,14 @@ public sealed partial class MainPageViewModel : ObservableObject
         OnPropertyChanged(nameof(HasSelectedImages));
         OnPropertyChanged(nameof(HasSingleSelectedImage));
         OnPropertyChanged(nameof(SelectionSummaryText));
+        ConvertSelectedCommand.NotifyCanExecuteChanged();
         RenameSelectedCommand.NotifyCanExecuteChanged();
         TrashSelectedCommand.NotifyCanExecuteChanged();
+    }
+
+    private void NotifyLibraryItemCount()
+    {
+        OnPropertyChanged(nameof(LibraryItemCountText));
     }
 
     private void NotifyNavigationCommands()
