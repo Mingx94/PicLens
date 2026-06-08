@@ -1,28 +1,28 @@
 # Portable Release
 
-ImageViewerWin is not being prepared for Microsoft Store or MSIX distribution right now. The release target is a framework-dependent no-install folder that can be copied and launched with `ImageViewerWin.exe` on machines that already have the required runtimes installed.
+ImageViewerWin 目前不是為 Microsoft Store 或 MSIX distribution 準備。Release target 是 framework-dependent no-install folder，可複製到已安裝必要 runtimes 的機器上，並透過 `ImageViewerWin.exe` 啟動。
 
-## Build
+## 建置
 
-Run from the repository root:
+從 repository root 執行：
 
 ```powershell
 .\Release.ps1
 ```
 
-Default output:
+預設 output：
 
 ```text
 artifacts/portable/ImageViewerWin-win-x64/
 ```
 
-The executable is:
+Executable 位於：
 
 ```text
 artifacts/portable/ImageViewerWin-win-x64/ImageViewerWin.exe
 ```
 
-## Options
+## 選項
 
 ```powershell
 .\Release.ps1 -SkipTests
@@ -30,24 +30,24 @@ artifacts/portable/ImageViewerWin-win-x64/ImageViewerWin.exe
 .\Release.ps1 -RuntimeIdentifier win-x86 -Platform x86
 ```
 
-## Notes
+## 注意事項
 
-This is not a single-file executable. WinUI unpackaged output must keep the adjacent DLL, PRI, WinUI, and runtime files beside `ImageViewerWin.exe`.
+這不是 single-file executable。WinUI unpackaged output 必須保留 `ImageViewerWin.exe` 旁邊的 DLL、PRI、WinUI 與 runtime files。
 
-Do not distribute only `ImageViewerWin.exe`; distribute the full folder.
+不要只散佈 `ImageViewerWin.exe`；請散佈完整資料夾。
 
-The default output is framework-dependent. Target machines must already have:
+預設 output 是 framework-dependent。目標 machines 必須已安裝：
 
 - Windows App Runtime 1.8
 - .NET Runtime 10
 - .NET Windows Desktop Runtime 10
 
-## What The Script Does
+## Script 行為
 
-1. Restores the Core, Application, Infrastructure, and ViewModels test projects using repo-local `NuGet.Config`.
-2. Runs Core, Application, Infrastructure, and ViewModels tests unless `-SkipTests` is passed.
-3. Restores the app for the selected Windows RID.
-4. Publishes with:
+1. 使用 repo-local `NuGet.Config` restore Core、Application、Infrastructure 與 ViewModels test projects。
+2. 除非傳入 `-SkipTests`，否則執行 Core、Application、Infrastructure 與 ViewModels tests。
+3. Restore selected Windows RID 的 app。
+4. 使用下列設定 publish：
    - `WindowsPackageType=None`
    - `WindowsAppSDKSelfContained=false`
    - `--self-contained false`
@@ -56,5 +56,5 @@ The default output is framework-dependent. Target machines must already have:
    - `SelfContained=false`
    - `DebugType=None`
    - `DebugSymbols=false`
-5. Verifies that `ImageViewerWin.exe` exists.
-6. Reports file count, total bytes, and the executable SHA256.
+5. 驗證 `ImageViewerWin.exe` 存在。
+6. 回報 file count、total bytes 與 executable SHA256。

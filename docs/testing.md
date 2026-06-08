@@ -1,8 +1,8 @@
-# Testing
+# 測試
 
 ## Unit Tests
 
-Run:
+執行：
 
 ```powershell
 dotnet restore .\tests\ImageViewerWin.Core.Tests\ImageViewerWin.Core.Tests.csproj --configfile .\NuGet.Config
@@ -15,55 +15,55 @@ dotnet test .\tests\ImageViewerWin.Infrastructure.Tests\ImageViewerWin.Infrastru
 dotnet test .\tests\ImageViewerWin.ViewModels.Tests\ImageViewerWin.ViewModels.Tests.csproj --no-restore
 ```
 
-Current coverage spans:
+目前 coverage 包含：
 
-- `ImageViewerWin.Core`: pure product rules.
-- `ImageViewerWin.Application`: deterministic rename planning, including drop-target sequence advancement past existing targets.
-- `ImageViewerWin.Infrastructure`: JSON settings, direct and recursive scanning, canonical directory de-duplication, image data helpers, disk thumbnail cache generation and pruning, conversion, trash, and rename operations.
-- `ImageViewerWin.ViewModels`: startup folder selection flow, sort-without-rescan behavior, contextual selection state, stale-selection clearing on library reload, async thumbnail path updates, thumbnail cancellation, stalled-thumbnail timeout recovery, thumbnail-size persistence, GridView thumbnail event wiring, diagnostic error logging for failure paths, and Traditional Chinese runtime copy.
+- `ImageViewerWin.Core`：pure product rules。
+- `ImageViewerWin.Application`：deterministic rename planning，包含 drop-target sequence advancement past existing targets。
+- `ImageViewerWin.Infrastructure`：JSON settings、direct 與 recursive scanning、canonical directory de-duplication、image data helpers、disk thumbnail cache generation and pruning、conversion、trash 與 rename operations。
+- `ImageViewerWin.ViewModels`：startup folder selection flow、sort-without-rescan behavior、contextual selection state、library reload 時的 stale-selection clearing、async thumbnail path updates、thumbnail cancellation、stalled-thumbnail timeout recovery、thumbnail-size persistence、GridView thumbnail event wiring、failure paths 的 diagnostic error logging，以及繁體中文 runtime copy。
 
 ## WinUI Build
 
-Run:
+執行：
 
 ```powershell
 dotnet restore .\ImageViewerWin\ImageViewerWin.csproj --configfile .\NuGet.Config -r win-x64 /p:Platform=x64
 dotnet build .\ImageViewerWin\ImageViewerWin.csproj --no-restore /p:Platform=x64
 ```
 
-For the plugin workflow:
+Plugin workflow 可執行：
 
 ```powershell
 .\BuildAndRun.ps1 .\ImageViewerWin\ImageViewerWin.csproj -SkipRun
 ```
 
-`BuildAndRun.ps1` uses Visual Studio MSBuild and may need to run outside restricted sandboxes when NuGet config access is blocked.
+`BuildAndRun.ps1` 使用 Visual Studio MSBuild；若 NuGet config access 被 restricted sandboxes 擋住，可能需要在 sandbox 外執行。
 
 ## Portable Release Verification
 
-Run:
+執行：
 
 ```powershell
 .\Release.ps1
 ```
 
-This restores packages, runs Core, Application, Infrastructure, and ViewModel tests, publishes a self-contained unpackaged output folder, and verifies that `ImageViewerWin.exe` exists.
+這會 restore packages、執行 Core、Application、Infrastructure 與 ViewModel tests、publish framework-dependent unpackaged output folder，並驗證 `ImageViewerWin.exe` 存在。
 
-Manual smoke check:
+Manual smoke check：
 
 ```powershell
 .\artifacts\portable\ImageViewerWin-win-x64\ImageViewerWin.exe
 ```
 
-The app should launch directly without installing an MSIX package.
+App 應可不安裝 MSIX package 直接啟動。
 
 ## Runtime Crash Diagnostics
 
-For WinUI or native/XAML crash work, a successful build is not enough. After the app builds, run a short debug-output launch and inspect the app log:
+處理 WinUI 或 native/XAML crash 時，build 成功還不夠。App build 完後，執行短時間 debug-output launch 並檢查 app log：
 
 ```powershell
 winapp run --debug-output
 Get-Content "$env:LOCALAPPDATA\ImageViewerWin\Logs\ImageViewerWin.log" -Tail 100
 ```
 
-Development paths that can fail should log through the app logger with enough context to identify the item, path, and operation that failed.
+可能失敗的 development paths 應透過 app logger 記錄，並包含足夠 context 來辨識失敗的 item、path 與 operation。
