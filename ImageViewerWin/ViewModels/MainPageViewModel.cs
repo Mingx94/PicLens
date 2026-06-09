@@ -4,6 +4,7 @@ using ImageViewerWin.Application.Services;
 using ImageViewerWin.Core.Domain;
 using ImageViewerWin.Core.Models;
 using ImageViewerWin.Diagnostics;
+using ImageViewerWin.Services;
 using System.Collections.ObjectModel;
 
 namespace ImageViewerWin.ViewModels;
@@ -18,12 +19,9 @@ public sealed partial class MainPageViewModel : ObservableObject
     private readonly IFileOperationService fileOperationService;
     private readonly IThumbnailService thumbnailService;
     private readonly IAppLogger appLogger;
-    private readonly Func<Task<string?>> chooseFolderAsync;
-    private readonly Func<string, string, string, Task<bool>> confirmAsync;
-    private readonly Func<ImageListItem, Task<string?>> requestRenameAsync;
-    private readonly Action<ImageSequenceSnapshot> openImageViewer;
-    private readonly Func<bool>? hasUiThreadAccess;
-    private readonly Func<Action, bool>? tryEnqueueOnUiThread;
+    private readonly IDialogService dialogService;
+    private readonly INavigationService navigationService;
+    private readonly IDispatcherService dispatcherService;
     private readonly TimeSpan thumbnailLoadTimeout;
     private readonly SemaphoreSlim thumbnailGate = new(MaxConcurrentThumbnailLoads);
     private readonly Dictionary<LibraryTileItem, ThumbnailLoadState> thumbnailLoads = new(ReferenceEqualityComparer.Instance);
@@ -52,21 +50,41 @@ public sealed partial class MainPageViewModel : ObservableObject
         Func<Action, bool>? tryEnqueueOnUiThread = null,
         TimeSpan? thumbnailLoadTimeout = null,
         IAppLogger? appLogger = null)
+        : this(
+              settingsStore,
+              folderScanner,
+              fileOperationService,
+              thumbnailService,
+              new DelegateDialogService(chooseFolderAsync, confirmAsync, requestRenameAsync),
+              new DelegateNavigationService(openImageViewer),
+              new DelegateDispatcherService(hasUiThreadAccess, tryEnqueueOnUiThread),
+              thumbnailLoadTimeout,
+              appLogger)
+    {
+    }
+
+    public MainPageViewModel(
+        ISettingsStore settingsStore,
+        IFolderScanner folderScanner,
+        IFileOperationService fileOperationService,
+        IThumbnailService thumbnailService,
+        IDialogService dialogService,
+        INavigationService navigationService,
+        IDispatcherService dispatcherService,
+        TimeSpan? thumbnailLoadTimeout = null,
+        IAppLogger? appLogger = null)
     {
         this.settingsStore = settingsStore;
         this.folderScanner = folderScanner;
         this.fileOperationService = fileOperationService;
         this.thumbnailService = thumbnailService;
-        this.appLogger = appLogger ?? NullAppLogger.Instance;
-        this.chooseFolderAsync = chooseFolderAsync;
-        this.confirmAsync = confirmAsync;
-        this.requestRenameAsync = requestRenameAsync;
-        this.openImageViewer = openImageViewer;
-        this.hasUiThreadAccess = hasUiThreadAccess;
-        this.tryEnqueueOnUiThread = tryEnqueueOnUiThread;
+        this.dialogService = dialogService;
+        this.navigationService = navigationService;
+        this.dispatcherService = dispatcherService;
         this.thumbnailLoadTimeout = thumbnailLoadTimeout is { } timeout && timeout > TimeSpan.Zero
             ? timeout
             : DefaultThumbnailLoadTimeout;
+        this.appLogger = appLogger ?? NullAppLogger.Instance;
     }
 
     [ObservableProperty]
@@ -151,7 +169,7 @@ public sealed partial class MainPageViewModel : ObservableObject
             var shouldPersistInitialFolder = false;
             if (initialFolder is null)
             {
-                initialFolder = await chooseFolderAsync();
+                initialFolder = await dialogService.ChooseFolderAsync();
                 shouldPersistInitialFolder = true;
             }
 
@@ -396,14 +414,14 @@ public sealed partial class MainPageViewModel : ObservableObject
             }
         }
 
-        if (hasUiThreadAccess is null || tryEnqueueOnUiThread is null || hasUiThreadAccess())
+        if (dispatcherService.HasUiThreadAccess)
         {
             Apply();
             return Task.CompletedTask;
         }
 
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (!tryEnqueueOnUiThread(() =>
+        if (!dispatcherService.TryEnqueue(() =>
             {
                 try
                 {
@@ -500,7 +518,7 @@ public sealed partial class MainPageViewModel : ObservableObject
     [RelayCommand]
     private async Task OpenFolder()
     {
-        var folderPath = await chooseFolderAsync();
+        var folderPath = await dialogService.ChooseFolderAsync();
         if (string.IsNullOrWhiteSpace(folderPath))
         {
             return;
@@ -577,7 +595,7 @@ public sealed partial class MainPageViewModel : ObservableObject
     [RelayCommand]
     private async Task ClearSameBasename()
     {
-        if (!await confirmAsync("要將同名的非 JPG 檔案移至回收筒嗎？", "清除同名檔案", "移至回收筒"))
+        if (!await dialogService.ConfirmAsync("要將同名的非 JPG 檔案移至回收筒嗎？", "清除同名檔案", "移至回收筒"))
         {
             return;
         }
@@ -596,7 +614,7 @@ public sealed partial class MainPageViewModel : ObservableObject
             return;
         }
 
-        var nextName = await requestRenameAsync(selected);
+        var nextName = await dialogService.RequestRenameAsync(selected);
         if (string.IsNullOrWhiteSpace(nextName))
         {
             return;
@@ -616,7 +634,7 @@ public sealed partial class MainPageViewModel : ObservableObject
     private async Task TrashSelected()
     {
         var selected = SelectedImages().SingleOrDefault();
-        if (selected is null || !await confirmAsync($"要將「{selected.Name}」移至回收筒嗎？", "將選取的圖片移至回收筒", "移至回收筒"))
+        if (selected is null || !await dialogService.ConfirmAsync($"要將「{selected.Name}」移至回收筒嗎？", "將選取的圖片移至回收筒", "移至回收筒"))
         {
             return;
         }
@@ -682,10 +700,19 @@ public sealed partial class MainPageViewModel : ObservableObject
             var loadedItems = await folderScanner.ScanAsync(
                 new ListQuery(folderPath, includeSubfolders, sort),
                 load.CancellationSource.Token);
-            var loadedFolderRoots = await BuildFolderTreeAsync(
-                folderTreeRoot,
-                folderPath,
-                load.CancellationSource.Token);
+
+            var existingRoot = FolderRoots.FirstOrDefault();
+            var isRootChanged = existingRoot == null || !PathEquals(existingRoot.Path, folderTreeRoot);
+
+            IReadOnlyList<FolderTreeItem>? loadedFolderRoots = null;
+            if (isRootChanged)
+            {
+                loadedFolderRoots = await BuildFolderTreeAsync(
+                    folderTreeRoot,
+                    folderPath,
+                    load.CancellationSource.Token);
+            }
+
             if (!IsCurrentLibraryLoad(load)
                 || !PathEquals(CurrentFolderPath, folderPath)
                 || IncludeSubfolders != includeSubfolders
@@ -697,10 +724,17 @@ public sealed partial class MainPageViewModel : ObservableObject
             currentItems = loadedItems;
             RefreshLibraryItems();
 
-            FolderRoots.Clear();
-            foreach (var root in loadedFolderRoots)
+            if (isRootChanged && loadedFolderRoots != null)
             {
-                FolderRoots.Add(root);
+                FolderRoots.Clear();
+                foreach (var root in loadedFolderRoots)
+                {
+                    FolderRoots.Add(root);
+                }
+            }
+            else
+            {
+                UpdateFolderTreeSelection(folderPath);
             }
 
             NotifySelectionCommands();
@@ -796,9 +830,9 @@ public sealed partial class MainPageViewModel : ObservableObject
         var root = new FolderTreeItem(
             FolderDisplayName(rootPath),
             rootPath,
-            Directory.Exists(rootPath),
-            true,
-            PathEquals(rootPath, selectedPath));
+            isReadable: Directory.Exists(rootPath),
+            isExpanded: true,
+            isSelected: PathEquals(rootPath, selectedPath));
         await PopulateFolderChildrenAsync(root, rootPath, selectedPath, cancellationToken);
         return [root];
     }
@@ -829,6 +863,7 @@ public sealed partial class MainPageViewModel : ObservableObject
             return;
         }
 
+        node.Children.Clear();
         foreach (var folder in folders)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -836,14 +871,105 @@ public sealed partial class MainPageViewModel : ObservableObject
             var child = new FolderTreeItem(
                 folder.Name,
                 folder.Path,
+                isReadable: true,
                 isExpanded: isExpanded,
                 isSelected: PathEquals(folder.Path, selectedPath));
             node.Children.Add(child);
-            if (isExpanded && !PathEquals(folder.Path, folderPath))
+
+            if (isExpanded)
             {
                 await PopulateFolderChildrenAsync(child, folder.Path, selectedPath, cancellationToken);
             }
+            else
+            {
+                child.Children.Add(new FolderTreeItem("", "", isReadable: false));
+            }
         }
+        node.HasLoadedChildren = true;
+    }
+
+    public async Task LoadFolderChildrenOnDemandAsync(FolderTreeItem node)
+    {
+        if (node.HasLoadedChildren)
+        {
+            return;
+        }
+
+        try
+        {
+            var folders = await folderScanner.ScanChildFoldersAsync(
+                node.Path,
+                new SortState(SortKey.Name, SortDirection.Asc),
+                CancellationToken.None);
+
+            node.Children.Clear();
+            foreach (var folder in folders)
+            {
+                var isExpanded = IsPathAncestorOrEqual(folder.Path, CurrentFolderPath);
+                var child = new FolderTreeItem(
+                    folder.Name,
+                    folder.Path,
+                    isReadable: true,
+                    isExpanded: isExpanded,
+                    isSelected: PathEquals(folder.Path, CurrentFolderPath));
+
+                if (isExpanded)
+                {
+                    await PopulateFolderChildrenAsync(child, folder.Path, CurrentFolderPath, CancellationToken.None);
+                }
+                else
+                {
+                    child.Children.Add(new FolderTreeItem("", "", isReadable: false));
+                }
+                node.Children.Add(child);
+            }
+            node.HasLoadedChildren = true;
+        }
+        catch (Exception ex)
+        {
+            appLogger.Error(ex, $"Lazy load folder children failed for {node.Path}");
+        }
+    }
+
+    private void UpdateFolderTreeSelection(string selectedPath)
+    {
+        foreach (var root in FolderRoots)
+        {
+            UpdateFolderTreeSelection(root, selectedPath);
+        }
+    }
+
+    private bool UpdateFolderTreeSelection(FolderTreeItem node, string selectedPath)
+    {
+        if (string.IsNullOrEmpty(node.Path))
+        {
+            return false;
+        }
+
+        var isSelected = PathEquals(node.Path, selectedPath);
+        var isAncestor = IsPathAncestor(node.Path, selectedPath);
+
+        node.IsSelected = isSelected;
+
+        if (isSelected || isAncestor)
+        {
+            node.IsExpanded = true;
+            if (isAncestor && !node.HasLoadedChildren)
+            {
+                _ = LoadFolderChildrenOnDemandAsync(node);
+            }
+        }
+
+        var anyChildSelectedOrAncestor = false;
+        foreach (var child in node.Children)
+        {
+            if (UpdateFolderTreeSelection(child, selectedPath))
+            {
+                anyChildSelectedOrAncestor = true;
+            }
+        }
+
+        return isSelected || isAncestor || anyChildSelectedOrAncestor;
     }
 
     private async Task NavigateToFolderFromHistoryAsync(FolderHistoryEntry entry)
@@ -875,7 +1001,7 @@ public sealed partial class MainPageViewModel : ObservableObject
 
         try
         {
-            openImageViewer(snapshot);
+            navigationService.OpenImageViewer(snapshot);
             appLogger.Info(
                 $"Open image viewer completed. Image={image.Name}; CurrentIndex={snapshot.CurrentIndex}; ImageCount={snapshot.Images.Count}");
         }
@@ -1056,6 +1182,15 @@ public sealed partial class MainPageViewModel : ObservableObject
         return relative != "."
             && !relative.StartsWith("..", StringComparison.Ordinal)
             && !Path.IsPathRooted(relative);
+    }
+
+    private static bool IsPathAncestor(string ancestorPath, string childPath)
+    {
+        if (PathEquals(ancestorPath, childPath))
+        {
+            return false;
+        }
+        return IsPathAncestorOrEqual(ancestorPath, childPath);
     }
 }
 

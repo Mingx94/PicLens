@@ -319,18 +319,19 @@ public sealed class WinRTJpegEncoder : IJpegEncoder
 
 public sealed class WindowsRecycleBin : IRecycleBin
 {
-    public Task TrashAsync(string path, CancellationToken cancellationToken = default)
+    public async Task TrashAsync(string path, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (File.Exists(path))
+        await Task.Run(() =>
         {
-            FileSystem.DeleteFile(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
-        }
-        else
-        {
-            FileSystem.DeleteDirectory(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
-        }
-
-        return Task.CompletedTask;
+            if (File.Exists(path))
+            {
+                FileSystem.DeleteFile(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+            }
+            else
+            {
+                FileSystem.DeleteDirectory(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+            }
+        }, cancellationToken);
     }
 }

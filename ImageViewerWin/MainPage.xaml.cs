@@ -3,6 +3,7 @@ using ImageViewerWin.Core.Domain;
 using ImageViewerWin.Diagnostics;
 using ImageViewerWin.Infrastructure.Services;
 using ImageViewerWin.ViewModels;
+using ImageViewerWin.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -37,12 +38,9 @@ public sealed partial class MainPage : Page
             new FolderScanner(),
             new FileOperationService(),
             new ThumbnailService(),
-            ChooseFolderAsync,
-            ConfirmAsync,
-            RequestRenameAsync,
-            OpenImageViewer,
-            () => DispatcherQueue.HasThreadAccess,
-            callback => DispatcherQueue.TryEnqueue(() => callback()),
+            new WinUIDialogService(this),
+            new WinUINavigationService(this),
+            new WinUIDispatcherService(DispatcherQueue),
             appLogger: App.Logger);
 
         InitializeComponent();
@@ -531,5 +529,37 @@ public sealed partial class MainPage : Page
         {
             return path;
         }
+    }
+
+    private async void FolderTree_Expanding(TreeView sender, TreeViewExpandingEventArgs args)
+    {
+        if (args.Item is FolderTreeItem node)
+        {
+            await ViewModel.LoadFolderChildrenOnDemandAsync(node);
+        }
+    }
+
+    private sealed class WinUIDialogService : IDialogService
+    {
+        private readonly MainPage page;
+        public WinUIDialogService(MainPage page) => this.page = page;
+        public Task<string?> ChooseFolderAsync() => page.ChooseFolderAsync();
+        public Task<bool> ConfirmAsync(string message, string title, string confirmButtonText) => page.ConfirmAsync(message, title, confirmButtonText);
+        public Task<string?> RequestRenameAsync(ImageListItem item) => page.RequestRenameAsync(item);
+    }
+
+    private sealed class WinUINavigationService : INavigationService
+    {
+        private readonly MainPage page;
+        public WinUINavigationService(MainPage page) => this.page = page;
+        public void OpenImageViewer(ImageSequenceSnapshot snapshot) => MainPage.OpenImageViewer(snapshot);
+    }
+
+    private sealed class WinUIDispatcherService : IDispatcherService
+    {
+        private readonly Microsoft.UI.Dispatching.DispatcherQueue queue;
+        public WinUIDispatcherService(Microsoft.UI.Dispatching.DispatcherQueue queue) => this.queue = queue;
+        public bool HasUiThreadAccess => queue.HasThreadAccess;
+        public bool TryEnqueue(Action action) => queue.TryEnqueue(() => action());
     }
 }

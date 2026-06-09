@@ -9,11 +9,12 @@ public sealed class AppLoggingTests
     {
         using var workspace = new TempDirectory();
         var logPath = Path.Combine(workspace.Path, "ImageViewerWin.log");
-        var logger = new FileAppLogger(
+        using (var logger = new FileAppLogger(
             logPath,
-            () => new DateTimeOffset(2026, 6, 6, 12, 34, 56, TimeSpan.FromHours(8)));
-
-        logger.Error(new InvalidOperationException("boom"), "IncludeSubfoldersChanged");
+            () => new DateTimeOffset(2026, 6, 6, 12, 34, 56, TimeSpan.FromHours(8))))
+        {
+            logger.Error(new InvalidOperationException("boom"), "IncludeSubfoldersChanged");
+        }
 
         var log = File.ReadAllText(logPath);
         Assert.Contains("2026-06-06T12:34:56.0000000+08:00", log);

@@ -22,8 +22,8 @@ public sealed class DomainParityTests
     [Fact]
     public void Animated_gif_detection_counts_multiple_image_descriptors()
     {
-        var staticGif = new byte[] { (byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a', 0, 0, 0, 0, 0x2c };
-        var animatedGif = new byte[] { (byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a', 0, 0, 0, 0, 0x2c, 1, 0x2c };
+        var staticGif = new byte[] { (byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a', 0, 0, 0, 0, 0, 0, 0, 0x2c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0x3b };
+        var animatedGif = new byte[] { (byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a', 0, 0, 0, 0, 0, 0, 0, 0x2c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0x2c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0x3b };
 
         Assert.False(ImageFormatRules.IsAnimatedGif(staticGif));
         Assert.True(ImageFormatRules.IsAnimatedGif(animatedGif));
@@ -32,8 +32,8 @@ public sealed class DomainParityTests
     [Fact]
     public void Animated_webp_detection_uses_riff_webp_header_and_anim_marker()
     {
-        var staticWebp = "RIFF----WEBPVP8 "u8.ToArray();
-        var animatedWebp = "RIFF----WEBPVP8X....ANIM"u8.ToArray();
+        var staticWebp = new byte[] { (byte)'R', (byte)'I', (byte)'F', (byte)'F', 0, 0, 0, 0, (byte)'W', (byte)'E', (byte)'B', (byte)'P', (byte)'V', (byte)'P', (byte)'8', (byte)'X', 0, 0, 0, 0, 0 };
+        var animatedWebp = new byte[] { (byte)'R', (byte)'I', (byte)'F', (byte)'F', 0, 0, 0, 0, (byte)'W', (byte)'E', (byte)'B', (byte)'P', (byte)'V', (byte)'P', (byte)'8', (byte)'X', 0, 0, 0, 0, 0x02 };
 
         Assert.False(ImageFormatRules.IsAnimatedWebp(staticWebp));
         Assert.True(ImageFormatRules.IsAnimatedWebp(animatedWebp));

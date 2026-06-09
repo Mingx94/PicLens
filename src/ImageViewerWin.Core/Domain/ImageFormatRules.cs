@@ -32,40 +32,180 @@ public static class ImageFormatRules
 
     public static bool IsAnimatedGif(ReadOnlySpan<byte> buffer)
     {
-        if (buffer.Length < 10 || Ascii(buffer[..3]) != "GIF")
+        if (buffer.Length < 13 || buffer[0] != 'G' || buffer[1] != 'I' || buffer[2] != 'F')
         {
             return false;
         }
 
-        var imageDescriptorCount = 0;
-        foreach (var value in buffer)
+        byte packed = buffer[10];
+        bool hasGct = (packed & 0x80) != 0;
+        int offset = 13;
+        if (hasGct)
         {
-            if (value != 0x2c)
-            {
-                continue;
-            }
-
-            imageDescriptorCount += 1;
-            if (imageDescriptorCount > 1)
-            {
-                return true;
-            }
+            int gctSize = 3 * (1 << ((packed & 0x07) + 1));
+            offset += gctSize;
         }
 
+        int imageDescriptorCount = 0;
+
+        while (offset < buffer.Length)
+        {
+            byte blockType = buffer[offset];
+            offset++;
+
+            if (blockType == 0x2C) // Image Descriptor
+            {
+                imageDescriptorCount++;
+                if (imageDescriptorCount > 1) return true;
+
+                if (offset + 9 > buffer.Length) break;
+                byte localPacked = buffer[offset + 8];
+                offset += 9;
+
+                if ((localPacked & 0x80) != 0)
+                {
+                    int lctSize = 3 * (1 << ((localPacked & 0x07) + 1));
+                    offset += lctSize;
+                }
+
+                if (offset >= buffer.Length) break;
+                // LZW Minimum Code Size
+                offset++;
+
+                while (offset < buffer.Length)
+                {
+                    byte subBlockSize = buffer[offset];
+                    offset++;
+                    if (subBlockSize == 0) break;
+                    offset += subBlockSize;
+                }
+            }
+            else if (blockType == 0x21) // Extension Block
+            {
+                if (offset >= buffer.Length) break;
+                // Extension Label
+                offset++;
+
+                while (offset < buffer.Length)
+                {
+                    if (offset >= buffer.Length) break;
+                    byte subBlockSize = buffer[offset];
+                    offset++;
+                    if (subBlockSize == 0) break;
+                    offset += subBlockSize;
+                }
+            }
+            else if (blockType == 0x3B) // Trailer
+            {
+                break;
+            }
+            else
+            {
+                break;
+            }
+        }
         return false;
     }
 
     public static bool IsAnimatedWebp(ReadOnlySpan<byte> buffer)
     {
-        if (buffer.Length < 12)
+        if (buffer.Length < 21) return false;
+        if (buffer[0] != 'R' || buffer[1] != 'I' || buffer[2] != 'F' || buffer[3] != 'F') return false;
+        if (buffer[8] != 'W' || buffer[9] != 'E' || buffer[10] != 'B' || buffer[11] != 'P') return false;
+
+        if (buffer[12] == 'V' && buffer[13] == 'P' && buffer[14] == '8' && buffer[15] == 'X')
         {
-            return false;
+            byte flags = buffer[20];
+            return (flags & 0x02) != 0;
         }
 
-        var header = Ascii(buffer[..12]);
-        return header.StartsWith("RIFF", StringComparison.Ordinal)
-            && header.EndsWith("WEBP", StringComparison.Ordinal)
-            && IncludesAscii(buffer, "ANIM");
+        return false;
+    }
+
+    public static bool IsAnimatedGif(Stream stream)
+    {
+        var header = new byte[13];
+        if (stream.Read(header, 0, 13) < 13) return false;
+        if (header[0] != 'G' || header[1] != 'I' || header[2] != 'F') return false;
+
+        byte packed = header[10];
+        bool hasGct = (packed & 0x80) != 0;
+        if (hasGct)
+        {
+            int gctSize = 3 * (1 << ((packed & 0x07) + 1));
+            stream.Seek(gctSize, SeekOrigin.Current);
+        }
+
+        int imageDescriptorCount = 0;
+        var blockHeader = new byte[9];
+
+        while (true)
+        {
+            int blockType = stream.ReadByte();
+            if (blockType == -1) break;
+
+            if (blockType == 0x2C) // Image Descriptor
+            {
+                imageDescriptorCount++;
+                if (imageDescriptorCount > 1) return true;
+
+                if (stream.Read(blockHeader, 0, 9) < 9) break;
+                byte localPacked = blockHeader[8];
+                if ((localPacked & 0x80) != 0)
+                {
+                    int lctSize = 3 * (1 << ((localPacked & 0x07) + 1));
+                    stream.Seek(lctSize, SeekOrigin.Current);
+                }
+
+                int lzwSize = stream.ReadByte();
+                if (lzwSize == -1) break;
+
+                while (true)
+                {
+                    int subBlockSize = stream.ReadByte();
+                    if (subBlockSize <= 0) break;
+                    stream.Seek(subBlockSize, SeekOrigin.Current);
+                }
+            }
+            else if (blockType == 0x21) // Extension Block
+            {
+                int extLabel = stream.ReadByte();
+                if (extLabel == -1) break;
+
+                while (true)
+                {
+                    int subBlockSize = stream.ReadByte();
+                    if (subBlockSize <= 0) break;
+                    stream.Seek(subBlockSize, SeekOrigin.Current);
+                }
+            }
+            else if (blockType == 0x3B) // Trailer
+            {
+                break;
+            }
+            else
+            {
+                break;
+            }
+        }
+        return false;
+    }
+
+    public static bool IsAnimatedWebp(Stream stream)
+    {
+        var header = new byte[21];
+        if (stream.Read(header, 0, 21) < 21) return false;
+
+        if (header[0] != 'R' || header[1] != 'I' || header[2] != 'F' || header[3] != 'F') return false;
+        if (header[8] != 'W' || header[9] != 'E' || header[10] != 'B' || header[11] != 'P') return false;
+
+        if (header[12] == 'V' && header[13] == 'P' && header[14] == '8' && header[15] == 'X')
+        {
+            byte flags = header[20];
+            return (flags & 0x02) != 0;
+        }
+
+        return false;
     }
 
     public static bool IsPotentiallyAnimatedImage(string extension, ReadOnlySpan<byte> buffer) =>

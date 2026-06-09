@@ -17,6 +17,8 @@ public sealed class ThumbnailService : IThumbnailService
 
     private readonly string cacheRoot;
     private readonly long maxCacheBytes;
+    private int generatedSinceLastPrune = 0;
+    private int isPruning = 0;
 
     public ThumbnailService()
         : this(DefaultCacheRoot())
@@ -71,7 +73,7 @@ public sealed class ThumbnailService : IThumbnailService
 
             Directory.CreateDirectory(cacheRoot);
             await CreateThumbnailAsync(sourceInfo.FullName, cachePath, requestedSize, cancellationToken);
-            PruneCache(cachePath);
+            TryTriggerPrune(cachePath);
             return cachePath;
         }
         catch (Exception ex) when (IsExpectedFailure(ex))
@@ -166,6 +168,35 @@ public sealed class ThumbnailService : IThumbnailService
         return Path.Combine(cacheRoot, $"{hash}.png");
     }
 
+    private void TryTriggerPrune(string pathToKeep)
+    {
+        if (maxCacheBytes <= 1024 * 1024)
+        {
+            PruneCache(pathToKeep);
+            return;
+        }
+
+        var count = Interlocked.Increment(ref generatedSinceLastPrune);
+        if (count >= 50)
+        {
+            if (Interlocked.CompareExchange(ref isPruning, 1, 0) == 0)
+            {
+                Interlocked.Exchange(ref generatedSinceLastPrune, 0);
+                _ = Task.Run(() =>
+                {
+                    try
+                    {
+                        PruneCache(pathToKeep);
+                    }
+                    finally
+                    {
+                        Interlocked.Exchange(ref isPruning, 0);
+                    }
+                });
+            }
+        }
+    }
+
     private void PruneCache(string pathToKeep)
     {
         if (maxCacheBytes <= 0 || !Directory.Exists(cacheRoot))
@@ -215,65 +246,34 @@ public sealed class ThumbnailService : IThumbnailService
 
     private static async Task<bool> IsAnimatedGifAsync(string path, CancellationToken cancellationToken)
     {
-        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, BufferSize, useAsync: true);
-        var buffer = new byte[BufferSize];
-        var descriptorCount = 0;
-
-        while (true)
+        return await Task.Run(() =>
         {
-            var read = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken);
-            if (read == 0)
+            try
+            {
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, BufferSize);
+                return ImageFormatRules.IsAnimatedGif(stream);
+            }
+            catch
             {
                 return false;
             }
-
-            for (var index = 0; index < read; index += 1)
-            {
-                if (buffer[index] != 0x2C)
-                {
-                    continue;
-                }
-
-                descriptorCount += 1;
-                if (descriptorCount > 1)
-                {
-                    return true;
-                }
-            }
-        }
+        }, cancellationToken);
     }
 
     private static async Task<bool> IsAnimatedWebpAsync(string path, CancellationToken cancellationToken)
     {
-        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, BufferSize, useAsync: true);
-        var header = new byte[12];
-        var headerRead = await stream.ReadAsync(header.AsMemory(0, header.Length), cancellationToken);
-        if (headerRead < header.Length
-            || Encoding.ASCII.GetString(header, 0, 4) != "RIFF"
-            || Encoding.ASCII.GetString(header, 8, 4) != "WEBP")
+        return await Task.Run(() =>
         {
-            return false;
-        }
-
-        var buffer = new byte[BufferSize + 3];
-        var carry = 0;
-        while (true)
-        {
-            var read = await stream.ReadAsync(buffer.AsMemory(carry, BufferSize), cancellationToken);
-            if (read == 0)
+            try
+            {
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, BufferSize);
+                return ImageFormatRules.IsAnimatedWebp(stream);
+            }
+            catch
             {
                 return false;
             }
-
-            var scanLength = carry + read;
-            if (ContainsAscii(buffer.AsSpan(0, scanLength), "ANIM"))
-            {
-                return true;
-            }
-
-            carry = Math.Min(3, scanLength);
-            buffer.AsSpan(scanLength - carry, carry).CopyTo(buffer);
-        }
+        }, cancellationToken);
     }
 
     private static bool ContainsAscii(ReadOnlySpan<byte> buffer, string value)

@@ -173,77 +173,13 @@ public sealed class FolderScanner : IFolderScanner
     private static bool IsAnimatedGif(string path, CancellationToken cancellationToken)
     {
         using var stream = OpenProbeStream(path);
-        var buffer = new byte[AnimationProbeBufferSize];
-        var descriptorCount = 0;
-        var checkedSignature = false;
-
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var read = stream.Read(buffer, 0, buffer.Length);
-            if (read == 0)
-            {
-                return false;
-            }
-
-            if (!checkedSignature)
-            {
-                if (read < 3 || Encoding.ASCII.GetString(buffer, 0, 3) != "GIF")
-                {
-                    return false;
-                }
-
-                checkedSignature = true;
-            }
-
-            for (var index = 0; index < read; index += 1)
-            {
-                if (buffer[index] != 0x2C)
-                {
-                    continue;
-                }
-
-                descriptorCount += 1;
-                if (descriptorCount > 1)
-                {
-                    return true;
-                }
-            }
-        }
+        return ImageFormatRules.IsAnimatedGif(stream);
     }
 
     private static bool IsAnimatedWebp(string path, CancellationToken cancellationToken)
     {
         using var stream = OpenProbeStream(path);
-        var header = new byte[12];
-        var headerRead = stream.Read(header, 0, header.Length);
-        if (headerRead < header.Length
-            || Encoding.ASCII.GetString(header, 0, 4) != "RIFF"
-            || Encoding.ASCII.GetString(header, 8, 4) != "WEBP")
-        {
-            return false;
-        }
-
-        var buffer = new byte[AnimationProbeBufferSize + 3];
-        var carry = 0;
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var read = stream.Read(buffer, carry, AnimationProbeBufferSize);
-            if (read == 0)
-            {
-                return false;
-            }
-
-            var scanLength = carry + read;
-            if (ContainsAscii(buffer.AsSpan(0, scanLength), "ANIM"))
-            {
-                return true;
-            }
-
-            carry = Math.Min(3, scanLength);
-            buffer.AsSpan(scanLength - carry, carry).CopyTo(buffer);
-        }
+        return ImageFormatRules.IsAnimatedWebp(stream);
     }
 
     private static FileStream OpenProbeStream(string path) =>

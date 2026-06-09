@@ -236,12 +236,13 @@
                 AutomationProperties.AutomationId="FolderTree"
                 AutomationProperties.Name="資料夾樹"
                 ItemsSource="{x:Bind ViewModel.FolderRoots, Mode=OneWay}"
-                ItemInvoked="FolderTree_ItemInvoked">
+                ItemInvoked="FolderTree_ItemInvoked"
+                Expanding="FolderTree_Expanding">
                 <TreeView.ItemTemplate>
                     <DataTemplate x:DataType="vm:FolderTreeItem">
                         <TreeViewItem
-                            IsExpanded="{x:Bind IsExpanded, Mode=OneTime}"
-                            IsSelected="{x:Bind IsSelected, Mode=OneWay}"
+                            IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
+                            IsSelected="{x:Bind IsSelected, Mode=TwoWay}"
                             ItemsSource="{x:Bind Children}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon Glyph="&#xE8B7;" FontSize="14" />

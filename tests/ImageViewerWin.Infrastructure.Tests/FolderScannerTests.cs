@@ -161,7 +161,7 @@ public sealed class FolderScannerTests
         [(byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a', 0, 0, 0, 0, 0x2c];
 
     private static byte[] AnimatedWebpBytes() =>
-        "RIFF----WEBPVP8X....ANIM"u8.ToArray();
+        [(byte)'R', (byte)'I', (byte)'F', (byte)'F', 0, 0, 0, 0, (byte)'W', (byte)'E', (byte)'B', (byte)'P', (byte)'V', (byte)'P', (byte)'8', (byte)'X', 10, 0, 0, 0, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
     private static void CreateDirectoryAlias(string aliasPath, string targetPath)
     {
