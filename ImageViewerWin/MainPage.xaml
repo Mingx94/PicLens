@@ -468,7 +468,10 @@
                             <TextBlock
                                 Grid.Row="1"
                                 HorizontalAlignment="Center"
+                                TextAlignment="Center"
                                 Text="{x:Bind Name}"
+                                TextWrapping="Wrap"
+                                MaxLines="2"
                                 TextTrimming="CharacterEllipsis"
                                 Style="{StaticResource BodyStrongTextBlockStyle}" />
                         </Grid>
