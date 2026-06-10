@@ -1,0 +1,4 @@
+interface:
+  display_name: "WinUI Design Guidelines"
+  short_description: "WinUI Fluent design guidance"
+  default_prompt: "Use $winui-design-guidelines to review and improve a WinUI 3 app design against Microsoft Windows app guidelines."
