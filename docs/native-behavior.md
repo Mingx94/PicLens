@@ -1,6 +1,6 @@
 # Native Behavior
 
-這份文件追蹤 ImageViewerWin 目前支援與應保留的原生 app 行為。
+這份文件追蹤 PicLens 目前支援與應保留的原生 app 行為。
 
 ## 支援格式
 
@@ -61,7 +61,7 @@ Thumbnail loading 應維持下列規則：
 - GridView container recycling 或 tile unload 時取消對應 request。
 - Thumbnail work 有 concurrency limit 與 per-request timeout，避免 stalled decoder 阻塞後續 visible tiles。
 - UI-bound thumbnail path update 必須回到 dispatcher/UI thread。
-- Cache 位於 `%LOCALAPPDATA%\ImageViewerWin\Thumbnails`，以 generated PNG files 保存並做 bounded pruning。
+- Cache 位於 `%LOCALAPPDATA%\PicLens\Thumbnails`，以 generated PNG files 保存並做 bounded pruning。
 
 ## 已涵蓋的 Core Behaviors
 
@@ -112,6 +112,6 @@ Core test suite 涵蓋：
 
 開發時要保留 ERROR LOG，讓 runtime crash 或使用者回報可以追溯：
 
-- App log path：`%LOCALAPPDATA%\ImageViewerWin\Logs\ImageViewerWin.log`。
+- App log path：`%LOCALAPPDATA%\PicLens\Logs\PicLens.log`。
 - App startup、main navigation、thumbnail failures、folder tree child-load failures、file-operation failures 與 viewer lifecycle 都應寫入足夠 context。
 - WinUI/native crash 診斷不能只看 build；應補短時間 runtime launch 與 app log tail。

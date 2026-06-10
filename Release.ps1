@@ -17,16 +17,16 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $root = $PSScriptRoot
-$project = Join-Path $root "ImageViewerWin\ImageViewerWin.csproj"
+$project = Join-Path $root "PicLens\PicLens.csproj"
 $testProjects = @(
-    Join-Path $root "tests\ImageViewerWin.Core.Tests\ImageViewerWin.Core.Tests.csproj"
-    Join-Path $root "tests\ImageViewerWin.Application.Tests\ImageViewerWin.Application.Tests.csproj"
-    Join-Path $root "tests\ImageViewerWin.Infrastructure.Tests\ImageViewerWin.Infrastructure.Tests.csproj"
-    Join-Path $root "tests\ImageViewerWin.ViewModels.Tests\ImageViewerWin.ViewModels.Tests.csproj"
+    Join-Path $root "tests\PicLens.Core.Tests\PicLens.Core.Tests.csproj"
+    Join-Path $root "tests\PicLens.Application.Tests\PicLens.Application.Tests.csproj"
+    Join-Path $root "tests\PicLens.Infrastructure.Tests\PicLens.Infrastructure.Tests.csproj"
+    Join-Path $root "tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj"
 )
 $nugetConfig = Join-Path $root "NuGet.Config"
 $outputRoot = Join-Path $root "artifacts\portable"
-$outputName = "ImageViewerWin-$RuntimeIdentifier"
+$outputName = "PicLens-$RuntimeIdentifier"
 $outputDir = Join-Path $outputRoot $outputName
 
 function Assert-UnderRoot {
@@ -151,9 +151,9 @@ Invoke-Native "dotnet" @(
     $outputDir
 )
 
-$exePath = Join-Path $outputDir "ImageViewerWin.exe"
+$exePath = Join-Path $outputDir "PicLens.exe"
 if (-not (Test-Path -LiteralPath $exePath)) {
-    throw "Publish completed but ImageViewerWin.exe was not found at: $exePath"
+    throw "Publish completed but PicLens.exe was not found at: $exePath"
 }
 
 $fileCount = (Get-ChildItem -LiteralPath $outputDir -Recurse -File | Measure-Object).Count

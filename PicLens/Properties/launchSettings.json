@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "PicLens (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "PicLens (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

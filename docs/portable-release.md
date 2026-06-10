@@ -1,6 +1,6 @@
 # Portable Release
 
-ImageViewerWin 目前不是為 Microsoft Store 或 MSIX distribution 準備。Release target 是 framework-dependent no-install folder，可複製到已安裝必要 runtimes 的機器上，並透過 `ImageViewerWin.exe` 啟動。
+PicLens 目前不是為 Microsoft Store 或 MSIX distribution 準備。Release target 是 framework-dependent no-install folder，可複製到已安裝必要 runtimes 的機器上，並透過 `PicLens.exe` 啟動。
 
 ## 建置
 
@@ -13,13 +13,13 @@ ImageViewerWin 目前不是為 Microsoft Store 或 MSIX distribution 準備。Re
 預設 output：
 
 ```text
-artifacts/portable/ImageViewerWin-win-x64/
+artifacts/portable/PicLens-win-x64/
 ```
 
 Executable 位於：
 
 ```text
-artifacts/portable/ImageViewerWin-win-x64/ImageViewerWin.exe
+artifacts/portable/PicLens-win-x64/PicLens.exe
 ```
 
 ## 選項
@@ -32,9 +32,9 @@ artifacts/portable/ImageViewerWin-win-x64/ImageViewerWin.exe
 
 ## 注意事項
 
-這不是 single-file executable。WinUI unpackaged output 必須保留 `ImageViewerWin.exe` 旁邊的 DLL、PRI、WinUI 與 runtime files。
+這不是 single-file executable。WinUI unpackaged output 必須保留 `PicLens.exe` 旁邊的 DLL、PRI、WinUI 與 runtime files。
 
-不要只散佈 `ImageViewerWin.exe`；請散佈完整資料夾。
+不要只散佈 `PicLens.exe`；請散佈完整資料夾。
 
 預設 output 是 framework-dependent。目標 machines 必須已安裝：
 
@@ -56,5 +56,5 @@ artifacts/portable/ImageViewerWin-win-x64/ImageViewerWin.exe
    - `SelfContained=false`
    - `DebugType=None`
    - `DebugSymbols=false`
-5. 驗證 `ImageViewerWin.exe` 存在。
+5. 驗證 `PicLens.exe` 存在。
 6. 回報 file count、total bytes 與 executable SHA256。

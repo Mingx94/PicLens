@@ -220,6 +220,34 @@ if (-not (Test-Path $outputDir)) {
     $outputDir = $tfmDir.FullName
 }
 
+$projectBaseName = [System.IO.Path]::GetFileNameWithoutExtension((Resolve-Path $Project).Path)
+$expectedRecipeName = "$projectBaseName.build.appxrecipe"
+$staleRecipeFiles = Get-ChildItem -LiteralPath $outputDir -Filter "*.build.appxrecipe" -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -ne $expectedRecipeName }
+$shouldRefreshAppxLayout = $false
+foreach ($recipeFile in $staleRecipeFiles) {
+    Remove-Item -LiteralPath $recipeFile.FullName -Force -ErrorAction SilentlyContinue
+    $shouldRefreshAppxLayout = $true
+}
+
+$sourceManifest = Join-Path $outputDir "AppxManifest.xml"
+$layoutManifest = Join-Path $outputDir "AppX\appxmanifest.xml"
+if ((Test-Path -LiteralPath $sourceManifest) -and (Test-Path -LiteralPath $layoutManifest)) {
+    $sourceManifestContent = Get-Content -LiteralPath $sourceManifest -Raw
+    $layoutManifestContent = Get-Content -LiteralPath $layoutManifest -Raw
+    if ($sourceManifestContent -ne $layoutManifestContent) {
+        $shouldRefreshAppxLayout = $true
+    }
+}
+
+if ($shouldRefreshAppxLayout) {
+    $appxLayoutDir = Join-Path $outputDir "AppX"
+    if (Test-Path -LiteralPath $appxLayoutDir) {
+        Remove-Item -LiteralPath $appxLayoutDir -Recurse -Force
+        Write-Host "--> Removed stale AppX layout" -ForegroundColor DarkGray
+    }
+}
+
 # Check winapp is available
 $winapp = Get-Command winapp -ErrorAction SilentlyContinue
 if (-not $winapp) {

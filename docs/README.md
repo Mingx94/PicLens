@@ -1,6 +1,6 @@
-# ImageViewerWin 文件
+# PicLens 文件
 
-ImageViewerWin 是原生 WinUI 3 / MVVM 圖片整理與檢視 app。
+PicLens 是原生 WinUI 3 / MVVM 圖片整理與檢視 app。
 
 ## 文件
 

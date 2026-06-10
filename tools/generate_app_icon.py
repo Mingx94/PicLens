@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ASSETS = ROOT / "ImageViewerWin" / "Assets"
+ASSETS = ROOT / "PicLens" / "Assets"
 
 
 def lerp(a: int, b: int, t: float) -> int:

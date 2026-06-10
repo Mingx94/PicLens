@@ -1,6 +1,6 @@
-# ImageViewerWin
+# PicLens
 
-ImageViewerWin 是原生 WinUI 3 / MVVM 圖片整理與檢視 app。
+PicLens 是原生 WinUI 3 / MVVM 圖片整理與檢視 app。
 
 ## 目前狀態
 
@@ -14,37 +14,37 @@ ImageViewerWin 是原生 WinUI 3 / MVVM 圖片整理與檢視 app。
 ## Solution
 
 ```text
-ImageViewerWin.slnx
-ImageViewerWin/                         WinUI 3 app
-src/ImageViewerWin.Application/         Service contracts 與 deterministic planning
-src/ImageViewerWin.Core/                Pure models 與 domain rules
-src/ImageViewerWin.Infrastructure/      JSON、filesystem、image 與 recycle-bin services
-tests/ImageViewerWin.Application.Tests/ xUnit application tests
-tests/ImageViewerWin.Core.Tests/        xUnit domain tests
-tests/ImageViewerWin.Infrastructure.Tests/ xUnit infrastructure tests
-tests/ImageViewerWin.ViewModels.Tests/  xUnit ViewModel 與 localization tests
+PicLens.slnx
+PicLens/                         WinUI 3 app
+src/PicLens.Application/         Service contracts 與 deterministic planning
+src/PicLens.Core/                Pure models 與 domain rules
+src/PicLens.Infrastructure/      JSON、filesystem、image 與 recycle-bin services
+tests/PicLens.Application.Tests/ xUnit application tests
+tests/PicLens.Core.Tests/        xUnit domain tests
+tests/PicLens.Infrastructure.Tests/ xUnit infrastructure tests
+tests/PicLens.ViewModels.Tests/  xUnit ViewModel 與 localization tests
 ```
 
 ## Build And Test
 
 ```powershell
-dotnet restore .\tests\ImageViewerWin.Core.Tests\ImageViewerWin.Core.Tests.csproj --configfile .\NuGet.Config
-dotnet restore .\tests\ImageViewerWin.Application.Tests\ImageViewerWin.Application.Tests.csproj --configfile .\NuGet.Config
-dotnet restore .\tests\ImageViewerWin.Infrastructure.Tests\ImageViewerWin.Infrastructure.Tests.csproj --configfile .\NuGet.Config
-dotnet restore .\tests\ImageViewerWin.ViewModels.Tests\ImageViewerWin.ViewModels.Tests.csproj --configfile .\NuGet.Config
-dotnet restore .\ImageViewerWin\ImageViewerWin.csproj --configfile .\NuGet.Config -r win-x64 /p:Platform=x64
-dotnet test .\tests\ImageViewerWin.Core.Tests\ImageViewerWin.Core.Tests.csproj --no-restore
-dotnet test .\tests\ImageViewerWin.Application.Tests\ImageViewerWin.Application.Tests.csproj --no-restore
-dotnet test .\tests\ImageViewerWin.Infrastructure.Tests\ImageViewerWin.Infrastructure.Tests.csproj --no-restore
-dotnet test .\tests\ImageViewerWin.ViewModels.Tests\ImageViewerWin.ViewModels.Tests.csproj --no-restore
-dotnet build .\ImageViewerWin\ImageViewerWin.csproj --no-restore /p:Platform=x64
-.\BuildAndRun.ps1 .\ImageViewerWin\ImageViewerWin.csproj
+dotnet restore .\tests\PicLens.Core.Tests\PicLens.Core.Tests.csproj --configfile .\NuGet.Config
+dotnet restore .\tests\PicLens.Application.Tests\PicLens.Application.Tests.csproj --configfile .\NuGet.Config
+dotnet restore .\tests\PicLens.Infrastructure.Tests\PicLens.Infrastructure.Tests.csproj --configfile .\NuGet.Config
+dotnet restore .\tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj --configfile .\NuGet.Config
+dotnet restore .\PicLens\PicLens.csproj --configfile .\NuGet.Config -r win-x64 /p:Platform=x64
+dotnet test .\tests\PicLens.Core.Tests\PicLens.Core.Tests.csproj --no-restore
+dotnet test .\tests\PicLens.Application.Tests\PicLens.Application.Tests.csproj --no-restore
+dotnet test .\tests\PicLens.Infrastructure.Tests\PicLens.Infrastructure.Tests.csproj --no-restore
+dotnet test .\tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj --no-restore
+dotnet build .\PicLens\PicLens.csproj --no-restore /p:Platform=x64
+.\BuildAndRun.ps1 .\PicLens\PicLens.csproj
 ```
 
 Build-only verification 可使用：
 
 ```powershell
-.\BuildAndRun.ps1 .\ImageViewerWin\ImageViewerWin.csproj -SkipRun
+.\BuildAndRun.ps1 .\PicLens\PicLens.csproj -SkipRun
 ```
 
 ## Portable Release
@@ -58,7 +58,7 @@ Build-only verification 可使用：
 Output：
 
 ```text
-artifacts/portable/ImageViewerWin-win-x64/ImageViewerWin.exe
+artifacts/portable/PicLens-win-x64/PicLens.exe
 ```
 
 請保留完整 folder；這是 WinUI framework-dependent unpackaged layout，不是 single-file exe。
