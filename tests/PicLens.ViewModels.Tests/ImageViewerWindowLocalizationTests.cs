@@ -218,7 +218,8 @@ public sealed class ImageViewerWindowLocalizationTests
 
         Assert.Contains("x:Name=\"TopCommandChrome\"", xaml);
         Assert.Contains("Grid.ColumnSpan=\"2\"", xaml);
-        Assert.Contains("MinHeight=\"68\"", xaml);
+        Assert.DoesNotContain("MinHeight=\"68\"", xaml);
+        Assert.Contains("Padding=\"8,4,8,4\"", xaml);
         Assert.Contains("Padding=\"16,16,8,16\"", xaml);
         Assert.Contains("RowSpacing=\"12\"", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"FolderNavigationCommandBar\"", xaml);
@@ -266,13 +267,19 @@ public sealed class ImageViewerWindowLocalizationTests
         Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarSortDirectionButton\"", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"TitleBarRecursiveModeToggle\"", xaml);
         Assert.Contains("Glyph=\"&#xF89A;\"", xaml);
-        Assert.Contains("<CommandBar.SecondaryCommands>", xaml);
+        Assert.DoesNotContain("<CommandBar.SecondaryCommands>", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarMoreActionsButton\"", xaml);
+        Assert.Contains("AutomationProperties.Name=\"更多圖庫動作\"", xaml);
+        Assert.Contains("Width=\"48\"", xaml);
+        Assert.Contains("Height=\"48\"", xaml);
+        Assert.Contains("Glyph=\"&#xE712;\"", xaml);
+        Assert.Contains("<MenuFlyout Placement=\"BottomEdgeAlignedRight\">", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"TitleBarConvertVisibleButton\"", xaml);
         Assert.Contains("Glyph=\"&#xEE71;\"", xaml);
-        Assert.Contains("Label=\"將目前顯示項目轉為 JPG\"", xaml);
+        Assert.Contains("Text=\"將目前顯示項目轉為 JPG\"", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"TitleBarClearSameBasenameButton\"", xaml);
         Assert.Contains("Glyph=\"&#xE75C;\"", xaml);
-        Assert.Contains("Label=\"清除同名非 JPG 檔案\"", xaml);
+        Assert.Contains("Text=\"清除同名非 JPG 檔案\"", xaml);
         Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarRenameSelectedButton\"", xaml);
         Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarTrashSelectedButton\"", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"SelectionCommandBar\"", xaml);
@@ -307,8 +314,7 @@ public sealed class ImageViewerWindowLocalizationTests
         Assert.Contains("ToolTipService.ToolTip=\"選擇資料夾\"", xaml);
         Assert.Contains("ToolTipService.ToolTip=\"排序\"", xaml);
         Assert.Contains("ToolTipService.ToolTip=\"包含或排除子資料夾\"", xaml);
-        Assert.Contains("ToolTipService.ToolTip=\"將目前顯示項目轉為 JPG\"", xaml);
-        Assert.Contains("ToolTipService.ToolTip=\"清除同名非 JPG 檔案\"", xaml);
+        Assert.Contains("ToolTipService.ToolTip=\"更多圖庫動作\"", xaml);
         Assert.Contains("ToolTipService.ToolTip=\"重新命名選取的圖片\"", xaml);
         Assert.Contains("ToolTipService.ToolTip=\"將選取的圖片移至回收筒\"", xaml);
         Assert.Contains("ToolTipService.ToolTip=\"將選取的圖片轉成 JPG\"", xaml);

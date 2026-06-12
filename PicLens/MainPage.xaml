@@ -86,8 +86,7 @@
             x:Name="TopCommandChrome"
             Grid.Row="0"
             Grid.ColumnSpan="2"
-            MinHeight="68"
-            Padding="12,4,16,4"
+            Padding="8,4,8,4"
             AutomationProperties.AutomationId="FolderNavigationCommandBar"
             AutomationProperties.Name="全域導覽與圖庫工具列"
             Background="{ThemeResource LayerOnMicaBaseAltFillColorSecondaryBrush}"
@@ -181,30 +180,45 @@
                             <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xF89A;" />
                         </AppBarToggleButton.Icon>
                     </AppBarToggleButton>
-                    <CommandBar.SecondaryCommands>
-                        <AppBarButton
-                            x:Name="TitleBarConvertVisibleButton"
-                            AutomationProperties.AutomationId="TitleBarConvertVisibleButton"
-                            AutomationProperties.Name="將目前顯示項目轉為 JPG"
-                            ToolTipService.ToolTip="將目前顯示項目轉為 JPG"
-                            Command="{x:Bind ViewModel.ConvertVisibleCommand}"
-                            Label="將目前顯示項目轉為 JPG">
-                            <AppBarButton.Icon>
-                                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEE71;" />
-                            </AppBarButton.Icon>
-                        </AppBarButton>
-                        <AppBarButton
-                            x:Name="TitleBarClearSameBasenameButton"
-                            AutomationProperties.AutomationId="TitleBarClearSameBasenameButton"
-                            AutomationProperties.Name="清除同名非 JPG 檔案"
-                            ToolTipService.ToolTip="清除同名非 JPG 檔案"
-                            Command="{x:Bind ViewModel.ClearSameBasenameCommand}"
-                            Label="清除同名非 JPG 檔案">
-                            <AppBarButton.Icon>
-                                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE75C;" />
-                            </AppBarButton.Icon>
-                        </AppBarButton>
-                    </CommandBar.SecondaryCommands>
+                    <AppBarButton
+                        x:Name="TitleBarMoreActionsButton"
+                        AutomationProperties.AutomationId="TitleBarMoreActionsButton"
+                        AutomationProperties.Name="更多圖庫動作"
+                        Width="48"
+                        Height="48"
+                        VerticalAlignment="Center"
+                        ToolTipService.ToolTip="更多圖庫動作"
+                        Label="更多圖庫動作"
+                        LabelPosition="Collapsed"
+                        IsCompact="True">
+                        <AppBarButton.Icon>
+                            <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE712;" />
+                        </AppBarButton.Icon>
+                        <AppBarButton.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                <MenuFlyoutItem
+                                    x:Name="TitleBarConvertVisibleButton"
+                                    AutomationProperties.AutomationId="TitleBarConvertVisibleButton"
+                                    AutomationProperties.Name="將目前顯示項目轉為 JPG"
+                                    Command="{x:Bind ViewModel.ConvertVisibleCommand}"
+                                    Text="將目前顯示項目轉為 JPG">
+                                    <MenuFlyoutItem.Icon>
+                                        <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEE71;" />
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                                <MenuFlyoutItem
+                                    x:Name="TitleBarClearSameBasenameButton"
+                                    AutomationProperties.AutomationId="TitleBarClearSameBasenameButton"
+                                    AutomationProperties.Name="清除同名非 JPG 檔案"
+                                    Command="{x:Bind ViewModel.ClearSameBasenameCommand}"
+                                    Text="清除同名非 JPG 檔案">
+                                    <MenuFlyoutItem.Icon>
+                                        <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE75C;" />
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                            </MenuFlyout>
+                        </AppBarButton.Flyout>
+                    </AppBarButton>
                 </CommandBar>
             </Grid>
         </Border>

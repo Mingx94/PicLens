@@ -126,7 +126,8 @@ public sealed class MainPageTextTests
         Assert.Contains("x:Name=\"TitleBarOpenFolderButton\"", xaml);
         Assert.Contains("x:Name=\"TitleBarSortMenuButton\"", xaml);
         Assert.Contains("x:Name=\"TitleBarRecursiveModeToggle\"", xaml);
-        Assert.Equal(3, xaml.Split("IsCompact=\"True\"").Length - 1);
+        Assert.Contains("x:Name=\"TitleBarMoreActionsButton\"", xaml);
+        Assert.Equal(4, xaml.Split("IsCompact=\"True\"").Length - 1);
         Assert.Contains("LabelPosition=\"Collapsed\"", xaml);
         Assert.Contains("VerticalAlignment=\"Center\"", xaml);
     }
@@ -146,7 +147,7 @@ public sealed class MainPageTextTests
     }
 
     [Fact]
-    public void MainPage_command_bar_uses_overflow_instead_of_horizontal_scrolling()
+    public void MainPage_command_bar_uses_self_managed_more_actions_menu()
     {
         var xaml = File.ReadAllText(Path.Combine(RepositoryRoot(), "PicLens", "MainPage.xaml"));
 
@@ -154,6 +155,15 @@ public sealed class MainPageTextTests
         Assert.DoesNotContain("<ScrollViewer", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"LibraryCommandBar\"", xaml);
         Assert.Contains("IsDynamicOverflowEnabled=\"True\"", xaml);
+        Assert.DoesNotContain("<CommandBar.SecondaryCommands>", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarMoreActionsButton\"", xaml);
+        Assert.Contains("Width=\"48\"", xaml);
+        Assert.Contains("Height=\"48\"", xaml);
+        Assert.Contains("<MenuFlyout Placement=\"BottomEdgeAlignedRight\">", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarConvertVisibleButton\"", xaml);
+        Assert.Contains("Command=\"{x:Bind ViewModel.ConvertVisibleCommand}\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"TitleBarClearSameBasenameButton\"", xaml);
+        Assert.Contains("Command=\"{x:Bind ViewModel.ClearSameBasenameCommand}\"", xaml);
     }
 
     [Fact]
