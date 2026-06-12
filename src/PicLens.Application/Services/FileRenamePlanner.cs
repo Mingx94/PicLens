@@ -26,10 +26,10 @@ public static class FileRenamePlanner
     public static DropTargetBatchRenamePlan PlanDropTargetBatchRename(
         IEnumerable<string> sourcePaths,
         string targetPath,
-        Func<string, bool> targetExists)
+        Func<string, string, bool> targetNameExists)
     {
         ArgumentNullException.ThrowIfNull(sourcePaths);
-        ArgumentNullException.ThrowIfNull(targetExists);
+        ArgumentNullException.ThrowIfNull(targetNameExists);
 
         var targetDirectory = Path.GetDirectoryName(targetPath)
             ?? throw new ArgumentException("Target path must include a directory.", nameof(targetPath));
@@ -40,12 +40,9 @@ public static class FileRenamePlanner
 
         foreach (var source in sourcePaths.Where(source => !PathEquals(source, targetPath)))
         {
-            var item = CreatePlanItem(source, targetDirectory, targetBaseName, sequenceNumber, targetExists);
+            var item = CreatePlanItem(source, targetDirectory, targetBaseName, sequenceNumber, targetNameExists);
             items.Add(item);
-            if (!item.ShouldSkip)
-            {
-                sequenceNumber = ExtractSequenceNumber(item.TargetPath, targetBaseName) + 1;
-            }
+            sequenceNumber = Math.Max(sequenceNumber, ExtractSequenceNumber(item.TargetPath, targetBaseName) + 1);
         }
 
         return new DropTargetBatchRenamePlan(items.Count, items);
@@ -56,16 +53,25 @@ public static class FileRenamePlanner
         string targetDirectory,
         string targetBaseName,
         int sequenceNumber,
-        Func<string, bool> targetExists)
+        Func<string, string, bool> targetNameExists)
     {
-        if (IsAlreadyTargetSequence(sourcePath, targetBaseName))
+        var sourceSequenceNumber = TryExtractSequenceNumber(sourcePath, targetBaseName);
+        if (sourceSequenceNumber is not null
+            && sourceSequenceNumber.Value < sequenceNumber
+            && !targetNameExists(sourcePath, sourcePath))
         {
-            var skippedTargetPath = CreateSequenceTargetPath(sourcePath, targetDirectory, targetBaseName, sequenceNumber);
-            return new DropTargetBatchRenamePlanItem(sourcePath, skippedTargetPath, true, AlreadyTargetSequenceReason);
+            return new DropTargetBatchRenamePlanItem(sourcePath, sourcePath, true, AlreadyTargetSequenceReason);
         }
 
-        var nextTargetPath = NextAvailableSequenceTargetPath(sourcePath, targetDirectory, targetBaseName, sequenceNumber, targetExists);
-        return new DropTargetBatchRenamePlanItem(sourcePath, nextTargetPath, false, null);
+        var nextTargetPath = NextAvailableSequenceTargetPath(
+            sourcePath,
+            targetDirectory,
+            targetBaseName,
+            sequenceNumber,
+            targetNameExists);
+        return PathEquals(sourcePath, nextTargetPath)
+            ? new DropTargetBatchRenamePlanItem(sourcePath, nextTargetPath, true, AlreadyTargetSequenceReason)
+            : new DropTargetBatchRenamePlanItem(sourcePath, nextTargetPath, false, null);
     }
 
     private static string NextAvailableSequenceTargetPath(
@@ -73,13 +79,13 @@ public static class FileRenamePlanner
         string targetDirectory,
         string targetBaseName,
         int sequenceNumber,
-        Func<string, bool> targetExists)
+        Func<string, string, bool> targetNameExists)
     {
         var candidateSequence = sequenceNumber;
         while (true)
         {
             var candidatePath = CreateSequenceTargetPath(sourcePath, targetDirectory, targetBaseName, candidateSequence);
-            if (!targetExists(candidatePath))
+            if (!targetNameExists(candidatePath, sourcePath))
             {
                 return candidatePath;
             }
@@ -97,9 +103,22 @@ public static class FileRenamePlanner
 
     private static int ExtractSequenceNumber(string targetPath, string targetBaseName)
     {
+        return TryExtractSequenceNumber(targetPath, targetBaseName)
+            ?? throw new ArgumentException("Target path must include a target sequence number.", nameof(targetPath));
+    }
+
+    private static int? TryExtractSequenceNumber(string targetPath, string targetBaseName)
+    {
         var targetName = Path.GetFileNameWithoutExtension(targetPath);
+        if (!targetName.StartsWith($"{targetBaseName}-", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
         var suffix = targetName[(targetBaseName.Length + 1)..];
-        return int.Parse(suffix);
+        return suffix.Length > 0 && suffix.All(char.IsDigit) && int.TryParse(suffix, out var sequenceNumber)
+            ? sequenceNumber
+            : null;
     }
 
     private static bool PathEquals(string left, string right) =>
@@ -108,17 +127,6 @@ public static class FileRenamePlanner
             Path.GetFullPath(right),
             OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 
-    private static bool IsAlreadyTargetSequence(string sourcePath, string targetBaseName)
-    {
-        var sourceBaseName = Path.GetFileNameWithoutExtension(sourcePath);
-        if (!sourceBaseName.StartsWith($"{targetBaseName}-", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var suffix = sourceBaseName[(targetBaseName.Length + 1)..];
-        return suffix.Length > 0 && suffix.All(char.IsDigit);
-    }
 }
 
 public sealed record FileNameValidationResult(bool IsValid, string? Reason);

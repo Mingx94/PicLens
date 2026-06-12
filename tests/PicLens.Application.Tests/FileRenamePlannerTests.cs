@@ -29,7 +29,7 @@ public sealed class FileRenamePlannerTests
     }
 
     [Fact]
-    public void PlanDropTargetBatchRename_preserves_extensions_excludes_target_and_skips_existing_sequence_names()
+    public void PlanDropTargetBatchRename_preserves_extensions_excludes_target_and_reserves_sequence_names_without_extensions()
     {
         var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var target = Path.Combine(root, "Album.jpg");
@@ -44,7 +44,13 @@ public sealed class FileRenamePlannerTests
         var plan = FileRenamePlanner.PlanDropTargetBatchRename(
             sources,
             target,
-            targetExists: path => Path.GetFileName(path).Equals("Album-03.webp", StringComparison.OrdinalIgnoreCase));
+            targetNameExists: TargetNameExists(
+            [
+                sources[0],
+                sources[2],
+                sources[3],
+                Path.Combine(root, "Album-03.webp")
+            ]));
 
         Assert.Equal(3, plan.Total);
         Assert.Collection(
@@ -65,13 +71,13 @@ public sealed class FileRenamePlannerTests
             item =>
             {
                 Assert.Equal(sources[3], item.SourcePath);
-                Assert.Equal(Path.Combine(root, "Album-02.webp"), item.TargetPath);
+                Assert.Equal(Path.Combine(root, "Album-04.webp"), item.TargetPath);
                 Assert.False(item.ShouldSkip);
             });
     }
 
     [Fact]
-    public void PlanDropTargetBatchRename_advances_past_existing_target_paths()
+    public void PlanDropTargetBatchRename_advances_past_existing_sequence_names_without_extensions()
     {
         var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var target = Path.Combine(root, "Album.jpg");
@@ -82,14 +88,14 @@ public sealed class FileRenamePlannerTests
         };
         var existingTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            Path.Combine(root, "Album-01.png"),
+            Path.Combine(root, "Album-01.jpg"),
             Path.Combine(root, "Album-03.webp")
         };
 
         var plan = FileRenamePlanner.PlanDropTargetBatchRename(
             sources,
             target,
-            targetExists: existingTargets.Contains);
+            targetNameExists: TargetNameExists(existingTargets));
 
         Assert.Collection(
             plan.Items,
@@ -108,16 +114,65 @@ public sealed class FileRenamePlannerTests
     }
 
     [Fact]
-    public void PlanDropTargetBatchRename_skips_any_existing_target_sequence_source_name()
+    public void PlanDropTargetBatchRename_compacts_existing_sequence_source_into_first_gap()
     {
         var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var target = Path.Combine(root, "Album.jpg");
-        var source = Path.Combine(root, "Album-99.png");
+        var source = Path.Combine(root, "Album-03.jpg");
 
-        var plan = FileRenamePlanner.PlanDropTargetBatchRename([source], target, targetExists: _ => false);
+        var plan = FileRenamePlanner.PlanDropTargetBatchRename([source], target, TargetNameExists([source]));
+
+        var item = Assert.Single(plan.Items);
+        Assert.Equal(source, item.SourcePath);
+        Assert.Equal(Path.Combine(root, "Album-01.jpg"), item.TargetPath);
+        Assert.False(item.ShouldSkip);
+    }
+
+    [Fact]
+    public void PlanDropTargetBatchRename_skips_existing_sequence_source_when_no_earlier_gap_exists()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var target = Path.Combine(root, "Album.jpg");
+        var source = Path.Combine(root, "Album-03.jpg");
+
+        var plan = FileRenamePlanner.PlanDropTargetBatchRename(
+            [source],
+            target,
+            TargetNameExists(
+            [
+                Path.Combine(root, "Album-01.png"),
+                Path.Combine(root, "Album-02.webp"),
+                source
+            ]));
 
         var item = Assert.Single(plan.Items);
         Assert.True(item.ShouldSkip);
         Assert.Equal("already_target_sequence", item.Reason);
+    }
+
+    private static Func<string, string, bool> TargetNameExists(IEnumerable<string> existingPaths)
+    {
+        var paths = existingPaths.ToList();
+
+        return (candidatePath, sourcePath) => paths.Any(path =>
+            !PathEquals(path, sourcePath)
+            && PathEquals(Path.GetDirectoryName(path), Path.GetDirectoryName(candidatePath))
+            && string.Equals(
+                Path.GetFileNameWithoutExtension(path),
+                Path.GetFileNameWithoutExtension(candidatePath),
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool PathEquals(string? left, string? right)
+    {
+        if (left is null || right is null)
+        {
+            return false;
+        }
+
+        return string.Equals(
+            Path.GetFullPath(left),
+            Path.GetFullPath(right),
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
     }
 }

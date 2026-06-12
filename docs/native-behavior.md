@@ -88,7 +88,7 @@ Core test suite 涵蓋：
 - Selection behavior，包含 selected-image summaries、single-image rename/trash command gating，以及 library reload 時的 stale-selection clearing
 - Conservative file operations
 - Recursive scanner canonical-directory de-duplication，處理 symlink/junction aliases
-- Drop-target batch rename sequencing，會跳過既有 target paths，並在使用者確認 preview 後才執行
+- Drop-target batch rename sequencing，會用不含副檔名的 sequence basename 避開既有命名、補最小可用序號，並在使用者確認 preview 後才執行
 - Image viewer `1120x760` size，以及 Escape-to-main-window focus behavior
 
 剩餘 follow-up work 應聚焦在更深入的 GUI automation 與 polish，而不是缺少 service wiring：
@@ -108,6 +108,7 @@ Core test suite 涵蓋：
 - Batch operations 會回報 per-file results。
 - Failures 會逐項繼續處理。
 - Single rename 只驗證 basename，same-name skips 回報為 `same_name`，並將 existing targets 視為 invalid request。
+- Drop-target batch rename 以不含副檔名的 sequence basename 判斷占用；例如 `AAA-01.jpg` 會讓 `AAA-01.png` 視為已占用，`AAA-03.jpg` 在前面缺號時會被重新規劃到 `AAA-01.jpg`。
 - Drop-target batch rename 失敗項目必須逐筆寫入 ERROR log，包含 source path、target path 與 reason。
 
 ## Diagnostics

@@ -157,7 +157,10 @@ public sealed class FileOperationService : IFileOperationService
         string targetPath,
         CancellationToken cancellationToken = default)
     {
-        var plan = FileRenamePlanner.PlanDropTargetBatchRename(sourcePaths, targetPath, File.Exists);
+        var plan = FileRenamePlanner.PlanDropTargetBatchRename(
+            sourcePaths,
+            targetPath,
+            CreateTargetNameExists(targetPath));
         var results = new List<FileOperationResult>();
 
         foreach (var item in plan.Items)
@@ -248,11 +251,37 @@ public sealed class FileOperationService : IFileOperationService
                 ? "檔名必須使用支援的圖片副檔名。"
                 : "檔名必須是不含路徑分隔符號的單一檔名。");
 
+    private static Func<string, string, bool> CreateTargetNameExists(string targetPath)
+    {
+        var targetDirectory = Path.GetDirectoryName(targetPath)
+            ?? throw new IOException("目標路徑必須包含資料夾。");
+        var existingPaths = Directory.Exists(targetDirectory)
+            ? Directory.EnumerateFiles(targetDirectory).ToList()
+            : new List<string>();
+
+        return (candidatePath, sourcePath) => existingPaths.Any(path =>
+            !PathEquals(path, sourcePath)
+            && HasSameDirectoryAndBasenameWithoutExtension(path, candidatePath));
+    }
+
     private static bool PathEquals(string left, string right) =>
         string.Equals(
             Path.GetFullPath(left),
             Path.GetFullPath(right),
             OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+
+    private static bool HasSameDirectoryAndBasenameWithoutExtension(string left, string right)
+    {
+        var leftDirectory = Path.GetDirectoryName(left);
+        var rightDirectory = Path.GetDirectoryName(right);
+        return leftDirectory is not null
+            && rightDirectory is not null
+            && PathEquals(leftDirectory, rightDirectory)
+            && string.Equals(
+                Path.GetFileNameWithoutExtension(left),
+                Path.GetFileNameWithoutExtension(right),
+                StringComparison.OrdinalIgnoreCase);
+    }
 
     private static string BasenameKey(string path)
     {

@@ -75,9 +75,9 @@ Filesystem、Windows UI、thumbnail codecs 與 recycle-bin behavior 應留在 Co
 - Local app data 下的 disk thumbnail cache generation
 - 保留 originals 並略過 collisions 的 JPG conversion
 - Recycle-bin trash operations
-- 會跳過既有 sequence targets 的 drop-target batch rename execution
+- 以不含副檔名的 sequence basename 找出最小可用序號的 drop-target batch rename execution
 
-Drop-target rename 的 deterministic plan 由 `PicLens.Application` 建立，`MainPageViewModel` 先把 plan 轉成 preview 並交給 view 顯示確認對話；使用者確認後才由 infrastructure 逐筆 `File.Move`。Batch result 仍回到 ViewModel 統一更新 status，且每個 failed item 都要透過 app logger 寫入 ERROR context，方便後續排查 source path、target path 與 reason。
+Drop-target rename 的 deterministic plan 由 `PicLens.Application` 建立，`MainPageViewModel` 先把 plan 轉成 preview 並交給 view 顯示確認對話；使用者確認後才由 infrastructure 逐筆 `File.Move`。Sequence occupancy 以目標資料夾中不含副檔名的 basename 判斷，例如 `AAA-01.jpg` 會讓 `AAA-01.png` 視為已占用，且既有 `AAA-03.jpg` 在前面缺號時會被規劃到最小可用序號。Batch result 仍回到 ViewModel 統一更新 status，且每個 failed item 都要透過 app logger 寫入 ERROR context，方便後續排查 source path、target path 與 reason。
 
 Main-grid thumbnails 會透過 `IThumbnailService` / `ThumbnailService` 產生為小型 PNG files。GridView container preparation 與 tile materialization 會啟動 requests，recycling 或 tile unmaterialization 會取消 requests，而 view model 會限制 concurrent thumbnail work，避免快速捲動時為 off-screen items 解碼大型 source images。每個 thumbnail request 都有 timeout，避免有問題的 decoder operation 永久佔用 background slot，導致後續 visible tiles 無法載入。Cache 位於 local app data，並會修剪到 bounded size，保留最新 thumbnails、刪除較舊的 generated PNGs。Full-size source files 仍只由次要 image viewer 直接載入。
 

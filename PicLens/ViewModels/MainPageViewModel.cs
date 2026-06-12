@@ -302,7 +302,7 @@ public sealed partial class MainPageViewModel : ObservableObject
                 FileRenamePlanner.PlanDropTargetBatchRename(
                     dragSources.Select(image => image.Path),
                     targetImage.Path,
-                    File.Exists));
+                    CreateTargetNameExists(targetImage.Path)));
             if (preview.Total == 0)
             {
                 SetStatus("沒有可拖放重新命名的圖片。", MainPageStatusSeverity.Warning);
@@ -1174,6 +1174,32 @@ public sealed partial class MainPageViewModel : ObservableObject
             Path.GetFullPath(left),
             Path.GetFullPath(right),
             OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+    }
+
+    private static Func<string, string, bool> CreateTargetNameExists(string targetPath)
+    {
+        var targetDirectory = Path.GetDirectoryName(targetPath)
+            ?? throw new IOException("目標路徑必須包含資料夾。");
+        var existingPaths = Directory.Exists(targetDirectory)
+            ? Directory.EnumerateFiles(targetDirectory).ToList()
+            : new List<string>();
+
+        return (candidatePath, sourcePath) => existingPaths.Any(path =>
+            !PathEquals(path, sourcePath)
+            && HasSameDirectoryAndBasenameWithoutExtension(path, candidatePath));
+    }
+
+    private static bool HasSameDirectoryAndBasenameWithoutExtension(string left, string right)
+    {
+        var leftDirectory = Path.GetDirectoryName(left);
+        var rightDirectory = Path.GetDirectoryName(right);
+        return leftDirectory is not null
+            && rightDirectory is not null
+            && PathEquals(leftDirectory, rightDirectory)
+            && string.Equals(
+                Path.GetFileNameWithoutExtension(left),
+                Path.GetFileNameWithoutExtension(right),
+                StringComparison.OrdinalIgnoreCase);
     }
 
     private void CancelAllThumbnailLoads()

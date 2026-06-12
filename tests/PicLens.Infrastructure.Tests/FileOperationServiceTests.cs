@@ -107,15 +107,14 @@ public sealed class FileOperationServiceTests
     }
 
     [Fact]
-    public async Task RenameByDropTargetAsync_uses_selection_order_and_advances_past_existing_targets()
+    public async Task RenameByDropTargetAsync_uses_selection_order_and_advances_past_existing_sequence_names()
     {
         using var temp = TempWorkspace.Create();
         var target = await temp.WriteFileAsync("Album.jpg", [1]);
         var first = await temp.WriteFileAsync("first.png", [2]);
-        var already = await temp.WriteFileAsync("Album-99.gif", [3]);
+        var already = await temp.WriteFileAsync("Album-03.gif", [3]);
         var second = await temp.WriteFileAsync("second.webp", [4]);
-        await temp.WriteFileAsync("Album-01.png", [5]);
-        await temp.WriteFileAsync("Album-03.webp", [5]);
+        await temp.WriteFileAsync("Album-01.jpg", [5]);
         var service = new FileOperationService(new RecordingJpegEncoder(), new RecordingRecycleBin());
 
         var result = await service.RenameByDropTargetAsync([first, target, already, second], target);
@@ -127,6 +126,23 @@ public sealed class FileOperationServiceTests
         Assert.True(File.Exists(Path.Combine(temp.Root, "Album-04.webp")));
         Assert.True(File.Exists(already));
         Assert.Contains(result.Items, item => item.Path == already && item.Reason == "already_target_sequence");
+    }
+
+    [Fact]
+    public async Task RenameByDropTargetAsync_compacts_existing_sequence_source_into_first_gap()
+    {
+        using var temp = TempWorkspace.Create();
+        var target = await temp.WriteFileAsync("Album.jpg", [1]);
+        var source = await temp.WriteFileAsync("Album-03.jpg", [2]);
+        var service = new FileOperationService(new RecordingJpegEncoder(), new RecordingRecycleBin());
+
+        var result = await service.RenameByDropTargetAsync([source], target);
+
+        var item = Assert.Single(result.Items);
+        Assert.Equal(FileOperationStatus.Renamed, item.Status);
+        Assert.Equal(Path.Combine(temp.Root, "Album-01.jpg"), item.TargetPath);
+        Assert.True(File.Exists(item.TargetPath));
+        Assert.False(File.Exists(source));
     }
 
     [Fact]
