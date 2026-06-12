@@ -298,9 +298,31 @@ public sealed partial class MainPageViewModel : ObservableObject
 
         try
         {
+            var preview = CreateDropRenamePreview(
+                FileRenamePlanner.PlanDropTargetBatchRename(
+                    dragSources.Select(image => image.Path),
+                    targetImage.Path,
+                    File.Exists));
+            if (preview.Total == 0)
+            {
+                SetStatus("沒有可拖放重新命名的圖片。", MainPageStatusSeverity.Warning);
+                appLogger.Info(
+                    $"Drop dragged images ignored. Reason=EmptyPreview; Target={targetImage.Name}; TargetPath={targetImage.Path}");
+                return;
+            }
+
+            if (!await dialogService.ConfirmDropRenameAsync(preview))
+            {
+                SetStatus("已取消拖放重新命名。");
+                appLogger.Info(
+                    $"Drop dragged images canceled. Total={preview.Total}; RenameCount={preview.RenameCount}; SkippedCount={preview.SkippedCount}; Target={targetImage.Name}");
+                return;
+            }
+
             var result = await fileOperationService.RenameByDropTargetAsync(dragSources.Select(image => image.Path), targetImage.Path);
             ClearSelection();
             SetBatchStatus("拖放重新命名", result);
+            LogBatchItemFailures("Drop dragged images", result);
             appLogger.Info(
                 $"Drop dragged images completed. Total={result.Total}; Succeeded={result.Succeeded}; Skipped={result.Skipped}; Failed={result.Failed}; Target={targetImage.Name}");
             await LoadLibraryAsync();
@@ -313,6 +335,36 @@ public sealed partial class MainPageViewModel : ObservableObject
         finally
         {
             dragSources.Clear();
+        }
+    }
+
+    private static DropRenamePreview CreateDropRenamePreview(DropTargetBatchRenamePlan plan)
+    {
+        var items = plan.Items
+            .Select(item => new DropRenamePreviewItem(
+                SourcePath: item.SourcePath,
+                SourceName: Path.GetFileName(item.SourcePath),
+                TargetPath: item.TargetPath,
+                TargetName: Path.GetFileName(item.TargetPath),
+                WillRename: !item.ShouldSkip,
+                Reason: item.Reason))
+            .ToList();
+
+        return new DropRenamePreview(
+            Total: plan.Total,
+            RenameCount: items.Count(item => item.WillRename),
+            SkippedCount: items.Count(item => !item.WillRename),
+            Items: items);
+    }
+
+    private void LogBatchItemFailures(string operationName, FileOperationBatchResult result)
+    {
+        foreach (var item in result.Items.Where(item => item.Status == FileOperationStatus.Failed))
+        {
+            var details = item.Message ?? item.Reason ?? "File operation failed.";
+            appLogger.Error(
+                new IOException(details),
+                $"{operationName} item failed. Path={item.Path}; TargetPath={item.TargetPath ?? "<none>"}; Reason={item.Reason ?? "<none>"}");
         }
     }
 

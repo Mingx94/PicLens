@@ -21,6 +21,7 @@ public sealed record LibraryTileItem(
     private int? thumbnailSize;
     private int tileWidth = SettingsRules.DefaultThumbnailSize;
     private int tileHeight = SettingsRules.DefaultThumbnailSize - 4;
+    private bool isDropRenameTarget;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -48,6 +49,12 @@ public sealed record LibraryTileItem(
     public bool CanShowThumbnail => !string.IsNullOrWhiteSpace(ThumbnailPath) && !IsAnimated;
 
     public bool ShouldShowIcon => !CanShowThumbnail;
+
+    public bool IsDropRenameTarget
+    {
+        get => isDropRenameTarget;
+        set => SetProperty(ref isDropRenameTarget, value);
+    }
 
     public int TileWidth
     {
@@ -92,6 +99,17 @@ public sealed record LibraryTileItem(
     }
 
     private void SetProperty(ref int field, int value, [CallerMemberName] string? propertyName = null)
+    {
+        if (field == value)
+        {
+            return;
+        }
+
+        field = value;
+        OnPropertyChanged(propertyName);
+    }
+
+    private void SetProperty(ref bool field, bool value, [CallerMemberName] string? propertyName = null)
     {
         if (field == value)
         {

@@ -26,8 +26,12 @@ public sealed partial class MainPage : Page
 
     private readonly List<LibraryTileItem> librarySelectionOrder = [];
     private LibraryTileItem? pointerDragSource;
+    private LibraryTileItem? currentDropRenameTarget;
     private FoundationPoint pointerDragStartPosition;
+    private Pointer? pointerDragPointer;
+    private UIElement? pointerDragCaptureElement;
     private bool pointerDragStarted;
+    private IReadOnlyList<LibraryTileItem> pointerDragItems = [];
     private bool initialized;
 
     public MainPage()
@@ -245,8 +249,21 @@ public sealed partial class MainPage : Page
     {
         if (sender is FrameworkElement { DataContext: LibraryTileItem { IsFolder: false } source })
         {
+            ClearPointerDrag();
             pointerDragSource = source;
             pointerDragStartPosition = e.GetCurrentPoint(LibraryGrid).Position;
+            pointerDragPointer = e.Pointer;
+            if (LibraryGrid.CapturePointer(e.Pointer))
+            {
+                pointerDragCaptureElement = LibraryGrid;
+            }
+            else
+            {
+                App.Logger.Error(
+                    new InvalidOperationException("CapturePointer returned false."),
+                    $"Capture library drag pointer failed. Source={source.Name}; Path={source.Path}");
+            }
+
             pointerDragStarted = false;
         }
         else
@@ -257,40 +274,49 @@ public sealed partial class MainPage : Page
 
     private void LibraryGrid_PointerMoved(object sender, PointerRoutedEventArgs e)
     {
-        if (pointerDragSource is null || pointerDragStarted)
+        if (pointerDragSource is null || !IsActiveDragPointer(e.Pointer))
         {
             return;
         }
 
         var position = e.GetCurrentPoint(LibraryGrid).Position;
-        if (Math.Abs(position.X - pointerDragStartPosition.X) < PointerDragThreshold
-            && Math.Abs(position.Y - pointerDragStartPosition.Y) < PointerDragThreshold)
+        if (!pointerDragStarted)
         {
-            return;
+            if (Math.Abs(position.X - pointerDragStartPosition.X) < PointerDragThreshold
+                && Math.Abs(position.Y - pointerDragStartPosition.Y) < PointerDragThreshold)
+            {
+                return;
+            }
+
+            var dragItems = DragItemsFor(pointerDragSource);
+            if (dragItems.Count == 0)
+            {
+                ClearPointerDrag();
+                return;
+            }
+
+            pointerDragItems = dragItems;
+            ViewModel.BeginImageDrag(dragItems);
+            pointerDragStarted = true;
         }
 
-        var dragItems = DragItemsFor(pointerDragSource);
-        if (dragItems.Count == 0)
-        {
-            ClearPointerDrag();
-            return;
-        }
-
-        ViewModel.BeginImageDrag(dragItems);
-        pointerDragStarted = true;
+        UpdateDragPreview(position);
+        SetDropRenameTarget(DropRenameTargetAt(position));
         e.Handled = true;
     }
 
     private async void LibraryGrid_PointerReleased(object sender, PointerRoutedEventArgs e)
     {
-        if (pointerDragSource is null)
+        if (pointerDragSource is null || !IsActiveDragPointer(e.Pointer))
         {
             return;
         }
 
         var source = pointerDragSource;
         var wasDrag = pointerDragStarted;
-        var target = FindDataContext<LibraryTileItem>(e.OriginalSource);
+        var target = currentDropRenameTarget
+            ?? DropRenameTargetAt(e.GetCurrentPoint(LibraryGrid).Position)
+            ?? FindDataContext<LibraryTileItem>(e.OriginalSource);
         ClearPointerDrag();
 
         if (wasDrag
@@ -300,6 +326,27 @@ public sealed partial class MainPage : Page
             await ViewModel.DropDraggedImagesOnAsync(target);
             e.Handled = true;
         }
+    }
+
+    private void LibraryGrid_PointerCanceled(object sender, PointerRoutedEventArgs e)
+    {
+        if (!IsActiveDragPointer(e.Pointer))
+        {
+            return;
+        }
+
+        ClearPointerDrag();
+        e.Handled = true;
+    }
+
+    private void LibraryGrid_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
+    {
+        if (!IsActiveDragPointer(e.Pointer))
+        {
+            return;
+        }
+
+        ClearPointerDrag(releaseCapture: false);
     }
 
     private IReadOnlyList<LibraryTileItem> DragItemsFor(LibraryTileItem source)
@@ -313,10 +360,106 @@ public sealed partial class MainPage : Page
         return dragCandidates.Where(item => !item.IsFolder).ToList();
     }
 
-    private void ClearPointerDrag()
+    private LibraryTileItem? DropRenameTargetAt(FoundationPoint position)
     {
+        foreach (var target in ViewModel.LibraryItems.Where(item => !item.IsFolder))
+        {
+            if (pointerDragSource is null || PathEquals(pointerDragSource.Path, target.Path))
+            {
+                continue;
+            }
+
+            if (LibraryGrid.ContainerFromItem(target) is not FrameworkElement container)
+            {
+                continue;
+            }
+
+            var topLeft = container.TransformToVisual(LibraryGrid).TransformPoint(new FoundationPoint(0, 0));
+            if (position.X >= topLeft.X
+                && position.X <= topLeft.X + container.ActualWidth
+                && position.Y >= topLeft.Y
+                && position.Y <= topLeft.Y + container.ActualHeight)
+            {
+                return target;
+            }
+        }
+
+        return null;
+    }
+
+    private void SetDropRenameTarget(LibraryTileItem? target)
+    {
+        if (ReferenceEquals(currentDropRenameTarget, target))
+        {
+            return;
+        }
+
+        if (currentDropRenameTarget is not null)
+        {
+            currentDropRenameTarget.IsDropRenameTarget = false;
+        }
+
+        currentDropRenameTarget = target;
+        if (currentDropRenameTarget is not null)
+        {
+            currentDropRenameTarget.IsDropRenameTarget = true;
+        }
+    }
+
+    private bool IsActiveDragPointer(Pointer pointer) =>
+        pointerDragPointer is not null && pointerDragPointer.PointerId == pointer.PointerId;
+
+    private void ClearPointerDrag(bool releaseCapture = true)
+    {
+        var capturedElement = pointerDragCaptureElement;
+        var capturedPointer = pointerDragPointer;
+        SetDropRenameTarget(null);
         pointerDragSource = null;
         pointerDragStarted = false;
+        pointerDragItems = [];
+        pointerDragPointer = null;
+        pointerDragCaptureElement = null;
+        HideDragPreview();
+
+        if (releaseCapture && capturedElement is not null && capturedPointer is not null)
+        {
+            try
+            {
+                capturedElement.ReleasePointerCapture(capturedPointer);
+            }
+            catch (Exception ex)
+            {
+                App.Logger.Error(ex, "Release library drag pointer capture failed.");
+            }
+        }
+    }
+
+    private void UpdateDragPreview(FoundationPoint position)
+    {
+        if (!pointerDragStarted || pointerDragItems.Count == 0)
+        {
+            HideDragPreview();
+            return;
+        }
+
+        LibraryDragPreviewText.Text = pointerDragItems.Count == 1
+            ? $"拖曳 1 張：{pointerDragItems[0].Name}"
+            : $"拖曳 {pointerDragItems.Count} 張：{pointerDragItems[0].Name}";
+        LibraryDragPreviewOverlay.Visibility = Visibility.Visible;
+
+        const double offset = 16;
+        var maxX = Math.Max(0, LibraryGrid.ActualWidth - LibraryDragPreviewOverlay.ActualWidth - offset);
+        var maxY = Math.Max(0, LibraryGrid.ActualHeight - LibraryDragPreviewOverlay.ActualHeight - offset);
+        LibraryDragPreviewTransform.X = Math.Clamp(position.X + offset, 0, maxX);
+        LibraryDragPreviewTransform.Y = Math.Clamp(position.Y + offset, 0, maxY);
+    }
+
+    private void HideDragPreview()
+    {
+        LibraryDragPreviewOverlay.Visibility = Visibility.Collapsed;
+        LibraryDragPreviewText.Text = string.Empty;
+        LibraryDragPreviewTransform.X = 0;
+        LibraryDragPreviewTransform.Y = 0;
     }
 
     private async void ThumbnailSizeSlider_CommitValue(object sender, RoutedEventArgs e)
@@ -430,6 +573,120 @@ public sealed partial class MainPage : Page
 
         return await dialog.ShowAsync() == ContentDialogResult.Primary;
     }
+
+    private async Task<bool> ConfirmDropRenameAsync(DropRenamePreview preview)
+    {
+        var content = CreateDropRenamePreviewContent(preview);
+        AutomationProperties.SetName(content, "拖放重新命名預覽");
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "確認拖放重新命名",
+            Content = content,
+            PrimaryButtonText = "套用重新命名",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Primary
+        };
+
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+    }
+
+    private static UIElement CreateDropRenamePreviewContent(DropRenamePreview preview)
+    {
+        var panel = new StackPanel
+        {
+            MaxWidth = 560,
+            Spacing = 12
+        };
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"將重新命名 {preview.RenameCount} 個，略過 {preview.SkippedCount} 個。",
+            TextWrapping = TextWrapping.Wrap,
+            Style = TryGetTextStyle("BodyStrongTextBlockStyle")
+        });
+
+        var rows = new StackPanel { Spacing = 8 };
+        foreach (var item in preview.Items.Take(12))
+        {
+            rows.Children.Add(CreateDropRenamePreviewRow(item));
+        }
+
+        if (preview.Items.Count > 12)
+        {
+            rows.Children.Add(new TextBlock
+            {
+                Text = $"另有 {preview.Items.Count - 12} 個項目。",
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = TryGetBrush("TextFillColorSecondaryBrush"),
+                Style = TryGetTextStyle("CaptionTextBlockStyle")
+            });
+        }
+
+        panel.Children.Add(rows);
+
+        return new ScrollViewer
+        {
+            MaxHeight = 360,
+            Content = panel
+        };
+    }
+
+    private static UIElement CreateDropRenamePreviewRow(DropRenamePreviewItem item)
+    {
+        var row = new Grid
+        {
+            ColumnSpacing = 8,
+            Padding = new Thickness(0, 4, 0, 4)
+        };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var icon = new FontIcon
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+            Glyph = item.WillRename ? "\uE8FB" : "\uE711",
+            FontFamily = TryGetFontFamily("SymbolThemeFontFamily")
+        };
+        Grid.SetColumn(icon, 0);
+        row.Children.Add(icon);
+
+        var text = new TextBlock
+        {
+            Text = item.WillRename
+                ? $"{item.SourceName} -> {item.TargetName}"
+                : $"{item.SourceName} ({DropRenameReasonText(item.Reason)})",
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            TextWrapping = TextWrapping.WrapWholeWords
+        };
+        Grid.SetColumn(text, 1);
+        row.Children.Add(text);
+
+        return row;
+    }
+
+    private static string DropRenameReasonText(string? reason) =>
+        reason switch
+        {
+            "already_target_sequence" => "已是目標序列名稱",
+            _ => reason ?? "略過"
+        };
+
+    private static Style? TryGetTextStyle(string resourceKey) =>
+        Microsoft.UI.Xaml.Application.Current.Resources.TryGetValue(resourceKey, out var resource)
+            ? resource as Style
+            : null;
+
+    private static Brush? TryGetBrush(string resourceKey) =>
+        Microsoft.UI.Xaml.Application.Current.Resources.TryGetValue(resourceKey, out var resource)
+            ? resource as Brush
+            : null;
+
+    private static FontFamily? TryGetFontFamily(string resourceKey) =>
+        Microsoft.UI.Xaml.Application.Current.Resources.TryGetValue(resourceKey, out var resource)
+            ? resource as FontFamily
+            : null;
 
     private async Task<string?> RequestRenameAsync(ImageListItem image)
     {
@@ -545,6 +802,7 @@ public sealed partial class MainPage : Page
         public WinUIDialogService(MainPage page) => this.page = page;
         public Task<string?> ChooseFolderAsync() => page.ChooseFolderAsync();
         public Task<bool> ConfirmAsync(string message, string title, string confirmButtonText) => page.ConfirmAsync(message, title, confirmButtonText);
+        public Task<bool> ConfirmDropRenameAsync(DropRenamePreview preview) => page.ConfirmDropRenameAsync(preview);
         public Task<string?> RequestRenameAsync(ImageListItem item) => page.RequestRenameAsync(item);
     }
 

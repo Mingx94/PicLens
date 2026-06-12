@@ -415,6 +415,8 @@
                 IsTabStop="True"
                 ItemsSource="{x:Bind ViewModel.LibraryItems, Mode=OneWay}"
                 KeyDown="LibraryGrid_KeyDown"
+                PointerCanceled="LibraryGrid_PointerCanceled"
+                PointerCaptureLost="LibraryGrid_PointerCaptureLost"
                 PointerMoved="LibraryGrid_PointerMoved"
                 PointerReleased="LibraryGrid_PointerReleased"
                 SelectionChanged="LibraryGrid_SelectionChanged"
@@ -474,6 +476,14 @@
                                 MaxLines="2"
                                 TextTrimming="CharacterEllipsis"
                                 Style="{StaticResource BodyStrongTextBlockStyle}" />
+
+                            <Border
+                                Grid.RowSpan="2"
+                                IsHitTestVisible="False"
+                                BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                                BorderThickness="2"
+                                CornerRadius="{ThemeResource ControlCornerRadius}"
+                                Visibility="{x:Bind local:MainPage.BoolToVisibility(IsDropRenameTarget), Mode=OneWay}" />
                         </Grid>
                     </DataTemplate>
                 </GridView.ItemTemplate>
@@ -507,6 +517,40 @@
                     Command="{x:Bind ViewModel.OpenFolderCommand}"
                     Content="選擇資料夾" />
             </Grid>
+
+            <Border
+                x:Name="LibraryDragPreviewOverlay"
+                Grid.Row="2"
+                MaxWidth="320"
+                MinHeight="40"
+                Padding="12,8"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                AutomationProperties.Name="拖曳中的圖片"
+                Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="{ThemeResource OverlayCornerRadius}"
+                IsHitTestVisible="False"
+                Visibility="Collapsed">
+                <Border.RenderTransform>
+                    <TranslateTransform x:Name="LibraryDragPreviewTransform" />
+                </Border.RenderTransform>
+                <StackPanel
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <FontIcon
+                        VerticalAlignment="Center"
+                        FontFamily="{StaticResource SymbolThemeFontFamily}"
+                        Glyph="&#xE8B9;" />
+                    <TextBlock
+                        x:Name="LibraryDragPreviewText"
+                        MaxWidth="260"
+                        VerticalAlignment="Center"
+                        TextTrimming="CharacterEllipsis"
+                        Style="{StaticResource BodyStrongTextBlockStyle}" />
+                </StackPanel>
+            </Border>
         </Grid>
 
         <Border

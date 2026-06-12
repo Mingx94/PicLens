@@ -209,10 +209,24 @@ public sealed class MainPageTextTests
 
         Assert.Contains("PointerMoved=\"LibraryGrid_PointerMoved\"", xaml);
         Assert.Contains("PointerReleased=\"LibraryGrid_PointerReleased\"", xaml);
+        Assert.Contains("PointerCanceled=\"LibraryGrid_PointerCanceled\"", xaml);
+        Assert.Contains("PointerCaptureLost=\"LibraryGrid_PointerCaptureLost\"", xaml);
         Assert.Contains("PointerPressed=\"LibraryTile_PointerPressed\"", xaml);
+        Assert.Contains("x:Name=\"LibraryDragPreviewOverlay\"", xaml);
+        Assert.Contains("x:Name=\"LibraryDragPreviewText\"", xaml);
+        Assert.Contains("<TranslateTransform x:Name=\"LibraryDragPreviewTransform\" />", xaml);
+        Assert.Contains("Visibility=\"{x:Bind local:MainPage.BoolToVisibility(IsDropRenameTarget), Mode=OneWay}\"", xaml);
         Assert.Contains("LibraryGrid_PointerMoved", code);
         Assert.Contains("LibraryGrid_PointerReleased", code);
+        Assert.Contains("LibraryGrid_PointerCanceled", code);
+        Assert.Contains("LibraryGrid_PointerCaptureLost", code);
         Assert.Contains("LibraryTile_PointerPressed", code);
+        Assert.Contains("CapturePointer", code);
+        Assert.Contains("LibraryGrid.ContainerFromItem(target)", code);
+        Assert.Contains("container.TransformToVisual(LibraryGrid)", code);
+        Assert.Contains("UpdateDragPreview(position)", code);
+        Assert.Contains("HideDragPreview", code);
+        Assert.Contains("ConfirmDropRenameAsync", code);
         Assert.Contains("DropDraggedImagesOnAsync(target)", code);
     }
 
