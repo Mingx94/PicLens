@@ -47,6 +47,14 @@ Build-only verification 可使用：
 .\BuildAndRun.ps1 .\PicLens\PicLens.csproj -SkipRun
 ```
 
+開發 UI 時可用 watch runner；它不是 Hot Reload，而是在 `.cs`、`.xaml`、manifest、assets 等檔案存檔後自動 rebuild，build 成功才關掉舊 app 並 relaunch：
+
+```powershell
+.\WatchAndRun.ps1 .\PicLens\PicLens.csproj
+```
+
+watch runner 的 build / launch ERROR LOG 會寫到 `logs\watch-run\`，build 失敗時會保留目前執行中的 app，方便對照上一個可用狀態。
+
 ## Portable Release
 
 建置免安裝 app folder：

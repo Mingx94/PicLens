@@ -39,6 +39,30 @@ Plugin workflow 可執行：
 
 `BuildAndRun.ps1` 使用 Visual Studio MSBuild；若 NuGet config access 被 restricted sandboxes 擋住，可能需要在 sandbox 外執行。
 
+## Watch And Relaunch
+
+非 Visual Studio 開發 UI 時，可使用 watch runner 在存檔後看見變化：
+
+```powershell
+.\WatchAndRun.ps1 .\PicLens\PicLens.csproj
+```
+
+這不是 XAML Hot Reload。`WatchAndRun.ps1` 會監看 `.cs`、`.xaml`、`.csproj`、manifest、assets 與相關設定檔；變更穩定後先透過 `BuildAndRun.ps1 -SkipRun` rebuild，build 成功才停止既有 `PicLens` process 並以 `winapp run --detach` relaunch。build 失敗時會保留舊 app，避免開發中斷在沒有可比較畫面的狀態。
+
+ERROR LOG 位置：
+
+```text
+logs\watch-run\watch-run-*.log
+```
+
+常用選項：
+
+```powershell
+.\WatchAndRun.ps1 .\PicLens\PicLens.csproj -NoInitialRun
+.\WatchAndRun.ps1 .\PicLens\PicLens.csproj -DebounceMilliseconds 1500
+.\WatchAndRun.ps1 .\PicLens\PicLens.csproj -RunOnce -SkipLaunch
+```
+
 ## Portable Release Verification
 
 執行：
