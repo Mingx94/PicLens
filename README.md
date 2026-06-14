@@ -58,6 +58,8 @@ Opt-in FlaUI UI smoke：
 .\tools\RunUiTests.ps1
 ```
 
+這組 smoke 會用 isolated data root 跑 empty state、seeded gallery、selection action bar、thumbnail size persistence 與 secondary viewer 核心流程。
+
 Build-only verification 可使用：
 
 ```powershell

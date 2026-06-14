@@ -515,6 +515,12 @@ public sealed partial class MainPage : Page
             return;
         }
 
+        if (args.ItemContainer is not null)
+        {
+            AutomationProperties.SetAutomationId(args.ItemContainer, $"{item.AutomationId}_Container");
+            AutomationProperties.SetName(args.ItemContainer, item.AutomationName);
+        }
+
         if (args.InRecycleQueue)
         {
             ViewModel.CancelThumbnailLoad(item);

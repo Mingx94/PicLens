@@ -29,6 +29,8 @@ public sealed record LibraryTileItem(
 
     public string AutomationName => $"{Name}，{KindLabel}，{Detail}";
 
+    public string AutomationId => $"{(IsFolder ? "LibraryFolderTile" : "LibraryImageTile")}_{SanitizeAutomationIdSegment(Name)}";
+
     public string? ThumbnailPath
     {
         get => thumbnailPath;
@@ -122,4 +124,15 @@ public sealed record LibraryTileItem(
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+    private static string SanitizeAutomationIdSegment(string value)
+    {
+        var builder = new System.Text.StringBuilder(value.Length);
+        foreach (var character in value)
+        {
+            builder.Append(char.IsLetterOrDigit(character) ? character : '_');
+        }
+
+        return builder.ToString();
+    }
 }

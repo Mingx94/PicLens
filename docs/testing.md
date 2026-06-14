@@ -35,10 +35,15 @@ FlaUI 測試是 opt-in，不屬於 `Release.ps1` 或預設 CI 驗證。執行：
 目前 UI smoke coverage 包含：
 
 - 啟動 published `PicLens.exe` 並等待 main window。
-- 驗證主要 AutomationId：title bar、folder navigation command bar、library command bar、folder tree、library grid、status bar、thumbnail size slider、empty state action。
+- 驗證 empty-state 主要 AutomationId：title bar、folder navigation command bar、library command bar、folder tree、library grid、status bar、thumbnail size slider、empty state action。
 - 開啟排序與更多圖庫動作 flyouts，確認預期 menu items 存在。
+- 以 seeded gallery 啟動 app，驗證 last-folder restore、folder tree、library grid、root image tiles、direct child folder tile 與 status feedback。
+- 驗證排序 flyout、含子資料夾 toggle、recursive image visibility，以及 settings persistence。
+- 驗證 image selection 會顯示 contextual action buttons，且 clear selection 會移除 selection summary。
+- 驗證 thumbnail size slider persistence。
+- 驗證 secondary viewer smoke：double click 開啟 viewer、previous/next、zoom controls、viewer image/status controls，以及 Escape close。
 
-失敗時會把 PID、data root、ERROR LOG 與 screenshot 寫到：
+失敗時會把 PID、data root、seeded library root、ERROR LOG、screenshot 與 UIA tree dump 寫到：
 
 ```text
 artifacts\ui-tests\
