@@ -1,4 +1,5 @@
 using PicLens.Diagnostics;
+using PicLens.Infrastructure.Services;
 
 namespace PicLens;
 
@@ -15,9 +16,7 @@ public static class AppDataMigration
     {
         try
         {
-            var root = ResolveLocalAppDataRoot(localAppDataRoot);
-            var currentRoot = Path.Combine(root, CurrentAppFolderName);
-            var legacyRoot = Path.Combine(root, LegacyAppFolderName);
+            var (currentRoot, legacyRoot) = ResolveMigrationRoots(localAppDataRoot);
 
             if (!Directory.Exists(legacyRoot))
             {
@@ -38,6 +37,30 @@ public static class AppDataMigration
         {
             logger.Error(exception, "Legacy app data migration failed.");
         }
+    }
+
+    private static (string CurrentRoot, string LegacyRoot) ResolveMigrationRoots(string? localAppDataRoot)
+    {
+        if (!string.IsNullOrWhiteSpace(localAppDataRoot))
+        {
+            return (
+                Path.Combine(localAppDataRoot, CurrentAppFolderName),
+                Path.Combine(localAppDataRoot, LegacyAppFolderName));
+        }
+
+        if (AppDataPaths.IsDataRootOverrideEnabled())
+        {
+            var currentRoot = AppDataPaths.AppRoot();
+            var parent = Path.GetDirectoryName(currentRoot);
+            return (
+                currentRoot,
+                Path.Combine(string.IsNullOrWhiteSpace(parent) ? currentRoot : parent, LegacyAppFolderName));
+        }
+
+        var root = ResolveLocalAppDataRoot(localAppDataRoot);
+        return (
+            Path.Combine(root, CurrentAppFolderName),
+            Path.Combine(root, LegacyAppFolderName));
     }
 
     private static string ResolveLocalAppDataRoot(string? localAppDataRoot)

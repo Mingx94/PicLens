@@ -52,6 +52,14 @@ dotnet build .\PicLens\PicLens.csproj --no-restore /p:Platform=x64
 .\BuildAndRun.ps1 .\PicLens\PicLens.csproj
 ```
 
+Opt-in FlaUI UI smoke：
+
+```powershell
+.\tools\RunUiTests.ps1
+```
+
+這組 smoke 會用 isolated data root 跑 empty state、seeded gallery、selection action bar、thumbnail size persistence 與 secondary viewer 核心流程。
+
 Build-only verification 可使用：
 
 ```powershell

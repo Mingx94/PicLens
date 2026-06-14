@@ -13,6 +13,9 @@
     <Project Path="tests/PicLens.Application.Tests/PicLens.Application.Tests.csproj" />
     <Project Path="tests/PicLens.Core.Tests/PicLens.Core.Tests.csproj" />
     <Project Path="tests/PicLens.Infrastructure.Tests/PicLens.Infrastructure.Tests.csproj" />
+    <Project Path="tests/PicLens.Ui.Tests/PicLens.Ui.Tests.csproj">
+      <Build Project="false" />
+    </Project>
     <Project Path="tests/PicLens.ViewModels.Tests/PicLens.ViewModels.Tests.csproj">
       <Build Project="false" />
     </Project>

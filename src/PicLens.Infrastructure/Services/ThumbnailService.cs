@@ -360,15 +360,7 @@ public sealed class ThumbnailService : IThumbnailService
             OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 
     private static string DefaultCacheRoot()
-    {
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (string.IsNullOrWhiteSpace(localAppData))
-        {
-            localAppData = Path.GetTempPath();
-        }
-
-        return Path.Combine(localAppData, "PicLens", "Thumbnails");
-    }
+        => AppDataPaths.ThumbnailCacheRoot();
 
     private static bool IsExpectedFailure(Exception ex) =>
         ex is IOException

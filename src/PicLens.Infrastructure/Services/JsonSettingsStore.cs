@@ -107,10 +107,7 @@ public sealed class JsonSettingsStore : ISettingsStore
     }
 
     private static string DefaultSettingsPath()
-    {
-        var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        return Path.Combine(root, "PicLens", "piclens-settings.json");
-    }
+        => AppDataPaths.SettingsPath();
 
     private static bool IsExpectedReadFailure(Exception exception) =>
         exception is JsonException or IOException or UnauthorizedAccessException;

@@ -168,7 +168,7 @@
 
         <Grid
             Grid.Row="2"
-            AutomationProperties.AutomationId="ViewerStatusBar"
+            AutomationProperties.AccessibilityView="Control"
             MinHeight="32"
             Padding="16,4"
             BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
@@ -181,6 +181,7 @@
             </Grid.ColumnDefinitions>
 
             <TextBlock
+                AutomationProperties.AutomationId="ViewerStatusBar"
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="{x:Bind ViewModel.CurrentImageName, Mode=OneWay}"

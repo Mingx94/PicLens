@@ -1,5 +1,6 @@
 using System.Text;
 using System.Threading.Channels;
+using PicLens.Infrastructure.Services;
 
 namespace PicLens.Diagnostics;
 
@@ -27,15 +28,7 @@ public sealed class FileAppLogger : IAppLogger, IDisposable
     public string LogPath { get; }
 
     public static string DefaultLogPath()
-    {
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (string.IsNullOrWhiteSpace(localAppData))
-        {
-            localAppData = Path.GetTempPath();
-        }
-
-        return Path.Combine(localAppData, "PicLens", "Logs", "PicLens.log");
-    }
+        => AppDataPaths.LogPath();
 
     public void Info(string message) => Write("INFO", message, exception: null);
 

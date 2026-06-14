@@ -332,11 +332,12 @@
 
             <Grid
                 x:Name="LibraryGridSurface"
-                Grid.Row="1">
+                Grid.Row="1"
+                AutomationProperties.AccessibilityView="Control"
+                AutomationProperties.AutomationId="LibraryGrid"
+                AutomationProperties.Name="圖庫項目">
                 <GridView
                     x:Name="LibraryGrid"
-                    AutomationProperties.AutomationId="LibraryGrid"
-                    AutomationProperties.Name="圖庫項目"
                     ContainerContentChanging="LibraryGrid_ContainerContentChanging"
                     DoubleTapped="LibraryGrid_DoubleTapped"
                     IsItemClickEnabled="False"
@@ -365,6 +366,7 @@
                     <GridView.ItemTemplate>
                         <DataTemplate x:DataType="vm:LibraryTileItem">
                             <Grid
+                                AutomationProperties.AutomationId="{x:Bind AutomationId, Mode=OneWay}"
                                 AutomationProperties.Name="{x:Bind AutomationName}"
                                 Width="{x:Bind TileWidth, Mode=OneWay}"
                                 Height="{x:Bind TileHeight, Mode=OneWay}"
@@ -451,6 +453,7 @@
                     Padding="12,10"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Bottom"
+                    AutomationProperties.AccessibilityView="Control"
                     AutomationProperties.AutomationId="LibrarySelectionActionBar"
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -595,8 +598,9 @@
 
                 <InfoBar
                     AutomationProperties.AutomationId="StatusInfoBar"
+                    AutomationProperties.HelpText="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
                     AutomationProperties.LiveSetting="Polite"
-                    AutomationProperties.Name="檔案操作狀態"
+                    AutomationProperties.Name="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
                     IsClosable="False"
                     IsOpen="True"
                     Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
