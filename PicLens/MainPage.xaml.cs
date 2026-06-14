@@ -253,17 +253,6 @@ public sealed partial class MainPage : Page
             pointerDragSource = source;
             pointerDragStartPosition = e.GetCurrentPoint(LibraryGrid).Position;
             pointerDragPointer = e.Pointer;
-            if (LibraryGrid.CapturePointer(e.Pointer))
-            {
-                pointerDragCaptureElement = LibraryGrid;
-            }
-            else
-            {
-                App.Logger.Error(
-                    new InvalidOperationException("CapturePointer returned false."),
-                    $"Capture library drag pointer failed. Source={source.Name}; Path={source.Path}");
-            }
-
             pointerDragStarted = false;
         }
         else
@@ -290,6 +279,12 @@ public sealed partial class MainPage : Page
 
             var dragItems = DragItemsFor(pointerDragSource);
             if (dragItems.Count == 0)
+            {
+                ClearPointerDrag();
+                return;
+            }
+
+            if (!TryCaptureLibraryDragPointer(pointerDragSource, e.Pointer))
             {
                 ClearPointerDrag();
                 return;
@@ -358,6 +353,25 @@ public sealed partial class MainPage : Page
             : [source];
 
         return dragCandidates.Where(item => !item.IsFolder).ToList();
+    }
+
+    private bool TryCaptureLibraryDragPointer(LibraryTileItem source, Pointer pointer)
+    {
+        if (pointerDragCaptureElement is not null)
+        {
+            return true;
+        }
+
+        if (LibraryGrid.CapturePointer(pointer))
+        {
+            pointerDragCaptureElement = LibraryGrid;
+            return true;
+        }
+
+        App.Logger.Error(
+            new InvalidOperationException("CapturePointer returned false."),
+            $"Capture library drag pointer failed. Source={source.Name}; Path={source.Path}");
+        return false;
     }
 
     private LibraryTileItem? DropRenameTargetAt(FoundationPoint position)

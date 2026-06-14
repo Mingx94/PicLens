@@ -270,8 +270,9 @@ public sealed class ImageViewerWindowLocalizationTests
         Assert.DoesNotContain("<CommandBar.SecondaryCommands>", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"TitleBarMoreActionsButton\"", xaml);
         Assert.Contains("AutomationProperties.Name=\"更多圖庫動作\"", xaml);
-        Assert.Contains("Width=\"48\"", xaml);
-        Assert.Contains("Height=\"48\"", xaml);
+        Assert.Contains("Width=\"42\"", xaml);
+        Assert.Contains("LabelPosition=\"Collapsed\"", xaml);
+        Assert.Contains("IsCompact=\"True\"", xaml);
         Assert.Contains("Glyph=\"&#xE712;\"", xaml);
         Assert.Contains("<MenuFlyout Placement=\"BottomEdgeAlignedRight\">", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"TitleBarConvertVisibleButton\"", xaml);

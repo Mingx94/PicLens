@@ -157,8 +157,9 @@ public sealed class MainPageTextTests
         Assert.Contains("IsDynamicOverflowEnabled=\"True\"", xaml);
         Assert.DoesNotContain("<CommandBar.SecondaryCommands>", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"TitleBarMoreActionsButton\"", xaml);
-        Assert.Contains("Width=\"48\"", xaml);
-        Assert.Contains("Height=\"48\"", xaml);
+        Assert.Contains("Width=\"42\"", xaml);
+        Assert.Contains("LabelPosition=\"Collapsed\"", xaml);
+        Assert.Contains("IsCompact=\"True\"", xaml);
         Assert.Contains("<MenuFlyout Placement=\"BottomEdgeAlignedRight\">", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"TitleBarConvertVisibleButton\"", xaml);
         Assert.Contains("Command=\"{x:Bind ViewModel.ConvertVisibleCommand}\"", xaml);
@@ -238,6 +239,24 @@ public sealed class MainPageTextTests
         Assert.Contains("HideDragPreview", code);
         Assert.Contains("ConfirmDropRenameAsync", code);
         Assert.Contains("DropDraggedImagesOnAsync(target)", code);
+    }
+
+    [Fact]
+    public void Library_drag_capture_starts_after_pointer_moves_past_threshold()
+    {
+        var code = File.ReadAllText(Path.Combine(RepositoryRoot(), "PicLens", "MainPage.xaml.cs"));
+        var pointerPressedStart = code.IndexOf("private void LibraryTile_PointerPressed", StringComparison.Ordinal);
+        var pointerMovedStart = code.IndexOf("private void LibraryGrid_PointerMoved", StringComparison.Ordinal);
+
+        Assert.True(pointerPressedStart >= 0, "Could not find LibraryTile_PointerPressed.");
+        Assert.True(pointerMovedStart > pointerPressedStart, "Could not find LibraryGrid_PointerMoved after LibraryTile_PointerPressed.");
+
+        var pointerPressedBody = code.Substring(pointerPressedStart, pointerMovedStart - pointerPressedStart);
+        Assert.Contains("pointerDragStartPosition = e.GetCurrentPoint(LibraryGrid).Position;", pointerPressedBody);
+        Assert.DoesNotContain("CapturePointer", pointerPressedBody);
+        Assert.Contains("private bool TryCaptureLibraryDragPointer(LibraryTileItem source, Pointer pointer)", code);
+        Assert.Contains("if (!TryCaptureLibraryDragPointer(pointerDragSource, e.Pointer))", code);
+        Assert.Contains("Capture library drag pointer failed.", code);
     }
 
     [Fact]
