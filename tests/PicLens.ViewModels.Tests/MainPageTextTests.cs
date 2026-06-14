@@ -201,6 +201,39 @@ public sealed class MainPageTextTests
     }
 
     [Fact]
+    public void MainPage_selection_action_bar_overlays_library_grid_bottom_without_layout_shift()
+    {
+        var xaml = File.ReadAllText(Path.Combine(RepositoryRoot(), "PicLens", "MainPage.xaml"));
+
+        var surfaceStart = xaml.IndexOf("x:Name=\"LibraryGridSurface\"", StringComparison.Ordinal);
+        Assert.True(surfaceStart >= 0, "Could not find LibraryGridSurface.");
+
+        var gridStart = xaml.IndexOf("x:Name=\"LibraryGrid\"", surfaceStart, StringComparison.Ordinal);
+        Assert.True(gridStart > surfaceStart, "LibraryGrid should be inside LibraryGridSurface.");
+
+        var selectionBarStart = xaml.IndexOf("x:Name=\"LibrarySelectionActionBar\"", surfaceStart, StringComparison.Ordinal);
+        Assert.True(selectionBarStart > gridStart, "Selection action bar should overlay after LibraryGrid inside the same surface.");
+
+        var selectionBarTagStart = xaml.LastIndexOf("<Border", selectionBarStart, StringComparison.Ordinal);
+        var selectionBarTagEnd = xaml.IndexOf(">", selectionBarStart, StringComparison.Ordinal);
+        Assert.True(selectionBarTagStart >= 0 && selectionBarTagEnd > selectionBarTagStart, "Could not find LibrarySelectionActionBar opening tag.");
+
+        var selectionBarTag = xaml[selectionBarTagStart..selectionBarTagEnd];
+        Assert.Contains("Canvas.ZIndex=\"10\"", selectionBarTag);
+        Assert.Contains("VerticalAlignment=\"Bottom\"", selectionBarTag);
+        Assert.Contains("HorizontalAlignment=\"Stretch\"", selectionBarTag);
+        Assert.Contains("Margin=\"0,0,12,12\"", selectionBarTag);
+        Assert.DoesNotContain("Grid.Row=", selectionBarTag);
+
+        var libraryGridTagStart = xaml.LastIndexOf("<GridView", gridStart, StringComparison.Ordinal);
+        var libraryGridTagEnd = xaml.IndexOf(">", gridStart, StringComparison.Ordinal);
+        Assert.True(libraryGridTagStart >= 0 && libraryGridTagEnd > libraryGridTagStart, "Could not find LibraryGrid opening tag.");
+
+        var libraryGridTag = xaml[libraryGridTagStart..libraryGridTagEnd];
+        Assert.DoesNotContain("Grid.Row=\"2\"", libraryGridTag);
+    }
+
+    [Fact]
     public void MainPage_dialogs_use_clear_accessible_action_text()
     {
         var code = File.ReadAllText(Path.Combine(RepositoryRoot(), "PicLens", "MainPage.xaml.cs"));

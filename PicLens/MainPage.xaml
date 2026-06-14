@@ -279,7 +279,6 @@
             RowSpacing="12">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
@@ -331,243 +330,247 @@
                     Style="{StaticResource BodyStrongTextBlockStyle}" />
             </Grid>
 
-            <Border
-                x:Name="LibrarySelectionActionBar"
-                Grid.Row="1"
-                Padding="12,10"
-                AutomationProperties.AutomationId="LibrarySelectionActionBar"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                BorderThickness="1"
-                CornerRadius="{ThemeResource ControlCornerRadius}"
-                Visibility="{x:Bind local:MainPage.BoolToVisibility(ViewModel.HasSelectedImages), Mode=OneWay}">
+            <Grid
+                x:Name="LibraryGridSurface"
+                Grid.Row="1">
+                <GridView
+                    x:Name="LibraryGrid"
+                    AutomationProperties.AutomationId="LibraryGrid"
+                    AutomationProperties.Name="圖庫項目"
+                    ContainerContentChanging="LibraryGrid_ContainerContentChanging"
+                    DoubleTapped="LibraryGrid_DoubleTapped"
+                    IsItemClickEnabled="False"
+                    IsTabStop="True"
+                    ItemsSource="{x:Bind ViewModel.LibraryItems, Mode=OneWay}"
+                    KeyDown="LibraryGrid_KeyDown"
+                    PointerCanceled="LibraryGrid_PointerCanceled"
+                    PointerCaptureLost="LibraryGrid_PointerCaptureLost"
+                    PointerMoved="LibraryGrid_PointerMoved"
+                    PointerReleased="LibraryGrid_PointerReleased"
+                    SelectionChanged="LibraryGrid_SelectionChanged"
+                    SelectionMode="Multiple"
+                    Visibility="{x:Bind local:MainPage.BoolToVisibility(ViewModel.HasCurrentFolder), Mode=OneWay}">
+                    <GridView.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <ItemsWrapGrid Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </GridView.ItemsPanel>
+                    <GridView.ItemContainerStyle>
+                        <Style TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
+                            <Setter Property="Margin" Value="0,0,12,12" />
+                            <Setter Property="MinWidth" Value="128" />
+                            <Setter Property="MinHeight" Value="136" />
+                        </Style>
+                    </GridView.ItemContainerStyle>
+                    <GridView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:LibraryTileItem">
+                            <Grid
+                                AutomationProperties.Name="{x:Bind AutomationName}"
+                                Width="{x:Bind TileWidth, Mode=OneWay}"
+                                Height="{x:Bind TileHeight, Mode=OneWay}"
+                                Loaded="LibraryTile_Loaded"
+                                PointerPressed="LibraryTile_PointerPressed"
+                                RowSpacing="8"
+                                Unloaded="LibraryTile_Unloaded">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <Border
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{ThemeResource ControlCornerRadius}">
+                                    <Grid>
+                                        <Image
+                                            Source="{x:Bind local:MainPage.CreateBitmapImage(ThumbnailPath), Mode=OneWay}"
+                                            Stretch="Uniform"
+                                            Visibility="{x:Bind local:MainPage.BoolToVisibility(CanShowThumbnail), Mode=OneWay}" />
+                                        <FontIcon
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Glyph="{x:Bind IconGlyph, Mode=OneTime}"
+                                            Visibility="{x:Bind local:MainPage.BoolToVisibility(ShouldShowIcon), Mode=OneWay}" />
+                                    </Grid>
+                                </Border>
+
+                                <TextBlock
+                                    Grid.Row="1"
+                                    HorizontalAlignment="Center"
+                                    TextAlignment="Center"
+                                    Text="{x:Bind Name}"
+                                    TextWrapping="Wrap"
+                                    MaxLines="2"
+                                    TextTrimming="CharacterEllipsis"
+                                    Style="{StaticResource BodyStrongTextBlockStyle}" />
+
+                                <Border
+                                    Grid.RowSpan="2"
+                                    IsHitTestVisible="False"
+                                    BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                                    BorderThickness="2"
+                                    CornerRadius="{ThemeResource ControlCornerRadius}"
+                                    Visibility="{x:Bind local:MainPage.BoolToVisibility(IsDropRenameTarget), Mode=OneWay}" />
+                            </Grid>
+                        </DataTemplate>
+                    </GridView.ItemTemplate>
+                </GridView>
+
                 <Grid
-                    x:Name="SelectionActionBarGrid"
-                    ColumnSpacing="12"
-                    RowSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    MaxWidth="360"
+                    RowSpacing="12"
+                    Visibility="{x:Bind local:MainPage.InvertBoolToVisibility(ViewModel.HasCurrentFolder), Mode=OneWay}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
+                    <FontIcon
+                        HorizontalAlignment="Center"
+                        Glyph="&#xE8B7;"
+                        FontSize="36" />
+                    <TextBlock
+                        Grid.Row="1"
+                        Text="請先選擇資料夾"
+                        TextAlignment="Center"
+                        Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <Button
+                        Grid.Row="2"
+                        HorizontalAlignment="Center"
+                        AutomationProperties.AutomationId="EmptyStateOpenFolderButton"
+                        Command="{x:Bind ViewModel.OpenFolderCommand}"
+                        Content="選擇資料夾" />
+                </Grid>
 
+                <Border
+                    x:Name="LibrarySelectionActionBar"
+                    Margin="0,0,12,12"
+                    Padding="12,10"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Bottom"
+                    AutomationProperties.AutomationId="LibrarySelectionActionBar"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    Canvas.ZIndex="10"
+                    CornerRadius="{ThemeResource ControlCornerRadius}"
+                    Visibility="{x:Bind local:MainPage.BoolToVisibility(ViewModel.HasSelectedImages), Mode=OneWay}">
+                    <Grid
+                        x:Name="SelectionActionBarGrid"
+                        ColumnSpacing="12"
+                        RowSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal"
+                            Spacing="8">
+                            <FontIcon
+                                FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                Glyph="&#xE73A;" />
+                            <TextBlock
+                                x:Name="SelectionSummaryText"
+                                AutomationProperties.AutomationId="SelectionSummaryText"
+                                VerticalAlignment="Center"
+                                TextTrimming="CharacterEllipsis"
+                                Text="{x:Bind ViewModel.SelectionSummaryText, Mode=OneWay}"
+                                Style="{StaticResource BodyStrongTextBlockStyle}" />
+                        </StackPanel>
+
+                        <CommandBar
+                            x:Name="SelectionCommandBar"
+                            Grid.Column="1"
+                            AutomationProperties.AutomationId="SelectionCommandBar"
+                            Background="Transparent"
+                            DefaultLabelPosition="Right"
+                            IsDynamicOverflowEnabled="True">
+                            <AppBarButton
+                                x:Name="SelectionRenameButton"
+                                AutomationProperties.AutomationId="SelectionRenameButton"
+                                AutomationProperties.Name="重新命名選取的圖片"
+                                ToolTipService.ToolTip="重新命名選取的圖片"
+                                Command="{x:Bind ViewModel.RenameSelectedCommand}"
+                                Icon="Edit"
+                                Label="重新命名" />
+                            <AppBarButton
+                                x:Name="SelectionTrashButton"
+                                AutomationProperties.AutomationId="SelectionTrashButton"
+                                AutomationProperties.Name="將選取的圖片移至回收筒"
+                                ToolTipService.ToolTip="將選取的圖片移至回收筒"
+                                Command="{x:Bind ViewModel.TrashSelectedCommand}"
+                                Icon="Delete"
+                                Label="移至回收筒" />
+                            <AppBarButton
+                                x:Name="SelectionConvertButton"
+                                AutomationProperties.AutomationId="SelectionConvertButton"
+                                AutomationProperties.Name="將選取的圖片轉成 JPG"
+                                ToolTipService.ToolTip="將選取的圖片轉成 JPG"
+                                Command="{x:Bind ViewModel.ConvertSelectedCommand}"
+                                Label="轉成 JPG">
+                                <AppBarButton.Icon>
+                                    <FontIcon
+                                        FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                        Glyph="&#xEE71;" />
+                                </AppBarButton.Icon>
+                            </AppBarButton>
+                            <AppBarButton
+                                x:Name="SelectionClearButton"
+                                AutomationProperties.AutomationId="SelectionClearButton"
+                                AutomationProperties.Name="清除選取"
+                                ToolTipService.ToolTip="清除選取"
+                                Click="ClearLibrarySelection_Click"
+                                Label="清除選取">
+                                <AppBarButton.Icon>
+                                    <SymbolIcon Symbol="Cancel" />
+                                </AppBarButton.Icon>
+                            </AppBarButton>
+                        </CommandBar>
+                    </Grid>
+                </Border>
+
+                <Border
+                    x:Name="LibraryDragPreviewOverlay"
+                    MaxWidth="320"
+                    MinHeight="40"
+                    Padding="12,8"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    AutomationProperties.Name="拖曳中的圖片"
+                    Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{ThemeResource OverlayCornerRadius}"
+                    IsHitTestVisible="False"
+                    Visibility="Collapsed">
+                    <Border.RenderTransform>
+                        <TranslateTransform x:Name="LibraryDragPreviewTransform" />
+                    </Border.RenderTransform>
                     <StackPanel
-                        VerticalAlignment="Center"
                         Orientation="Horizontal"
                         Spacing="8">
                         <FontIcon
+                            VerticalAlignment="Center"
                             FontFamily="{StaticResource SymbolThemeFontFamily}"
-                            Glyph="&#xE73A;" />
+                            Glyph="&#xE8B9;" />
                         <TextBlock
-                            x:Name="SelectionSummaryText"
-                            AutomationProperties.AutomationId="SelectionSummaryText"
+                            x:Name="LibraryDragPreviewText"
+                            MaxWidth="260"
                             VerticalAlignment="Center"
                             TextTrimming="CharacterEllipsis"
-                            Text="{x:Bind ViewModel.SelectionSummaryText, Mode=OneWay}"
                             Style="{StaticResource BodyStrongTextBlockStyle}" />
                     </StackPanel>
-
-                    <CommandBar
-                        x:Name="SelectionCommandBar"
-                        Grid.Column="1"
-                        AutomationProperties.AutomationId="SelectionCommandBar"
-                        Background="Transparent"
-                        DefaultLabelPosition="Right"
-                        IsDynamicOverflowEnabled="True">
-                        <AppBarButton
-                            x:Name="SelectionRenameButton"
-                            AutomationProperties.AutomationId="SelectionRenameButton"
-                            AutomationProperties.Name="重新命名選取的圖片"
-                            ToolTipService.ToolTip="重新命名選取的圖片"
-                            Command="{x:Bind ViewModel.RenameSelectedCommand}"
-                            Icon="Edit"
-                            Label="重新命名" />
-                        <AppBarButton
-                            x:Name="SelectionTrashButton"
-                            AutomationProperties.AutomationId="SelectionTrashButton"
-                            AutomationProperties.Name="將選取的圖片移至回收筒"
-                            ToolTipService.ToolTip="將選取的圖片移至回收筒"
-                            Command="{x:Bind ViewModel.TrashSelectedCommand}"
-                            Icon="Delete"
-                            Label="移至回收筒" />
-                        <AppBarButton
-                            x:Name="SelectionConvertButton"
-                            AutomationProperties.AutomationId="SelectionConvertButton"
-                            AutomationProperties.Name="將選取的圖片轉成 JPG"
-                            ToolTipService.ToolTip="將選取的圖片轉成 JPG"
-                            Command="{x:Bind ViewModel.ConvertSelectedCommand}"
-                            Label="轉成 JPG">
-                            <AppBarButton.Icon>
-                                <FontIcon
-                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                    Glyph="&#xEE71;" />
-                            </AppBarButton.Icon>
-                        </AppBarButton>
-                        <AppBarButton
-                            x:Name="SelectionClearButton"
-                            AutomationProperties.AutomationId="SelectionClearButton"
-                            AutomationProperties.Name="清除選取"
-                            ToolTipService.ToolTip="清除選取"
-                            Click="ClearLibrarySelection_Click"
-                            Label="清除選取">
-                            <AppBarButton.Icon>
-                                <SymbolIcon Symbol="Cancel" />
-                            </AppBarButton.Icon>
-                        </AppBarButton>
-                    </CommandBar>
-                </Grid>
-            </Border>
-
-            <GridView
-                x:Name="LibraryGrid"
-                Grid.Row="2"
-                AutomationProperties.AutomationId="LibraryGrid"
-                AutomationProperties.Name="圖庫項目"
-                ContainerContentChanging="LibraryGrid_ContainerContentChanging"
-                DoubleTapped="LibraryGrid_DoubleTapped"
-                IsItemClickEnabled="False"
-                IsTabStop="True"
-                ItemsSource="{x:Bind ViewModel.LibraryItems, Mode=OneWay}"
-                KeyDown="LibraryGrid_KeyDown"
-                PointerCanceled="LibraryGrid_PointerCanceled"
-                PointerCaptureLost="LibraryGrid_PointerCaptureLost"
-                PointerMoved="LibraryGrid_PointerMoved"
-                PointerReleased="LibraryGrid_PointerReleased"
-                SelectionChanged="LibraryGrid_SelectionChanged"
-                SelectionMode="Multiple"
-                Visibility="{x:Bind local:MainPage.BoolToVisibility(ViewModel.HasCurrentFolder), Mode=OneWay}">
-                <GridView.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <ItemsWrapGrid Orientation="Horizontal" />
-                    </ItemsPanelTemplate>
-                </GridView.ItemsPanel>
-                <GridView.ItemContainerStyle>
-                    <Style TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
-                        <Setter Property="Margin" Value="0,0,12,12" />
-                        <Setter Property="MinWidth" Value="128" />
-                        <Setter Property="MinHeight" Value="136" />
-                    </Style>
-                </GridView.ItemContainerStyle>
-                <GridView.ItemTemplate>
-                    <DataTemplate x:DataType="vm:LibraryTileItem">
-                        <Grid
-                            AutomationProperties.Name="{x:Bind AutomationName}"
-                            Width="{x:Bind TileWidth, Mode=OneWay}"
-                            Height="{x:Bind TileHeight, Mode=OneWay}"
-                            Loaded="LibraryTile_Loaded"
-                            PointerPressed="LibraryTile_PointerPressed"
-                            RowSpacing="8"
-                            Unloaded="LibraryTile_Unloaded">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-
-                            <Border
-                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                BorderThickness="1"
-                                CornerRadius="{ThemeResource ControlCornerRadius}">
-                                <Grid>
-                                    <Image
-                                        Source="{x:Bind local:MainPage.CreateBitmapImage(ThumbnailPath), Mode=OneWay}"
-                                        Stretch="Uniform"
-                                        Visibility="{x:Bind local:MainPage.BoolToVisibility(CanShowThumbnail), Mode=OneWay}" />
-                                    <FontIcon
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        Glyph="{x:Bind IconGlyph, Mode=OneTime}"
-                                        Visibility="{x:Bind local:MainPage.BoolToVisibility(ShouldShowIcon), Mode=OneWay}" />
-                                </Grid>
-                            </Border>
-
-                            <TextBlock
-                                Grid.Row="1"
-                                HorizontalAlignment="Center"
-                                TextAlignment="Center"
-                                Text="{x:Bind Name}"
-                                TextWrapping="Wrap"
-                                MaxLines="2"
-                                TextTrimming="CharacterEllipsis"
-                                Style="{StaticResource BodyStrongTextBlockStyle}" />
-
-                            <Border
-                                Grid.RowSpan="2"
-                                IsHitTestVisible="False"
-                                BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
-                                BorderThickness="2"
-                                CornerRadius="{ThemeResource ControlCornerRadius}"
-                                Visibility="{x:Bind local:MainPage.BoolToVisibility(IsDropRenameTarget), Mode=OneWay}" />
-                        </Grid>
-                    </DataTemplate>
-                </GridView.ItemTemplate>
-            </GridView>
-
-            <Grid
-                Grid.Row="2"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                MaxWidth="360"
-                RowSpacing="12"
-                Visibility="{x:Bind local:MainPage.InvertBoolToVisibility(ViewModel.HasCurrentFolder), Mode=OneWay}">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <FontIcon
-                    HorizontalAlignment="Center"
-                    Glyph="&#xE8B7;"
-                    FontSize="36" />
-                <TextBlock
-                    Grid.Row="1"
-                    Text="請先選擇資料夾"
-                    TextAlignment="Center"
-                    Style="{StaticResource SubtitleTextBlockStyle}" />
-                <Button
-                    Grid.Row="2"
-                    HorizontalAlignment="Center"
-                    AutomationProperties.AutomationId="EmptyStateOpenFolderButton"
-                    Command="{x:Bind ViewModel.OpenFolderCommand}"
-                    Content="選擇資料夾" />
+                </Border>
             </Grid>
-
-            <Border
-                x:Name="LibraryDragPreviewOverlay"
-                Grid.Row="2"
-                MaxWidth="320"
-                MinHeight="40"
-                Padding="12,8"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Top"
-                AutomationProperties.Name="拖曳中的圖片"
-                Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
-                BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
-                BorderThickness="1"
-                CornerRadius="{ThemeResource OverlayCornerRadius}"
-                IsHitTestVisible="False"
-                Visibility="Collapsed">
-                <Border.RenderTransform>
-                    <TranslateTransform x:Name="LibraryDragPreviewTransform" />
-                </Border.RenderTransform>
-                <StackPanel
-                    Orientation="Horizontal"
-                    Spacing="8">
-                    <FontIcon
-                        VerticalAlignment="Center"
-                        FontFamily="{StaticResource SymbolThemeFontFamily}"
-                        Glyph="&#xE8B9;" />
-                    <TextBlock
-                        x:Name="LibraryDragPreviewText"
-                        MaxWidth="260"
-                        VerticalAlignment="Center"
-                        TextTrimming="CharacterEllipsis"
-                        Style="{StaticResource BodyStrongTextBlockStyle}" />
-                </StackPanel>
-            </Border>
         </Grid>
 
         <Border
