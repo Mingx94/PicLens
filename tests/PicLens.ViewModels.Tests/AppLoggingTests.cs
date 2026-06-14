@@ -16,6 +16,18 @@ public sealed class AppLoggingTests
     }
 
     [Fact]
+    public void FileAppLogger_default_path_uses_piclens_data_root_when_set()
+    {
+        using var environment = EnvironmentVariableScope.Set(
+            "PICLENS_DATA_ROOT",
+            Path.Combine(Path.GetTempPath(), "PicLens.ViewModels.Tests", Guid.NewGuid().ToString("N")));
+
+        var logPath = FileAppLogger.DefaultLogPath();
+
+        Assert.Equal(Path.Combine(Path.GetFullPath(environment.Value!), "Logs", "PicLens.log"), logPath);
+    }
+
+    [Fact]
     public void FileAppLogger_writes_exception_context_and_details()
     {
         using var workspace = new TempDirectory();
@@ -146,6 +158,26 @@ public sealed class AppLoggingTests
                 Directory.Delete(Path, recursive: true);
             }
         }
+    }
+
+    private sealed class EnvironmentVariableScope : IDisposable
+    {
+        private readonly string name;
+        private readonly string? previousValue;
+
+        private EnvironmentVariableScope(string name, string? value)
+        {
+            this.name = name;
+            Value = value;
+            previousValue = Environment.GetEnvironmentVariable(name);
+            Environment.SetEnvironmentVariable(name, value);
+        }
+
+        public string? Value { get; }
+
+        public static EnvironmentVariableScope Set(string name, string? value) => new(name, value);
+
+        public void Dispose() => Environment.SetEnvironmentVariable(name, previousValue);
     }
 
     private sealed class RecordingLogger : IAppLogger

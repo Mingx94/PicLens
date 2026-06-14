@@ -52,6 +52,12 @@ dotnet build .\PicLens\PicLens.csproj --no-restore /p:Platform=x64
 .\BuildAndRun.ps1 .\PicLens\PicLens.csproj
 ```
 
+Opt-in FlaUI UI smoke：
+
+```powershell
+.\tools\RunUiTests.ps1
+```
+
 Build-only verification 可使用：
 
 ```powershell

@@ -332,11 +332,12 @@
 
             <Grid
                 x:Name="LibraryGridSurface"
-                Grid.Row="1">
+                Grid.Row="1"
+                AutomationProperties.AccessibilityView="Control"
+                AutomationProperties.AutomationId="LibraryGrid"
+                AutomationProperties.Name="圖庫項目">
                 <GridView
                     x:Name="LibraryGrid"
-                    AutomationProperties.AutomationId="LibraryGrid"
-                    AutomationProperties.Name="圖庫項目"
                     ContainerContentChanging="LibraryGrid_ContainerContentChanging"
                     DoubleTapped="LibraryGrid_DoubleTapped"
                     IsItemClickEnabled="False"

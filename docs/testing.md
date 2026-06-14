@@ -22,6 +22,28 @@ dotnet test .\tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj --n
 - `PicLens.Infrastructure`：JSON settings、direct 與 recursive scanning、canonical directory de-duplication、image data helpers、disk thumbnail cache generation and pruning、conversion、trash 與 rename operations。
 - `PicLens.ViewModels`：startup folder selection flow、sort-without-rescan behavior、contextual selection state、library reload 時的 stale-selection clearing、drop-target rename preview confirmation、drag pointer cleanup wiring、drag preview overlay wiring、drop target highlight binding、per-item batch failure diagnostic logging、async thumbnail path updates、thumbnail cancellation、stalled-thumbnail timeout recovery、thumbnail-size persistence、GridView thumbnail event wiring、failure paths 的 diagnostic error logging，以及繁體中文 runtime copy。
 
+## FlaUI UI Smoke Tests
+
+FlaUI 測試是 opt-in，不屬於 `Release.ps1` 或預設 CI 驗證。執行：
+
+```powershell
+.\tools\RunUiTests.ps1
+```
+
+這會先用 Debug configuration 產生 framework-dependent portable output，再執行 `tests\PicLens.Ui.Tests`。測試啟動 app 時會設定 isolated `PICLENS_DATA_ROOT`，因此 settings、thumbnail cache 與 ERROR LOG 都會寫到測試 artifact 資料夾，不會覆蓋使用者的 `%LOCALAPPDATA%\PicLens`。
+
+目前 UI smoke coverage 包含：
+
+- 啟動 published `PicLens.exe` 並等待 main window。
+- 驗證主要 AutomationId：title bar、folder navigation command bar、library command bar、folder tree、library grid、status bar、thumbnail size slider、empty state action。
+- 開啟排序與更多圖庫動作 flyouts，確認預期 menu items 存在。
+
+失敗時會把 PID、data root、ERROR LOG 與 screenshot 寫到：
+
+```text
+artifacts\ui-tests\
+```
+
 ## WinUI Build
 
 執行：
