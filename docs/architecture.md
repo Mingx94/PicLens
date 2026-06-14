@@ -21,6 +21,8 @@ tools/                           Repo-local 維護 scripts
 artifacts/portable/              產生的免安裝 release outputs
 ```
 
+`PicLens.slnx` 是 Visual Studio 開發入口，包含 x86/x64/ARM64 solution platforms；WinUI app project 有 platform mapping 與 deploy metadata。`PicLens.ViewModels.Tests` 會載入在 solution 中，但不參與預設 solution build，避免它參考 WinUI app project 時與 app project 本身同時觸發 XAML compiler。ViewModel tests 需以獨立 `dotnet test ... -p:Platform=x64` 執行。
+
 ## WinUI App
 
 WinUI app 使用搭配 CommunityToolkit.Mvvm 的官方 MVVM template。Root window 是 `MainWindow`，它在 frame 中承載 `MainPage`、使用 Mica、設定原生 app icon，並將主視窗大小設為 `1220x820` logical pixels。

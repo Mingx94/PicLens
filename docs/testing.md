@@ -8,11 +8,11 @@
 dotnet restore .\tests\PicLens.Core.Tests\PicLens.Core.Tests.csproj --configfile .\NuGet.Config
 dotnet restore .\tests\PicLens.Application.Tests\PicLens.Application.Tests.csproj --configfile .\NuGet.Config
 dotnet restore .\tests\PicLens.Infrastructure.Tests\PicLens.Infrastructure.Tests.csproj --configfile .\NuGet.Config
-dotnet restore .\tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj --configfile .\NuGet.Config
+dotnet restore .\tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj --configfile .\NuGet.Config /p:Platform=x64
 dotnet test .\tests\PicLens.Core.Tests\PicLens.Core.Tests.csproj --no-restore
 dotnet test .\tests\PicLens.Application.Tests\PicLens.Application.Tests.csproj --no-restore
 dotnet test .\tests\PicLens.Infrastructure.Tests\PicLens.Infrastructure.Tests.csproj --no-restore
-dotnet test .\tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj --no-restore
+dotnet test .\tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj --no-restore -p:Platform=x64
 ```
 
 目前 coverage 包含：
@@ -27,9 +27,14 @@ dotnet test .\tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj --n
 執行：
 
 ```powershell
+dotnet build .\PicLens.slnx -p:Platform=x64
 dotnet restore .\PicLens\PicLens.csproj --configfile .\NuGet.Config -r win-x64 /p:Platform=x64
 dotnet build .\PicLens\PicLens.csproj --no-restore /p:Platform=x64
 ```
+
+Visual Studio 開發時開啟 `PicLens.slnx`，solution platform 選 `x64`。Solution 會載入 app、src 與 tests projects；WinUI app project 在 solution 中有 x86/x64/ARM64 platform mapping 與 deploy metadata，可用 Visual Studio 的一般 build / deploy / debug 流程。
+
+`PicLens.ViewModels.Tests` 參考 WinUI app project，預設不參與 solution build，避免 solution build 同時直接建 app 又透過 test project 間接建 app，造成 XAML compiler 寫入同一個 `obj` output。需要驗證 ViewModel behavior 時，請用上方獨立 `dotnet test ... -p:Platform=x64` 指令。
 
 Plugin workflow 可執行：
 

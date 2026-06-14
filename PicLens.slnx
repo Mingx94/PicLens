@@ -1,4 +1,9 @@
 <Solution>
+  <Configurations>
+    <Platform Name="ARM64" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
   <Folder Name="/src/">
     <Project Path="src/PicLens.Application/PicLens.Application.csproj" />
     <Project Path="src/PicLens.Core/PicLens.Core.csproj" />
@@ -8,7 +13,14 @@
     <Project Path="tests/PicLens.Application.Tests/PicLens.Application.Tests.csproj" />
     <Project Path="tests/PicLens.Core.Tests/PicLens.Core.Tests.csproj" />
     <Project Path="tests/PicLens.Infrastructure.Tests/PicLens.Infrastructure.Tests.csproj" />
-    <Project Path="tests/PicLens.ViewModels.Tests/PicLens.ViewModels.Tests.csproj" />
+    <Project Path="tests/PicLens.ViewModels.Tests/PicLens.ViewModels.Tests.csproj">
+      <Build Project="false" />
+    </Project>
   </Folder>
-  <Project Path="PicLens/PicLens.csproj" />
+  <Project Path="PicLens/PicLens.csproj">
+    <Platform Solution="*|ARM64" Project="ARM64" />
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|x86" Project="x86" />
+    <Deploy />
+  </Project>
 </Solution>
