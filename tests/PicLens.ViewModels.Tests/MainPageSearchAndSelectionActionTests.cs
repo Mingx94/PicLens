@@ -184,47 +184,6 @@ public sealed class MainPageSelectionActionTests
             throw new NotSupportedException();
     }
 
-    private sealed class ThrowingFileOperationService(Exception? exception = null) : IFileOperationService
-    {
-        private readonly Exception exception = exception ?? new NotSupportedException();
-
-        public Task<FileOperationBatchResult> ConvertVisibleToJpgAsync(
-            IEnumerable<ImageListItem> visibleImages,
-            CancellationToken cancellationToken = default) =>
-            throw exception;
-
-        public Task<FileOperationBatchResult> TrashSameBasenameNonJpgAsync(
-            IEnumerable<ImageListItem> visibleImages,
-            CancellationToken cancellationToken = default) =>
-            throw exception;
-
-        public Task<FileOperationResult> TrashAsync(string path, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<FileOperationResult> RenameAsync(
-            string sourcePath,
-            string newFileName,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<FileOperationBatchResult> RenameByDropTargetAsync(
-            IEnumerable<string> sourcePaths,
-            string targetPath,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-    }
-
-    private sealed class RecordingAppLogger : IAppLogger
-    {
-        public List<string> InfoMessages { get; } = [];
-
-        public List<(Exception Exception, string Message)> ErrorMessages { get; } = [];
-
-        public void Info(string message) => InfoMessages.Add(message);
-
-        public void Error(Exception exception, string message) => ErrorMessages.Add((exception, message));
-    }
-
     private sealed class FakeSettingsStore(AppSettings initialSettings) : ISettingsStore
     {
         private AppSettings settings = initialSettings;
@@ -242,15 +201,6 @@ public sealed class MainPageSelectionActionTests
             settings = SettingsRules.MergeSettingsPatch(settings, patch);
             return Task.FromResult(settings);
         }
-    }
-
-    private sealed class NullThumbnailService : IThumbnailService
-    {
-        public Task<string?> GetOrCreateThumbnailAsync(
-            string imagePath,
-            int requestedSize,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult<string?>(null);
     }
 
     private sealed class TempDirectory : IDisposable

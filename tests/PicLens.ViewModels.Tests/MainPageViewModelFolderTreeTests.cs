@@ -190,54 +190,6 @@ public sealed class MainPageViewModelFolderTreeTests
             throw exception;
     }
 
-    private sealed class RecordingAppLogger : IAppLogger
-    {
-        public List<(Exception Exception, string Message)> ErrorMessages { get; } = [];
-
-        public void Info(string message)
-        {
-        }
-
-        public void Error(Exception exception, string message) => ErrorMessages.Add((exception, message));
-    }
-
-    private sealed class ThrowingFileOperationService : IFileOperationService
-    {
-        public Task<FileOperationBatchResult> ConvertVisibleToJpgAsync(
-            IEnumerable<ImageListItem> visibleImages,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<FileOperationBatchResult> TrashSameBasenameNonJpgAsync(
-            IEnumerable<ImageListItem> visibleImages,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<FileOperationResult> TrashAsync(string path, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<FileOperationResult> RenameAsync(
-            string sourcePath,
-            string newFileName,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<FileOperationBatchResult> RenameByDropTargetAsync(
-            IEnumerable<string> sourcePaths,
-            string targetPath,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-    }
-
-    private sealed class NullThumbnailService : IThumbnailService
-    {
-        public Task<string?> GetOrCreateThumbnailAsync(
-            string imagePath,
-            int requestedSize,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult<string?>(null);
-    }
-
     private sealed class TempDirectory : IDisposable
     {
         public TempDirectory()

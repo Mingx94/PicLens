@@ -1,0 +1,72 @@
+[CmdletBinding()]
+param()
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+$root = $PSScriptRoot
+$nugetConfig = Join-Path $root "NuGet.Config"
+$testProjects = @(
+    @{
+        Path = Join-Path $root "tests\PicLens.Core.Tests\PicLens.Core.Tests.csproj"
+        Properties = @()
+    },
+    @{
+        Path = Join-Path $root "tests\PicLens.Application.Tests\PicLens.Application.Tests.csproj"
+        Properties = @()
+    },
+    @{
+        Path = Join-Path $root "tests\PicLens.Infrastructure.Tests\PicLens.Infrastructure.Tests.csproj"
+        Properties = @()
+    },
+    @{
+        Path = Join-Path $root "tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj"
+        Properties = @("/p:Platform=x64")
+    }
+)
+
+function Invoke-Native {
+    param(
+        [Parameter(Mandatory)]
+        [string]$FilePath,
+
+        [Parameter(Mandatory)]
+        [string[]]$Arguments
+    )
+
+    & $FilePath @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "$FilePath failed with exit code $LASTEXITCODE."
+    }
+}
+
+if (-not (Test-Path -LiteralPath $nugetConfig)) {
+    throw "NuGet.Config not found: $nugetConfig"
+}
+
+foreach ($testProject in $testProjects) {
+    if (-not (Test-Path -LiteralPath $testProject.Path)) {
+        throw "Test project file not found: $($testProject.Path)"
+    }
+}
+
+foreach ($testProject in $testProjects) {
+    Write-Host "==> Restoring test project: $($testProject.Path)" -ForegroundColor Cyan
+    $restoreArgs = @(
+        "restore",
+        $testProject.Path,
+        "--configfile",
+        $nugetConfig
+    ) + $testProject.Properties
+    Invoke-Native "dotnet" $restoreArgs
+}
+
+foreach ($testProject in $testProjects) {
+    Write-Host "==> Running tests: $($testProject.Path)" -ForegroundColor Cyan
+    $testArgs = @(
+        "test",
+        $testProject.Path,
+        "--no-restore"
+    ) + $testProject.Properties
+    Invoke-Native "dotnet" $testArgs
+}

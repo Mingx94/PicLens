@@ -309,34 +309,6 @@ public sealed class MainPageViewModelThumbnailSizeTests
         }
     }
 
-    private sealed class ThrowingFileOperationService : IFileOperationService
-    {
-        public Task<FileOperationBatchResult> ConvertVisibleToJpgAsync(
-            IEnumerable<ImageListItem> visibleImages,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<FileOperationBatchResult> TrashSameBasenameNonJpgAsync(
-            IEnumerable<ImageListItem> visibleImages,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<FileOperationResult> TrashAsync(string path, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<FileOperationResult> RenameAsync(
-            string sourcePath,
-            string newFileName,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<FileOperationBatchResult> RenameByDropTargetAsync(
-            IEnumerable<string> sourcePaths,
-            string targetPath,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-    }
-
     private sealed class RecordingThumbnailService(string? thumbnailPath) : IThumbnailService
     {
         public List<(string SourcePath, int RequestedSize)> Requests { get; } = [];

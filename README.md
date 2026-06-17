@@ -37,6 +37,16 @@ dotnet test .\tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj -p:
 
 ## Build And Test
 
+日常 unit 與 ViewModel 驗證：
+
+```powershell
+.\Test.ps1
+```
+
+`dotnet test .\PicLens.slnx` 不是完整 unit 驗證；`PicLens.ViewModels.Tests` 會參考 WinUI app project，為避免 solution build 同時直接建 app 又透過 test project 間接建 app 造成 XAML compiler output 衝突，solution 會載入但不預設建置這個 test project。
+
+逐專案手動驗證：
+
 ```powershell
 dotnet restore .\tests\PicLens.Core.Tests\PicLens.Core.Tests.csproj --configfile .\NuGet.Config
 dotnet restore .\tests\PicLens.Application.Tests\PicLens.Application.Tests.csproj --configfile .\NuGet.Config

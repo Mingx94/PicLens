@@ -2,7 +2,17 @@
 
 ## Unit Tests
 
-執行：
+日常 unit 與 ViewModel 驗證請執行：
+
+```powershell
+.\Test.ps1
+```
+
+這會依序 restore/test Core、Application、Infrastructure 與 ViewModels test projects。`PicLens.ViewModels.Tests` 會用 `Platform=x64` 跑，因為它參考 WinUI app project。
+
+`dotnet test .\PicLens.slnx` 不是完整 unit 驗證；solution 刻意不預設 build `PicLens.ViewModels.Tests` 與 `PicLens.Ui.Tests`，避免 WinUI app 同時被 solution 與 test project 觸發建置造成 XAML compiler output 衝突。UI smoke tests 仍是 opt-in，請用 `.\tools\RunUiTests.ps1`。
+
+逐專案手動執行：
 
 ```powershell
 dotnet restore .\tests\PicLens.Core.Tests\PicLens.Core.Tests.csproj --configfile .\NuGet.Config
