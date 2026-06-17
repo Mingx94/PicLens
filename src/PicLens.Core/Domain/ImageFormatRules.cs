@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace PicLens.Core.Domain;
 
 public static class ImageFormatRules
@@ -208,32 +206,4 @@ public static class ImageFormatRules
         return false;
     }
 
-    public static bool IsPotentiallyAnimatedImage(string extension, ReadOnlySpan<byte> buffer) =>
-        extension.ToLowerInvariant() switch
-        {
-            "gif" => IsAnimatedGif(buffer),
-            "webp" => IsAnimatedWebp(buffer),
-            _ => false
-        };
-
-    private static string Ascii(ReadOnlySpan<byte> buffer) => Encoding.ASCII.GetString(buffer);
-
-    private static bool IncludesAscii(ReadOnlySpan<byte> buffer, string needle)
-    {
-        if (needle.Length == 0)
-        {
-            return true;
-        }
-
-        var needleBytes = Encoding.ASCII.GetBytes(needle);
-        for (var index = 0; index <= buffer.Length - needleBytes.Length; index += 1)
-        {
-            if (buffer.Slice(index, needleBytes.Length).SequenceEqual(needleBytes))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 }

@@ -671,7 +671,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         currentItems = ListItemSorter.Sort(
             currentItems,
             Sort,
-            new SortOptions(KeepFoldersFirst: !IncludeSubfolders));
+            keepFoldersFirst: !IncludeSubfolders);
         RefreshLibraryItems();
         NotifySelectionCommands();
     }
@@ -880,12 +880,12 @@ public sealed partial class MainPageViewModel : ObservableObject
             return;
         }
 
-        var snapshot = ImageSequenceFactory.Create(new CreateImageSequenceSnapshotInput(
-            SourceFolderPath: CurrentFolderPath,
-            IncludeSubfolders: IncludeSubfolders,
-            Sort: Sort,
-            Images: images,
-            CurrentImagePath: image.Path));
+        var snapshot = ImageSequenceFactory.Create(
+            sourceFolderPath: CurrentFolderPath,
+            includeSubfolders: IncludeSubfolders,
+            sort: Sort,
+            images: images,
+            currentImagePath: image.Path);
 
         appLogger.Info(
             $"Open image viewer requested. Image={image.Name}; CurrentIndex={snapshot.CurrentIndex}; ImageCount={snapshot.Images.Count}; CurrentFolderPath={CurrentFolderPath}; IncludeSubfolders={IncludeSubfolders}; Sort={Sort.Key}/{Sort.Direction}");

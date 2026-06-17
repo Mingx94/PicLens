@@ -2,13 +2,6 @@ using PicLens.Core.Models;
 
 namespace PicLens.Core.Domain;
 
-public sealed record ZoomAtPointInput(
-    double Zoom,
-    Point Offset,
-    Point ViewportCenter,
-    Point Pointer,
-    int Delta);
-
 public static class ZoomMath
 {
     public const double MinZoom = 0.1;
@@ -19,17 +12,22 @@ public static class ZoomMath
 
     public static ZoomState ResetZoomState() => new(1, new Point(0, 0));
 
-    public static ZoomState ZoomAtPoint(ZoomAtPointInput input)
+    public static ZoomState ZoomAtPoint(
+        double zoom,
+        Point offset,
+        Point viewportCenter,
+        Point pointer,
+        int delta)
     {
-        var nextZoom = ClampZoom(input.Delta > 0 ? input.Zoom * ZoomStep : input.Zoom / ZoomStep);
+        var nextZoom = ClampZoom(delta > 0 ? zoom * ZoomStep : zoom / ZoomStep);
         var imagePoint = new Point(
-            X: (input.Pointer.X - input.ViewportCenter.X - input.Offset.X) / input.Zoom,
-            Y: (input.Pointer.Y - input.ViewportCenter.Y - input.Offset.Y) / input.Zoom);
+            X: (pointer.X - viewportCenter.X - offset.X) / zoom,
+            Y: (pointer.Y - viewportCenter.Y - offset.Y) / zoom);
 
         return new ZoomState(
             Zoom: nextZoom,
             Offset: new Point(
-                X: input.Pointer.X - input.ViewportCenter.X - imagePoint.X * nextZoom,
-                Y: input.Pointer.Y - input.ViewportCenter.Y - imagePoint.Y * nextZoom));
+                X: pointer.X - viewportCenter.X - imagePoint.X * nextZoom,
+                Y: pointer.Y - viewportCenter.Y - imagePoint.Y * nextZoom));
     }
 }

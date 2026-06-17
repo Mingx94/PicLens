@@ -105,12 +105,12 @@ public partial class ImageViewerWindowViewModel : ObservableObject
             return;
         }
 
-        var next = ZoomMath.ZoomAtPoint(new ZoomAtPointInput(
-            Zoom: Zoom,
-            Offset: new Point(OffsetX, OffsetY),
-            ViewportCenter: new Point(_viewportWidth / 2, _viewportHeight / 2),
-            Pointer: new Point(pointerX, pointerY),
-            Delta: delta));
+        var next = ZoomMath.ZoomAtPoint(
+            zoom: Zoom,
+            offset: new Point(OffsetX, OffsetY),
+            viewportCenter: new Point(_viewportWidth / 2, _viewportHeight / 2),
+            pointer: new Point(pointerX, pointerY),
+            delta: delta);
 
         ApplyZoomState(next);
     }

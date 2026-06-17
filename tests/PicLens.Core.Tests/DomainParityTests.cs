@@ -53,7 +53,7 @@ public sealed class DomainParityTests
         var sorted = ListItemSorter.Sort(
             items,
             new SortState(SortKey.Name, SortDirection.Asc),
-            new SortOptions(KeepFoldersFirst: true));
+            keepFoldersFirst: true);
 
         Assert.Equal(["z-folder", "b1.jpg", "b2.jpg", "b10.jpg"], sorted.Select(item => item.Name));
     }
@@ -73,7 +73,7 @@ public sealed class DomainParityTests
         var sorted = ListItemSorter.Sort(
             items,
             new SortState(SortKey.Name, SortDirection.Asc),
-            new SortOptions(KeepFoldersFirst: false));
+            keepFoldersFirst: false);
 
         Assert.Equal(["img1.jpg", "img002.jpg", "img02.jpg", "img2.jpg", "img10.jpg"], sorted.Select(item => item.Name));
     }
@@ -127,26 +127,25 @@ public sealed class DomainParityTests
         };
 
         var snapshot = ImageSequenceFactory.Create(
-            new CreateImageSequenceSnapshotInput(
-                SourceFolderPath: @"C:\Images",
-                IncludeSubfolders: true,
-                Sort: new SortState(SortKey.Name, SortDirection.Asc),
-                Images: images,
-                CurrentImagePath: @"C:\Images\b.jpg",
-                NowMs: 1234));
+            sourceFolderPath: @"C:\Images",
+            includeSubfolders: true,
+            sort: new SortState(SortKey.Name, SortDirection.Asc),
+            images: images,
+            currentImagePath: @"C:\Images\b.jpg",
+            nowMs: 1234);
 
         Assert.Equal("sequence:C_3A_5CImages_3A1234_3AC_3A_5CImages_5Cb.jpg", snapshot.Id);
         Assert.Equal(1, snapshot.CurrentIndex);
         Assert.NotSame(images, snapshot.Images);
 
         Assert.Throws<InvalidOperationException>(() =>
-            ImageSequenceFactory.Create(new CreateImageSequenceSnapshotInput(
-                SourceFolderPath: @"C:\Images",
-                IncludeSubfolders: false,
-                Sort: new SortState(SortKey.Name, SortDirection.Asc),
-                Images: images,
-                CurrentImagePath: @"C:\Images\missing.jpg",
-                NowMs: 1234)));
+            ImageSequenceFactory.Create(
+                sourceFolderPath: @"C:\Images",
+                includeSubfolders: false,
+                sort: new SortState(SortKey.Name, SortDirection.Asc),
+                images: images,
+                currentImagePath: @"C:\Images\missing.jpg",
+                nowMs: 1234));
     }
 
     [Fact]
@@ -155,12 +154,12 @@ public sealed class DomainParityTests
         Assert.Equal(0.1, ZoomMath.ClampZoom(0.01));
         Assert.Equal(8, ZoomMath.ClampZoom(80));
 
-        var next = ZoomMath.ZoomAtPoint(new ZoomAtPointInput(
-            Zoom: 1,
-            Offset: new Point(0, 0),
-            ViewportCenter: new Point(100, 100),
-            Pointer: new Point(120, 100),
-            Delta: 1));
+        var next = ZoomMath.ZoomAtPoint(
+            zoom: 1,
+            offset: new Point(0, 0),
+            viewportCenter: new Point(100, 100),
+            pointer: new Point(120, 100),
+            delta: 1);
 
         Assert.Equal(1.2, next.Zoom, precision: 10);
         Assert.Equal(-4, next.Offset.X, precision: 10);

@@ -50,7 +50,7 @@ internal sealed class CountingFolderScanner(IReadOnlyList<ListItem> items) : IFo
     public Task<IReadOnlyList<ListItem>> ScanAsync(ListQuery query, CancellationToken cancellationToken = default)
     {
         ScanCount += 1;
-        return Task.FromResult(ListItemSorter.Sort(items, query.Sort, new SortOptions(KeepFoldersFirst: true)));
+        return Task.FromResult(ListItemSorter.Sort(items, query.Sort, keepFoldersFirst: true));
     }
 
     public Task<IReadOnlyList<FolderListItem>> ScanChildFoldersAsync(

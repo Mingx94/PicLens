@@ -30,7 +30,7 @@ public sealed class FolderScanner : IFolderScanner
             ? EnumerateRecursiveImages(query.FolderPath, cancellationToken).Cast<ListItem>().ToList()
             : EnumerateDirectItems(query.FolderPath, cancellationToken).ToList();
 
-        var sorted = ListItemSorter.Sort(items, query.Sort, new SortOptions(KeepFoldersFirst: !query.IncludeSubfolders));
+        var sorted = ListItemSorter.Sort(items, query.Sort, keepFoldersFirst: !query.IncludeSubfolders);
         return sorted;
     }
 
@@ -45,7 +45,7 @@ public sealed class FolderScanner : IFolderScanner
         }
 
         var folders = EnumerateDirectFolders(folderPath, cancellationToken).Cast<ListItem>().ToList();
-        var sorted = ListItemSorter.Sort(folders, sort, new SortOptions(KeepFoldersFirst: false))
+        var sorted = ListItemSorter.Sort(folders, sort, keepFoldersFirst: false)
             .OfType<FolderListItem>()
             .ToList();
         return sorted;

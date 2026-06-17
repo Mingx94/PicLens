@@ -164,7 +164,7 @@ public sealed class MainPageViewModelFolderTreeTests
         IReadOnlyDictionary<string, IReadOnlyList<FolderListItem>> childFolders) : IFolderScanner
     {
         public Task<IReadOnlyList<ListItem>> ScanAsync(ListQuery query, CancellationToken cancellationToken = default) =>
-            Task.FromResult(ListItemSorter.Sort(items, query.Sort, new SortOptions(KeepFoldersFirst: true)));
+            Task.FromResult(ListItemSorter.Sort(items, query.Sort, keepFoldersFirst: true));
 
         public Task<IReadOnlyList<FolderListItem>> ScanChildFoldersAsync(
             string folderPath,

@@ -48,13 +48,6 @@ public sealed record AppSettingsPatch
     public int? ThumbnailSize { get; init; }
 }
 
-public sealed record FolderNode(
-    string Id,
-    string Path,
-    string Name,
-    bool HasChildren,
-    bool IsReadable);
-
 public abstract record ListItem
 {
     protected ListItem(string id, string path, string name, long? modifiedAtMs)
