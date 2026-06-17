@@ -301,8 +301,7 @@ public sealed partial class MainPage : Page
         var position = e.GetCurrentPoint(LibraryGrid).Position;
         if (!pointerDragStarted)
         {
-            if (Math.Abs(position.X - pointerDragStartPosition.X) < PointerDragThreshold
-                && Math.Abs(position.Y - pointerDragStartPosition.Y) < PointerDragThreshold)
+            if (!HasMovedPastDragThreshold(position))
             {
                 return;
             }
@@ -344,9 +343,7 @@ public sealed partial class MainPage : Page
             ?? FindDataContext<LibraryTileItem>(e.OriginalSource);
         ClearPointerDrag();
 
-        if (wasDrag
-            && target is { IsFolder: false }
-            && !PathEquals(source.Path, target.Path))
+        if (wasDrag && target is not null && CanDropDraggedItem(source, target))
         {
             await ViewModel.DropDraggedImagesOnAsync(target);
             e.Handled = true;
@@ -406,9 +403,15 @@ public sealed partial class MainPage : Page
 
     private LibraryTileItem? DropRenameTargetAt(FoundationPoint position)
     {
-        foreach (var target in ViewModel.LibraryItems.Where(item => !item.IsFolder))
+        var source = pointerDragSource;
+        if (source is null)
         {
-            if (pointerDragSource is null || PathEquals(pointerDragSource.Path, target.Path))
+            return null;
+        }
+
+        foreach (var target in ViewModel.LibraryItems)
+        {
+            if (!CanDropDraggedItem(source, target))
             {
                 continue;
             }
@@ -430,6 +433,13 @@ public sealed partial class MainPage : Page
 
         return null;
     }
+
+    private bool HasMovedPastDragThreshold(FoundationPoint position) =>
+        Math.Abs(position.X - pointerDragStartPosition.X) >= PointerDragThreshold
+        || Math.Abs(position.Y - pointerDragStartPosition.Y) >= PointerDragThreshold;
+
+    private static bool CanDropDraggedItem(LibraryTileItem source, LibraryTileItem target) =>
+        target is { IsFolder: false } && !PathEquals(source.Path, target.Path);
 
     private void SetDropRenameTarget(LibraryTileItem? target)
     {

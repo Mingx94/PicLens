@@ -205,23 +205,6 @@ public sealed class MainPageViewModelStartupTests
             _ => { },
             appLogger: appLogger);
 
-    private sealed class CountingFolderScanner(IReadOnlyList<ListItem> items) : IFolderScanner
-    {
-        public int ScanCount { get; private set; }
-
-        public Task<IReadOnlyList<ListItem>> ScanAsync(ListQuery query, CancellationToken cancellationToken = default)
-        {
-            ScanCount += 1;
-            return Task.FromResult(ListItemSorter.Sort(items, query.Sort, new SortOptions(KeepFoldersFirst: true)));
-        }
-
-        public Task<IReadOnlyList<FolderListItem>> ScanChildFoldersAsync(
-            string folderPath,
-            SortState sort,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<FolderListItem>>([]);
-    }
-
     private sealed class ControllableFolderScanner : IFolderScanner
     {
         private readonly Dictionary<string, TaskCompletionSource<IReadOnlyList<ListItem>>> scans = new(StringComparer.OrdinalIgnoreCase);

@@ -264,18 +264,6 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
         }
     }
 
-    private sealed class CountingFolderScanner(IReadOnlyList<ListItem> items) : IFolderScanner
-    {
-        public Task<IReadOnlyList<ListItem>> ScanAsync(ListQuery query, CancellationToken cancellationToken = default) =>
-            Task.FromResult(ListItemSorter.Sort(items, query.Sort, new SortOptions(KeepFoldersFirst: true)));
-
-        public Task<IReadOnlyList<FolderListItem>> ScanChildFoldersAsync(
-            string folderPath,
-            SortState sort,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<FolderListItem>>([]);
-    }
-
     private sealed class RecordingFileOperationService(FileOperationBatchResult result) : IFileOperationService
     {
         public int RenameByDropTargetCallCount { get; private set; }
