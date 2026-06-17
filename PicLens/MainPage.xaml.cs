@@ -159,6 +159,15 @@ public sealed partial class MainPage : Page
         }
     }
 
+    private void LibraryTile_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: LibraryTileItem item })
+        {
+            e.Handled = true;
+            QueueOpenLibraryItemFromDoubleTap(item);
+        }
+    }
+
     private void QueueOpenLibraryItemFromDoubleTap(LibraryTileItem item)
     {
         if (!App.DispatcherQueue.TryEnqueue(() => OpenLibraryItemFromDoubleTap(item)))
@@ -247,11 +256,13 @@ public sealed partial class MainPage : Page
 
     private void LibraryTile_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: LibraryTileItem { IsFolder: false } source })
+        var point = e.GetCurrentPoint(LibraryGrid);
+        if (point.Properties.IsLeftButtonPressed
+            && sender is FrameworkElement { DataContext: LibraryTileItem { IsFolder: false } source })
         {
             ClearPointerDrag();
             pointerDragSource = source;
-            pointerDragStartPosition = e.GetCurrentPoint(LibraryGrid).Position;
+            pointerDragStartPosition = point.Position;
             pointerDragPointer = e.Pointer;
             pointerDragStarted = false;
         }
@@ -259,6 +270,24 @@ public sealed partial class MainPage : Page
         {
             ClearPointerDrag();
         }
+    }
+
+    private void LibraryTile_RightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: LibraryTileItem { IsFolder: false } item } tile)
+        {
+            return;
+        }
+
+        if (!LibraryGrid.SelectedItems.OfType<LibraryTileItem>().Any(selected => PathEquals(selected.Path, item.Path)))
+        {
+            LibraryGrid.SelectedItems.Clear();
+            librarySelectionOrder.Clear();
+            LibraryGrid.SelectedItems.Add(item);
+        }
+
+        LibraryImageContextFlyout.ShowAt(tile, e.GetPosition(tile));
+        e.Handled = true;
     }
 
     private void LibraryGrid_PointerMoved(object sender, PointerRoutedEventArgs e)

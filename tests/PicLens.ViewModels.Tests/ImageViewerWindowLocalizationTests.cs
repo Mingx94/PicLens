@@ -283,14 +283,13 @@ public sealed class ImageViewerWindowLocalizationTests
         Assert.Contains("Text=\"清除同名非 JPG 檔案\"", xaml);
         Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarRenameSelectedButton\"", xaml);
         Assert.DoesNotContain("AutomationProperties.AutomationId=\"TitleBarTrashSelectedButton\"", xaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"SelectionCommandBar\"", xaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"SelectionRenameButton\"", xaml);
-        Assert.Contains("Label=\"重新命名\"", xaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"SelectionTrashButton\"", xaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"SelectionConvertButton\"", xaml);
-        Assert.Contains("Label=\"轉成 JPG\"", xaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"SelectionClearButton\"", xaml);
-        Assert.Contains("Label=\"移至回收筒\"", xaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"SelectionCommandBar\"", xaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"SelectionConvertButton\"", xaml);
+        Assert.Contains("x:Name=\"LibraryImageContextFlyout\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"ImageContextRenameButton\"", xaml);
+        Assert.Contains("Text=\"重新命名\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"ImageContextTrashButton\"", xaml);
+        Assert.Contains("Text=\"移至回收筒\"", xaml);
         Assert.DoesNotContain("Text=\"圖庫\"", xaml);
         Assert.DoesNotContain("AutomationProperties.AutomationId=\"LibrarySearchBox\"", xaml);
         Assert.DoesNotContain("<AutoSuggestBox", xaml);
@@ -316,10 +315,10 @@ public sealed class ImageViewerWindowLocalizationTests
         Assert.Contains("ToolTipService.ToolTip=\"排序\"", xaml);
         Assert.Contains("ToolTipService.ToolTip=\"包含或排除子資料夾\"", xaml);
         Assert.Contains("ToolTipService.ToolTip=\"更多圖庫動作\"", xaml);
-        Assert.Contains("ToolTipService.ToolTip=\"重新命名選取的圖片\"", xaml);
-        Assert.Contains("ToolTipService.ToolTip=\"將選取的圖片移至回收筒\"", xaml);
-        Assert.Contains("ToolTipService.ToolTip=\"將選取的圖片轉成 JPG\"", xaml);
-        Assert.Contains("ToolTipService.ToolTip=\"清除選取\"", xaml);
+        Assert.DoesNotContain("ToolTipService.ToolTip=\"重新命名選取的圖片\"", xaml);
+        Assert.DoesNotContain("ToolTipService.ToolTip=\"將選取的圖片移至回收筒\"", xaml);
+        Assert.DoesNotContain("ToolTipService.ToolTip=\"將選取的圖片轉成 JPG\"", xaml);
+        Assert.DoesNotContain("ToolTipService.ToolTip=\"清除選取\"", xaml);
     }
 
     [Fact]

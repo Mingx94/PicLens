@@ -93,23 +93,18 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
-    public void Selecting_image_shows_contextual_action_bar_and_clear_hides_it()
+    public void Left_click_selects_image_without_action_bar_and_right_click_opens_context_menu()
     {
-        using var fixture = PicLensAppFixture.StartSeeded(nameof(Selecting_image_shows_contextual_action_bar_and_clear_hides_it));
+        using var fixture = PicLensAppFixture.StartSeeded(nameof(Left_click_selects_image_without_action_bar_and_right_click_opens_context_menu));
 
-        fixture.WithDiagnostics(nameof(Selecting_image_shows_contextual_action_bar_and_clear_hides_it), () =>
+        fixture.WithDiagnostics(nameof(Left_click_selects_image_without_action_bar_and_right_click_opens_context_menu), () =>
         {
             fixture.ClickTile("Alpha-01.png，圖片");
 
-            Assert.NotNull(fixture.FindByAutomationId("SelectionSummaryText"));
-            fixture.WaitForVisibleText("已選 1 張圖片");
-            Assert.NotNull(fixture.FindByAutomationId("SelectionRenameButton"));
-            Assert.NotNull(fixture.FindByAutomationId("SelectionTrashButton"));
-            Assert.NotNull(fixture.FindByAutomationId("SelectionConvertButton"));
-            Assert.NotNull(fixture.FindByAutomationId("SelectionClearButton"));
-
-            fixture.ClickByAutomationId("SelectionClearButton");
             fixture.WaitForAutomationIdGone("SelectionSummaryText");
+            fixture.RightClickTile("Alpha-01.png，圖片");
+            Assert.NotNull(fixture.FindByAutomationId("ImageContextRenameButton"));
+            Assert.NotNull(fixture.FindByAutomationId("ImageContextTrashButton"));
         });
     }
 
@@ -269,8 +264,8 @@ public sealed class PicLensAppFixture : IDisposable
             {
                 var libraryGrid = mainWindow.FindFirstDescendant(condition => condition.ByAutomationId("LibraryGrid"));
                 var tileAutomationId = TileAutomationIdFromPrefix(namePrefix);
-                var byAutomationId = libraryGrid?.FindFirstDescendant(condition => condition.ByAutomationId($"{tileAutomationId}_Container"))
-                    ?? libraryGrid?.FindFirstDescendant(condition => condition.ByAutomationId(tileAutomationId));
+                var byAutomationId = libraryGrid?.FindFirstDescendant(condition => condition.ByAutomationId(tileAutomationId))
+                    ?? libraryGrid?.FindFirstDescendant(condition => condition.ByAutomationId($"{tileAutomationId}_Container"));
                 if (byAutomationId is not null)
                 {
                     return byAutomationId;
@@ -298,6 +293,9 @@ public sealed class PicLensAppFixture : IDisposable
 
     public void DoubleClickTile(string namePrefix) =>
         FindByTilePrefix(namePrefix).DoubleClick();
+
+    public void RightClickTile(string namePrefix) =>
+        FindByTilePrefix(namePrefix).RightClick();
 
     public void InvokeMenuItem(string menuButtonAutomationId, string itemName)
     {

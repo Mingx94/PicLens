@@ -39,7 +39,7 @@ FlaUI 測試是 opt-in，不屬於 `Release.ps1` 或預設 CI 驗證。執行：
 - 開啟排序與更多圖庫動作 flyouts，確認預期 menu items 存在。
 - 以 seeded gallery 啟動 app，驗證 last-folder restore、folder tree、library grid、root image tiles、direct child folder tile 與 status feedback。
 - 驗證排序 flyout、含子資料夾 toggle、recursive image visibility，以及 settings persistence。
-- 驗證 image selection 會顯示 contextual action buttons，且 clear selection 會移除 selection summary。
+- 驗證左鍵 image selection 不顯示底部 action bar，右鍵 image context menu 會顯示 rename/trash actions。
 - 驗證 thumbnail size slider persistence。
 - 驗證 secondary viewer smoke：double click 開啟 viewer、previous/next、zoom controls、viewer image/status controls，以及 Escape close。
 

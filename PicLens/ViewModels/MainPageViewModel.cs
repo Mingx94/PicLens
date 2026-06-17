@@ -660,45 +660,76 @@ public sealed partial class MainPageViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(HasSingleSelectedImage))]
     private async Task RenameSelected()
     {
-        var selected = SelectedImages().SingleOrDefault();
-        if (selected is null)
+        try
         {
-            return;
-        }
+            var selected = SelectedImages().SingleOrDefault();
+            if (selected is null)
+            {
+                return;
+            }
 
-        var nextName = await dialogService.RequestRenameAsync(selected);
-        if (string.IsNullOrWhiteSpace(nextName))
+            var nextName = await dialogService.RequestRenameAsync(selected);
+            if (string.IsNullOrWhiteSpace(nextName))
+            {
+                return;
+            }
+
+            var result = await fileOperationService.RenameAsync(selected.Path, nextName);
+            SetStatus(
+                result.Status == FileOperationStatus.Renamed
+                    ? $"已重新命名為 {Path.GetFileName(result.TargetPath)}。"
+                    : result.Message ?? result.Reason ?? "重新命名已略過。",
+                result.Status == FileOperationStatus.Renamed ? MainPageStatusSeverity.Informational : MainPageStatusSeverity.Warning);
+            ClearSelection();
+            await LoadLibraryAsync();
+        }
+        catch (Exception ex)
         {
-            return;
+            appLogger.Error(ex, "Rename selected image failed.");
+            SetStatus("重新命名時發生錯誤，已寫入診斷記錄。", MainPageStatusSeverity.Error);
         }
-
-        var result = await fileOperationService.RenameAsync(selected.Path, nextName);
-        SetStatus(
-            result.Status == FileOperationStatus.Renamed
-                ? $"已重新命名為 {Path.GetFileName(result.TargetPath)}。"
-                : result.Message ?? result.Reason ?? "重新命名已略過。",
-            result.Status == FileOperationStatus.Renamed ? MainPageStatusSeverity.Informational : MainPageStatusSeverity.Warning);
-        ClearSelection();
-        await LoadLibraryAsync();
     }
 
-    [RelayCommand(CanExecute = nameof(HasSingleSelectedImage))]
+    [RelayCommand(CanExecute = nameof(HasSelectedImages))]
     private async Task TrashSelected()
     {
-        var selected = SelectedImages().SingleOrDefault();
-        if (selected is null || !await dialogService.ConfirmAsync($"要將「{selected.Name}」移至回收筒嗎？", "將選取的圖片移至回收筒", "移至回收筒"))
+        try
         {
-            return;
-        }
+            var selected = SelectedImages();
+            if (selected.Count == 0)
+            {
+                return;
+            }
 
-        var result = await fileOperationService.TrashAsync(selected.Path);
-        SetStatus(
-            result.Status == FileOperationStatus.Trashed
-                ? "已移至回收筒。"
-                : result.Message ?? result.Reason ?? "移至回收筒失敗。",
-            result.Status == FileOperationStatus.Trashed ? MainPageStatusSeverity.Informational : MainPageStatusSeverity.Warning);
-        ClearSelection();
-        await LoadLibraryAsync();
+            var message = selected.Count == 1
+                ? $"要將「{selected[0].Name}」移至回收筒嗎？"
+                : $"要將選取的 {selected.Count} 張圖片移至回收筒嗎？";
+            if (!await dialogService.ConfirmAsync(message, "將選取的圖片移至回收筒", "移至回收筒"))
+            {
+                return;
+            }
+
+            var results = new List<FileOperationResult>(selected.Count);
+            foreach (var image in selected)
+            {
+                results.Add(await fileOperationService.TrashAsync(image.Path));
+            }
+
+            var batch = new FileOperationBatchResult(
+                Total: results.Count,
+                Succeeded: results.Count(result => result.Status == FileOperationStatus.Trashed),
+                Skipped: results.Count(result => result.Status is not FileOperationStatus.Trashed and not FileOperationStatus.Failed),
+                Failed: results.Count(result => result.Status == FileOperationStatus.Failed),
+                Items: results);
+            SetBatchStatus("移至回收筒", batch);
+            ClearSelection();
+            await LoadLibraryAsync();
+        }
+        catch (Exception ex)
+        {
+            appLogger.Error(ex, "Trash selected images failed.");
+            SetStatus("移至回收筒時發生錯誤，已寫入診斷記錄。", MainPageStatusSeverity.Error);
+        }
     }
 
     private async Task PersistIncludeSubfoldersAndReloadAsync(bool includeSubfolders)

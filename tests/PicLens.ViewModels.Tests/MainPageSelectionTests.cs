@@ -54,7 +54,7 @@ public sealed class MainPageSelectionTests
         Assert.Equal("已選 2 張圖片", viewModel.SelectionSummaryText);
         Assert.True(viewModel.ConvertSelectedCommand.CanExecute(null));
         Assert.False(viewModel.RenameSelectedCommand.CanExecute(null));
-        Assert.False(viewModel.TrashSelectedCommand.CanExecute(null));
+        Assert.True(viewModel.TrashSelectedCommand.CanExecute(null));
     }
 
     [Fact]

@@ -168,40 +168,29 @@ public sealed class MainPageTextTests
     }
 
     [Fact]
-    public void MainPage_declares_contextual_selection_action_bar()
+    public void MainPage_declares_image_context_menu_without_selection_action_bar()
     {
         var xaml = File.ReadAllText(Path.Combine(RepositoryRoot(), "PicLens", "MainPage.xaml"));
         var code = File.ReadAllText(Path.Combine(RepositoryRoot(), "PicLens", "MainPage.xaml.cs"));
 
-        Assert.Contains("AutomationProperties.AutomationId=\"LibrarySelectionActionBar\"", xaml);
-        Assert.Contains("Background=\"{ThemeResource CardBackgroundFillColorDefaultBrush}\"", xaml);
-        Assert.Contains("BorderBrush=\"{ThemeResource CardStrokeColorDefaultBrush}\"", xaml);
-        Assert.Contains("Visibility=\"{x:Bind local:MainPage.BoolToVisibility(ViewModel.HasSelectedImages), Mode=OneWay}\"", xaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"SelectionSummaryText\"", xaml);
-        Assert.Contains("TextTrimming=\"CharacterEllipsis\"", xaml);
-        Assert.Contains("Text=\"{x:Bind ViewModel.SelectionSummaryText, Mode=OneWay}\"", xaml);
-        Assert.Contains("x:Name=\"SelectionCommandBar\"", xaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"SelectionCommandBar\"", xaml);
-        Assert.Contains("IsDynamicOverflowEnabled=\"True\"", xaml);
-        Assert.Contains("<Setter Target=\"SelectionCommandBar.(Grid.Row)\" Value=\"1\" />", xaml);
-        Assert.Contains("<Setter Target=\"SelectionCommandBar.DefaultLabelPosition\" Value=\"Collapsed\" />", xaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"SelectionRenameButton\"", xaml);
+        Assert.Contains("RightTapped=\"LibraryTile_RightTapped\"", xaml);
+        Assert.Contains("x:Name=\"LibraryImageContextFlyout\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"ImageContextRenameButton\"", xaml);
         Assert.Contains("Command=\"{x:Bind ViewModel.RenameSelectedCommand}\"", xaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"SelectionTrashButton\"", xaml);
+        Assert.Contains("Text=\"重新命名\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"ImageContextTrashButton\"", xaml);
         Assert.Contains("Command=\"{x:Bind ViewModel.TrashSelectedCommand}\"", xaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"SelectionConvertButton\"", xaml);
-        Assert.Contains("Command=\"{x:Bind ViewModel.ConvertSelectedCommand}\"", xaml);
-        Assert.Contains("Label=\"轉成 JPG\"", xaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"SelectionClearButton\"", xaml);
-        Assert.Contains("Click=\"ClearLibrarySelection_Click\"", xaml);
-        Assert.Contains("ClearLibrarySelection_Click", code);
+        Assert.Contains("Text=\"移至回收筒\"", xaml);
+        Assert.Contains("LibraryTile_RightTapped", code);
+        Assert.Contains("LibraryImageContextFlyout.ShowAt", code);
         Assert.Contains("LibraryGrid.SelectedItems.Clear();", code);
-        Assert.Contains("librarySelectionOrder.Clear();", code);
-        Assert.Contains("ViewModel.ClearSelectedLibraryItems();", code);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"LibrarySelectionActionBar\"", xaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"SelectionSummaryText\"", xaml);
+        Assert.DoesNotContain("AutomationProperties.AutomationId=\"SelectionConvertButton\"", xaml);
     }
 
     [Fact]
-    public void MainPage_selection_action_bar_overlays_library_grid_bottom_without_layout_shift()
+    public void MainPage_does_not_declare_selection_action_bar_overlay()
     {
         var xaml = File.ReadAllText(Path.Combine(RepositoryRoot(), "PicLens", "MainPage.xaml"));
 
@@ -211,19 +200,7 @@ public sealed class MainPageTextTests
         var gridStart = xaml.IndexOf("x:Name=\"LibraryGrid\"", surfaceStart, StringComparison.Ordinal);
         Assert.True(gridStart > surfaceStart, "LibraryGrid should be inside LibraryGridSurface.");
 
-        var selectionBarStart = xaml.IndexOf("x:Name=\"LibrarySelectionActionBar\"", surfaceStart, StringComparison.Ordinal);
-        Assert.True(selectionBarStart > gridStart, "Selection action bar should overlay after LibraryGrid inside the same surface.");
-
-        var selectionBarTagStart = xaml.LastIndexOf("<Border", selectionBarStart, StringComparison.Ordinal);
-        var selectionBarTagEnd = xaml.IndexOf(">", selectionBarStart, StringComparison.Ordinal);
-        Assert.True(selectionBarTagStart >= 0 && selectionBarTagEnd > selectionBarTagStart, "Could not find LibrarySelectionActionBar opening tag.");
-
-        var selectionBarTag = xaml[selectionBarTagStart..selectionBarTagEnd];
-        Assert.Contains("Canvas.ZIndex=\"10\"", selectionBarTag);
-        Assert.Contains("VerticalAlignment=\"Bottom\"", selectionBarTag);
-        Assert.Contains("HorizontalAlignment=\"Stretch\"", selectionBarTag);
-        Assert.Contains("Margin=\"0,0,12,12\"", selectionBarTag);
-        Assert.DoesNotContain("Grid.Row=", selectionBarTag);
+        Assert.DoesNotContain("x:Name=\"LibrarySelectionActionBar\"", xaml[surfaceStart..]);
 
         var libraryGridTagStart = xaml.LastIndexOf("<GridView", gridStart, StringComparison.Ordinal);
         var libraryGridTagEnd = xaml.IndexOf(">", gridStart, StringComparison.Ordinal);
@@ -255,6 +232,7 @@ public sealed class MainPageTextTests
         Assert.Contains("PointerReleased=\"LibraryGrid_PointerReleased\"", xaml);
         Assert.Contains("PointerCanceled=\"LibraryGrid_PointerCanceled\"", xaml);
         Assert.Contains("PointerCaptureLost=\"LibraryGrid_PointerCaptureLost\"", xaml);
+        Assert.Contains("DoubleTapped=\"LibraryTile_DoubleTapped\"", xaml);
         Assert.Contains("PointerPressed=\"LibraryTile_PointerPressed\"", xaml);
         Assert.Contains("x:Name=\"LibraryDragPreviewOverlay\"", xaml);
         Assert.Contains("x:Name=\"LibraryDragPreviewText\"", xaml);
@@ -264,6 +242,7 @@ public sealed class MainPageTextTests
         Assert.Contains("LibraryGrid_PointerReleased", code);
         Assert.Contains("LibraryGrid_PointerCanceled", code);
         Assert.Contains("LibraryGrid_PointerCaptureLost", code);
+        Assert.Contains("LibraryTile_DoubleTapped", code);
         Assert.Contains("LibraryTile_PointerPressed", code);
         Assert.Contains("CapturePointer", code);
         Assert.Contains("LibraryGrid.ContainerFromItem(target)", code);
@@ -285,7 +264,7 @@ public sealed class MainPageTextTests
         Assert.True(pointerMovedStart > pointerPressedStart, "Could not find LibraryGrid_PointerMoved after LibraryTile_PointerPressed.");
 
         var pointerPressedBody = code.Substring(pointerPressedStart, pointerMovedStart - pointerPressedStart);
-        Assert.Contains("pointerDragStartPosition = e.GetCurrentPoint(LibraryGrid).Position;", pointerPressedBody);
+        Assert.Contains("pointerDragStartPosition = point.Position;", pointerPressedBody);
         Assert.DoesNotContain("CapturePointer", pointerPressedBody);
         Assert.Contains("private bool TryCaptureLibraryDragPointer(LibraryTileItem source, Pointer pointer)", code);
         Assert.Contains("if (!TryCaptureLibraryDragPointer(pointerDragSource, e.Pointer))", code);
