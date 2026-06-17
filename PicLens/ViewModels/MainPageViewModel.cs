@@ -6,14 +6,12 @@ using PicLens.Core.Models;
 using PicLens.Diagnostics;
 using PicLens.Services;
 using System.Collections.ObjectModel;
+using static PicLens.ViewModels.ViewModelPathRules;
 
 namespace PicLens.ViewModels;
 
 public sealed partial class MainPageViewModel : ObservableObject
 {
-    private const int MaxConcurrentThumbnailLoads = 4;
-    private static readonly TimeSpan DefaultThumbnailLoadTimeout = TimeSpan.FromSeconds(8);
-
     private readonly ISettingsStore settingsStore;
     private readonly IFolderScanner folderScanner;
     private readonly IFileOperationService fileOperationService;
@@ -22,17 +20,13 @@ public sealed partial class MainPageViewModel : ObservableObject
     private readonly IDialogService dialogService;
     private readonly INavigationService navigationService;
     private readonly IDispatcherService dispatcherService;
-    private readonly TimeSpan thumbnailLoadTimeout;
-    private readonly SemaphoreSlim thumbnailGate = new(MaxConcurrentThumbnailLoads);
-    private readonly Dictionary<LibraryTileItem, ThumbnailLoadState> thumbnailLoads = new(ReferenceEqualityComparer.Instance);
-    private readonly List<FolderHistoryEntry> folderHistory = [];
+    private readonly FolderNavigationHistory folderHistory = new();
     private readonly List<string> selectedImagePaths = [];
     private readonly List<ImageListItem> dragSources = [];
 
     private AppSettings settings = AppSettings.CreateDefault();
     private IReadOnlyList<ListItem> currentItems = [];
     private string folderTreeRootPath = string.Empty;
-    private int folderHistoryIndex = -1;
     private bool suppressIncludeSubfoldersReload;
     private CancellationTokenSource? libraryLoadCancellationSource;
     private long libraryLoadVersion;
@@ -230,25 +224,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
 
         CurrentFolderPath = normalized;
-        var historyEntry = new FolderHistoryEntry(normalized, folderTreeRootPath);
-
-        if (replaceHistory)
-        {
-            folderHistory.Clear();
-            folderHistory.Add(historyEntry);
-            folderHistoryIndex = 0;
-        }
-        else if (folderHistoryIndex < 0 || !HistoryEntryEquals(folderHistory.ElementAtOrDefault(folderHistoryIndex), historyEntry))
-        {
-            if (folderHistoryIndex >= 0 && folderHistoryIndex < folderHistory.Count - 1)
-            {
-                folderHistory.RemoveRange(folderHistoryIndex + 1, folderHistory.Count - folderHistoryIndex - 1);
-            }
-
-            folderHistory.Add(historyEntry);
-            folderHistoryIndex = folderHistory.Count - 1;
-        }
-
+        folderHistory.Record(new FolderNavigationHistory.Entry(normalized, folderTreeRootPath), replaceHistory);
         NotifyNavigationCommands();
         if (persist)
         {
@@ -368,141 +344,6 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
     }
 
-    public async Task ChangeThumbnailSizeAsync(double thumbnailSize)
-    {
-        var normalizedSize = SettingsRules.NormalizeThumbnailSize(thumbnailSize);
-        if (ThumbnailSize == normalizedSize)
-        {
-            return;
-        }
-
-        ThumbnailSize = normalizedSize;
-        CancelAllThumbnailLoads();
-        ApplyThumbnailSizeToLibraryItems();
-        settings = await settingsStore.UpdateAsync(new AppSettingsPatch { ThumbnailSize = normalizedSize });
-        SetStatus($"縮圖大小已調整為 {normalizedSize}。");
-    }
-
-    public async Task LoadThumbnailAsync(LibraryTileItem tile)
-    {
-        if (tile.IsFolder || tile.IsAnimated || tile.SourceItem is not ImageListItem image)
-        {
-            return;
-        }
-
-        var requestedSize = ThumbnailSize;
-        if (tile.HasThumbnailFor(requestedSize))
-        {
-            return;
-        }
-
-        if (thumbnailLoads.TryGetValue(tile, out var existingLoad)
-            && existingLoad.RequestedSize == requestedSize
-            && !existingLoad.CancellationSource.IsCancellationRequested)
-        {
-            return;
-        }
-
-        CancelThumbnailLoad(tile);
-
-        var loadCts = new CancellationTokenSource();
-        var loadState = new ThumbnailLoadState(loadCts, requestedSize);
-        thumbnailLoads[tile] = loadState;
-
-        try
-        {
-            await thumbnailGate.WaitAsync(loadCts.Token);
-            try
-            {
-                using var timeoutCts = new CancellationTokenSource(thumbnailLoadTimeout);
-                using var operationCts = CancellationTokenSource.CreateLinkedTokenSource(loadCts.Token, timeoutCts.Token);
-                var token = operationCts.Token;
-                var thumbnailTask = thumbnailService.GetOrCreateThumbnailAsync(image.Path, requestedSize, token);
-                var thumbnailPath = await WaitForThumbnailResultAsync(thumbnailTask, token);
-                if (!loadCts.IsCancellationRequested
-                    && ThumbnailSize == requestedSize
-                    && LibraryItems.Contains(tile)
-                    && PathEquals(tile.Path, image.Path))
-                {
-                    await ApplyThumbnailPathAsync(tile, image, thumbnailPath, requestedSize);
-                }
-            }
-            finally
-            {
-                thumbnailGate.Release();
-            }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception ex)
-        {
-            appLogger.Error(ex, $"Load thumbnail failed. Image={image.Name}; Path={image.Path}; RequestedSize={requestedSize}");
-        }
-        finally
-        {
-            if (thumbnailLoads.TryGetValue(tile, out var activeLoad) && ReferenceEquals(activeLoad, loadState))
-            {
-                thumbnailLoads.Remove(tile);
-            }
-
-            loadCts.Dispose();
-        }
-    }
-
-    private Task ApplyThumbnailPathAsync(
-        LibraryTileItem tile,
-        ImageListItem image,
-        string? thumbnailPath,
-        int requestedSize)
-    {
-        void Apply()
-        {
-            if (ThumbnailSize == requestedSize
-                && LibraryItems.Contains(tile)
-                && PathEquals(tile.Path, image.Path))
-            {
-                tile.ApplyThumbnailPath(thumbnailPath, requestedSize);
-            }
-        }
-
-        if (dispatcherService.HasUiThreadAccess)
-        {
-            Apply();
-            return Task.CompletedTask;
-        }
-
-        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (!dispatcherService.TryEnqueue(() =>
-            {
-                try
-                {
-                    Apply();
-                    completion.SetResult();
-                }
-                catch (Exception ex)
-                {
-                    completion.SetException(ex);
-                }
-            }))
-        {
-            appLogger.Error(
-                new InvalidOperationException("Failed to enqueue thumbnail UI update."),
-                $"Queue thumbnail update failed. Image={image.Name}; Path={image.Path}; RequestedSize={requestedSize}");
-            return Task.CompletedTask;
-        }
-
-        return completion.Task;
-    }
-
-    public void CancelThumbnailLoad(LibraryTileItem tile)
-    {
-        if (thumbnailLoads.TryGetValue(tile, out var loadState))
-        {
-            loadState.CancellationSource.Cancel();
-        }
-    }
-
     public async Task OpenLibraryItemAsync(LibraryTileItem item)
     {
         appLogger.Info(
@@ -542,29 +383,27 @@ public sealed partial class MainPageViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanNavigateBack))]
     private async Task Back()
     {
-        var nextIndex = folderHistoryIndex - 1;
-        if (nextIndex < 0)
+        var entry = folderHistory.Back();
+        if (entry is null)
         {
             return;
         }
 
-        folderHistoryIndex = nextIndex;
         NotifyNavigationCommands();
-        await NavigateToFolderFromHistoryAsync(folderHistory[folderHistoryIndex]);
+        await NavigateToFolderFromHistoryAsync(entry);
     }
 
     [RelayCommand(CanExecute = nameof(CanNavigateForward))]
     private async Task Forward()
     {
-        var nextIndex = folderHistoryIndex + 1;
-        if (nextIndex >= folderHistory.Count)
+        var entry = folderHistory.Forward();
+        if (entry is null)
         {
             return;
         }
 
-        folderHistoryIndex = nextIndex;
         NotifyNavigationCommands();
-        await NavigateToFolderFromHistoryAsync(folderHistory[folderHistoryIndex]);
+        await NavigateToFolderFromHistoryAsync(entry);
     }
 
     [RelayCommand]
@@ -897,14 +736,6 @@ public sealed partial class MainPageViewModel : ObservableObject
         NotifyLibraryItemCount();
     }
 
-    private void ApplyThumbnailSizeToLibraryItems()
-    {
-        foreach (var item in LibraryItems)
-        {
-            item.ApplyThumbnailSize(ThumbnailSize);
-        }
-    }
-
     private async Task<IReadOnlyList<FolderTreeItem>> BuildFolderTreeAsync(
         string rootPath,
         string selectedPath,
@@ -1055,7 +886,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         return isSelected || isAncestor || anyChildSelectedOrAncestor;
     }
 
-    private async Task NavigateToFolderFromHistoryAsync(FolderHistoryEntry entry)
+    private async Task NavigateToFolderFromHistoryAsync(FolderNavigationHistory.Entry entry)
     {
         ClearSelection();
         folderTreeRootPath = entry.FolderTreeRootPath;
@@ -1128,9 +959,9 @@ public sealed partial class MainPageViewModel : ObservableObject
         ForwardCommand.NotifyCanExecuteChanged();
     }
 
-    private bool CanNavigateBack() => folderHistoryIndex > 0;
+    private bool CanNavigateBack() => folderHistory.CanBack;
 
-    private bool CanNavigateForward() => folderHistoryIndex >= 0 && folderHistoryIndex < folderHistory.Count - 1;
+    private bool CanNavigateForward() => folderHistory.CanForward;
 
     private List<ImageListItem> VisibleImages() => currentItems.OfType<ImageListItem>().ToList();
 
@@ -1164,12 +995,6 @@ public sealed partial class MainPageViewModel : ObservableObject
             _ => throw new ArgumentOutOfRangeException(nameof(item))
         };
 
-    private static string FolderDisplayName(string path)
-    {
-        var name = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        return string.IsNullOrWhiteSpace(name) ? path : name;
-    }
-
     private static string DescribeBatchResult(string label, FileOperationBatchResult result) =>
         $"{label}：成功 {result.Succeeded} 個，略過 {result.Skipped} 個，失敗 {result.Failed} 個。";
 
@@ -1194,113 +1019,8 @@ public sealed partial class MainPageViewModel : ObservableObject
             _ => "名稱由小到大"
         };
 
-    private static bool PathEquals(string? left, string? right)
-    {
-        if (left is null || right is null)
-        {
-            return false;
-        }
-
-        return string.Equals(
-            Path.GetFullPath(left),
-            Path.GetFullPath(right),
-            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
-    }
-
-    private static Func<string, string, bool> CreateTargetNameExists(string targetPath)
-    {
-        var targetDirectory = Path.GetDirectoryName(targetPath)
-            ?? throw new IOException("目標路徑必須包含資料夾。");
-        var existingPaths = Directory.Exists(targetDirectory)
-            ? Directory.EnumerateFiles(targetDirectory).ToList()
-            : new List<string>();
-
-        return (candidatePath, sourcePath) => existingPaths.Any(path =>
-            !PathEquals(path, sourcePath)
-            && HasSameDirectoryAndBasenameWithoutExtension(path, candidatePath));
-    }
-
-    private static bool HasSameDirectoryAndBasenameWithoutExtension(string left, string right)
-    {
-        var leftDirectory = Path.GetDirectoryName(left);
-        var rightDirectory = Path.GetDirectoryName(right);
-        return leftDirectory is not null
-            && rightDirectory is not null
-            && PathEquals(leftDirectory, rightDirectory)
-            && string.Equals(
-                Path.GetFileNameWithoutExtension(left),
-                Path.GetFileNameWithoutExtension(right),
-                StringComparison.OrdinalIgnoreCase);
-    }
-
-    private void CancelAllThumbnailLoads()
-    {
-        foreach (var loadState in thumbnailLoads.Values)
-        {
-            loadState.CancellationSource.Cancel();
-        }
-
-        thumbnailLoads.Clear();
-    }
-
-    private static async Task<string?> WaitForThumbnailResultAsync(
-        Task<string?> thumbnailTask,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await thumbnailTask.WaitAsync(cancellationToken);
-        }
-        catch (OperationCanceledException) when (!thumbnailTask.IsCompleted)
-        {
-            ObserveFaultIfThumbnailTaskFailsLater(thumbnailTask);
-            throw;
-        }
-    }
-
-    private static void ObserveFaultIfThumbnailTaskFailsLater(Task thumbnailTask)
-    {
-        _ = thumbnailTask.ContinueWith(
-            static completedTask => _ = completedTask.Exception,
-            CancellationToken.None,
-            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.Default);
-    }
-
-    private sealed record FolderHistoryEntry(string FolderPath, string FolderTreeRootPath);
-
-    private sealed record ThumbnailLoadState(CancellationTokenSource CancellationSource, int RequestedSize);
-
     private sealed record LibraryLoadState(long Version, CancellationTokenSource CancellationSource);
 
-    private static bool HistoryEntryEquals(FolderHistoryEntry? left, FolderHistoryEntry right) =>
-        left is not null
-        && PathEquals(left.FolderPath, right.FolderPath)
-        && PathEquals(left.FolderTreeRootPath, right.FolderTreeRootPath);
-
-    private static bool IsPathAncestorOrEqual(string ancestorPath, string childPath)
-    {
-        var ancestor = Path.GetFullPath(ancestorPath);
-        var child = Path.GetFullPath(childPath);
-        if (PathEquals(ancestor, child))
-        {
-            return true;
-        }
-
-        var relative = Path.GetRelativePath(ancestor, child);
-        return relative != "."
-            && !relative.StartsWith("..", StringComparison.Ordinal)
-            && !Path.IsPathRooted(relative);
-    }
-
-    private static bool IsPathAncestor(string ancestorPath, string childPath)
-    {
-        if (PathEquals(ancestorPath, childPath))
-        {
-            return false;
-        }
-        return IsPathAncestorOrEqual(ancestorPath, childPath);
-    }
 }
 
 public sealed record SortOption(string Label, SortState State);
