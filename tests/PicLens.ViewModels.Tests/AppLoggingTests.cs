@@ -48,17 +48,6 @@ public sealed class AppLoggingTests
     }
 
     [Fact]
-    public void App_registers_global_exception_logging_hooks()
-    {
-        var code = File.ReadAllText(Path.Combine(RepositoryRoot(), "PicLens", "App.xaml.cs"));
-
-        Assert.Contains("AppDataMigration.MigrateLegacyData(Logger);", code);
-        Assert.Contains("UnhandledException += OnUnhandledException", code);
-        Assert.Contains("AppDomain.CurrentDomain.UnhandledException += OnCurrentDomainUnhandledException", code);
-        Assert.Contains("TaskScheduler.UnobservedTaskException += OnUnobservedTaskException", code);
-    }
-
-    [Fact]
     public void AppDataMigration_copies_legacy_settings_thumbnails_and_log_without_removing_legacy_data()
     {
         using var workspace = new TempDirectory();
@@ -125,17 +114,6 @@ public sealed class AppLoggingTests
         var error = Assert.Single(logger.Errors);
         Assert.Equal("Legacy app data migration failed.", error.Message);
         Assert.IsType<IOException>(error.Exception);
-    }
-
-    private static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "PicLens.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName ?? throw new InvalidOperationException("Could not locate repository root.");
     }
 
     private sealed class TempDirectory : IDisposable

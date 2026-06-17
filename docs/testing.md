@@ -15,6 +15,14 @@ dotnet test .\tests\PicLens.Infrastructure.Tests\PicLens.Infrastructure.Tests.cs
 dotnet test .\tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj --no-restore -p:Platform=x64
 ```
 
+測試分層原則：
+
+- Unit tests 驗證 domain、application、infrastructure 與 ViewModel 的可觀察行為。
+- ViewModel tests 可以驗證 runtime copy、狀態轉換、命令結果、ERROR LOG context 與檔案系統 side effects。
+- 不用 unit tests 讀取 `PicLens\*.xaml` 或 `PicLens\*.cs` 來 assert binding、event handler、layout spacing、control tree 或 code snippet。
+- UI runtime contract 由 FlaUI smoke tests 覆蓋，例如主要 AutomationId、flyout、selection、viewer window、settings persistence 與實際互動結果。
+- Manifest XML、暫存測試檔與 log 檔屬於資料 contract，可在 unit tests 讀取並驗證。
+
 目前 coverage 包含：
 
 - `PicLens.Core`：pure product rules。
