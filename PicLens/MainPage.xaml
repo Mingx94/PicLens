@@ -380,7 +380,6 @@
                                 AutomationProperties.Name="{x:Bind AutomationName}"
                                 Width="{x:Bind TileWidth, Mode=OneWay}"
                                 Height="{x:Bind TileHeight, Mode=OneWay}"
-                                DoubleTapped="LibraryTile_DoubleTapped"
                                 Loaded="LibraryTile_Loaded"
                                 PointerPressed="LibraryTile_PointerPressed"
                                 RowSpacing="8"

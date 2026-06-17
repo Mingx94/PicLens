@@ -44,7 +44,7 @@ public sealed partial class MainPage : Page
             new FileOperationService(),
             new ThumbnailService(),
             new WinUIDialogService(this),
-            new WinUINavigationService(this),
+            new WinUINavigationService(),
             new WinUIDispatcherService(DispatcherQueue),
             appLogger: App.Logger);
 
@@ -152,35 +152,13 @@ public sealed partial class MainPage : Page
         ViewModel.ClearSelectedLibraryItems();
     }
 
-    private void LibraryGrid_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    private async void LibraryGrid_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
-        if (FindDataContext<LibraryTileItem>(e.OriginalSource) is { } item)
+        if (FindLibraryTileItem(e.OriginalSource) is { } item)
         {
             e.Handled = true;
-            QueueOpenLibraryItemFromDoubleTap(item);
+            await ViewModel.OpenLibraryItemAsync(item);
         }
-    }
-
-    private void LibraryTile_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
-    {
-        if (sender is FrameworkElement { DataContext: LibraryTileItem item })
-        {
-            e.Handled = true;
-            QueueOpenLibraryItemFromDoubleTap(item);
-        }
-    }
-
-    private void QueueOpenLibraryItemFromDoubleTap(LibraryTileItem item)
-    {
-        if (!App.DispatcherQueue.TryEnqueue(() => OpenLibraryItemFromDoubleTap(item)))
-        {
-            OpenLibraryItemFromDoubleTap(item);
-        }
-    }
-
-    private async void OpenLibraryItemFromDoubleTap(LibraryTileItem item)
-    {
-        await ViewModel.OpenLibraryItemAsync(item);
     }
 
     private async void LibraryGrid_KeyDown(object sender, KeyRoutedEventArgs e)
@@ -341,7 +319,7 @@ public sealed partial class MainPage : Page
         var wasDrag = pointerDragStarted;
         var target = currentDropRenameTarget
             ?? DropRenameTargetAt(e.GetCurrentPoint(LibraryGrid).Position)
-            ?? FindDataContext<LibraryTileItem>(e.OriginalSource);
+            ?? FindLibraryTileItem(e.OriginalSource);
         ClearPointerDrag();
 
         if (wasDrag && target is not null && CanDropDraggedItem(source, target))
@@ -376,11 +354,9 @@ public sealed partial class MainPage : Page
     {
         var orderedSelection = OrderedSelectedLibraryItems();
         var isDraggingSelectedItem = orderedSelection.Any(item => PathEquals(item.Path, source.Path));
-        IEnumerable<LibraryTileItem> dragCandidates = orderedSelection.Count > 0 && isDraggingSelectedItem
-            ? orderedSelection
-            : [source];
-
-        return dragCandidates.Where(item => !item.IsFolder).ToList();
+        return (orderedSelection.Count > 0 && isDraggingSelectedItem ? orderedSelection : [source])
+            .Where(item => !item.IsFolder)
+            .ToList();
     }
 
     private bool TryCaptureLibraryDragPointer(LibraryTileItem source, Pointer pointer)
@@ -410,29 +386,10 @@ public sealed partial class MainPage : Page
             return null;
         }
 
-        foreach (var target in ViewModel.LibraryItems)
-        {
-            if (!CanDropDraggedItem(source, target))
-            {
-                continue;
-            }
-
-            if (LibraryGrid.ContainerFromItem(target) is not FrameworkElement container)
-            {
-                continue;
-            }
-
-            var topLeft = container.TransformToVisual(LibraryGrid).TransformPoint(new FoundationPoint(0, 0));
-            if (position.X >= topLeft.X
-                && position.X <= topLeft.X + container.ActualWidth
-                && position.Y >= topLeft.Y
-                && position.Y <= topLeft.Y + container.ActualHeight)
-            {
-                return target;
-            }
-        }
-
-        return null;
+        return VisualTreeHelper.FindElementsInHostCoordinates(position, LibraryGrid)
+            .OfType<FrameworkElement>()
+            .Select(element => element.DataContext as LibraryTileItem)
+            .FirstOrDefault(target => target is not null && CanDropDraggedItem(source, target));
     }
 
     private bool HasMovedPastDragThreshold(FoundationPoint position) =>
@@ -687,15 +644,14 @@ public sealed partial class MainPage : Page
         window.Activate();
     }
 
-    private static T? FindDataContext<T>(object originalSource)
-        where T : class
+    private static LibraryTileItem? FindLibraryTileItem(object originalSource)
     {
         var current = originalSource as DependencyObject;
         while (current is not null)
         {
-            if (current is FrameworkElement { DataContext: T value })
+            if (current is FrameworkElement { DataContext: LibraryTileItem item })
             {
-                return value;
+                return item;
             }
 
             current = VisualTreeHelper.GetParent(current);
@@ -754,10 +710,8 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private sealed class WinUIDialogService : IDialogService
+    private sealed class WinUIDialogService(MainPage page) : IDialogService
     {
-        private readonly MainPage page;
-        public WinUIDialogService(MainPage page) => this.page = page;
         public Task<string?> ChooseFolderAsync() => page.ChooseFolderAsync();
         public Task<bool> ConfirmAsync(string message, string title, string confirmButtonText) => page.ConfirmAsync(message, title, confirmButtonText);
         public Task<bool> ConfirmDropRenameAsync(DropRenamePreview preview) => page.ConfirmDropRenameAsync(preview);
@@ -766,15 +720,11 @@ public sealed partial class MainPage : Page
 
     private sealed class WinUINavigationService : INavigationService
     {
-        private readonly MainPage page;
-        public WinUINavigationService(MainPage page) => this.page = page;
         public void OpenImageViewer(ImageSequenceSnapshot snapshot) => MainPage.OpenImageViewer(snapshot);
     }
 
-    private sealed class WinUIDispatcherService : IDispatcherService
+    private sealed class WinUIDispatcherService(Microsoft.UI.Dispatching.DispatcherQueue queue) : IDispatcherService
     {
-        private readonly Microsoft.UI.Dispatching.DispatcherQueue queue;
-        public WinUIDispatcherService(Microsoft.UI.Dispatching.DispatcherQueue queue) => this.queue = queue;
         public bool HasUiThreadAccess => queue.HasThreadAccess;
         public bool TryEnqueue(Action action) => queue.TryEnqueue(() => action());
     }
