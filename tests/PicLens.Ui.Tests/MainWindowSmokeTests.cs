@@ -93,6 +93,24 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void Folder_history_buttons_navigate_back_and_forward()
+    {
+        using var fixture = PicLensAppFixture.StartSeeded(nameof(Folder_history_buttons_navigate_back_and_forward));
+
+        fixture.WithDiagnostics(nameof(Folder_history_buttons_navigate_back_and_forward), () =>
+        {
+            fixture.DoubleClickTile("Nested，資料夾");
+            Assert.NotNull(fixture.FindByTilePrefix("Nested-03.png，圖片"));
+
+            fixture.ClickByAutomationId("TitleBarBackButton");
+            Assert.NotNull(fixture.FindByTilePrefix("Alpha-01.png，圖片"));
+
+            fixture.ClickByAutomationId("TitleBarForwardButton");
+            Assert.NotNull(fixture.FindByTilePrefix("Nested-03.png，圖片"));
+        });
+    }
+
+    [Fact]
     public void Left_click_selects_image_without_action_bar_and_right_click_opens_context_menu()
     {
         using var fixture = PicLensAppFixture.StartSeeded(nameof(Left_click_selects_image_without_action_bar_and_right_click_opens_context_menu));
@@ -105,6 +123,26 @@ public sealed class MainWindowSmokeTests
             fixture.RightClickTile("Alpha-01.png，圖片");
             Assert.NotNull(fixture.FindByAutomationId("ImageContextRenameButton"));
             Assert.NotNull(fixture.FindByAutomationId("ImageContextTrashButton"));
+        });
+    }
+
+    [Fact]
+    public void Rename_dialog_cancel_does_not_change_file()
+    {
+        using var fixture = PicLensAppFixture.StartSeeded(nameof(Rename_dialog_cancel_does_not_change_file));
+
+        fixture.WithDiagnostics(nameof(Rename_dialog_cancel_does_not_change_file), () =>
+        {
+            var originalPath = Path.Combine(fixture.LibraryRoot, "Alpha-01.png");
+            var canceledTargetPath = Path.Combine(fixture.LibraryRoot, "Alpha-01-renamed.png");
+
+            fixture.RightClickTile("Alpha-01.png，圖片");
+            fixture.ClickByAutomationId("ImageContextRenameButton");
+            fixture.ClickByName("取消");
+
+            Assert.True(File.Exists(originalPath));
+            Assert.False(File.Exists(canceledTargetPath));
+            Assert.NotNull(fixture.FindByTilePrefix("Alpha-01.png，圖片"));
         });
     }
 
@@ -296,6 +334,9 @@ public sealed class PicLensAppFixture : IDisposable
 
     public void RightClickTile(string namePrefix) =>
         FindByTilePrefix(namePrefix).RightClick();
+
+    public void ClickByName(string name) =>
+        InvokeOrClick(FindByName(name));
 
     public void InvokeMenuItem(string menuButtonAutomationId, string itemName)
     {
