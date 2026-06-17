@@ -199,10 +199,9 @@ public sealed class MainPageViewModelStartupTests
             scanner,
             new ThrowingFileOperationService(),
             new NullThumbnailService(),
-            chooseFolderAsync,
-            (_, _, _) => Task.FromResult(false),
-            _ => Task.FromResult<string?>(null),
-            _ => { },
+            new TestDialogService(chooseFolderAsync: chooseFolderAsync),
+            new NullNavigationService(),
+            new ImmediateDispatcherService(),
             appLogger: appLogger);
 
     private sealed class ControllableFolderScanner : IFolderScanner

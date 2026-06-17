@@ -17,18 +17,20 @@ public sealed class FileOperationService : IFileOperationService
         "jpeg"
     };
 
-    private readonly IJpegEncoder jpegEncoder;
-    private readonly IRecycleBin recycleBin;
+    private readonly Func<string, string, CancellationToken, Task> encodeAsJpegAsync;
+    private readonly Func<string, CancellationToken, Task> trashAsync;
 
     public FileOperationService()
-        : this(new WinRTJpegEncoder(), new WindowsRecycleBin())
+        : this(new WinRTJpegEncoder().EncodeAsJpegAsync, new WindowsRecycleBin().TrashAsync)
     {
     }
 
-    public FileOperationService(IJpegEncoder jpegEncoder, IRecycleBin recycleBin)
+    public FileOperationService(
+        Func<string, string, CancellationToken, Task> encodeAsJpegAsync,
+        Func<string, CancellationToken, Task> trashAsync)
     {
-        this.jpegEncoder = jpegEncoder;
-        this.recycleBin = recycleBin;
+        this.encodeAsJpegAsync = encodeAsJpegAsync;
+        this.trashAsync = trashAsync;
     }
 
     public async Task<FileOperationBatchResult> ConvertVisibleToJpgAsync(
@@ -88,7 +90,7 @@ public sealed class FileOperationService : IFileOperationService
 
         try
         {
-            await recycleBin.TrashAsync(path, cancellationToken);
+            await trashAsync(path, cancellationToken);
             return new FileOperationResult(path, FileOperationStatus.Trashed);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -126,7 +128,7 @@ public sealed class FileOperationService : IFileOperationService
 
         var directory = Path.GetDirectoryName(sourcePath)!;
         var targetPath = Path.Combine(directory, newFileName);
-        if (PathEquals(sourcePath, targetPath))
+        if (PathRules.PathEquals(sourcePath, targetPath))
         {
             return Task.FromResult(new FileOperationResult(sourcePath, FileOperationStatus.Skipped, targetPath, "same_name"));
         }
@@ -225,7 +227,7 @@ public sealed class FileOperationService : IFileOperationService
 
         try
         {
-            await jpegEncoder.EncodeAsJpegAsync(image.Path, targetPath, cancellationToken);
+            await encodeAsJpegAsync(image.Path, targetPath, cancellationToken);
             return new FileOperationResult(image.Path, FileOperationStatus.Converted, targetPath);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or COMException)
@@ -260,27 +262,8 @@ public sealed class FileOperationService : IFileOperationService
             : new List<string>();
 
         return (candidatePath, sourcePath) => existingPaths.Any(path =>
-            !PathEquals(path, sourcePath)
-            && HasSameDirectoryAndBasenameWithoutExtension(path, candidatePath));
-    }
-
-    private static bool PathEquals(string left, string right) =>
-        string.Equals(
-            Path.GetFullPath(left),
-            Path.GetFullPath(right),
-            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
-
-    private static bool HasSameDirectoryAndBasenameWithoutExtension(string left, string right)
-    {
-        var leftDirectory = Path.GetDirectoryName(left);
-        var rightDirectory = Path.GetDirectoryName(right);
-        return leftDirectory is not null
-            && rightDirectory is not null
-            && PathEquals(leftDirectory, rightDirectory)
-            && string.Equals(
-                Path.GetFileNameWithoutExtension(left),
-                Path.GetFileNameWithoutExtension(right),
-                StringComparison.OrdinalIgnoreCase);
+            !PathRules.PathEquals(path, sourcePath)
+            && PathRules.HasSameDirectoryAndBasenameWithoutExtension(path, candidatePath));
     }
 
     private static string BasenameKey(string path)
@@ -291,17 +274,7 @@ public sealed class FileOperationService : IFileOperationService
     }
 }
 
-public interface IJpegEncoder
-{
-    Task EncodeAsJpegAsync(string sourcePath, string targetPath, CancellationToken cancellationToken = default);
-}
-
-public interface IRecycleBin
-{
-    Task TrashAsync(string path, CancellationToken cancellationToken = default);
-}
-
-public sealed class WinRTJpegEncoder : IJpegEncoder
+public sealed class WinRTJpegEncoder
 {
     public async Task EncodeAsJpegAsync(string sourcePath, string targetPath, CancellationToken cancellationToken = default)
     {
@@ -346,7 +319,7 @@ public sealed class WinRTJpegEncoder : IJpegEncoder
     }
 }
 
-public sealed class WindowsRecycleBin : IRecycleBin
+public sealed class WindowsRecycleBin
 {
     public async Task TrashAsync(string path, CancellationToken cancellationToken = default)
     {

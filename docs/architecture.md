@@ -56,8 +56,8 @@ Windows 11 style app icon source 由 `tools/generate_app_icon.py` 產生。它�
 - Animated GIF 與 WebP detection
 - List sorting，包含 folder-first behavior 與 Windows Explorer logical name ordering
 - Settings defaults 與 patch merge
-- Last-folder startup selection
 - Immutable image sequence snapshot creation
+- Shared path comparison helpers for Windows case-insensitive paths
 - Zoom clamping 與 pointer-anchored wheel zoom
 
 Filesystem、Windows UI、thumbnail codecs 與 recycle-bin behavior 應留在 Core 之外。
@@ -66,7 +66,7 @@ Filesystem、Windows UI、thumbnail codecs 與 recycle-bin behavior 應留在 Co
 
 `PicLens.Application` 負責：
 
-- Settings、scanning、image data、thumbnails 與 file operations 的 service contracts
+- Settings、scanning、thumbnails 與 file operations 的 service contracts
 - Deterministic rename planning 與 validation
 
 `PicLens.Infrastructure` 負責：

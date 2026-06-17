@@ -1,4 +1,5 @@
 using static PicLens.ViewModels.ViewModelPathRules;
+using static PicLens.Core.Domain.PathRules;
 
 namespace PicLens.ViewModels;
 

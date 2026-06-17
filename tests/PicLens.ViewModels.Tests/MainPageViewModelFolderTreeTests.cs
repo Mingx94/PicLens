@@ -130,17 +130,15 @@ public sealed class MainPageViewModelFolderTreeTests
             scanner,
             new ThrowingFileOperationService(),
             new NullThumbnailService(),
-            chooseFolderAsync ?? (() => Task.FromResult<string?>(null)),
-            (_, _, _) => Task.FromResult(false),
-            _ => Task.FromResult<string?>(null),
-            _ => { },
+            new TestDialogService(chooseFolderAsync: chooseFolderAsync),
+            new NullNavigationService(),
+            new ImmediateDispatcherService(),
             appLogger: appLogger);
 
     private static FolderListItem Folder(string path) =>
         new($"folder:{path}", path, Path.GetFileName(path), 0);
 
-    private static StringComparer PathComparer =>
-        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+    private static StringComparer PathComparer => PathRules.PathComparer;
 
     private sealed class FakeSettingsStore(AppSettings initialSettings) : ISettingsStore
     {

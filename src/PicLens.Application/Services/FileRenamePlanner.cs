@@ -38,7 +38,7 @@ public static class FileRenamePlanner
         var items = new List<DropTargetBatchRenamePlanItem>();
         var sequenceNumber = 1;
 
-        foreach (var source in sourcePaths.Where(source => !PathEquals(source, targetPath)))
+        foreach (var source in sourcePaths.Where(source => !PathRules.PathEquals(source, targetPath)))
         {
             var item = CreatePlanItem(source, targetDirectory, targetBaseName, sequenceNumber, targetNameExists);
             items.Add(item);
@@ -69,7 +69,7 @@ public static class FileRenamePlanner
             targetBaseName,
             sequenceNumber,
             targetNameExists);
-        return PathEquals(sourcePath, nextTargetPath)
+        return PathRules.PathEquals(sourcePath, nextTargetPath)
             ? new DropTargetBatchRenamePlanItem(sourcePath, nextTargetPath, true, AlreadyTargetSequenceReason)
             : new DropTargetBatchRenamePlanItem(sourcePath, nextTargetPath, false, null);
     }
@@ -120,13 +120,6 @@ public static class FileRenamePlanner
             ? sequenceNumber
             : null;
     }
-
-    private static bool PathEquals(string left, string right) =>
-        string.Equals(
-            Path.GetFullPath(left),
-            Path.GetFullPath(right),
-            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
-
 }
 
 public sealed record FileNameValidationResult(bool IsValid, string? Reason);

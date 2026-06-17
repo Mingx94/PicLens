@@ -117,22 +117,6 @@ public sealed class DomainParityTests
         Assert.Equal(expectedSize, merged.ThumbnailSize);
     }
 
-    [Theory]
-    [InlineData(@"C:\Pictures", true, @"C:\Pictures")]
-    [InlineData(@"C:\Missing", false, null)]
-    [InlineData(null, true, null)]
-    [InlineData("", true, null)]
-    [InlineData("   ", true, null)]
-    public void Startup_folder_uses_valid_last_folder_or_requires_user_selection(
-        string? lastFolderPath,
-        bool isAvailable,
-        string? expected)
-    {
-        var selected = StartupFolderSelector.SelectInitialFolder(lastFolderPath, _ => isAvailable);
-
-        Assert.Equal(expected, selected);
-    }
-
     [Fact]
     public void Image_sequence_snapshot_is_immutable_and_requires_current_image()
     {

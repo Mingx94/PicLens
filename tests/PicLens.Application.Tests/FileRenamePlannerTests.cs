@@ -1,4 +1,5 @@
 using PicLens.Application.Services;
+using PicLens.Core.Domain;
 
 namespace PicLens.Application.Tests;
 
@@ -155,24 +156,11 @@ public sealed class FileRenamePlannerTests
         var paths = existingPaths.ToList();
 
         return (candidatePath, sourcePath) => paths.Any(path =>
-            !PathEquals(path, sourcePath)
-            && PathEquals(Path.GetDirectoryName(path), Path.GetDirectoryName(candidatePath))
+            !PathRules.PathEquals(path, sourcePath)
+            && PathRules.PathEquals(Path.GetDirectoryName(path), Path.GetDirectoryName(candidatePath))
             && string.Equals(
                 Path.GetFileNameWithoutExtension(path),
                 Path.GetFileNameWithoutExtension(candidatePath),
                 StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static bool PathEquals(string? left, string? right)
-    {
-        if (left is null || right is null)
-        {
-            return false;
-        }
-
-        return string.Equals(
-            Path.GetFullPath(left),
-            Path.GetFullPath(right),
-            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
     }
 }

@@ -237,12 +237,9 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
             new CountingFolderScanner(items),
             fileOperationService ?? new ThrowingFileOperationService(),
             thumbnailService ?? new NullThumbnailService(),
-            dialogService ?? new DelegateDialogService(
-                () => Task.FromResult<string?>(null),
-                (_, _, _) => Task.FromResult(false),
-                _ => Task.FromResult<string?>(null)),
-            new DelegateNavigationService(openImageViewer ?? (_ => { })),
-            new DelegateDispatcherService(null, null),
+            dialogService ?? new NullDialogService(),
+            new RecordingNavigationService(openImageViewer),
+            new ImmediateDispatcherService(),
             appLogger: logger);
 
     private sealed class FakeSettingsStore(AppSettings initialSettings) : ISettingsStore
@@ -319,6 +316,11 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
         }
 
         public Task<string?> RequestRenameAsync(ImageListItem item) => Task.FromResult<string?>(null);
+    }
+
+    private sealed class RecordingNavigationService(Action<ImageSequenceSnapshot>? openImageViewer) : INavigationService
+    {
+        public void OpenImageViewer(ImageSequenceSnapshot snapshot) => openImageViewer?.Invoke(snapshot);
     }
 
     private sealed class ThrowingDropFileOperationService(Exception exception) : IFileOperationService

@@ -1,9 +1,8 @@
-using PicLens.Application.Services;
 using PicLens.Core.Domain;
 
 namespace PicLens.Infrastructure.Services;
 
-public sealed class ImageDataService : IImageDataService
+public sealed class ImageDataService
 {
     public async Task<byte[]> ReadImageBytesAsync(string path, CancellationToken cancellationToken = default)
     {

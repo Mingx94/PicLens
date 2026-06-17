@@ -8,19 +8,6 @@ internal static class ViewModelPathRules
         return string.IsNullOrWhiteSpace(name) ? path : name;
     }
 
-    public static bool PathEquals(string? left, string? right)
-    {
-        if (left is null || right is null)
-        {
-            return false;
-        }
-
-        return string.Equals(
-            Path.GetFullPath(left),
-            Path.GetFullPath(right),
-            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
-    }
-
     public static Func<string, string, bool> CreateTargetNameExists(string targetPath)
     {
         var targetDirectory = Path.GetDirectoryName(targetPath)
@@ -30,15 +17,15 @@ internal static class ViewModelPathRules
             : new List<string>();
 
         return (candidatePath, sourcePath) => existingPaths.Any(path =>
-            !PathEquals(path, sourcePath)
-            && HasSameDirectoryAndBasenameWithoutExtension(path, candidatePath));
+            !PicLens.Core.Domain.PathRules.PathEquals(path, sourcePath)
+            && PicLens.Core.Domain.PathRules.HasSameDirectoryAndBasenameWithoutExtension(path, candidatePath));
     }
 
     public static bool IsPathAncestorOrEqual(string ancestorPath, string childPath)
     {
         var ancestor = Path.GetFullPath(ancestorPath);
         var child = Path.GetFullPath(childPath);
-        if (PathEquals(ancestor, child))
+        if (PicLens.Core.Domain.PathRules.PathEquals(ancestor, child))
         {
             return true;
         }
@@ -50,19 +37,6 @@ internal static class ViewModelPathRules
     }
 
     public static bool IsPathAncestor(string ancestorPath, string childPath) =>
-        !PathEquals(ancestorPath, childPath)
+        !PicLens.Core.Domain.PathRules.PathEquals(ancestorPath, childPath)
         && IsPathAncestorOrEqual(ancestorPath, childPath);
-
-    private static bool HasSameDirectoryAndBasenameWithoutExtension(string left, string right)
-    {
-        var leftDirectory = Path.GetDirectoryName(left);
-        var rightDirectory = Path.GetDirectoryName(right);
-        return leftDirectory is not null
-            && rightDirectory is not null
-            && PathEquals(leftDirectory, rightDirectory)
-            && string.Equals(
-                Path.GetFileNameWithoutExtension(left),
-                Path.GetFileNameWithoutExtension(right),
-                StringComparison.OrdinalIgnoreCase);
-    }
 }

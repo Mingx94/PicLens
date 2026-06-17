@@ -270,12 +270,9 @@ public sealed class MainPageViewModelThumbnailSizeTests
             scanner,
             new ThrowingFileOperationService(),
             thumbnailService ?? new RecordingThumbnailService(null),
-            () => Task.FromResult<string?>(null),
-            (_, _, _) => Task.FromResult(false),
-            _ => Task.FromResult<string?>(null),
-            _ => { },
-            hasUiThreadAccess,
-            tryEnqueueOnUiThread,
+            new NullDialogService(),
+            new NullNavigationService(),
+            new TestDispatcherService(hasUiThreadAccess, tryEnqueueOnUiThread),
             thumbnailLoadTimeout);
 
     private sealed class FakeSettingsStore(AppSettings initialSettings) : ISettingsStore

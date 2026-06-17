@@ -2,6 +2,7 @@ using PicLens.Application.Services;
 using PicLens.Core.Domain;
 using PicLens.Core.Models;
 using PicLens.Diagnostics;
+using PicLens.Services;
 
 namespace PicLens.ViewModels.Tests;
 
@@ -79,6 +80,66 @@ internal sealed class RecordingAppLogger : IAppLogger
     }
 
     public sealed record Entry(Exception Exception, string Message);
+}
+
+internal sealed class NullDialogService : IDialogService
+{
+    public Task<string?> ChooseFolderAsync() => Task.FromResult<string?>(null);
+
+    public Task<bool> ConfirmAsync(string message, string title, string confirmButtonText) => Task.FromResult(false);
+
+    public Task<string?> RequestRenameAsync(ImageListItem item) => Task.FromResult<string?>(null);
+}
+
+internal sealed class TestDialogService(
+    Func<Task<string?>>? chooseFolderAsync = null,
+    Func<string, string, string, Task<bool>>? confirmAsync = null,
+    Func<ImageListItem, Task<string?>>? requestRenameAsync = null) : IDialogService
+{
+    public Task<string?> ChooseFolderAsync() =>
+        chooseFolderAsync?.Invoke() ?? Task.FromResult<string?>(null);
+
+    public Task<bool> ConfirmAsync(string message, string title, string confirmButtonText) =>
+        confirmAsync?.Invoke(message, title, confirmButtonText) ?? Task.FromResult(false);
+
+    public Task<string?> RequestRenameAsync(ImageListItem item) =>
+        requestRenameAsync?.Invoke(item) ?? Task.FromResult<string?>(null);
+}
+
+internal sealed class NullNavigationService : INavigationService
+{
+    public void OpenImageViewer(ImageSequenceSnapshot snapshot)
+    {
+    }
+}
+
+internal sealed class ImmediateDispatcherService : IDispatcherService
+{
+    public bool HasUiThreadAccess => true;
+
+    public bool TryEnqueue(Action action)
+    {
+        action();
+        return true;
+    }
+}
+
+internal sealed class TestDispatcherService(
+    Func<bool>? hasUiThreadAccess = null,
+    Func<Action, bool>? tryEnqueueOnUiThread = null) : IDispatcherService
+{
+    public bool HasUiThreadAccess => hasUiThreadAccess?.Invoke() ?? true;
+
+    public bool TryEnqueue(Action action)
+    {
+        if (tryEnqueueOnUiThread is not null)
+        {
+            return tryEnqueueOnUiThread(action);
+        }
+
+        action();
+        return true;
+    }
 }
 
 internal sealed class TempDirectory : IDisposable

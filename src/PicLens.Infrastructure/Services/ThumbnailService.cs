@@ -247,14 +247,14 @@ public sealed class ThumbnailService : IThumbnailService
             .EnumerateFiles(cacheRoot, "*.png", SearchOption.TopDirectoryOnly)
             .Select(path => new FileInfo(path))
             .Where(file => file.Exists)
-            .OrderByDescending(file => PathEquals(file.FullName, pathToKeep))
+            .OrderByDescending(file => PathRules.PathEquals(file.FullName, pathToKeep))
             .ThenByDescending(file => file.LastWriteTimeUtc)
             .ToList();
 
         var totalBytes = files.Sum(file => file.Length);
         foreach (var file in files.AsEnumerable().Reverse())
         {
-            if (totalBytes <= maxCacheBytes || PathEquals(file.FullName, pathToKeep))
+            if (totalBytes <= maxCacheBytes || PathRules.PathEquals(file.FullName, pathToKeep))
             {
                 continue;
             }
@@ -338,12 +338,6 @@ public sealed class ThumbnailService : IThumbnailService
         var fullPath = Path.GetFullPath(path);
         return OperatingSystem.IsWindows() ? fullPath.ToUpperInvariant() : fullPath;
     }
-
-    private static bool PathEquals(string left, string right) =>
-        string.Equals(
-            Path.GetFullPath(left),
-            Path.GetFullPath(right),
-            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 
     private static string DefaultCacheRoot()
         => AppDataPaths.ThumbnailCacheRoot();

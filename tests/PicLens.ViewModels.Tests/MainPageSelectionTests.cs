@@ -116,10 +116,9 @@ public sealed class MainPageSelectionTests
             new ThrowingFolderScanner(),
             new ThrowingFileOperationService(),
             new NullThumbnailService(),
-            () => Task.FromResult<string?>(null),
-            (_, _, _) => Task.FromResult(false),
-            _ => Task.FromResult<string?>(null),
-            _ => { });
+            new NullDialogService(),
+            new NullNavigationService(),
+            new ImmediateDispatcherService());
 
     private static LibraryTileItem ImageTile(string name, string path) =>
         new(

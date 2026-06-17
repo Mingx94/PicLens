@@ -6,6 +6,7 @@ using PicLens.Core.Models;
 using PicLens.Diagnostics;
 using PicLens.Services;
 using System.Collections.ObjectModel;
+using static PicLens.Core.Domain.PathRules;
 using static PicLens.ViewModels.ViewModelPathRules;
 
 namespace PicLens.ViewModels;
@@ -30,32 +31,6 @@ public sealed partial class MainPageViewModel : ObservableObject
     private bool suppressIncludeSubfoldersReload;
     private CancellationTokenSource? libraryLoadCancellationSource;
     private long libraryLoadVersion;
-
-    public MainPageViewModel(
-        ISettingsStore settingsStore,
-        IFolderScanner folderScanner,
-        IFileOperationService fileOperationService,
-        IThumbnailService thumbnailService,
-        Func<Task<string?>> chooseFolderAsync,
-        Func<string, string, string, Task<bool>> confirmAsync,
-        Func<ImageListItem, Task<string?>> requestRenameAsync,
-        Action<ImageSequenceSnapshot> openImageViewer,
-        Func<bool>? hasUiThreadAccess = null,
-        Func<Action, bool>? tryEnqueueOnUiThread = null,
-        TimeSpan? thumbnailLoadTimeout = null,
-        IAppLogger? appLogger = null)
-        : this(
-              settingsStore,
-              folderScanner,
-              fileOperationService,
-              thumbnailService,
-              new DelegateDialogService(chooseFolderAsync, confirmAsync, requestRenameAsync),
-              new DelegateNavigationService(openImageViewer),
-              new DelegateDispatcherService(hasUiThreadAccess, tryEnqueueOnUiThread),
-              thumbnailLoadTimeout,
-              appLogger)
-    {
-    }
 
     public MainPageViewModel(
         ISettingsStore settingsStore,
@@ -159,7 +134,9 @@ public sealed partial class MainPageViewModel : ObservableObject
             ThumbnailSize = settings.ThumbnailSize;
             suppressIncludeSubfoldersReload = false;
 
-            var initialFolder = StartupFolderSelector.SelectInitialFolder(settings.LastFolderPath, Directory.Exists);
+            var initialFolder = string.IsNullOrWhiteSpace(settings.LastFolderPath) || !Directory.Exists(settings.LastFolderPath)
+                ? null
+                : settings.LastFolderPath;
             var shouldPersistInitialFolder = false;
             if (initialFolder is null)
             {

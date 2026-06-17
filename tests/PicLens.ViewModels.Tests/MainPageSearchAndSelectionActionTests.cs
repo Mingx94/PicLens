@@ -118,10 +118,9 @@ public sealed class MainPageSelectionActionTests
             folderScanner,
             fileOperationService,
             new NullThumbnailService(),
-            () => Task.FromResult<string?>(null),
-            confirmAsync ?? ((_, _, _) => Task.FromResult(false)),
-            requestRenameAsync ?? (_ => Task.FromResult<string?>(null)),
-            _ => { },
+            new TestDialogService(confirmAsync: confirmAsync, requestRenameAsync: requestRenameAsync),
+            new NullNavigationService(),
+            new ImmediateDispatcherService(),
             appLogger: appLogger);
 
     private sealed class RecordingFileOperationService : IFileOperationService

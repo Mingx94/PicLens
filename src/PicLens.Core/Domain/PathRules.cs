@@ -1,0 +1,23 @@
+namespace PicLens.Core.Domain;
+
+public static class PathRules
+{
+    public static StringComparer PathComparer =>
+        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+
+    public static string PathKey(string path) => Path.GetFullPath(path);
+
+    public static bool PathEquals(string? left, string? right) =>
+        left is not null
+        && right is not null
+        && PathComparer.Equals(PathKey(left), PathKey(right));
+
+    public static bool HasSameDirectoryAndBasenameWithoutExtension(string left, string right) =>
+        Path.GetDirectoryName(left) is { } leftDirectory
+        && Path.GetDirectoryName(right) is { } rightDirectory
+        && PathEquals(leftDirectory, rightDirectory)
+        && string.Equals(
+            Path.GetFileNameWithoutExtension(left),
+            Path.GetFileNameWithoutExtension(right),
+            StringComparison.OrdinalIgnoreCase);
+}

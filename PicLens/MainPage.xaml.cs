@@ -14,6 +14,7 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Storage.Pickers;
 using Windows.System;
 using FoundationPoint = Windows.Foundation.Point;
+using static PicLens.Core.Domain.PathRules;
 
 namespace PicLens;
 
@@ -723,14 +724,6 @@ public sealed partial class MainPage : Page
 
         return ordered;
     }
-
-    private static StringComparer PathComparer =>
-        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-
-    private static string PathKey(string path) => Path.GetFullPath(path);
-
-    private static bool PathEquals(string left, string right) =>
-        PathComparer.Equals(PathKey(left), PathKey(right));
 
     private static string FolderSegmentFromPath(string? path, string fallback)
     {

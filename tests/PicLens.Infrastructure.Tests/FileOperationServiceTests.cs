@@ -13,8 +13,8 @@ public sealed class FileOperationServiceTests
         var webp = await temp.WriteFileAsync("b.webp", [4, 5, 6]);
         var jpg = await temp.WriteFileAsync("c.jpg", [7, 8, 9]);
         await temp.WriteFileAsync("b.jpg", [0]);
-        var encoder = new RecordingJpegEncoder();
-        var service = new FileOperationService(encoder, new RecordingRecycleBin());
+        var convertedSources = new List<string>();
+        var service = CreateService(convertedSources: convertedSources);
 
         var result = await service.ConvertVisibleToJpgAsync(
         [
@@ -28,7 +28,7 @@ public sealed class FileOperationServiceTests
         Assert.Equal(2, result.Skipped);
         Assert.True(File.Exists(png));
         Assert.True(File.Exists(Path.Combine(temp.Root, "a.jpg")));
-        Assert.Equal([png], encoder.ConvertedSources);
+        Assert.Equal([png], convertedSources);
         Assert.Contains(result.Items, item => item.Path == webp && item.Status == FileOperationStatus.Skipped && item.Reason == "target_exists");
         Assert.Contains(result.Items, item => item.Path == jpg && item.Status == FileOperationStatus.Skipped && item.Reason == "already_jpg");
     }
@@ -38,15 +38,15 @@ public sealed class FileOperationServiceTests
     {
         using var temp = TempWorkspace.Create();
         var gif = await temp.WriteFileAsync("loop.gif", [1, 2, 3]);
-        var encoder = new RecordingJpegEncoder();
-        var service = new FileOperationService(encoder, new RecordingRecycleBin());
+        var convertedSources = new List<string>();
+        var service = CreateService(convertedSources: convertedSources);
 
         var result = await service.ConvertVisibleToJpgAsync([Image(gif) with { IsAnimated = true }]);
 
         var item = Assert.Single(result.Items);
         Assert.Equal(FileOperationStatus.Skipped, item.Status);
         Assert.Equal("animated_unsupported", item.Reason);
-        Assert.Empty(encoder.ConvertedSources);
+        Assert.Empty(convertedSources);
     }
 
     [Fact]
@@ -56,15 +56,15 @@ public sealed class FileOperationServiceTests
         var jpg = await temp.WriteFileAsync("a.jpg", [1]);
         var matchingPng = await temp.WriteFileAsync("a.png", [2]);
         var unrelatedWebp = await temp.WriteFileAsync("b.webp", [3]);
-        var recycleBin = new RecordingRecycleBin();
-        var service = new FileOperationService(new RecordingJpegEncoder(), recycleBin);
+        var trashedPaths = new List<string>();
+        var service = CreateService(trashedPaths: trashedPaths);
 
         var result = await service.TrashSameBasenameNonJpgAsync([Image(jpg), Image(matchingPng), Image(unrelatedWebp)]);
 
         Assert.Equal(3, result.Total);
         Assert.Equal(1, result.Succeeded);
         Assert.Equal(2, result.Skipped);
-        Assert.Equal([matchingPng], recycleBin.TrashedPaths);
+        Assert.Equal([matchingPng], trashedPaths);
         Assert.Contains(result.Items, item => item.Path == jpg && item.Reason == "already_jpg");
         Assert.Contains(result.Items, item => item.Path == unrelatedWebp && item.Reason == "no_matching_jpg");
     }
@@ -75,7 +75,7 @@ public sealed class FileOperationServiceTests
         using var temp = TempWorkspace.Create();
         var source = await temp.WriteFileAsync("old.png", [1]);
         await temp.WriteFileAsync("taken.png", [2]);
-        var service = new FileOperationService(new RecordingJpegEncoder(), new RecordingRecycleBin());
+        var service = CreateService();
 
         var collision = await service.RenameAsync(source, "taken.png");
         var renamed = await service.RenameAsync(source, "new.png");
@@ -94,7 +94,7 @@ public sealed class FileOperationServiceTests
         using var temp = TempWorkspace.Create();
         var source = await temp.WriteFileAsync("old.png", [1]);
         await temp.WriteFileAsync("taken.png", [2]);
-        var service = new FileOperationService(new RecordingJpegEncoder(), new RecordingRecycleBin());
+        var service = CreateService();
 
         var sameName = await service.RenameAsync(source, "old.png");
         var collision = await service.RenameAsync(source, "taken.png");
@@ -115,7 +115,7 @@ public sealed class FileOperationServiceTests
         var already = await temp.WriteFileAsync("Album-03.gif", [3]);
         var second = await temp.WriteFileAsync("second.webp", [4]);
         await temp.WriteFileAsync("Album-01.jpg", [5]);
-        var service = new FileOperationService(new RecordingJpegEncoder(), new RecordingRecycleBin());
+        var service = CreateService();
 
         var result = await service.RenameByDropTargetAsync([first, target, already, second], target);
 
@@ -134,7 +134,7 @@ public sealed class FileOperationServiceTests
         using var temp = TempWorkspace.Create();
         var target = await temp.WriteFileAsync("Album.jpg", [1]);
         var source = await temp.WriteFileAsync("Album-03.jpg", [2]);
-        var service = new FileOperationService(new RecordingJpegEncoder(), new RecordingRecycleBin());
+        var service = CreateService();
 
         var result = await service.RenameByDropTargetAsync([source], target);
 
@@ -150,13 +150,13 @@ public sealed class FileOperationServiceTests
     {
         using var temp = TempWorkspace.Create();
         var file = await temp.WriteFileAsync("delete-me.jpg", [1]);
-        var recycleBin = new RecordingRecycleBin();
-        var service = new FileOperationService(new RecordingJpegEncoder(), recycleBin);
+        var trashedPaths = new List<string>();
+        var service = CreateService(trashedPaths: trashedPaths);
 
         var result = await service.TrashAsync(file);
 
         Assert.Equal(FileOperationStatus.Trashed, result.Status);
-        Assert.Equal([file], recycleBin.TrashedPaths);
+        Assert.Equal([file], trashedPaths);
     }
 
     [Fact]
@@ -195,25 +195,18 @@ public sealed class FileOperationServiceTests
         0xFF, 0x00,
     ];
 
-    private sealed class RecordingJpegEncoder : IJpegEncoder
-    {
-        public List<string> ConvertedSources { get; } = [];
-
-        public async Task EncodeAsJpegAsync(string sourcePath, string targetPath, CancellationToken cancellationToken = default)
-        {
-            ConvertedSources.Add(sourcePath);
-            await File.WriteAllBytesAsync(targetPath, [9, 9, 9], cancellationToken);
-        }
-    }
-
-    private sealed class RecordingRecycleBin : IRecycleBin
-    {
-        public List<string> TrashedPaths { get; } = [];
-
-        public Task TrashAsync(string path, CancellationToken cancellationToken = default)
-        {
-            TrashedPaths.Add(path);
-            return Task.CompletedTask;
-        }
-    }
+    private static FileOperationService CreateService(
+        List<string>? convertedSources = null,
+        List<string>? trashedPaths = null) =>
+        new(
+            async (sourcePath, targetPath, cancellationToken) =>
+            {
+                convertedSources?.Add(sourcePath);
+                await File.WriteAllBytesAsync(targetPath, [9, 9, 9], cancellationToken);
+            },
+            (path, _) =>
+            {
+                trashedPaths?.Add(path);
+                return Task.CompletedTask;
+            });
 }
