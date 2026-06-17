@@ -684,7 +684,7 @@ public sealed partial class MainPage : Page
     private static void OpenImageViewer(ImageSequenceSnapshot snapshot)
     {
         var window = new ImageViewerWindow(snapshot);
-        WindowForeground.ActivateOwnedWindow(App.Window, window);
+        window.Activate();
     }
 
     private static T? FindDataContext<T>(object originalSource)
