@@ -1,14 +1,11 @@
 using PicLens.Application.Services;
 using PicLens.Core.Domain;
 using PicLens.Core.Models;
-using System.Text;
 
 namespace PicLens.Infrastructure.Services;
 
 public sealed class FolderScanner : IFolderScanner
 {
-    private const int AnimationProbeBufferSize = 64 * 1024;
-
     public Task<IReadOnlyList<ListItem>> ScanAsync(ListQuery query, CancellationToken cancellationToken = default)
     {
         return Task.Run(() => Scan(query, cancellationToken), cancellationToken);
@@ -184,20 +181,6 @@ public sealed class FolderScanner : IFolderScanner
 
     private static FileStream OpenProbeStream(string path) =>
         new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-
-    private static bool ContainsAscii(ReadOnlySpan<byte> buffer, string value)
-    {
-        var bytes = Encoding.ASCII.GetBytes(value);
-        for (var index = 0; index <= buffer.Length - bytes.Length; index += 1)
-        {
-            if (buffer[index..(index + bytes.Length)].SequenceEqual(bytes))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     private static IEnumerable<string> SafeEnumerateDirectories(string folderPath)
     {

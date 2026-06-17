@@ -100,8 +100,9 @@ public sealed partial class MainPage : Page
             var parent = Directory.GetParent(Path.GetFullPath(path));
             return FolderSegmentFromPath(parent?.FullName, fallback: "資料夾");
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            App.Logger.Error(ex, $"Parent folder name lookup failed. Path={path}");
             return "資料夾";
         }
     }
@@ -831,8 +832,9 @@ public sealed partial class MainPage : Page
             var name = Path.GetFileName(trimmed);
             return string.IsNullOrWhiteSpace(name) ? normalized : name;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            App.Logger.Error(ex, $"Folder segment lookup failed. Path={path}; Fallback={fallback}");
             return path;
         }
     }

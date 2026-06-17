@@ -133,6 +133,7 @@ Get-Content "$env:LOCALAPPDATA\PicLens\Logs\PicLens.log" -Tail 100
 ```
 
 可能失敗的 development paths 應透過 app logger 記錄，並包含足夠 context 來辨識失敗的 item、path 與 operation。
+App logger 使用 bounded best-effort queue；錯誤風暴下可能丟棄較舊 log，排查時請保留重現步驟與最新 ERROR context。
 
 若要直接使用 `winapp run`，請讓它指向 build output folder 並自動偵測 output manifest，例如：
 

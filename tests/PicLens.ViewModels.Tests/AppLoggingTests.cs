@@ -48,6 +48,44 @@ public sealed class AppLoggingTests
     }
 
     [Fact]
+    public void FileAppLogger_disposes_after_many_info_messages()
+    {
+        using var workspace = new TempDirectory();
+        var logPath = Path.Combine(workspace.Path, "PicLens.log");
+
+        using (var logger = new FileAppLogger(logPath))
+        {
+            for (var index = 0; index < 6000; index += 1)
+            {
+                logger.Info($"message-{index}");
+            }
+        }
+
+        Assert.True(File.Exists(logPath));
+        Assert.NotEmpty(File.ReadAllText(logPath));
+    }
+
+    [Fact]
+    public void MainPage_path_helpers_log_invalid_paths()
+    {
+        var previousLogger = global::PicLens.App.Logger;
+        var logger = new RecordingLogger();
+        SetAppLogger(logger);
+        try
+        {
+            Assert.Equal("資料夾", global::PicLens.MainPage.ParentFolderNameFromPath("bad\0path"));
+            Assert.Equal("bad\0path", global::PicLens.MainPage.FolderNameFromPath("bad\0path"));
+        }
+        finally
+        {
+            SetAppLogger(previousLogger);
+        }
+
+        Assert.Contains(logger.Errors, error => error.Message.StartsWith("Parent folder name lookup failed.", StringComparison.Ordinal));
+        Assert.Contains(logger.Errors, error => error.Message.StartsWith("Folder segment lookup failed.", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void AppDataMigration_copies_legacy_settings_thumbnails_and_log_without_removing_legacy_data()
     {
         using var workspace = new TempDirectory();
@@ -156,6 +194,14 @@ public sealed class AppLoggingTests
         public static EnvironmentVariableScope Set(string name, string? value) => new(name, value);
 
         public void Dispose() => Environment.SetEnvironmentVariable(name, previousValue);
+    }
+
+    private static void SetAppLogger(IAppLogger logger)
+    {
+        typeof(global::PicLens.App)
+            .GetProperty(nameof(global::PicLens.App.Logger))!
+            .GetSetMethod(nonPublic: true)!
+            .Invoke(null, [logger]);
     }
 
     private sealed class RecordingLogger : IAppLogger

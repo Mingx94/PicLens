@@ -6,6 +6,9 @@ namespace PicLens.Diagnostics;
 
 public sealed class FileAppLogger : IAppLogger, IDisposable
 {
+    private const int MaxQueuedLogMessages = 5000;
+    private static readonly TimeSpan DisposeFlushTimeout = TimeSpan.FromSeconds(2);
+
     private readonly Func<DateTimeOffset> now;
     private readonly Channel<string> logChannel;
     private readonly CancellationTokenSource cts = new();
@@ -16,10 +19,12 @@ public sealed class FileAppLogger : IAppLogger, IDisposable
         LogPath = logPath;
         this.now = now ?? (() => DateTimeOffset.Now);
 
-        logChannel = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
+        // ponytail: bounded queue; add priority/drop counters only if lost old logs become a real debugging problem.
+        logChannel = Channel.CreateBounded<string>(new BoundedChannelOptions(MaxQueuedLogMessages)
         {
             SingleReader = true,
-            SingleWriter = false
+            SingleWriter = false,
+            FullMode = BoundedChannelFullMode.DropOldest
         });
 
         writeTask = Task.Run(ProcessLogQueueAsync);
@@ -103,7 +108,11 @@ public sealed class FileAppLogger : IAppLogger, IDisposable
         logChannel.Writer.Complete();
         try
         {
-            writeTask.GetAwaiter().GetResult();
+            if (!writeTask.Wait(DisposeFlushTimeout))
+            {
+                cts.Cancel();
+                writeTask.Wait(DisposeFlushTimeout);
+            }
         }
         catch
         {

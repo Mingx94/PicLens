@@ -315,20 +315,6 @@ public sealed class ThumbnailService : IThumbnailService
         }, cancellationToken);
     }
 
-    private static bool ContainsAscii(ReadOnlySpan<byte> buffer, string value)
-    {
-        var bytes = Encoding.ASCII.GetBytes(value);
-        for (var index = 0; index <= buffer.Length - bytes.Length; index += 1)
-        {
-            if (buffer[index..(index + bytes.Length)].SequenceEqual(bytes))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private static (uint Width, uint Height) FitWithin(uint sourceWidth, uint sourceHeight, uint maxSize)
     {
         if (sourceWidth == 0 || sourceHeight == 0 || maxSize == 0)
