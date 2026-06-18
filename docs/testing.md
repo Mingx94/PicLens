@@ -99,7 +99,7 @@ Plugin workflow 可執行：
 .\WatchAndRun.ps1 .\PicLens\PicLens.csproj
 ```
 
-這不是 XAML Hot Reload。`WatchAndRun.ps1` 會監看 `.cs`、`.xaml`、`.csproj`、manifest、assets 與相關設定檔；變更穩定後先透過 `BuildAndRun.ps1 -SkipRun` rebuild，build 成功才停止既有 `PicLens` process 並以 `winapp run --detach` relaunch。build 失敗時會保留舊 app，避免開發中斷在沒有可比較畫面的狀態。
+這不是 XAML Hot Reload。`WatchAndRun.ps1` 會監看 `.cs`、`.xaml`、`.csproj`、manifest、assets 與相關設定檔；變更穩定後停止既有 `PicLens` process，並直接呼叫 `BuildAndRun.ps1 -Detach` rebuild/relaunch。若只想驗證 build 而不啟動 app，使用 `-SkipLaunch`。
 
 ERROR LOG 位置：
 
@@ -123,7 +123,7 @@ logs\watch-run\watch-run-*.log
 .\Release.ps1
 ```
 
-這會 restore packages、執行 Core、Application、Infrastructure 與 ViewModel tests、publish framework-dependent unpackaged output folder，並驗證 `PicLens.exe` 存在。
+這會先呼叫 `Test.ps1` 執行 Core、Application、Infrastructure 與 ViewModel tests，再 restore/publish framework-dependent unpackaged output folder，並驗證 `PicLens.exe` 存在。
 
 Manual smoke check：
 

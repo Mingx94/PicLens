@@ -18,13 +18,8 @@ $ErrorActionPreference = "Stop"
 
 $root = $PSScriptRoot
 $project = Join-Path $root "PicLens\PicLens.csproj"
-$testProjects = @(
-    Join-Path $root "tests\PicLens.Core.Tests\PicLens.Core.Tests.csproj"
-    Join-Path $root "tests\PicLens.Application.Tests\PicLens.Application.Tests.csproj"
-    Join-Path $root "tests\PicLens.Infrastructure.Tests\PicLens.Infrastructure.Tests.csproj"
-    Join-Path $root "tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj"
-)
 $nugetConfig = Join-Path $root "NuGet.Config"
+$testScript = Join-Path $root "Test.ps1"
 $outputRoot = Join-Path $root "artifacts\portable"
 $outputName = "PicLens-$RuntimeIdentifier"
 $outputDir = Join-Path $outputRoot $outputName
@@ -71,16 +66,10 @@ if ($RuntimeIdentifier -eq "win-x86" -and $Platform -ne "x86") {
     throw "RuntimeIdentifier win-x86 requires -Platform x86."
 }
 
-if (-not (Test-Path -LiteralPath $project)) {
-    throw "Project file not found: $project"
-}
-foreach ($testProject in $testProjects) {
-    if (-not (Test-Path -LiteralPath $testProject)) {
-        throw "Test project file not found: $testProject"
+foreach ($path in @($project, $nugetConfig, $testScript)) {
+    if (-not (Test-Path -LiteralPath $path)) {
+        throw "Required file not found: $path"
     }
-}
-if (-not (Test-Path -LiteralPath $nugetConfig)) {
-    throw "NuGet.Config not found: $nugetConfig"
 }
 
 New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
@@ -92,23 +81,10 @@ if (-not $NoClean) {
 }
 
 if (-not $SkipTests) {
-    foreach ($testProject in $testProjects) {
-        Write-Host "==> Restoring test project: $testProject" -ForegroundColor Cyan
-        Invoke-Native "dotnet" @(
-            "restore",
-            $testProject,
-            "--configfile",
-            $nugetConfig
-        )
-    }
-
-    foreach ($testProject in $testProjects) {
-        Write-Host "==> Running tests: $testProject" -ForegroundColor Cyan
-        Invoke-Native "dotnet" @(
-            "test",
-            $testProject,
-            "--no-restore"
-        )
+    Write-Host "==> Running unit tests" -ForegroundColor Cyan
+    & $testScript
+    if ($LASTEXITCODE -ne 0) {
+        throw "$testScript failed with exit code $LASTEXITCODE."
     }
 }
 

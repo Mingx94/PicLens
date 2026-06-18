@@ -67,7 +67,6 @@ public partial class App : Microsoft.UI.Xaml.Application
     {
         LogPath = FileAppLogger.DefaultLogPath();
         Logger = new FileAppLogger(LogPath);
-        AppDataMigration.MigrateLegacyData(Logger);
         Logger.Info($"Application logging initialized. LogPath={LogPath}");
 
         UnhandledException += OnUnhandledException;
