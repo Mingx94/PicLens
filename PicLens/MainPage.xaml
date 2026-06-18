@@ -63,6 +63,15 @@
         <Grid.Resources>
             <MenuFlyout x:Name="LibraryImageContextFlyout">
                 <MenuFlyoutItem
+                    AutomationProperties.AutomationId="ImageContextRevealInFileExplorerButton"
+                    AutomationProperties.Name="在檔案總管中顯示"
+                    Click="RevealInFileExplorer_Click"
+                    Text="在檔案總管中顯示">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE8E5;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem
                     AutomationProperties.AutomationId="ImageContextRenameButton"
                     AutomationProperties.Name="重新命名選取的圖片"
                     Command="{x:Bind ViewModel.RenameSelectedCommand}"

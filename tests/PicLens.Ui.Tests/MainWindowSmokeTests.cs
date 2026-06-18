@@ -121,6 +121,7 @@ public sealed class MainWindowSmokeTests
 
             fixture.WaitForAutomationIdGone("SelectionSummaryText");
             fixture.RightClickTile("Alpha-01.png，圖片");
+            Assert.NotNull(fixture.FindByAutomationId("ImageContextRevealInFileExplorerButton"));
             Assert.NotNull(fixture.FindByAutomationId("ImageContextRenameButton"));
             Assert.NotNull(fixture.FindByAutomationId("ImageContextTrashButton"));
         });

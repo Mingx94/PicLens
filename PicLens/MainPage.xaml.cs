@@ -11,6 +11,7 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using System.Diagnostics;
 using Windows.Storage.Pickers;
 using Windows.System;
 using FoundationPoint = Windows.Foundation.Point;
@@ -28,6 +29,7 @@ public sealed partial class MainPage : Page
     private readonly List<LibraryTileItem> librarySelectionOrder = [];
     private LibraryTileItem? pointerDragSource;
     private LibraryTileItem? currentDropRenameTarget;
+    private LibraryTileItem? contextFlyoutItem;
     private FoundationPoint pointerDragStartPosition;
     private Pointer? pointerDragPointer;
     private UIElement? pointerDragCaptureElement;
@@ -260,6 +262,7 @@ public sealed partial class MainPage : Page
             return;
         }
 
+        contextFlyoutItem = item;
         if (!LibraryGrid.SelectedItems.OfType<LibraryTileItem>().Any(selected => PathEquals(selected.Path, item.Path)))
         {
             LibraryGrid.SelectedItems.Clear();
@@ -269,6 +272,35 @@ public sealed partial class MainPage : Page
 
         LibraryImageContextFlyout.ShowAt(tile, e.GetPosition(tile));
         e.Handled = true;
+    }
+
+    private void RevealInFileExplorer_Click(object sender, RoutedEventArgs e)
+    {
+        var item = contextFlyoutItem
+            ?? LibraryGrid.SelectedItems.OfType<LibraryTileItem>().FirstOrDefault();
+        if (item is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!File.Exists(item.Path) && !Directory.Exists(item.Path))
+            {
+                throw new FileNotFoundException("Reveal target was not found.", item.Path);
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"/select,\"{item.Path}\"",
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            App.Logger.Error(ex, $"Reveal in File Explorer failed. Path={item.Path}");
+        }
     }
 
     private void LibraryGrid_PointerMoved(object sender, PointerRoutedEventArgs e)
