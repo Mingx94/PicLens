@@ -674,6 +674,7 @@ public sealed partial class MainPage : Page
     private static void OpenImageViewer(ImageSequenceSnapshot snapshot)
     {
         var window = new ImageViewerWindow(snapshot);
+        App.RegisterImageViewerWindow(window);
         window.Activate();
     }
 
