@@ -239,8 +239,7 @@ public sealed class FolderScanner : IFolderScanner
     private static long ToUnixMs(DateTime value) =>
         new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Utc)).ToUnixTimeMilliseconds();
 
-    private static StringComparer PathKeyComparer =>
-        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+    private static StringComparer PathKeyComparer => StringComparer.OrdinalIgnoreCase;
 
     private static string? CanonicalDirectoryKey(string folderPath)
     {

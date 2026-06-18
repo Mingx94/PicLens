@@ -116,9 +116,7 @@ public sealed class MainPageSelectionTests
             new ThrowingFolderScanner(),
             new ThrowingFileOperationService(),
             new NullThumbnailService(),
-            new NullDialogService(),
-            new NullNavigationService(),
-            new ImmediateDispatcherService());
+            new NullDialogService());
 
     private static LibraryTileItem ImageTile(string name, string path) =>
         new(

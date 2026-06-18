@@ -200,8 +200,6 @@ public sealed class MainPageViewModelStartupTests
             new ThrowingFileOperationService(),
             new NullThumbnailService(),
             new TestDialogService(chooseFolderAsync: chooseFolderAsync),
-            new NullNavigationService(),
-            new ImmediateDispatcherService(),
             appLogger: appLogger);
 
     private sealed class ControllableFolderScanner : IFolderScanner

@@ -112,14 +112,14 @@ public sealed partial class MainPageViewModel
             }
         }
 
-        if (dispatcherService.HasUiThreadAccess)
+        if (hasUiThreadAccess())
         {
             Apply();
             return Task.CompletedTask;
         }
 
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (!dispatcherService.TryEnqueue(() =>
+        if (!tryEnqueueOnUiThread(() =>
             {
                 try
                 {

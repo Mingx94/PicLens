@@ -238,8 +238,7 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
             fileOperationService ?? new ThrowingFileOperationService(),
             thumbnailService ?? new NullThumbnailService(),
             dialogService ?? new NullDialogService(),
-            new RecordingNavigationService(openImageViewer),
-            new ImmediateDispatcherService(),
+            openImageViewer: openImageViewer,
             appLogger: logger);
 
     private sealed class FakeSettingsStore(AppSettings initialSettings) : ISettingsStore
@@ -316,11 +315,6 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
         }
 
         public Task<string?> RequestRenameAsync(ImageListItem item) => Task.FromResult<string?>(null);
-    }
-
-    private sealed class RecordingNavigationService(Action<ImageSequenceSnapshot>? openImageViewer) : INavigationService
-    {
-        public void OpenImageViewer(ImageSequenceSnapshot snapshot) => openImageViewer?.Invoke(snapshot);
     }
 
     private sealed class ThrowingDropFileOperationService(Exception exception) : IFileOperationService

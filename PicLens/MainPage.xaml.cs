@@ -44,8 +44,9 @@ public sealed partial class MainPage : Page
             new FileOperationService(),
             new ThumbnailService(),
             new WinUIDialogService(this),
-            new WinUINavigationService(),
-            new WinUIDispatcherService(DispatcherQueue),
+            openImageViewer: OpenImageViewer,
+            hasUiThreadAccess: () => DispatcherQueue.HasThreadAccess,
+            tryEnqueueOnUiThread: action => DispatcherQueue.TryEnqueue(() => action()),
             appLogger: App.Logger);
 
         InitializeComponent();
@@ -718,14 +719,4 @@ public sealed partial class MainPage : Page
         public Task<string?> RequestRenameAsync(ImageListItem item) => page.RequestRenameAsync(item);
     }
 
-    private sealed class WinUINavigationService : INavigationService
-    {
-        public void OpenImageViewer(ImageSequenceSnapshot snapshot) => MainPage.OpenImageViewer(snapshot);
-    }
-
-    private sealed class WinUIDispatcherService(Microsoft.UI.Dispatching.DispatcherQueue queue) : IDispatcherService
-    {
-        public bool HasUiThreadAccess => queue.HasThreadAccess;
-        public bool TryEnqueue(Action action) => queue.TryEnqueue(() => action());
-    }
 }

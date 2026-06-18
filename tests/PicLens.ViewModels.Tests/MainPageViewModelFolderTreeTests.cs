@@ -131,8 +131,6 @@ public sealed class MainPageViewModelFolderTreeTests
             new ThrowingFileOperationService(),
             new NullThumbnailService(),
             new TestDialogService(chooseFolderAsync: chooseFolderAsync),
-            new NullNavigationService(),
-            new ImmediateDispatcherService(),
             appLogger: appLogger);
 
     private static FolderListItem Folder(string path) =>

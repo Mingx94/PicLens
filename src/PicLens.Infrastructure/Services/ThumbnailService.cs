@@ -336,7 +336,7 @@ public sealed class ThumbnailService : IThumbnailService
     private static string NormalizePathForKey(string path)
     {
         var fullPath = Path.GetFullPath(path);
-        return OperatingSystem.IsWindows() ? fullPath.ToUpperInvariant() : fullPath;
+        return fullPath.ToUpperInvariant();
     }
 
     private static string DefaultCacheRoot()

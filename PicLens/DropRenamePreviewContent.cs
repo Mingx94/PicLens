@@ -19,7 +19,7 @@ internal static class DropRenamePreviewContent
         {
             Text = $"將重新命名 {preview.RenameCount} 個，略過 {preview.SkippedCount} 個。",
             TextWrapping = TextWrapping.Wrap,
-            Style = TryGetTextStyle("BodyStrongTextBlockStyle")
+            Style = TryGetResource<Style>("BodyStrongTextBlockStyle")
         });
 
         var rows = new StackPanel { Spacing = 8 };
@@ -34,8 +34,8 @@ internal static class DropRenamePreviewContent
             {
                 Text = $"另有 {preview.Items.Count - 12} 個項目。",
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = TryGetBrush("TextFillColorSecondaryBrush"),
-                Style = TryGetTextStyle("CaptionTextBlockStyle")
+                Foreground = TryGetResource<Brush>("TextFillColorSecondaryBrush"),
+                Style = TryGetResource<Style>("CaptionTextBlockStyle")
             });
         }
 
@@ -62,7 +62,7 @@ internal static class DropRenamePreviewContent
         {
             VerticalAlignment = VerticalAlignment.Center,
             Glyph = item.WillRename ? "\uE8FB" : "\uE711",
-            FontFamily = TryGetFontFamily("SymbolThemeFontFamily")
+            FontFamily = TryGetResource<FontFamily>("SymbolThemeFontFamily")
         };
         Grid.SetColumn(icon, 0);
         row.Children.Add(icon);
@@ -88,18 +88,9 @@ internal static class DropRenamePreviewContent
             _ => reason ?? "略過"
         };
 
-    private static Style? TryGetTextStyle(string resourceKey) =>
+    private static T? TryGetResource<T>(string resourceKey)
+        where T : class =>
         Microsoft.UI.Xaml.Application.Current.Resources.TryGetValue(resourceKey, out var resource)
-            ? resource as Style
-            : null;
-
-    private static Brush? TryGetBrush(string resourceKey) =>
-        Microsoft.UI.Xaml.Application.Current.Resources.TryGetValue(resourceKey, out var resource)
-            ? resource as Brush
-            : null;
-
-    private static FontFamily? TryGetFontFamily(string resourceKey) =>
-        Microsoft.UI.Xaml.Application.Current.Resources.TryGetValue(resourceKey, out var resource)
-            ? resource as FontFamily
+            ? resource as T
             : null;
 }

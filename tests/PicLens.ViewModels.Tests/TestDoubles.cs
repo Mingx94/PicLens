@@ -106,42 +106,6 @@ internal sealed class TestDialogService(
         requestRenameAsync?.Invoke(item) ?? Task.FromResult<string?>(null);
 }
 
-internal sealed class NullNavigationService : INavigationService
-{
-    public void OpenImageViewer(ImageSequenceSnapshot snapshot)
-    {
-    }
-}
-
-internal sealed class ImmediateDispatcherService : IDispatcherService
-{
-    public bool HasUiThreadAccess => true;
-
-    public bool TryEnqueue(Action action)
-    {
-        action();
-        return true;
-    }
-}
-
-internal sealed class TestDispatcherService(
-    Func<bool>? hasUiThreadAccess = null,
-    Func<Action, bool>? tryEnqueueOnUiThread = null) : IDispatcherService
-{
-    public bool HasUiThreadAccess => hasUiThreadAccess?.Invoke() ?? true;
-
-    public bool TryEnqueue(Action action)
-    {
-        if (tryEnqueueOnUiThread is not null)
-        {
-            return tryEnqueueOnUiThread(action);
-        }
-
-        action();
-        return true;
-    }
-}
-
 internal sealed class TempDirectory : IDisposable
 {
     public TempDirectory()

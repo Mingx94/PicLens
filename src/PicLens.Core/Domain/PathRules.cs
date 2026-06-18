@@ -2,8 +2,7 @@ namespace PicLens.Core.Domain;
 
 public static class PathRules
 {
-    public static StringComparer PathComparer =>
-        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+    public static StringComparer PathComparer => StringComparer.OrdinalIgnoreCase;
 
     public static string PathKey(string path) => Path.GetFullPath(path);
 

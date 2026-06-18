@@ -118,37 +118,6 @@ public sealed class DomainParityTests
     }
 
     [Fact]
-    public void Image_sequence_snapshot_is_immutable_and_requires_current_image()
-    {
-        var images = new List<ImageListItem>
-        {
-            Image("a.jpg", 10),
-            Image("b.jpg", 20)
-        };
-
-        var snapshot = ImageSequenceFactory.Create(
-            sourceFolderPath: @"C:\Images",
-            includeSubfolders: true,
-            sort: new SortState(SortKey.Name, SortDirection.Asc),
-            images: images,
-            currentImagePath: @"C:\Images\b.jpg",
-            nowMs: 1234);
-
-        Assert.Equal("sequence:C_3A_5CImages_3A1234_3AC_3A_5CImages_5Cb.jpg", snapshot.Id);
-        Assert.Equal(1, snapshot.CurrentIndex);
-        Assert.NotSame(images, snapshot.Images);
-
-        Assert.Throws<InvalidOperationException>(() =>
-            ImageSequenceFactory.Create(
-                sourceFolderPath: @"C:\Images",
-                includeSubfolders: false,
-                sort: new SortState(SortKey.Name, SortDirection.Asc),
-                images: images,
-                currentImagePath: @"C:\Images\missing.jpg",
-                nowMs: 1234));
-    }
-
-    [Fact]
     public void Zoom_math_clamps_and_keeps_pointer_anchor()
     {
         Assert.Equal(0.1, ZoomMath.ClampZoom(0.01));

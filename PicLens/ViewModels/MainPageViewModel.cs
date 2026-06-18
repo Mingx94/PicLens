@@ -19,8 +19,9 @@ public sealed partial class MainPageViewModel : ObservableObject
     private readonly IThumbnailService thumbnailService;
     private readonly IAppLogger appLogger;
     private readonly IDialogService dialogService;
-    private readonly INavigationService navigationService;
-    private readonly IDispatcherService dispatcherService;
+    private readonly Action<ImageSequenceSnapshot> openImageViewer;
+    private readonly Func<bool> hasUiThreadAccess;
+    private readonly Func<Action, bool> tryEnqueueOnUiThread;
     private readonly FolderNavigationHistory folderHistory = new();
     private readonly List<string> selectedImagePaths = [];
     private readonly List<ImageListItem> dragSources = [];
@@ -38,8 +39,9 @@ public sealed partial class MainPageViewModel : ObservableObject
         IFileOperationService fileOperationService,
         IThumbnailService thumbnailService,
         IDialogService dialogService,
-        INavigationService navigationService,
-        IDispatcherService dispatcherService,
+        Action<ImageSequenceSnapshot>? openImageViewer = null,
+        Func<bool>? hasUiThreadAccess = null,
+        Func<Action, bool>? tryEnqueueOnUiThread = null,
         TimeSpan? thumbnailLoadTimeout = null,
         IAppLogger? appLogger = null)
     {
@@ -48,8 +50,13 @@ public sealed partial class MainPageViewModel : ObservableObject
         this.fileOperationService = fileOperationService;
         this.thumbnailService = thumbnailService;
         this.dialogService = dialogService;
-        this.navigationService = navigationService;
-        this.dispatcherService = dispatcherService;
+        this.openImageViewer = openImageViewer ?? (_ => { });
+        this.hasUiThreadAccess = hasUiThreadAccess ?? (() => true);
+        this.tryEnqueueOnUiThread = tryEnqueueOnUiThread ?? (action =>
+        {
+            action();
+            return true;
+        });
         this.thumbnailLoadTimeout = thumbnailLoadTimeout is { } timeout && timeout > TimeSpan.Zero
             ? timeout
             : DefaultThumbnailLoadTimeout;
@@ -880,19 +887,14 @@ public sealed partial class MainPageViewModel : ObservableObject
             return;
         }
 
-        var snapshot = ImageSequenceFactory.Create(
-            sourceFolderPath: CurrentFolderPath,
-            includeSubfolders: IncludeSubfolders,
-            sort: Sort,
-            images: images,
-            currentImagePath: image.Path);
+        var snapshot = CreateImageSequenceSnapshot(images, image.Path);
 
         appLogger.Info(
             $"Open image viewer requested. Image={image.Name}; CurrentIndex={snapshot.CurrentIndex}; ImageCount={snapshot.Images.Count}; CurrentFolderPath={CurrentFolderPath}; IncludeSubfolders={IncludeSubfolders}; Sort={Sort.Key}/{Sort.Direction}");
 
         try
         {
-            navigationService.OpenImageViewer(snapshot);
+            openImageViewer(snapshot);
             appLogger.Info(
                 $"Open image viewer completed. Image={image.Name}; CurrentIndex={snapshot.CurrentIndex}; ImageCount={snapshot.Images.Count}");
         }
@@ -901,6 +903,38 @@ public sealed partial class MainPageViewModel : ObservableObject
             appLogger.Error(ex, "Open image viewer failed.");
             SetStatus("開啟圖片時發生錯誤，已寫入診斷記錄。", MainPageStatusSeverity.Error);
         }
+    }
+
+    private ImageSequenceSnapshot CreateImageSequenceSnapshot(
+        IReadOnlyList<ImageListItem> images,
+        string currentImagePath)
+    {
+        var currentIndex = -1;
+        for (var index = 0; index < images.Count; index += 1)
+        {
+            if (images[index].Path == currentImagePath)
+            {
+                currentIndex = index;
+                break;
+            }
+        }
+
+        if (currentIndex < 0)
+        {
+            throw new InvalidOperationException("Current image must exist in the image sequence.");
+        }
+
+        var createdAtMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var rawId = $"{CurrentFolderPath}:{createdAtMs}:{currentImagePath}";
+
+        return new ImageSequenceSnapshot(
+            Id: $"sequence:{Uri.EscapeDataString(rawId).Replace("%", "_", StringComparison.Ordinal)}",
+            CreatedAtMs: createdAtMs,
+            SourceFolderPath: CurrentFolderPath,
+            IncludeSubfolders: IncludeSubfolders,
+            Sort: Sort,
+            Images: images.Select(candidate => candidate with { }).ToList(),
+            CurrentIndex: currentIndex);
     }
 
     public void ClearSelectedLibraryItems()

@@ -119,8 +119,6 @@ public sealed class MainPageSelectionActionTests
             fileOperationService,
             new NullThumbnailService(),
             new TestDialogService(confirmAsync: confirmAsync, requestRenameAsync: requestRenameAsync),
-            new NullNavigationService(),
-            new ImmediateDispatcherService(),
             appLogger: appLogger);
 
     private sealed class RecordingFileOperationService : IFileOperationService

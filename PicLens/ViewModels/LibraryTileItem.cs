@@ -1,29 +1,47 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using PicLens.Core.Models;
 using PicLens.Core.Domain;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace PicLens.ViewModels;
 
-public sealed record LibraryTileItem(
-    string Name,
-    string Path,
-    string Detail,
-    bool IsFolder,
-    bool IsSelected,
-    bool IsAnimated,
-    string IconGlyph,
-    ListItem SourceItem,
-    string? InitialThumbnailPath = null)
-    : INotifyPropertyChanged
+public sealed class LibraryTileItem : ObservableObject
 {
-    private string? thumbnailPath = InitialThumbnailPath;
+    private string? thumbnailPath;
     private int? thumbnailSize;
     private int tileWidth = SettingsRules.DefaultThumbnailSize;
     private int tileHeight = SettingsRules.DefaultThumbnailSize - 4;
     private bool isDropRenameTarget;
 
-    public event PropertyChangedEventHandler? PropertyChanged;
+    public LibraryTileItem(
+        string Name,
+        string Path,
+        string Detail,
+        bool IsFolder,
+        bool IsSelected,
+        bool IsAnimated,
+        string IconGlyph,
+        ListItem SourceItem,
+        string? InitialThumbnailPath = null)
+    {
+        this.Name = Name;
+        this.Path = Path;
+        this.Detail = Detail;
+        this.IsFolder = IsFolder;
+        this.IsSelected = IsSelected;
+        this.IsAnimated = IsAnimated;
+        this.IconGlyph = IconGlyph;
+        this.SourceItem = SourceItem;
+        thumbnailPath = InitialThumbnailPath;
+    }
+
+    public string Name { get; }
+    public string Path { get; }
+    public string Detail { get; }
+    public bool IsFolder { get; }
+    public bool IsSelected { get; }
+    public bool IsAnimated { get; }
+    public string IconGlyph { get; }
+    public ListItem SourceItem { get; }
 
     public string KindLabel => IsFolder ? "資料夾" : IsAnimated ? "不支援動畫圖片" : "圖片";
 
@@ -99,31 +117,6 @@ public sealed record LibraryTileItem(
         thumbnailSize = null;
         ThumbnailPath = null;
     }
-
-    private void SetProperty(ref int field, int value, [CallerMemberName] string? propertyName = null)
-    {
-        if (field == value)
-        {
-            return;
-        }
-
-        field = value;
-        OnPropertyChanged(propertyName);
-    }
-
-    private void SetProperty(ref bool field, bool value, [CallerMemberName] string? propertyName = null)
-    {
-        if (field == value)
-        {
-            return;
-        }
-
-        field = value;
-        OnPropertyChanged(propertyName);
-    }
-
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
     private static string SanitizeAutomationIdSegment(string value)
     {

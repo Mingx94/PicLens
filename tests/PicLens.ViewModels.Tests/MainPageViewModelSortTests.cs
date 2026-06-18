@@ -25,9 +25,7 @@ public sealed class MainPageViewModelSortTests
             scanner,
             new ThrowingFileOperationService(),
             new NullThumbnailService(),
-            new NullDialogService(),
-            new NullNavigationService(),
-            new ImmediateDispatcherService());
+            new NullDialogService());
 
         await viewModel.InitializeAsync();
         var scansAfterInitialize = scanner.ScanCount;
@@ -58,9 +56,7 @@ public sealed class MainPageViewModelSortTests
             scanner,
             new ThrowingFileOperationService(),
             new NullThumbnailService(),
-            new NullDialogService(),
-            new NullNavigationService(),
-            new ImmediateDispatcherService());
+            new NullDialogService());
 
         await viewModel.InitializeAsync();
         var scansAfterInitialize = scanner.ScanCount;
@@ -84,9 +80,7 @@ public sealed class MainPageViewModelSortTests
             new CountingFolderScanner([]),
             new ThrowingFileOperationService(),
             new NullThumbnailService(),
-            new NullDialogService(),
-            new NullNavigationService(),
-            new ImmediateDispatcherService());
+            new NullDialogService());
 
         Assert.Equal(
             ["名稱由小到大", "名稱由大到小", "修改時間最舊到最新", "修改時間最新到最舊"],
@@ -102,9 +96,7 @@ public sealed class MainPageViewModelSortTests
             new CountingFolderScanner([]),
             new ThrowingFileOperationService(),
             new NullThumbnailService(),
-            new NullDialogService(),
-            new NullNavigationService(),
-            new ImmediateDispatcherService())
+            new NullDialogService())
         {
             Sort = new SortState((SortKey)999, (SortDirection)999)
         };

@@ -24,14 +24,3 @@ public sealed record DropRenamePreviewItem(
     string TargetName,
     bool WillRename,
     string? Reason);
-
-public interface INavigationService
-{
-    void OpenImageViewer(ImageSequenceSnapshot snapshot);
-}
-
-public interface IDispatcherService
-{
-    bool HasUiThreadAccess { get; }
-    bool TryEnqueue(Action action);
-}
