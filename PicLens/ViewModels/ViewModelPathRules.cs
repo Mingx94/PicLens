@@ -16,9 +16,8 @@ internal static class ViewModelPathRules
             ? Directory.EnumerateFiles(targetDirectory).ToList()
             : new List<string>();
 
-        return (candidatePath, sourcePath) => existingPaths.Any(path =>
-            !PicLens.Core.Domain.PathRules.PathEquals(path, sourcePath)
-            && PicLens.Core.Domain.PathRules.HasSameDirectoryAndBasenameWithoutExtension(path, candidatePath));
+        return (candidatePath, sourcePath) =>
+            PicLens.Core.Domain.PathRules.TargetNameExists(existingPaths, candidatePath, sourcePath);
     }
 
     public static bool IsPathAncestorOrEqual(string ancestorPath, string childPath)

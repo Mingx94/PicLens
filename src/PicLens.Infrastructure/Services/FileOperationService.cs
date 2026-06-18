@@ -261,9 +261,7 @@ public sealed class FileOperationService : IFileOperationService
             ? Directory.EnumerateFiles(targetDirectory).ToList()
             : new List<string>();
 
-        return (candidatePath, sourcePath) => existingPaths.Any(path =>
-            !PathRules.PathEquals(path, sourcePath)
-            && PathRules.HasSameDirectoryAndBasenameWithoutExtension(path, candidatePath));
+        return (candidatePath, sourcePath) => PathRules.TargetNameExists(existingPaths, candidatePath, sourcePath);
     }
 
     private static string BasenameKey(string path)

@@ -19,4 +19,9 @@ public static class PathRules
             Path.GetFileNameWithoutExtension(left),
             Path.GetFileNameWithoutExtension(right),
             StringComparison.OrdinalIgnoreCase);
+
+    public static bool TargetNameExists(IEnumerable<string> existingPaths, string candidatePath, string sourcePath) =>
+        existingPaths.Any(path =>
+            !PathEquals(path, sourcePath)
+            && HasSameDirectoryAndBasenameWithoutExtension(path, candidatePath));
 }

@@ -79,6 +79,21 @@ public sealed class DomainParityTests
     }
 
     [Fact]
+    public void Path_rules_detect_same_basename_target_conflicts()
+    {
+        string[] existingPaths =
+        [
+            @"C:\Photos\target-01.png",
+            @"C:\Photos\source.jpg",
+            @"C:\Other\target-01.webp"
+        ];
+
+        Assert.True(PathRules.TargetNameExists(existingPaths, @"C:\Photos\target-01.jpg", @"C:\Photos\source.jpg"));
+        Assert.False(PathRules.TargetNameExists(existingPaths, @"C:\Photos\source.webp", @"C:\Photos\source.jpg"));
+        Assert.False(PathRules.TargetNameExists(existingPaths, @"C:\Photos\target-02.jpg", @"C:\Photos\source.jpg"));
+    }
+
+    [Fact]
     public void Settings_patch_merges_last_folder_sort_and_recursive_mode()
     {
         var current = AppSettings.CreateDefault();
