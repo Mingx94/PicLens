@@ -13,6 +13,8 @@
         Padding="0"
         Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
         ColumnSpacing="0"
+        IsTabStop="True"
+        KeyDown="Root_KeyDown"
         PointerReleased="Root_PointerReleased">
         <VisualStateManager.VisualStateGroups>
             <VisualStateGroup>
@@ -574,5 +576,190 @@
                 </StackPanel>
             </Grid>
         </Border>
+
+        <Grid
+            x:Name="ViewerSurface"
+            Grid.RowSpan="3"
+            Grid.ColumnSpan="2"
+            AutomationProperties.AccessibilityView="Control"
+            AutomationProperties.AutomationId="ViewerSurface"
+            AutomationProperties.Name="{x:Bind PreviewViewModel.CurrentImageName, Mode=OneWay}"
+            Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+            IsTabStop="True"
+            KeyDown="Root_KeyDown"
+            Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TitleBar
+                x:Name="ViewerTitleBar"
+                AutomationProperties.AutomationId="ViewerTitleBar"
+                Title="{x:Bind PreviewViewModel.CurrentImageName, Mode=OneWay}"
+                Subtitle="{x:Bind PreviewViewModel.PositionLabel, Mode=OneWay}">
+                <TitleBar.IconSource>
+                    <ImageIconSource ImageSource="Assets/AppIcon.ico" />
+                </TitleBar.IconSource>
+                <TitleBar.RightHeader>
+                    <CommandBar
+                        AutomationProperties.AutomationId="ViewerTitleCommandBar"
+                        Background="Transparent"
+                        DefaultLabelPosition="Collapsed"
+                        IsDynamicOverflowEnabled="True">
+                        <AppBarButton
+                            AutomationProperties.AutomationId="ViewerPreviousButton"
+                            AutomationProperties.Name="上一張圖片"
+                            ToolTipService.ToolTip="上一張圖片"
+                            Command="{x:Bind PreviewViewModel.PreviousCommand}"
+                            Label="上一張">
+                            <AppBarButton.Icon>
+                                <SymbolIcon Symbol="Back" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                        <AppBarButton
+                            AutomationProperties.AutomationId="ViewerNextButton"
+                            AutomationProperties.Name="下一張圖片"
+                            ToolTipService.ToolTip="下一張圖片"
+                            Command="{x:Bind PreviewViewModel.NextCommand}"
+                            Label="下一張">
+                            <AppBarButton.Icon>
+                                <SymbolIcon Symbol="Forward" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                        <AppBarSeparator />
+                        <AppBarButton
+                            AutomationProperties.AutomationId="ViewerZoomOutButton"
+                            AutomationProperties.Name="縮小"
+                            ToolTipService.ToolTip="縮小"
+                            Command="{x:Bind PreviewViewModel.ZoomOutCommand}"
+                            Label="縮小">
+                            <AppBarButton.Icon>
+                                <SymbolIcon Symbol="ZoomOut" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                        <AppBarButton
+                            AutomationProperties.AutomationId="ViewerResetZoomButton"
+                            AutomationProperties.Name="重設縮放"
+                            ToolTipService.ToolTip="重設縮放"
+                            Command="{x:Bind PreviewViewModel.ResetZoomCommand}"
+                            Label="重設縮放">
+                            <AppBarButton.Icon>
+                                <SymbolIcon Symbol="Refresh" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                        <AppBarButton
+                            AutomationProperties.AutomationId="ViewerZoomInButton"
+                            AutomationProperties.Name="放大"
+                            ToolTipService.ToolTip="放大"
+                            Command="{x:Bind PreviewViewModel.ZoomInCommand}"
+                            Label="放大">
+                            <AppBarButton.Icon>
+                                <SymbolIcon Symbol="ZoomIn" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                        <AppBarSeparator />
+                        <AppBarButton
+                            AutomationProperties.AutomationId="ViewerCloseButton"
+                            AutomationProperties.Name="關閉預覽"
+                            ToolTipService.ToolTip="關閉預覽"
+                            Click="CloseViewer"
+                            Label="關閉">
+                            <AppBarButton.Icon>
+                                <SymbolIcon Symbol="Cancel" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                    </CommandBar>
+                </TitleBar.RightHeader>
+            </TitleBar>
+
+            <Grid
+                x:Name="ViewerImageSurface"
+                Grid.Row="1"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                PointerCanceled="ViewerImageSurface_PointerReleased"
+                PointerMoved="ViewerImageSurface_PointerMoved"
+                PointerPressed="ViewerImageSurface_PointerPressed"
+                PointerReleased="ViewerImageSurface_PointerReleased"
+                PointerWheelChanged="ViewerImageSurface_PointerWheelChanged"
+                SizeChanged="ViewerImageSurface_SizeChanged">
+                <Image
+                    x:Name="ViewerImage"
+                    AutomationProperties.AutomationId="ViewerImage"
+                    AutomationProperties.Name="{x:Bind PreviewViewModel.CurrentImageName, Mode=OneWay}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Source="{x:Bind local:MainPage.CreateBitmapImage(PreviewViewModel.CurrentImageSourcePath), Mode=OneWay}"
+                    Stretch="Uniform"
+                    RenderTransformOrigin="0.5,0.5"
+                    Visibility="{x:Bind local:MainPage.BoolToVisibility(PreviewViewModel.IsImageVisible), Mode=OneWay}">
+                    <Image.RenderTransform>
+                        <CompositeTransform
+                            ScaleX="{x:Bind PreviewViewModel.Zoom, Mode=OneWay}"
+                            ScaleY="{x:Bind PreviewViewModel.Zoom, Mode=OneWay}"
+                            TranslateX="{x:Bind PreviewViewModel.OffsetX, Mode=OneWay}"
+                            TranslateY="{x:Bind PreviewViewModel.OffsetY, Mode=OneWay}" />
+                    </Image.RenderTransform>
+                </Image>
+
+                <Grid
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Visibility="{x:Bind local:MainPage.BoolToVisibility(PreviewViewModel.IsUnsupportedAnimatedImage), Mode=OneWay}">
+                    <Border
+                        MaxWidth="520"
+                        Padding="24"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BackgroundSizing="InnerBorderEdge"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{ThemeResource OverlayCornerRadius}">
+                        <StackPanel Spacing="12">
+                            <FontIcon
+                                HorizontalAlignment="Center"
+                                Glyph="&#xE783;" />
+                            <TextBlock
+                                Text="無法預覽動畫"
+                                TextAlignment="Center"
+                                Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <TextBlock
+                                Text="{x:Bind PreviewViewModel.UnsupportedMessage, Mode=OneWay}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                TextAlignment="Center"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+
+            <Grid
+                Grid.Row="2"
+                AutomationProperties.AccessibilityView="Control"
+                MinHeight="32"
+                Padding="16,4"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0"
+                ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock
+                    AutomationProperties.AutomationId="ViewerStatusBar"
+                    Grid.Column="0"
+                    VerticalAlignment="Center"
+                    Text="{x:Bind PreviewViewModel.CurrentImageName, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis"
+                    Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <TextBlock
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="{x:Bind PreviewViewModel.ZoomLabel, Mode=OneWay}"
+                    Style="{StaticResource CaptionTextBlockStyle}" />
+            </Grid>
+        </Grid>
     </Grid>
 </Page>

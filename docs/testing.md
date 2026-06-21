@@ -30,7 +30,7 @@ dotnet test .\tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj --n
 - Unit tests 驗證 domain、application、infrastructure 與 ViewModel 的可觀察行為。
 - ViewModel tests 可以驗證 runtime copy、狀態轉換、命令結果、ERROR LOG context 與檔案系統 side effects。
 - 不用 unit tests 讀取 `PicLens\*.xaml` 或 `PicLens\*.cs` 來 assert binding、event handler、layout spacing、control tree 或 code snippet。
-- UI runtime contract 由 FlaUI smoke tests 覆蓋，例如主要 AutomationId、flyout、selection、viewer window、settings persistence 與實際互動結果。
+- UI runtime contract 由 FlaUI smoke tests 覆蓋，例如主要 AutomationId、flyout、selection、inline viewer、settings persistence 與實際互動結果。
 - Manifest XML、暫存測試檔與 log 檔屬於資料 contract，可在 unit tests 讀取並驗證。
 
 目前 coverage 包含：
@@ -61,7 +61,7 @@ FlaUI 測試是 opt-in，不屬於 `Release.ps1` 或預設 CI 驗證。執行：
 - 驗證左鍵 image selection 不顯示底部 action bar，右鍵 image context menu 會顯示 rename/trash actions。
 - 驗證 rename dialog 可取消，且不會修改原始檔案。
 - 驗證 thumbnail size slider persistence。
-- 驗證 secondary viewer smoke：double click 開啟 viewer、previous/next、zoom controls、viewer image/status controls，以及 Escape close。
+- 驗證 inline viewer smoke：double click 在主視窗內開啟 viewer、previous/next、zoom controls、viewer image/status controls，以及 Escape close。
 
 失敗時會把 PID、data root、seeded library root、ERROR LOG、screenshot 與 UIA tree dump 寫到：
 

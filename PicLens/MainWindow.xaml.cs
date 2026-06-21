@@ -28,15 +28,8 @@ public sealed partial class MainWindow : Window
         AppWindow.SetIcon("Assets/AppIcon.ico");
         AppWindow.Title = "PicLens";
         ResizeToLogicalSize(1220, 820);
-        Closed += OnClosed;
 
         RootFrame.Navigate(typeof(MainPage));
-    }
-
-    private void OnClosed(object sender, WindowEventArgs args)
-    {
-        App.Logger.Info("Main window closed. Closing image viewer windows.");
-        App.CloseImageViewerWindows();
     }
 
     private void ResizeToLogicalSize(int width, int height)

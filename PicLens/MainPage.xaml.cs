@@ -24,15 +24,20 @@ namespace PicLens;
 public sealed partial class MainPage : Page
 {
     private const double PointerDragThreshold = 8;
+    private const double KeyboardPanStep = 48;
 
     private readonly List<LibraryTileItem> librarySelectionOrder = [];
     private LibraryTileItem? pointerDragSource;
     private LibraryTileItem? currentDropRenameTarget;
     private LibraryTileItem? contextFlyoutItem;
+    private ImageViewerWindowViewModel previewViewModel = new();
     private FoundationPoint pointerDragStartPosition;
+    private FoundationPoint viewerLastPointerPosition;
     private Pointer? pointerDragPointer;
     private UIElement? pointerDragCaptureElement;
     private bool pointerDragStarted;
+    private bool viewerIsDragging;
+    private bool isPreviewOpen;
     private IReadOnlyList<LibraryTileItem> pointerDragItems = [];
     private bool initialized;
 
@@ -60,19 +65,27 @@ public sealed partial class MainPage : Page
 
     public MainPageViewModel ViewModel { get; }
 
-    public static BitmapImage? CreateBitmapImage(string? path)
+    public ImageViewerWindowViewModel PreviewViewModel => previewViewModel;
+
+    public static BitmapImage? CreateBitmapImage(string? source)
     {
-        if (string.IsNullOrWhiteSpace(path))
+        if (string.IsNullOrWhiteSpace(source))
         {
             return null;
         }
 
         try
         {
-            return new BitmapImage(new Uri(Path.GetFullPath(path)));
+            if (Uri.TryCreate(source, UriKind.Absolute, out var absoluteUri))
+            {
+                return new BitmapImage(absoluteUri);
+            }
+
+            return new BitmapImage(new Uri(Path.GetFullPath(source)));
         }
-        catch
+        catch (Exception ex)
         {
+            App.Logger.Error(ex, $"Create bitmap image failed. Source={source}");
             return null;
         }
     }
@@ -196,6 +209,64 @@ public sealed partial class MainPage : Page
                     e.Handled = true;
                 }
 
+                break;
+        }
+    }
+
+    private void Root_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (!isPreviewOpen)
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case VirtualKey.Left:
+                if (PreviewViewModel.TryPanByKeyboard(KeyboardPanStep, 0))
+                {
+                    e.Handled = true;
+                    break;
+                }
+
+                if (PreviewViewModel.PreviousCommand.CanExecute(null))
+                {
+                    PreviewViewModel.PreviousCommand.Execute(null);
+                }
+
+                e.Handled = true;
+                break;
+            case VirtualKey.Right:
+                if (PreviewViewModel.TryPanByKeyboard(-KeyboardPanStep, 0))
+                {
+                    e.Handled = true;
+                    break;
+                }
+
+                if (PreviewViewModel.NextCommand.CanExecute(null))
+                {
+                    PreviewViewModel.NextCommand.Execute(null);
+                }
+
+                e.Handled = true;
+                break;
+            case VirtualKey.Up:
+                if (PreviewViewModel.TryPanByKeyboard(0, KeyboardPanStep))
+                {
+                    e.Handled = true;
+                }
+
+                break;
+            case VirtualKey.Down:
+                if (PreviewViewModel.TryPanByKeyboard(0, -KeyboardPanStep))
+                {
+                    e.Handled = true;
+                }
+
+                break;
+            case VirtualKey.Escape:
+                CloseInlineViewer();
+                e.Handled = true;
                 break;
         }
     }
@@ -642,11 +713,87 @@ public sealed partial class MainPage : Page
             : null;
     }
 
-    private static void OpenImageViewer(ImageSequenceSnapshot snapshot)
+    private void OpenImageViewer(ImageSequenceSnapshot snapshot)
     {
-        var window = new ImageViewerWindow(snapshot);
-        App.RegisterImageViewerWindow(window);
-        window.Activate();
+        previewViewModel = new ImageViewerWindowViewModel(snapshot);
+        isPreviewOpen = true;
+        App.Logger.Info($"Inline image viewer opened. {ViewerContext()}");
+        ViewerSurface.Visibility = Visibility.Visible;
+        Bindings.Update();
+        PreviewViewModel.UpdateViewport(ViewerImageSurface.ActualWidth, ViewerImageSurface.ActualHeight);
+        ViewerSurface.Focus(FocusState.Programmatic);
+    }
+
+    private void CloseViewer(object sender, RoutedEventArgs e) => CloseInlineViewer();
+
+    private void CloseInlineViewer()
+    {
+        if (!isPreviewOpen)
+        {
+            return;
+        }
+
+        viewerIsDragging = false;
+        isPreviewOpen = false;
+        App.Logger.Info($"Inline image viewer closed. {ViewerContext()}");
+        ViewerSurface.Visibility = Visibility.Collapsed;
+        Bindings.Update();
+        LibraryGrid.Focus(FocusState.Programmatic);
+    }
+
+    private void ViewerImageSurface_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        PreviewViewModel.UpdateViewport(e.NewSize.Width, e.NewSize.Height);
+    }
+
+    private void ViewerImageSurface_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
+    {
+        if (!PreviewViewModel.IsImageVisible)
+        {
+            return;
+        }
+
+        var pointer = e.GetCurrentPoint(ViewerImageSurface);
+        PreviewViewModel.ZoomAt(pointer.Position.X, pointer.Position.Y, pointer.Properties.MouseWheelDelta);
+        e.Handled = true;
+    }
+
+    private void ViewerImageSurface_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (!PreviewViewModel.IsImageVisible)
+        {
+            return;
+        }
+
+        viewerIsDragging = true;
+        viewerLastPointerPosition = e.GetCurrentPoint(ViewerImageSurface).Position;
+        ViewerImageSurface.CapturePointer(e.Pointer);
+        e.Handled = true;
+    }
+
+    private void ViewerImageSurface_PointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (!viewerIsDragging)
+        {
+            return;
+        }
+
+        var position = e.GetCurrentPoint(ViewerImageSurface).Position;
+        PreviewViewModel.PanBy(position.X - viewerLastPointerPosition.X, position.Y - viewerLastPointerPosition.Y);
+        viewerLastPointerPosition = position;
+        e.Handled = true;
+    }
+
+    private void ViewerImageSurface_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (!viewerIsDragging)
+        {
+            return;
+        }
+
+        viewerIsDragging = false;
+        ViewerImageSurface.ReleasePointerCapture(e.Pointer);
+        e.Handled = true;
     }
 
     private static LibraryTileItem? FindLibraryTileItem(object originalSource)
@@ -685,6 +832,9 @@ public sealed partial class MainPage : Page
 
         return ordered;
     }
+
+    private string ViewerContext() =>
+        $"CurrentIndex={PreviewViewModel.CurrentIndex}; ImageCount={PreviewViewModel.Snapshot.Images.Count}; CurrentImage={PreviewViewModel.CurrentImageName}; SourceFolderPath={PreviewViewModel.Snapshot.SourceFolderPath}; IncludeSubfolders={PreviewViewModel.Snapshot.IncludeSubfolders}; Sort={PreviewViewModel.Snapshot.Sort.Key}/{PreviewViewModel.Snapshot.Sort.Direction}";
 
     private async void FolderTree_Expanding(TreeView sender, TreeViewExpandingEventArgs args)
     {

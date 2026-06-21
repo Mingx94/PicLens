@@ -12,4 +12,4 @@ PicLens 是原生 WinUI 3 / MVVM 圖片整理與檢視 app。
 
 ## 目前狀態
 
-目前的原生 milestone 是一個整合完成的 WinUI 3 app，包含 MVVM view models、明確的資料夾選取、上一個資料夾還原、資料夾掃描、真實縮圖載入、contextual selected-image actions、次要圖片檢視視窗、繁體中文（台灣）runtime copy，以及保守的檔案操作。Core、Application、Infrastructure 與 ViewModel 行為由聚焦的 xUnit projects 覆蓋。
+目前的原生 milestone 是一個整合完成的 WinUI 3 app，包含 MVVM view models、明確的資料夾選取、上一個資料夾還原、資料夾掃描、真實縮圖載入、contextual selected-image actions、主視窗內嵌圖片預覽、繁體中文（台灣）runtime copy，以及保守的檔案操作。Core、Application、Infrastructure 與 ViewModel 行為由聚焦的 xUnit projects 覆蓋。

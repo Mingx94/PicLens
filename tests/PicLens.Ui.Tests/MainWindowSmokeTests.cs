@@ -161,33 +161,33 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
-    public void Double_clicking_image_opens_viewer_and_viewer_controls_work()
+    public void Double_clicking_image_opens_inline_viewer_and_viewer_controls_work()
     {
-        using var fixture = PicLensAppFixture.StartSeeded(nameof(Double_clicking_image_opens_viewer_and_viewer_controls_work));
+        using var fixture = PicLensAppFixture.StartSeeded(nameof(Double_clicking_image_opens_inline_viewer_and_viewer_controls_work));
 
-        fixture.WithDiagnostics(nameof(Double_clicking_image_opens_viewer_and_viewer_controls_work), () =>
+        fixture.WithDiagnostics(nameof(Double_clicking_image_opens_inline_viewer_and_viewer_controls_work), () =>
         {
             fixture.DoubleClickTile("Alpha-01.png，圖片");
-            var viewer = fixture.FindViewerWindow();
 
-            Assert.NotNull(fixture.FindByAutomationId(viewer, "ViewerTitleBar"));
-            Assert.NotNull(fixture.FindByAutomationId(viewer, "ViewerPreviousButton"));
-            Assert.NotNull(fixture.FindByAutomationId(viewer, "ViewerNextButton"));
-            Assert.NotNull(fixture.FindByAutomationId(viewer, "ViewerZoomOutButton"));
-            Assert.NotNull(fixture.FindByAutomationId(viewer, "ViewerResetZoomButton"));
-            Assert.NotNull(fixture.FindByAutomationId(viewer, "ViewerZoomInButton"));
-            Assert.NotNull(fixture.FindByAutomationId(viewer, "ViewerFullScreenButton"));
-            Assert.NotNull(fixture.FindByAutomationId(viewer, "ViewerImage"));
-            Assert.NotNull(fixture.FindByAutomationId(viewer, "ViewerStatusBar"));
+            Assert.NotNull(fixture.FindByAutomationId("ViewerSurface"));
+            Assert.NotNull(fixture.FindByAutomationId("ViewerTitleBar"));
+            Assert.NotNull(fixture.FindByAutomationId("ViewerPreviousButton"));
+            Assert.NotNull(fixture.FindByAutomationId("ViewerNextButton"));
+            Assert.NotNull(fixture.FindByAutomationId("ViewerZoomOutButton"));
+            Assert.NotNull(fixture.FindByAutomationId("ViewerResetZoomButton"));
+            Assert.NotNull(fixture.FindByAutomationId("ViewerZoomInButton"));
+            Assert.NotNull(fixture.FindByAutomationId("ViewerCloseButton"));
+            Assert.NotNull(fixture.FindByAutomationId("ViewerImage"));
+            Assert.NotNull(fixture.FindByAutomationId("ViewerStatusBar"));
 
-            fixture.ClickByAutomationId(viewer, "ViewerNextButton");
-            fixture.WaitForViewerTitle(viewer, "Bravo-02.png");
+            fixture.ClickByAutomationId("ViewerNextButton");
+            fixture.WaitForVisibleText("Bravo-02.png");
 
-            fixture.ClickByAutomationId(viewer, "ViewerZoomInButton");
-            fixture.WaitForVisibleText(viewer, "120%");
+            fixture.ClickByAutomationId("ViewerZoomInButton");
+            fixture.WaitForVisibleText("120%");
 
             Keyboard.Press(VirtualKeyShort.ESCAPE);
-            fixture.WaitForViewerClosed();
+            fixture.WaitForInlineViewerClosed();
         });
     }
 }
@@ -315,12 +315,6 @@ public sealed class PicLensAppFixture : IDisposable
             },
             $"Tile was not found: {namePrefix}");
 
-    public AutomationElement FindViewerWindow() =>
-        WaitForElement(
-            () => automation.GetDesktop().FindAllDescendants()
-                .FirstOrDefault(element => SafeName(element).EndsWith(" - PicLens", StringComparison.Ordinal)),
-            "Viewer window was not found.");
-
     public void ClickByAutomationId(string automationId) =>
         ClickByAutomationId(mainWindow, automationId);
 
@@ -388,19 +382,11 @@ public sealed class PicLensAppFixture : IDisposable
             $"Settings predicate was not satisfied. Path={SettingsPath}");
     }
 
-    public void WaitForViewerClosed()
+    public void WaitForInlineViewerClosed()
     {
         WaitForCondition(
-            () => automation.GetDesktop().FindAllChildren()
-                .All(element => !SafeName(element).EndsWith(" - PicLens", StringComparison.Ordinal)),
-            "Viewer window did not close.");
-    }
-
-    public void WaitForViewerTitle(AutomationElement viewer, string expectedTitle)
-    {
-        WaitForCondition(
-            () => (viewer.Name ?? string.Empty).Contains(expectedTitle, StringComparison.Ordinal),
-            $"Viewer title did not contain: {expectedTitle}");
+            () => mainWindow.FindFirstDescendant(condition => condition.ByAutomationId("ViewerSurface")) is null,
+            "Inline viewer did not close.");
     }
 
     public void WaitForVisibleText(params string[] fragments) =>

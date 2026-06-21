@@ -17,7 +17,6 @@ namespace PicLens;
 public partial class App : Microsoft.UI.Xaml.Application
 {
     private static bool globalExceptionHooksRegistered;
-    private static readonly HashSet<ImageViewerWindow> imageViewerWindows = [];
 
     /// <summary>
     /// The main application window. Use <c>App.Window</c> from any class that needs
@@ -43,28 +42,6 @@ public partial class App : Microsoft.UI.Xaml.Application
     /// </summary>
     public static nint WindowHandle =>
         WinRT.Interop.WindowNative.GetWindowHandle(Window);
-
-    public static void RegisterImageViewerWindow(ImageViewerWindow window)
-    {
-        imageViewerWindows.Add(window);
-        window.Closed += OnImageViewerWindowClosed;
-        Logger.Info($"Image viewer window registered. Count={imageViewerWindows.Count}");
-    }
-
-    public static void CloseImageViewerWindows()
-    {
-        foreach (var window in imageViewerWindows.ToArray())
-        {
-            try
-            {
-                window.Close();
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(ex, "Closing image viewer window from main window close failed.");
-            }
-        }
-    }
 
     /// <summary>
     /// Initializes the singleton application object.
@@ -120,13 +97,4 @@ public partial class App : Microsoft.UI.Xaml.Application
         Logger.Error(e.Exception, "Unobserved task exception.");
     }
 
-    private static void OnImageViewerWindowClosed(object sender, WindowEventArgs args)
-    {
-        if (sender is ImageViewerWindow window)
-        {
-            window.Closed -= OnImageViewerWindowClosed;
-            imageViewerWindows.Remove(window);
-            Logger.Info($"Image viewer window unregistered. Count={imageViewerWindows.Count}");
-        }
-    }
 }
