@@ -1,7 +1,6 @@
-using PicLens.Application.Services;
 using PicLens.Core.Domain;
 
-namespace PicLens.Application.Tests;
+namespace PicLens.Core.Tests;
 
 public sealed class FileRenamePlannerTests
 {

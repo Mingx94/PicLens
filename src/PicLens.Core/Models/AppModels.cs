@@ -80,9 +80,7 @@ public sealed record ImageListItem(
     long SizeBytes,
     int? Width = null,
     int? Height = null,
-    bool IsAnimated = false,
-    string? ThumbnailUrl = null,
-    string? ImageUrl = null)
+    bool IsAnimated = false)
     : ListItem(Id, Path, Name, ModifiedAtMs);
 
 public sealed record ListQuery(

@@ -1,4 +1,4 @@
-using PicLens.Application.Services;
+using PicLens.Core.Services;
 using PicLens.Infrastructure.Services;
 using System.Reflection;
 using Windows.Graphics.Imaging;

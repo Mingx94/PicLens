@@ -52,9 +52,7 @@ public partial class ImageViewerWindowViewModel : ObservableObject
                 return null;
             }
 
-            return string.IsNullOrWhiteSpace(CurrentImage.ImageUrl)
-                ? CurrentImage.Path
-                : CurrentImage.ImageUrl;
+            return CurrentImage.Path;
         }
     }
 

@@ -12,10 +12,6 @@ $testProjects = @(
         Properties = @()
     },
     @{
-        Path = Join-Path $root "tests\PicLens.Application.Tests\PicLens.Application.Tests.csproj"
-        Properties = @()
-    },
-    @{
         Path = Join-Path $root "tests\PicLens.Infrastructure.Tests\PicLens.Infrastructure.Tests.csproj"
         Properties = @()
     },

@@ -1,4 +1,4 @@
-using PicLens.Application.Services;
+using PicLens.Core.Services;
 using PicLens.Core.Domain;
 using PicLens.Core.Models;
 using PicLens.ViewModels;
@@ -71,7 +71,7 @@ public sealed class MainPageViewModelThumbnailSizeTests
             LastFolderPath = workspace.Path,
             ThumbnailSize = 350
         });
-        var thumbnailService = new RecordingThumbnailService(cachedThumbnailPath);
+        var thumbnailService = new TestThumbnailService((_, _, _) => Task.FromResult<string?>(cachedThumbnailPath));
         var viewModel = CreateViewModel(settingsStore, scanner, thumbnailService);
 
         await viewModel.InitializeAsync();
@@ -101,7 +101,7 @@ public sealed class MainPageViewModelThumbnailSizeTests
         {
             LastFolderPath = workspace.Path
         });
-        var thumbnailService = new RecordingThumbnailService(cachedThumbnailPath);
+        var thumbnailService = new TestThumbnailService((_, _, _) => Task.FromResult<string?>(cachedThumbnailPath));
         var enqueuedActions = new Queue<Action>();
         var viewModel = CreateViewModel(
             settingsStore,
@@ -269,26 +269,11 @@ public sealed class MainPageViewModelThumbnailSizeTests
             settingsStore,
             scanner,
             new ThrowingFileOperationService(),
-            thumbnailService ?? new RecordingThumbnailService(null),
+            thumbnailService ?? new TestThumbnailService(),
             new NullDialogService(),
             hasUiThreadAccess: hasUiThreadAccess,
             tryEnqueueOnUiThread: tryEnqueueOnUiThread,
             thumbnailLoadTimeout: thumbnailLoadTimeout);
-
-
-    private sealed class RecordingThumbnailService(string? thumbnailPath) : IThumbnailService
-    {
-        public List<(string SourcePath, int RequestedSize)> Requests { get; } = [];
-
-        public Task<string?> GetOrCreateThumbnailAsync(
-            string sourcePath,
-            int requestedSize,
-            CancellationToken cancellationToken = default)
-        {
-            Requests.Add((sourcePath, requestedSize));
-            return Task.FromResult(thumbnailPath);
-        }
-    }
 
     private sealed class BlockingThumbnailService(string thumbnailPath) : IThumbnailService
     {

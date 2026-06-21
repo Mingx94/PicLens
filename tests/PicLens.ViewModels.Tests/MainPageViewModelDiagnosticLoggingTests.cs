@@ -1,4 +1,4 @@
-using PicLens.Application.Services;
+using PicLens.Core.Services;
 using PicLens.Core.Domain;
 using PicLens.Core.Models;
 using PicLens.Diagnostics;
@@ -181,7 +181,7 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
         var viewModel = CreateViewModel(
             AppSettings.CreateDefault() with { LastFolderPath = workspace.Path },
             [image],
-            thumbnailService: new ThrowingThumbnailService(expected),
+            thumbnailService: new TestThumbnailService((_, _, _) => throw expected),
             logger: logger);
 
         await viewModel.InitializeAsync();
@@ -294,15 +294,6 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
             string newFileName,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
-    }
-
-    private sealed class ThrowingThumbnailService(Exception exception) : IThumbnailService
-    {
-        public Task<string?> GetOrCreateThumbnailAsync(
-            string imagePath,
-            int requestedSize,
-            CancellationToken cancellationToken = default) =>
-            throw exception;
     }
 
 }

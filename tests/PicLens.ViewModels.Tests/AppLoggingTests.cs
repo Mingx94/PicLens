@@ -1,7 +1,7 @@
 using PicLens.Core.Models;
 using PicLens.Core.Domain;
 using PicLens.Diagnostics;
-using PicLens.Application.Services;
+using PicLens.Core.Services;
 
 namespace PicLens.ViewModels.Tests;
 

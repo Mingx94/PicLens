@@ -1,6 +1,6 @@
 using PicLens.Core.Models;
 
-namespace PicLens.Application.Services;
+namespace PicLens.Core.Services;
 
 public interface ISettingsStore
 {

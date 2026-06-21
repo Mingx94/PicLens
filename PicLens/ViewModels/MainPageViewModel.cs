@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using PicLens.Application.Services;
+using PicLens.Core.Services;
 using PicLens.Core.Domain;
 using PicLens.Core.Models;
 using PicLens.Diagnostics;
@@ -266,7 +266,7 @@ public sealed partial class MainPageViewModel : ObservableObject
                 FileRenamePlanner.PlanDropTargetBatchRename(
                     dragSources.Select(image => image.Path),
                     targetImage.Path,
-                    CreateTargetNameExists(targetImage.Path)));
+                    ExistingTargetDirectoryFiles(targetImage.Path)));
             if (preview.Total == 0)
             {
                 SetStatus("沒有可拖放重新命名的圖片。", MainPageStatusSeverity.Warning);

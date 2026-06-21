@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\PicLens.Application\PicLens.Application.csproj" />
     <ProjectReference Include="..\PicLens.Core\PicLens.Core.csproj" />
   </ItemGroup>
 

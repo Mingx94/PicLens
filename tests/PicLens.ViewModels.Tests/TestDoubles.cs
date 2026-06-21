@@ -1,4 +1,4 @@
-using PicLens.Application.Services;
+using PicLens.Core.Services;
 using PicLens.Core.Domain;
 using PicLens.Core.Models;
 using PicLens.Diagnostics;
@@ -41,6 +41,22 @@ internal sealed class NullThumbnailService : IThumbnailService
         int requestedSize,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<string?>(null);
+}
+
+internal sealed class TestThumbnailService(
+    Func<string, int, CancellationToken, Task<string?>>? getOrCreateThumbnailAsync = null) : IThumbnailService
+{
+    public List<(string SourcePath, int RequestedSize)> Requests { get; } = [];
+
+    public Task<string?> GetOrCreateThumbnailAsync(
+        string imagePath,
+        int requestedSize,
+        CancellationToken cancellationToken = default)
+    {
+        Requests.Add((imagePath, requestedSize));
+        return getOrCreateThumbnailAsync?.Invoke(imagePath, requestedSize, cancellationToken)
+            ?? Task.FromResult<string?>(null);
+    }
 }
 
 internal sealed class CountingFolderScanner(IReadOnlyList<ListItem> items) : IFolderScanner

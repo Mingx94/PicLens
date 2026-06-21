@@ -1,4 +1,4 @@
-using PicLens.Application.Services;
+using PicLens.Core.Services;
 using PicLens.Core.Domain;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;

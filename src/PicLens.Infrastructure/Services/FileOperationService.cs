@@ -1,4 +1,4 @@
-using PicLens.Application.Services;
+using PicLens.Core.Services;
 using PicLens.Core.Domain;
 using PicLens.Core.Models;
 using Microsoft.VisualBasic.FileIO;
@@ -162,7 +162,7 @@ public sealed class FileOperationService : IFileOperationService
         var plan = FileRenamePlanner.PlanDropTargetBatchRename(
             sourcePaths,
             targetPath,
-            CreateTargetNameExists(targetPath));
+            ExistingTargetDirectoryFiles(targetPath));
         var results = new List<FileOperationResult>();
 
         foreach (var item in plan.Items)
@@ -253,15 +253,13 @@ public sealed class FileOperationService : IFileOperationService
                 ? "檔名必須使用支援的圖片副檔名。"
                 : "檔名必須是不含路徑分隔符號的單一檔名。");
 
-    private static Func<string, string, bool> CreateTargetNameExists(string targetPath)
+    private static IReadOnlyList<string> ExistingTargetDirectoryFiles(string targetPath)
     {
         var targetDirectory = Path.GetDirectoryName(targetPath)
             ?? throw new IOException("目標路徑必須包含資料夾。");
-        var existingPaths = Directory.Exists(targetDirectory)
+        return Directory.Exists(targetDirectory)
             ? Directory.EnumerateFiles(targetDirectory).ToList()
-            : new List<string>();
-
-        return (candidatePath, sourcePath) => PathRules.TargetNameExists(existingPaths, candidatePath, sourcePath);
+            : [];
     }
 
     private static string BasenameKey(string path)

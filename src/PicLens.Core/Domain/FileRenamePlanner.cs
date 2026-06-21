@@ -1,6 +1,4 @@
-using PicLens.Core.Domain;
-
-namespace PicLens.Application.Services;
+namespace PicLens.Core.Domain;
 
 public static class FileRenamePlanner
 {
@@ -21,6 +19,18 @@ public static class FileRenamePlanner
         return ImageFormatRules.GetSupportedImageExtension(fileName) is null
             ? new FileNameValidationResult(false, "unsupported_extension")
             : new FileNameValidationResult(true, null);
+    }
+
+    public static DropTargetBatchRenamePlan PlanDropTargetBatchRename(
+        IEnumerable<string> sourcePaths,
+        string targetPath,
+        IEnumerable<string> existingPaths)
+    {
+        var paths = existingPaths.ToList();
+        return PlanDropTargetBatchRename(
+            sourcePaths,
+            targetPath,
+            (candidatePath, sourcePath) => PathRules.TargetNameExists(paths, candidatePath, sourcePath));
     }
 
     public static DropTargetBatchRenamePlan PlanDropTargetBatchRename(

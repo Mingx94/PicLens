@@ -8,7 +8,7 @@
 .\Test.ps1
 ```
 
-這會依序 restore/test Core、Application、Infrastructure 與 ViewModels test projects。`PicLens.ViewModels.Tests` 會用 `Platform=x64` 跑，因為它參考 WinUI app project。
+這會依序 restore/test Core、Infrastructure 與 ViewModels test projects。`PicLens.ViewModels.Tests` 會用 `Platform=x64` 跑，因為它參考 WinUI app project。
 
 `dotnet test .\PicLens.slnx` 不是完整 unit 驗證；solution 刻意不預設 build `PicLens.ViewModels.Tests` 與 `PicLens.Ui.Tests`，避免 WinUI app 同時被 solution 與 test project 觸發建置造成 XAML compiler output 衝突。UI smoke tests 仍是 opt-in，請用 `.\tools\RunUiTests.ps1`。
 
@@ -16,18 +16,16 @@
 
 ```powershell
 dotnet restore .\tests\PicLens.Core.Tests\PicLens.Core.Tests.csproj --configfile .\NuGet.Config
-dotnet restore .\tests\PicLens.Application.Tests\PicLens.Application.Tests.csproj --configfile .\NuGet.Config
 dotnet restore .\tests\PicLens.Infrastructure.Tests\PicLens.Infrastructure.Tests.csproj --configfile .\NuGet.Config
 dotnet restore .\tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj --configfile .\NuGet.Config /p:Platform=x64
 dotnet test .\tests\PicLens.Core.Tests\PicLens.Core.Tests.csproj --no-restore
-dotnet test .\tests\PicLens.Application.Tests\PicLens.Application.Tests.csproj --no-restore
 dotnet test .\tests\PicLens.Infrastructure.Tests\PicLens.Infrastructure.Tests.csproj --no-restore
 dotnet test .\tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj --no-restore -p:Platform=x64
 ```
 
 測試分層原則：
 
-- Unit tests 驗證 domain、application、infrastructure 與 ViewModel 的可觀察行為。
+- Unit tests 驗證 domain、infrastructure 與 ViewModel 的可觀察行為。
 - ViewModel tests 可以驗證 runtime copy、狀態轉換、命令結果、ERROR LOG context 與檔案系統 side effects。
 - 不用 unit tests 讀取 `PicLens\*.xaml` 或 `PicLens\*.cs` 來 assert binding、event handler、layout spacing、control tree 或 code snippet。
 - UI runtime contract 由 FlaUI smoke tests 覆蓋，例如主要 AutomationId、flyout、selection、inline viewer、settings persistence 與實際互動結果。
@@ -36,7 +34,7 @@ dotnet test .\tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj --n
 目前 coverage 包含：
 
 - `PicLens.Core`：pure product rules。
-- `PicLens.Application`：deterministic rename planning，包含 drop-target sequence basename occupancy 與缺號補齊。
+- `PicLens.Core`：deterministic rename planning，包含 drop-target sequence basename occupancy 與缺號補齊。
 - `PicLens.Infrastructure`：JSON settings、direct 與 recursive scanning、canonical directory de-duplication、image data helpers、disk thumbnail cache generation and pruning、conversion、trash 與 rename operations。
 - `PicLens.ViewModels`：startup folder selection flow、sort-without-rescan behavior、contextual selection state、library reload 時的 stale-selection clearing、drop-target rename preview confirmation、drag pointer cleanup wiring、drag preview overlay wiring、drop target highlight binding、per-item batch failure diagnostic logging、async thumbnail path updates、thumbnail cancellation、stalled-thumbnail timeout recovery、thumbnail-size persistence、GridView thumbnail event wiring、failure paths 的 diagnostic error logging，以及繁體中文 runtime copy。
 

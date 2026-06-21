@@ -47,16 +47,13 @@ internal static class ViewModelPathRules
         }
     }
 
-    public static Func<string, string, bool> CreateTargetNameExists(string targetPath)
+    public static IReadOnlyList<string> ExistingTargetDirectoryFiles(string targetPath)
     {
         var targetDirectory = Path.GetDirectoryName(targetPath)
             ?? throw new IOException("目標路徑必須包含資料夾。");
-        var existingPaths = Directory.Exists(targetDirectory)
+        return Directory.Exists(targetDirectory)
             ? Directory.EnumerateFiles(targetDirectory).ToList()
-            : new List<string>();
-
-        return (candidatePath, sourcePath) =>
-            PicLens.Core.Domain.PathRules.TargetNameExists(existingPaths, candidatePath, sourcePath);
+            : [];
     }
 
     public static bool IsPathAncestorOrEqual(string ancestorPath, string childPath)
