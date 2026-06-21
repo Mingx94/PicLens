@@ -1,5 +1,6 @@
 using PicLens.Core.Models;
 using PicLens.ViewModels;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
@@ -34,6 +35,7 @@ public sealed partial class ImageViewerWindow : Window
     public ImageViewerWindow(ImageViewerWindowViewModel viewModel)
     {
         ViewModel = viewModel;
+        ToggleFullScreenCommand = new RelayCommand(() => SetFullScreen(!ViewModel.IsFullScreen));
         App.Logger.Info($"ImageViewerWindow constructing. {ViewerContext()}");
         InitializeComponent();
         App.Logger.Info($"ImageViewerWindow InitializeComponent completed. {ViewerContext()}");
@@ -55,6 +57,8 @@ public sealed partial class ImageViewerWindow : Window
     }
 
     public ImageViewerWindowViewModel ViewModel { get; }
+
+    public RelayCommand ToggleFullScreenCommand { get; }
 
     public static Visibility BoolToVisibility(bool value) =>
         value ? Visibility.Visible : Visibility.Collapsed;
@@ -156,11 +160,6 @@ public sealed partial class ImageViewerWindow : Window
                 e.Handled = true;
                 break;
         }
-    }
-
-    private void OnToggleFullScreenClicked(object sender, RoutedEventArgs e)
-    {
-        SetFullScreen(!ViewModel.IsFullScreen);
     }
 
     private void OnImageSurfacePointerWheelChanged(object sender, PointerRoutedEventArgs e)

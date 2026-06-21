@@ -72,6 +72,98 @@ public sealed class MainPageViewModelSortTests
         Assert.Equal(new SortState(SortKey.ModifiedAt, SortDirection.Desc), settingsStore.Current.Sort);
     }
 
+    [Theory]
+    [InlineData("name-asc", SortKey.Name, SortDirection.Asc, "alpha.jpg", "zulu.jpg")]
+    [InlineData("name-desc", SortKey.Name, SortDirection.Desc, "zulu.jpg", "alpha.jpg")]
+    [InlineData("modified-asc", SortKey.ModifiedAt, SortDirection.Asc, "zulu.jpg", "alpha.jpg")]
+    [InlineData("modified-desc", SortKey.ModifiedAt, SortDirection.Desc, "alpha.jpg", "zulu.jpg")]
+    public async Task ChangeSortOptionCommand_applies_sort_token_without_rescanning(
+        string token,
+        SortKey expectedKey,
+        SortDirection expectedDirection,
+        string firstName,
+        string secondName)
+    {
+        using var workspace = new TempDirectory();
+        var scanner = new CountingFolderScanner(
+        [
+            new ImageListItem("image:zulu", System.IO.Path.Combine(workspace.Path, "zulu.jpg"), "zulu.jpg", ".jpg", 100, 1024),
+            new ImageListItem("image:alpha", System.IO.Path.Combine(workspace.Path, "alpha.jpg"), "alpha.jpg", ".jpg", 200, 1024)
+        ]);
+        var viewModel = new MainPageViewModel(
+            new FakeSettingsStore(AppSettings.CreateDefault() with
+            {
+                LastFolderPath = workspace.Path
+            }),
+            scanner,
+            new ThrowingFileOperationService(),
+            new NullThumbnailService(),
+            new NullDialogService());
+
+        await viewModel.InitializeAsync();
+        var scansAfterInitialize = scanner.ScanCount;
+
+        await viewModel.ChangeSortOptionCommand.ExecuteAsync(token);
+
+        Assert.Equal(scansAfterInitialize, scanner.ScanCount);
+        Assert.Equal(new SortState(expectedKey, expectedDirection), viewModel.Sort);
+        Assert.Equal([firstName, secondName], viewModel.LibraryItems.Select(item => item.Name));
+    }
+
+    [Fact]
+    public async Task ChangeSortOptionCommand_logs_invalid_tokens_without_changing_sort()
+    {
+        using var workspace = new TempDirectory();
+        var logger = new RecordingAppLogger();
+        var viewModel = new MainPageViewModel(
+            new FakeSettingsStore(AppSettings.CreateDefault() with
+            {
+                LastFolderPath = workspace.Path
+            }),
+            new CountingFolderScanner([]),
+            new ThrowingFileOperationService(),
+            new NullThumbnailService(),
+            new NullDialogService(),
+            appLogger: logger);
+
+        await viewModel.InitializeAsync();
+        var originalSort = viewModel.Sort;
+
+        await viewModel.ChangeSortOptionCommand.ExecuteAsync("bad-token");
+
+        Assert.Equal(originalSort, viewModel.Sort);
+        Assert.Contains("排序時發生錯誤", viewModel.StatusMessage);
+        var entry = Assert.Single(logger.ErrorMessages);
+        Assert.Contains("Change sort option failed.", entry.Message);
+        Assert.Contains("bad-token", entry.Message);
+    }
+
+    [Fact]
+    public async Task ToggleIncludeSubfoldersCommand_persists_and_reloads()
+    {
+        using var workspace = new TempDirectory();
+        var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
+        {
+            LastFolderPath = workspace.Path
+        });
+        var scanner = new CountingFolderScanner([]);
+        var viewModel = new MainPageViewModel(
+            settingsStore,
+            scanner,
+            new ThrowingFileOperationService(),
+            new NullThumbnailService(),
+            new NullDialogService());
+
+        await viewModel.InitializeAsync();
+        var scansAfterInitialize = scanner.ScanCount;
+
+        viewModel.ToggleIncludeSubfoldersCommand.Execute(null);
+        await WaitUntilAsync(() => scanner.ScanCount > scansAfterInitialize);
+
+        Assert.True(viewModel.IncludeSubfolders);
+        Assert.True(settingsStore.Current.IncludeSubfolders);
+    }
+
     [Fact]
     public void SortOptionsExposeKeyDirectionLabels()
     {
@@ -122,6 +214,15 @@ public sealed class MainPageViewModelSortTests
         {
             settings = SettingsRules.MergeSettingsPatch(settings, patch);
             return Task.FromResult(settings);
+        }
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (!condition())
+        {
+            await Task.Delay(10, cts.Token);
         }
     }
 

@@ -108,10 +108,10 @@ public sealed class FileAppLogger : IAppLogger, IDisposable
         logChannel.Writer.Complete();
         try
         {
-            if (!writeTask.Wait(DisposeFlushTimeout))
+            if (!SpinWait.SpinUntil(() => writeTask.IsCompleted, DisposeFlushTimeout))
             {
                 cts.Cancel();
-                writeTask.Wait(DisposeFlushTimeout);
+                SpinWait.SpinUntil(() => writeTask.IsCompleted, DisposeFlushTimeout);
             }
         }
         catch

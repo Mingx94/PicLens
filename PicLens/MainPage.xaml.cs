@@ -4,6 +4,7 @@ using PicLens.Diagnostics;
 using PicLens.Infrastructure.Services;
 using PicLens.ViewModels;
 using PicLens.Services;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -51,11 +52,21 @@ public sealed partial class MainPage : Page
             tryEnqueueOnUiThread: action => DispatcherQueue.TryEnqueue(() => action()),
             appLogger: App.Logger);
 
+        RevealInFileExplorerCommand = new RelayCommand(RevealInFileExplorer);
+        ShowSortMenuCommand = new RelayCommand(ShowSortMenu);
         InitializeComponent();
+        BindSortMenuItem(SortByNameAscendingMenuItem, "name-asc");
+        BindSortMenuItem(SortByNameDescendingMenuItem, "name-desc");
+        BindSortMenuItem(SortByModifiedAtAscendingMenuItem, "modified-asc");
+        BindSortMenuItem(SortByModifiedAtDescendingMenuItem, "modified-desc");
         Loaded += OnLoaded;
     }
 
     public MainPageViewModel ViewModel { get; }
+
+    public RelayCommand RevealInFileExplorerCommand { get; }
+
+    public RelayCommand ShowSortMenuCommand { get; }
 
     public static BitmapImage? CreateBitmapImage(string? path)
     {
@@ -204,38 +215,13 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private void RecursiveModeToggle_Changed(object sender, RoutedEventArgs e)
+    private void BindSortMenuItem(MenuFlyoutItem item, string token)
     {
-        var includeSubfolders = TitleBarRecursiveModeToggle.IsChecked == true;
-        if (ViewModel.IncludeSubfolders != includeSubfolders)
-        {
-            ViewModel.IncludeSubfolders = includeSubfolders;
-        }
+        item.Command = ViewModel.ChangeSortOptionCommand;
+        item.CommandParameter = token;
     }
 
-    private async void SortByNameAscending_Click(object sender, RoutedEventArgs e) =>
-        await ChangeSortFromMenuAsync(new SortState(SortKey.Name, SortDirection.Asc));
-
-    private async void SortByNameDescending_Click(object sender, RoutedEventArgs e) =>
-        await ChangeSortFromMenuAsync(new SortState(SortKey.Name, SortDirection.Desc));
-
-    private async void SortByModifiedAtAscending_Click(object sender, RoutedEventArgs e) =>
-        await ChangeSortFromMenuAsync(new SortState(SortKey.ModifiedAt, SortDirection.Asc));
-
-    private async void SortByModifiedAtDescending_Click(object sender, RoutedEventArgs e) =>
-        await ChangeSortFromMenuAsync(new SortState(SortKey.ModifiedAt, SortDirection.Desc));
-
-    private async Task ChangeSortFromMenuAsync(SortState sort)
-    {
-        try
-        {
-            await ViewModel.ChangeSortAsync(sort);
-        }
-        catch (Exception ex)
-        {
-            App.Logger.Error(ex, $"Change sort from menu failed. Sort={sort.Key}/{sort.Direction}");
-        }
-    }
+    private void ShowSortMenu() => SortMenuFlyout.ShowAt(TitleBarSortMenuButton);
 
     private void LibraryTile_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
@@ -274,7 +260,7 @@ public sealed partial class MainPage : Page
         e.Handled = true;
     }
 
-    private void RevealInFileExplorer_Click(object sender, RoutedEventArgs e)
+    private void RevealInFileExplorer()
     {
         var item = contextFlyoutItem
             ?? LibraryGrid.SelectedItems.OfType<LibraryTileItem>().FirstOrDefault();

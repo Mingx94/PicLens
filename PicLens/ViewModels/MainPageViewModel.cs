@@ -445,6 +445,32 @@ public sealed partial class MainPageViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task ChangeSortOption(string? token)
+    {
+        try
+        {
+            var sort = token switch
+            {
+                "name-asc" => new SortState(SortKey.Name, SortDirection.Asc),
+                "name-desc" => new SortState(SortKey.Name, SortDirection.Desc),
+                "modified-asc" => new SortState(SortKey.ModifiedAt, SortDirection.Asc),
+                "modified-desc" => new SortState(SortKey.ModifiedAt, SortDirection.Desc),
+                _ => throw new ArgumentOutOfRangeException(nameof(token), token, "Unsupported sort option.")
+            };
+
+            await ChangeSortAsync(sort);
+        }
+        catch (Exception ex)
+        {
+            appLogger.Error(ex, $"Change sort option failed. Token={token ?? "<null>"}");
+            SetStatus("排序時發生錯誤，已寫入診斷記錄。", MainPageStatusSeverity.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleIncludeSubfolders() => IncludeSubfolders = !IncludeSubfolders;
+
+    [RelayCommand]
     private async Task ConvertVisible()
     {
         var result = await fileOperationService.ConvertVisibleToJpgAsync(VisibleImages());

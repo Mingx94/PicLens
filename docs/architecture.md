@@ -38,7 +38,7 @@ WinUI app 使用搭配 CommunityToolkit.Mvvm 的官方 MVVM template。Root wind
 - Browser-style mouse side-button folder history navigation
 - File-operation status bar
 
-`MainPageViewModel` 協調 service-backed browsing、settings persistence、selection-derived state、保守的 file operations、drop-target rename preview planning、visible-tile thumbnail requests，以及開啟次要 viewer window。XAML code-behind 限定處理 WinUI-only work，例如 pickers、dialogs、drag/drop pointer capture/cancel cleanup、drag preview overlay positioning、drop target highlighting、GridView selection synchronization、GridView container preparation/recycling notifications、tile loaded/unloaded notifications，以及 launching windows。
+`MainPageViewModel` 協調 service-backed browsing、settings persistence、selection-derived state、保守的 file operations、drop-target rename preview planning、visible-tile thumbnail requests、toolbar command state，以及開啟次要 viewer window。XAML code-behind 限定處理 WinUI-only work，例如 pickers、dialogs、drag/drop pointer capture/cancel cleanup、drag preview overlay positioning、drop target highlighting、GridView selection synchronization、GridView container preparation/recycling notifications、tile loaded/unloaded notifications、reveal-in-Explorer interop，以及 launching windows。
 
 Selection ownership 沿著 WinUI 邊界切分：`GridView.SelectedItems` 仍是 visual selection 的來源，`MainPageViewModel` 則負責 selected image paths、command availability，以及顯示在 contextual action bar 的繁體中文 selection summary。Clearing selection 必須先清除 visual `GridView` selection，再重設 view-model selection state，避免 reload 或 folder load 失敗後留下 stale selected paths。
 

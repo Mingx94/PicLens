@@ -65,7 +65,7 @@
                 <MenuFlyoutItem
                     AutomationProperties.AutomationId="ImageContextRevealInFileExplorerButton"
                     AutomationProperties.Name="在檔案總管中顯示"
-                    Click="RevealInFileExplorer_Click"
+                    Command="{x:Bind RevealInFileExplorerCommand}"
                     Text="在檔案總管中顯示">
                     <MenuFlyoutItem.Icon>
                         <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE8E5;" />
@@ -89,6 +89,24 @@
                         <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE74D;" />
                     </MenuFlyoutItem.Icon>
                 </MenuFlyoutItem>
+            </MenuFlyout>
+            <MenuFlyout x:Name="SortMenuFlyout">
+                <MenuFlyoutItem
+                    x:Name="SortByNameAscendingMenuItem"
+                    AutomationProperties.AutomationId="SortByNameAscendingMenuItem"
+                    Text="名稱由小到大" />
+                <MenuFlyoutItem
+                    x:Name="SortByNameDescendingMenuItem"
+                    AutomationProperties.AutomationId="SortByNameDescendingMenuItem"
+                    Text="名稱由大到小" />
+                <MenuFlyoutItem
+                    x:Name="SortByModifiedAtAscendingMenuItem"
+                    AutomationProperties.AutomationId="SortByModifiedAtAscendingMenuItem"
+                    Text="修改時間最舊到最新" />
+                <MenuFlyoutItem
+                    x:Name="SortByModifiedAtDescendingMenuItem"
+                    AutomationProperties.AutomationId="SortByModifiedAtDescendingMenuItem"
+                    Text="修改時間最新到最舊" />
             </MenuFlyout>
         </Grid.Resources>
         <Grid.ColumnDefinitions>
@@ -177,31 +195,21 @@
                         AutomationProperties.Name="排序"
                         VerticalAlignment="Center"
                         ToolTipService.ToolTip="排序"
+                        Command="{x:Bind ShowSortMenuCommand}"
                         Icon="Sort"
-                        Label="{x:Bind ViewModel.SelectedSortOption.Label, Mode=OneWay}">
-                        <AppBarButton.Flyout>
-                            <MenuFlyout>
-                                <MenuFlyoutItem Text="名稱由小到大" Click="SortByNameAscending_Click" />
-                                <MenuFlyoutItem Text="名稱由大到小" Click="SortByNameDescending_Click" />
-                                <MenuFlyoutItem Text="修改時間最舊到最新" Click="SortByModifiedAtAscending_Click" />
-                                <MenuFlyoutItem Text="修改時間最新到最舊" Click="SortByModifiedAtDescending_Click" />
-                            </MenuFlyout>
-                        </AppBarButton.Flyout>
-                    </AppBarButton>
-                    <AppBarToggleButton
+                        Label="{x:Bind ViewModel.SelectedSortOption.Label, Mode=OneWay}" />
+                    <AppBarButton
                         x:Name="TitleBarRecursiveModeToggle"
                         AutomationProperties.AutomationId="TitleBarRecursiveModeToggle"
                         AutomationProperties.Name="包含子資料夾"
                         VerticalAlignment="Center"
                         ToolTipService.ToolTip="包含或排除子資料夾"
-                        Checked="RecursiveModeToggle_Changed"
-                        IsChecked="{x:Bind ViewModel.IncludeSubfolders, Mode=OneWay}"
-                        Label="{x:Bind ViewModel.RecursiveModeLabel, Mode=OneWay}"
-                        Unchecked="RecursiveModeToggle_Changed">
-                        <AppBarToggleButton.Icon>
+                        Command="{x:Bind ViewModel.ToggleIncludeSubfoldersCommand}"
+                        Label="{x:Bind ViewModel.RecursiveModeLabel, Mode=OneWay}">
+                        <AppBarButton.Icon>
                             <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xF89A;" />
-                        </AppBarToggleButton.Icon>
-                    </AppBarToggleButton>
+                        </AppBarButton.Icon>
+                    </AppBarButton>
                     <AppBarSeparator />
                     <AppBarButton
                         x:Name="TitleBarMoreActionsButton"
@@ -279,10 +287,10 @@
                         <TreeViewItem
                             IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
                             IsSelected="{x:Bind IsSelected, Mode=TwoWay}"
-                            ItemsSource="{x:Bind Children}">
+                            ItemsSource="{x:Bind Children, Mode=OneWay}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon Glyph="&#xE8B7;" FontSize="14" />
-                                <TextBlock Text="{x:Bind Name}" />
+                                <FontIcon Glyph="&#xE8B7;" />
+                                <TextBlock Text="{x:Bind Name, Mode=OneWay}" />
                             </StackPanel>
                         </TreeViewItem>
                     </DataTemplate>
@@ -386,7 +394,7 @@
                         <DataTemplate x:DataType="vm:LibraryTileItem">
                             <Grid
                                 AutomationProperties.AutomationId="{x:Bind AutomationId, Mode=OneWay}"
-                                AutomationProperties.Name="{x:Bind AutomationName}"
+                                AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}"
                                 Width="{x:Bind TileWidth, Mode=OneWay}"
                                 Height="{x:Bind TileHeight, Mode=OneWay}"
                                 Loaded="LibraryTile_Loaded"
@@ -421,7 +429,7 @@
                                     Grid.Row="1"
                                     HorizontalAlignment="Center"
                                     TextAlignment="Center"
-                                    Text="{x:Bind Name}"
+                                    Text="{x:Bind Name, Mode=OneWay}"
                                     TextWrapping="Wrap"
                                     MaxLines="2"
                                     TextTrimming="CharacterEllipsis"
@@ -452,8 +460,7 @@
                     </Grid.RowDefinitions>
                     <FontIcon
                         HorizontalAlignment="Center"
-                        Glyph="&#xE8B7;"
-                        FontSize="36" />
+                        Glyph="&#xE8B7;" />
                     <TextBlock
                         Grid.Row="1"
                         Text="請先選擇資料夾"
