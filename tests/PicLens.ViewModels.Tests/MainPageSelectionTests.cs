@@ -123,9 +123,7 @@ public sealed class MainPageSelectionTests
             Name: name,
             Path: path,
             Detail: "JPG - 1 KB",
-            IsFolder: false,
             IsSelected: false,
-            IsAnimated: false,
             IconGlyph: "\uEB9F",
             SourceItem: new ImageListItem($"image:{name}", path, name, Path.GetExtension(name), 1, 1024));
 
@@ -134,9 +132,7 @@ public sealed class MainPageSelectionTests
             Name: name,
             Path: path,
             Detail: "開啟資料夾",
-            IsFolder: true,
             IsSelected: false,
-            IsAnimated: false,
             IconGlyph: "\uE8B7",
             SourceItem: new FolderListItem($"folder:{name}", path, name, 1));
 

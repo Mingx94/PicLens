@@ -95,7 +95,7 @@
                         AutomationProperties.AutomationId="ViewerFullScreenButton"
                         AutomationProperties.Name="{x:Bind ViewModel.FullScreenLabel, Mode=OneWay}"
                         ToolTipService.ToolTip="切換全螢幕"
-                        Command="{x:Bind ToggleFullScreenCommand}"
+                        Click="ToggleFullScreen"
                         Label="{x:Bind ViewModel.FullScreenLabel, Mode=OneWay}">
                         <AppBarButton.Icon>
                             <SymbolIcon Symbol="FullScreen" />

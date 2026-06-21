@@ -160,14 +160,16 @@ public sealed class FileOperationServiceTests
     }
 
     [Fact]
-    public async Task WinRTJpegEncoder_outputs_jpeg_bytes()
+    public async Task ConvertVisibleToJpgAsync_default_encoder_outputs_jpeg_bytes()
     {
         using var temp = TempWorkspace.Create();
         var source = await temp.WriteFileAsync("source.bmp", OnePixelBmp());
         var target = Path.Combine(temp.Root, "source.jpg");
+        var service = new FileOperationService();
 
-        await new WinRTJpegEncoder().EncodeAsJpegAsync(source, target);
+        var result = await service.ConvertVisibleToJpgAsync([Image(source)]);
 
+        Assert.Equal(FileOperationStatus.Converted, Assert.Single(result.Items).Status);
         var bytes = await File.ReadAllBytesAsync(target);
         Assert.True(bytes.Length > 2);
         Assert.Equal(0xFF, bytes[0]);

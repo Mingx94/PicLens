@@ -65,7 +65,7 @@
                 <MenuFlyoutItem
                     AutomationProperties.AutomationId="ImageContextRevealInFileExplorerButton"
                     AutomationProperties.Name="在檔案總管中顯示"
-                    Command="{x:Bind RevealInFileExplorerCommand}"
+                    Click="RevealInFileExplorer"
                     Text="在檔案總管中顯示">
                     <MenuFlyoutItem.Icon>
                         <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE8E5;" />
@@ -195,7 +195,7 @@
                         AutomationProperties.Name="排序"
                         VerticalAlignment="Center"
                         ToolTipService.ToolTip="排序"
-                        Command="{x:Bind ShowSortMenuCommand}"
+                        Click="ShowSortMenu"
                         Icon="Sort"
                         Label="{x:Bind ViewModel.SelectedSortOption.Label, Mode=OneWay}" />
                     <AppBarButton
@@ -330,7 +330,7 @@
                         x:Name="LibraryHeaderParentText"
                         VerticalAlignment="Center"
                         MaxWidth="220"
-                        Text="{x:Bind local:MainPage.ParentFolderNameFromPath(ViewModel.CurrentFolderPath), Mode=OneWay}"
+                        Text="{x:Bind ViewModel.CurrentParentFolderName, Mode=OneWay}"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         TextTrimming="CharacterEllipsis"
                         Style="{StaticResource SubtitleTextBlockStyle}" />
@@ -344,7 +344,7 @@
                         x:Name="LibraryHeaderCurrentText"
                         Grid.Column="2"
                         VerticalAlignment="Center"
-                        Text="{x:Bind local:MainPage.FolderNameFromPath(ViewModel.CurrentFolderPath), Mode=OneWay}"
+                        Text="{x:Bind ViewModel.CurrentFolderName, Mode=OneWay}"
                         TextTrimming="CharacterEllipsis"
                         Style="{StaticResource TitleTextBlockStyle}" />
                 </Grid>
@@ -401,6 +401,7 @@
                                 PointerPressed="LibraryTile_PointerPressed"
                                 RowSpacing="8"
                                 RightTapped="LibraryTile_RightTapped"
+                                Tapped="LibraryTile_Tapped"
                                 Unloaded="LibraryTile_Unloaded">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*" />

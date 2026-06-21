@@ -21,7 +21,7 @@ public sealed class FileOperationService : IFileOperationService
     private readonly Func<string, CancellationToken, Task> trashAsync;
 
     public FileOperationService()
-        : this(new WinRTJpegEncoder().EncodeAsJpegAsync, new WindowsRecycleBin().TrashAsync)
+        : this(EncodeAsJpegAsync, TrashPathAsync)
     {
     }
 
@@ -270,11 +270,8 @@ public sealed class FileOperationService : IFileOperationService
         var basename = Path.GetFileNameWithoutExtension(path);
         return $"{Path.GetFullPath(directory)}\0{basename}";
     }
-}
 
-public sealed class WinRTJpegEncoder
-{
-    public async Task EncodeAsJpegAsync(string sourcePath, string targetPath, CancellationToken cancellationToken = default)
+    private static async Task EncodeAsJpegAsync(string sourcePath, string targetPath, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var sourceFile = await StorageFile.GetFileFromPathAsync(sourcePath).AsTask(cancellationToken);
@@ -315,11 +312,8 @@ public sealed class WinRTJpegEncoder
             throw;
         }
     }
-}
 
-public sealed class WindowsRecycleBin
-{
-    public async Task TrashAsync(string path, CancellationToken cancellationToken = default)
+    private static async Task TrashPathAsync(string path, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         await Task.Run(() =>

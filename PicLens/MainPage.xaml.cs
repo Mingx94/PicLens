@@ -1,10 +1,8 @@
 using PicLens.Core.Models;
 using PicLens.Core.Domain;
-using PicLens.Diagnostics;
 using PicLens.Infrastructure.Services;
 using PicLens.ViewModels;
 using PicLens.Services;
-using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -52,8 +50,6 @@ public sealed partial class MainPage : Page
             tryEnqueueOnUiThread: action => DispatcherQueue.TryEnqueue(() => action()),
             appLogger: App.Logger);
 
-        RevealInFileExplorerCommand = new RelayCommand(RevealInFileExplorer);
-        ShowSortMenuCommand = new RelayCommand(ShowSortMenu);
         InitializeComponent();
         BindSortMenuItem(SortByNameAscendingMenuItem, "name-asc");
         BindSortMenuItem(SortByNameDescendingMenuItem, "name-desc");
@@ -63,10 +59,6 @@ public sealed partial class MainPage : Page
     }
 
     public MainPageViewModel ViewModel { get; }
-
-    public RelayCommand RevealInFileExplorerCommand { get; }
-
-    public RelayCommand ShowSortMenuCommand { get; }
 
     public static BitmapImage? CreateBitmapImage(string? path)
     {
@@ -99,28 +91,6 @@ public sealed partial class MainPage : Page
             MainPageStatusSeverity.Error => InfoBarSeverity.Error,
             _ => InfoBarSeverity.Informational
         };
-
-    public static string FolderNameFromPath(string? path) =>
-        FolderSegmentFromPath(path, fallback: "未選擇資料夾");
-
-    public static string ParentFolderNameFromPath(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return "資料夾";
-        }
-
-        try
-        {
-            var parent = Directory.GetParent(Path.GetFullPath(path));
-            return FolderSegmentFromPath(parent?.FullName, fallback: "資料夾");
-        }
-        catch (Exception ex)
-        {
-            App.Logger.Error(ex, $"Parent folder name lookup failed. Path={path}");
-            return "資料夾";
-        }
-    }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
@@ -159,19 +129,21 @@ public sealed partial class MainPage : Page
         ViewModel.UpdateSelectedLibraryItems(OrderedSelectedLibraryItems());
     }
 
-    private void ClearLibrarySelection_Click(object sender, RoutedEventArgs e)
-    {
-        LibraryGrid.SelectedItems.Clear();
-        librarySelectionOrder.Clear();
-        ViewModel.ClearSelectedLibraryItems();
-    }
-
-    private async void LibraryGrid_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    private void LibraryGrid_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
         if (FindLibraryTileItem(e.OriginalSource) is { } item)
         {
             e.Handled = true;
-            await ViewModel.OpenLibraryItemAsync(item);
+            _ = OpenTileAsync(item);
+        }
+    }
+
+    private async void LibraryTile_Tapped(object sender, TappedRoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: LibraryTileItem { SourceItem: FolderListItem } item })
+        {
+            e.Handled = true;
+            await OpenTileAsync(item);
         }
     }
 
@@ -186,8 +158,21 @@ public sealed partial class MainPage : Page
             ?? LibraryGrid.SelectedItem as LibraryTileItem;
         if (item is not null)
         {
-            await ViewModel.OpenLibraryItemAsync(item);
             e.Handled = true;
+            await OpenTileAsync(item);
+        }
+    }
+
+    private async Task OpenTileAsync(LibraryTileItem item)
+    {
+        switch (item.SourceItem)
+        {
+            case FolderListItem folder:
+                await ViewModel.NavigateToFolderAsync(folder.Path);
+                break;
+            case ImageListItem image:
+                ViewModel.OpenImage(image);
+                break;
         }
     }
 
@@ -221,7 +206,7 @@ public sealed partial class MainPage : Page
         item.CommandParameter = token;
     }
 
-    private void ShowSortMenu() => SortMenuFlyout.ShowAt(TitleBarSortMenuButton);
+    private void ShowSortMenu(object sender, RoutedEventArgs e) => SortMenuFlyout.ShowAt(TitleBarSortMenuButton);
 
     private void LibraryTile_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
@@ -260,7 +245,7 @@ public sealed partial class MainPage : Page
         e.Handled = true;
     }
 
-    private void RevealInFileExplorer()
+    private void RevealInFileExplorer(object sender, RoutedEventArgs e)
     {
         var item = contextFlyoutItem
             ?? LibraryGrid.SelectedItems.OfType<LibraryTileItem>().FirstOrDefault();
@@ -699,27 +684,6 @@ public sealed partial class MainPage : Page
         }
 
         return ordered;
-    }
-
-    private static string FolderSegmentFromPath(string? path, string fallback)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return fallback;
-        }
-
-        try
-        {
-            var normalized = Path.GetFullPath(path);
-            var trimmed = normalized.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var name = Path.GetFileName(trimmed);
-            return string.IsNullOrWhiteSpace(name) ? normalized : name;
-        }
-        catch (Exception ex)
-        {
-            App.Logger.Error(ex, $"Folder segment lookup failed. Path={path}; Fallback={fallback}");
-            return path;
-        }
     }
 
     private async void FolderTree_Expanding(TreeView sender, TreeViewExpandingEventArgs args)

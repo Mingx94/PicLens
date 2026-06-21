@@ -246,24 +246,6 @@ public sealed class MainPageViewModelStartupTests
         }
     }
 
-    private sealed class FakeSettingsStore(AppSettings initialSettings) : ISettingsStore
-    {
-        public AppSettings Settings { get; private set; } = initialSettings;
-
-        public Task<AppSettings> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(Settings);
-
-        public Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default)
-        {
-            Settings = settings;
-            return Task.CompletedTask;
-        }
-
-        public Task<AppSettings> UpdateAsync(AppSettingsPatch patch, CancellationToken cancellationToken = default)
-        {
-            Settings = SettingsRules.MergeSettingsPatch(Settings, patch);
-            return Task.FromResult(Settings);
-        }
-    }
 
     private sealed class ThrowingUpdateSettingsStore(AppSettings initialSettings, Exception exception) : ISettingsStore
     {

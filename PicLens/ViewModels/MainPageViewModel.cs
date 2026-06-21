@@ -91,6 +91,10 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     public bool HasCurrentFolder => !string.IsNullOrWhiteSpace(CurrentFolderPath);
 
+    public string CurrentFolderName => FolderDisplayName(CurrentFolderPath, "未選擇資料夾", appLogger);
+
+    public string CurrentParentFolderName => ParentFolderDisplayName(CurrentFolderPath, appLogger);
+
     public string RecursiveModeLabel => IncludeSubfolders ? "含子資料夾" : "僅目前資料夾";
 
     public string SortLabel => SortOptionLabel(Sort);
@@ -328,22 +332,6 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
     }
 
-    public async Task OpenLibraryItemAsync(LibraryTileItem item)
-    {
-        appLogger.Info(
-            $"Open library item requested. Name={item.Name}; Path={item.Path}; IsFolder={item.IsFolder}; CurrentFolderPath={CurrentFolderPath}");
-
-        switch (item.SourceItem)
-        {
-            case FolderListItem folder:
-                await NavigateToFolderAsync(folder.Path);
-                break;
-            case ImageListItem image:
-                OpenImage(image);
-                break;
-        }
-    }
-
     partial void OnIncludeSubfoldersChanged(bool value)
     {
         OnPropertyChanged(nameof(RecursiveModeLabel));
@@ -356,6 +344,8 @@ public sealed partial class MainPageViewModel : ObservableObject
     partial void OnCurrentFolderPathChanged(string value)
     {
         OnPropertyChanged(nameof(HasCurrentFolder));
+        OnPropertyChanged(nameof(CurrentFolderName));
+        OnPropertyChanged(nameof(CurrentParentFolderName));
     }
 
     partial void OnSortChanged(SortState value)
@@ -904,7 +894,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         await LoadLibraryAsync();
     }
 
-    private void OpenImage(ImageListItem image)
+    public void OpenImage(ImageListItem image)
     {
         var images = VisibleImages();
         if (!images.Any(candidate => PathEquals(candidate.Path, image.Path)))
@@ -1015,18 +1005,14 @@ public sealed partial class MainPageViewModel : ObservableObject
                 Name: folder.Name,
                 Path: folder.Path,
                 Detail: "開啟資料夾",
-                IsFolder: true,
                 IsSelected: false,
-                IsAnimated: false,
                 IconGlyph: "\uE8B7",
                 SourceItem: folder),
             ImageListItem image => new LibraryTileItem(
                 Name: image.Name,
                 Path: image.Path,
                 Detail: $"{image.Extension.ToUpperInvariant()} - {image.SizeBytes / 1024} KB",
-                IsFolder: false,
                 IsSelected: false,
-                IsAnimated: image.IsAnimated,
                 IconGlyph: image.IsAnimated ? "\uE783" : "\uEB9F",
                 SourceItem: image),
             _ => throw new ArgumentOutOfRangeException(nameof(item))

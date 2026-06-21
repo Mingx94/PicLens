@@ -164,23 +164,5 @@ public sealed class MainPageSelectionActionTests
             throw new NotSupportedException();
     }
 
-    private sealed class FakeSettingsStore(AppSettings initialSettings) : ISettingsStore
-    {
-        private AppSettings settings = initialSettings;
-
-        public Task<AppSettings> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(settings);
-
-        public Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default)
-        {
-            this.settings = settings;
-            return Task.CompletedTask;
-        }
-
-        public Task<AppSettings> UpdateAsync(AppSettingsPatch patch, CancellationToken cancellationToken = default)
-        {
-            settings = SettingsRules.MergeSettingsPatch(settings, patch);
-            return Task.FromResult(settings);
-        }
-    }
 
 }

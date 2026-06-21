@@ -1,11 +1,50 @@
+using PicLens.Diagnostics;
+
 namespace PicLens.ViewModels;
 
 internal static class ViewModelPathRules
 {
-    public static string FolderDisplayName(string path)
+    public static string FolderDisplayName(string path) =>
+        FolderDisplayName(path, path);
+
+    public static string FolderDisplayName(string? path, string fallback, IAppLogger? appLogger = null)
     {
-        var name = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        return string.IsNullOrWhiteSpace(name) ? path : name;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return fallback;
+        }
+
+        try
+        {
+            var normalized = Path.GetFullPath(path);
+            var trimmed = normalized.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var name = Path.GetFileName(trimmed);
+            return string.IsNullOrWhiteSpace(name) ? normalized : name;
+        }
+        catch (Exception ex)
+        {
+            appLogger?.Error(ex, $"Folder segment lookup failed. Path={path}; Fallback={fallback}");
+            return path;
+        }
+    }
+
+    public static string ParentFolderDisplayName(string? path, IAppLogger appLogger)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return "資料夾";
+        }
+
+        try
+        {
+            var parent = Directory.GetParent(Path.GetFullPath(path));
+            return FolderDisplayName(parent?.FullName, "資料夾", appLogger);
+        }
+        catch (Exception ex)
+        {
+            appLogger.Error(ex, $"Parent folder name lookup failed. Path={path}");
+            return "資料夾";
+        }
     }
 
     public static Func<string, string, bool> CreateTargetNameExists(string targetPath)

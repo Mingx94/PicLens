@@ -106,6 +106,27 @@ internal sealed class TestDialogService(
         requestRenameAsync?.Invoke(item) ?? Task.FromResult<string?>(null);
 }
 
+internal sealed class FakeSettingsStore(AppSettings initialSettings) : ISettingsStore
+{
+    public AppSettings Settings { get; private set; } = initialSettings;
+
+    public AppSettings Current => Settings;
+
+    public Task<AppSettings> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(Settings);
+
+    public Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default)
+    {
+        Settings = settings;
+        return Task.CompletedTask;
+    }
+
+    public Task<AppSettings> UpdateAsync(AppSettingsPatch patch, CancellationToken cancellationToken = default)
+    {
+        Settings = SettingsRules.MergeSettingsPatch(Settings, patch);
+        return Task.FromResult(Settings);
+    }
+}
+
 internal sealed class TempDirectory : IDisposable
 {
     public TempDirectory()

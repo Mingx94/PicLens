@@ -9,37 +9,6 @@ namespace PicLens.ViewModels.Tests;
 
 public sealed class MainPageViewModelDiagnosticLoggingTests
 {
-    [Fact]
-    public async Task OpenLibraryItemAsync_logs_image_viewer_snapshot_context()
-    {
-        using var workspace = new TempDirectory();
-        var image = new ImageListItem(
-            "image:first",
-            Path.Combine(workspace.Path, "first.jpg"),
-            "first.jpg",
-            ".jpg",
-            100,
-            1024);
-        var logger = new RecordingAppLogger();
-        var openedSnapshots = new List<ImageSequenceSnapshot>();
-        var viewModel = CreateViewModel(
-            AppSettings.CreateDefault() with { LastFolderPath = workspace.Path },
-            [image],
-            logger: logger,
-            openImageViewer: openedSnapshots.Add);
-
-        await viewModel.InitializeAsync();
-        await viewModel.OpenLibraryItemAsync(Assert.Single(viewModel.LibraryItems));
-
-        Assert.Single(openedSnapshots);
-        var message = Assert.Single(logger.InfoMessages, entry => entry.StartsWith("Open image viewer requested.", StringComparison.Ordinal));
-        Assert.Contains("Image=first.jpg", message);
-        Assert.Contains("CurrentIndex=0", message);
-        Assert.Contains("ImageCount=1", message);
-        Assert.Contains($"CurrentFolderPath={workspace.Path}", message);
-        Assert.Contains("IncludeSubfolders=False", message);
-        Assert.Contains("Sort=Name/Asc", message);
-    }
 
     [Fact]
     public async Task DropDraggedImagesOnAsync_logs_result_context()
@@ -241,24 +210,6 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
             openImageViewer: openImageViewer,
             appLogger: logger);
 
-    private sealed class FakeSettingsStore(AppSettings initialSettings) : ISettingsStore
-    {
-        private AppSettings settings = initialSettings;
-
-        public Task<AppSettings> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(settings);
-
-        public Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default)
-        {
-            this.settings = settings;
-            return Task.CompletedTask;
-        }
-
-        public Task<AppSettings> UpdateAsync(AppSettingsPatch patch, CancellationToken cancellationToken = default)
-        {
-            settings = SettingsRules.MergeSettingsPatch(settings, patch);
-            return Task.FromResult(settings);
-        }
-    }
 
     private sealed class RecordingFileOperationService(FileOperationBatchResult result) : IFileOperationService
     {

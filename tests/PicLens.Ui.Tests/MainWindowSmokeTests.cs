@@ -99,7 +99,7 @@ public sealed class MainWindowSmokeTests
 
         fixture.WithDiagnostics(nameof(Folder_history_buttons_navigate_back_and_forward), () =>
         {
-            fixture.DoubleClickTile("Nested，資料夾");
+            fixture.ClickTile("Nested，資料夾");
             Assert.NotNull(fixture.FindByTilePrefix("Nested-03.png，圖片"));
 
             fixture.ClickByAutomationId("TitleBarBackButton");

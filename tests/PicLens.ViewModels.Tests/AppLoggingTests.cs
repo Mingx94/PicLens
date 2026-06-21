@@ -1,4 +1,7 @@
+using PicLens.Core.Models;
+using PicLens.Core.Domain;
 using PicLens.Diagnostics;
+using PicLens.Application.Services;
 
 namespace PicLens.ViewModels.Tests;
 
@@ -66,20 +69,21 @@ public sealed class AppLoggingTests
     }
 
     [Fact]
-    public void MainPage_path_helpers_log_invalid_paths()
+    public void MainPageViewModel_path_display_properties_log_invalid_paths()
     {
-        var previousLogger = global::PicLens.App.Logger;
         var logger = new RecordingLogger();
-        SetAppLogger(logger);
-        try
-        {
-            Assert.Equal("資料夾", global::PicLens.MainPage.ParentFolderNameFromPath("bad\0path"));
-            Assert.Equal("bad\0path", global::PicLens.MainPage.FolderNameFromPath("bad\0path"));
-        }
-        finally
-        {
-            SetAppLogger(previousLogger);
-        }
+        var viewModel = new MainPageViewModel(
+            new FakeSettingsStore(AppSettings.CreateDefault()),
+            new CountingFolderScanner([]),
+            new ThrowingFileOperationService(),
+            new NullThumbnailService(),
+            new NullDialogService(),
+            _ => { },
+            appLogger: logger);
+        viewModel.CurrentFolderPath = "bad\0path";
+
+        Assert.Equal("資料夾", viewModel.CurrentParentFolderName);
+        Assert.Equal("bad\0path", viewModel.CurrentFolderName);
 
         Assert.Contains(logger.Errors, error => error.Message.StartsWith("Parent folder name lookup failed.", StringComparison.Ordinal));
         Assert.Contains(logger.Errors, error => error.Message.StartsWith("Folder segment lookup failed.", StringComparison.Ordinal));
@@ -105,14 +109,6 @@ public sealed class AppLoggingTests
         public void Dispose() => Environment.SetEnvironmentVariable(name, previousValue);
     }
 
-    private static void SetAppLogger(IAppLogger logger)
-    {
-        typeof(global::PicLens.App)
-            .GetProperty(nameof(global::PicLens.App.Logger))!
-            .GetSetMethod(nonPublic: true)!
-            .Invoke(null, [logger]);
-    }
-
     private sealed class RecordingLogger : IAppLogger
     {
         public List<(Exception Exception, string Message)> Errors { get; } = [];
@@ -123,4 +119,5 @@ public sealed class AppLoggingTests
 
         public void Error(Exception exception, string message) => Errors.Add((exception, message));
     }
+
 }
