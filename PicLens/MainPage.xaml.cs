@@ -105,6 +105,13 @@ public sealed partial class MainPage : Page
             _ => InfoBarSeverity.Informational
         };
 
+    public static FoundationPoint TranslateLibraryDragPointToRoot(
+        FoundationPoint libraryGridPoint,
+        FoundationPoint libraryGridOriginInRoot) =>
+        new(
+            libraryGridPoint.X + libraryGridOriginInRoot.X,
+            libraryGridPoint.Y + libraryGridOriginInRoot.Y);
+
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         if (initialized)
@@ -379,7 +386,7 @@ public sealed partial class MainPage : Page
         }
 
         UpdateDragPreview(position);
-        SetDropRenameTarget(DropRenameTargetAt(position));
+        SetDropRenameTarget(DropRenameTargetAt(ToRootPoint(position)));
         e.Handled = true;
     }
 
@@ -392,8 +399,9 @@ public sealed partial class MainPage : Page
 
         var source = pointerDragSource;
         var wasDrag = pointerDragStarted;
+        var position = e.GetCurrentPoint(LibraryGrid).Position;
         var target = currentDropRenameTarget
-            ?? DropRenameTargetAt(e.GetCurrentPoint(LibraryGrid).Position)
+            ?? DropRenameTargetAt(ToRootPoint(position))
             ?? FindLibraryTileItem(e.OriginalSource);
         ClearPointerDrag();
 
@@ -453,7 +461,7 @@ public sealed partial class MainPage : Page
         return false;
     }
 
-    private LibraryTileItem? DropRenameTargetAt(FoundationPoint position)
+    private LibraryTileItem? DropRenameTargetAt(FoundationPoint rootPosition)
     {
         var source = pointerDragSource;
         if (source is null)
@@ -461,10 +469,25 @@ public sealed partial class MainPage : Page
             return null;
         }
 
-        return VisualTreeHelper.FindElementsInHostCoordinates(position, LibraryGrid)
+        return VisualTreeHelper.FindElementsInHostCoordinates(rootPosition, LibraryGrid)
             .OfType<FrameworkElement>()
             .Select(element => element.DataContext as LibraryTileItem)
             .FirstOrDefault(target => target is not null && CanDropDraggedItem(source, target));
+    }
+
+    private FoundationPoint ToRootPoint(FoundationPoint libraryGridPoint)
+    {
+        try
+        {
+            // ponytail: preview uses LibraryGrid coordinates; WinUI hit-test uses root/host coordinates.
+            var origin = LibraryGrid.TransformToVisual(Root).TransformPoint(new FoundationPoint(0, 0));
+            return TranslateLibraryDragPointToRoot(libraryGridPoint, origin);
+        }
+        catch (Exception ex)
+        {
+            App.Logger.Error(ex, $"Convert library drag point to root coordinates failed. X={libraryGridPoint.X}; Y={libraryGridPoint.Y}");
+            return libraryGridPoint;
+        }
     }
 
     private bool HasMovedPastDragThreshold(FoundationPoint position) =>
