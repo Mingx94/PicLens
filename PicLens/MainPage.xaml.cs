@@ -10,6 +10,7 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using System.ComponentModel;
 using System.Diagnostics;
 using Windows.Storage.Pickers;
 using Windows.System;
@@ -738,9 +739,12 @@ public sealed partial class MainPage : Page
 
     private void OpenImageViewer(ImageSequenceSnapshot snapshot)
     {
+        UnsubscribePreviewViewModelEvents();
         previewViewModel = new ImageViewerWindowViewModel(snapshot);
+        previewViewModel.PropertyChanged += PreviewViewModel_PropertyChanged;
         isPreviewOpen = true;
         App.Logger.Info($"Inline image viewer opened. {ViewerContext()}");
+        UpdateWindowTitleForViewer();
         ViewerSurface.Visibility = Visibility.Visible;
         Bindings.Update();
         PreviewViewModel.UpdateViewport(ViewerImageSurface.ActualWidth, ViewerImageSurface.ActualHeight);
@@ -759,9 +763,40 @@ public sealed partial class MainPage : Page
         viewerIsDragging = false;
         isPreviewOpen = false;
         App.Logger.Info($"Inline image viewer closed. {ViewerContext()}");
+        UnsubscribePreviewViewModelEvents();
+        UpdateWindowTitleForViewer();
         ViewerSurface.Visibility = Visibility.Collapsed;
         Bindings.Update();
         LibraryGrid.Focus(FocusState.Programmatic);
+    }
+
+    private void PreviewViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ImageViewerWindowViewModel.CurrentImageName)
+            or nameof(ImageViewerWindowViewModel.WindowTitle))
+        {
+            UpdateWindowTitleForViewer();
+        }
+    }
+
+    private void UnsubscribePreviewViewModelEvents()
+    {
+        previewViewModel.PropertyChanged -= PreviewViewModel_PropertyChanged;
+    }
+
+    private void UpdateWindowTitleForViewer()
+    {
+        try
+        {
+            if (App.Window is MainWindow window)
+            {
+                window.SetViewerTitle(isPreviewOpen ? PreviewViewModel.CurrentImageName : null);
+            }
+        }
+        catch (Exception ex)
+        {
+            App.Logger.Error(ex, $"Update viewer window title failed. {ViewerContext()}");
+        }
     }
 
     private void ViewerImageSurface_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -790,7 +825,15 @@ public sealed partial class MainPage : Page
 
         viewerIsDragging = true;
         viewerLastPointerPosition = e.GetCurrentPoint(ViewerImageSurface).Position;
-        ViewerImageSurface.CapturePointer(e.Pointer);
+        if (!ViewerImageSurface.CapturePointer(e.Pointer))
+        {
+            viewerIsDragging = false;
+            App.Logger.Error(
+                new InvalidOperationException("CapturePointer returned false."),
+                $"Capture viewer pan pointer failed. {ViewerContext()}");
+            return;
+        }
+
         e.Handled = true;
     }
 
@@ -815,7 +858,15 @@ public sealed partial class MainPage : Page
         }
 
         viewerIsDragging = false;
-        ViewerImageSurface.ReleasePointerCapture(e.Pointer);
+        try
+        {
+            ViewerImageSurface.ReleasePointerCapture(e.Pointer);
+        }
+        catch (Exception ex)
+        {
+            App.Logger.Error(ex, $"Release viewer pan pointer capture failed. {ViewerContext()}");
+        }
+
         e.Handled = true;
     }
 

@@ -77,7 +77,7 @@ public sealed class ImageViewerWindowLocalizationTests
 
         var viewModel = new ImageViewerWindowViewModel(snapshot);
 
-        Assert.Equal("sample.webp - PicLens", viewModel.WindowTitle);
+        Assert.Equal("PicLens - sample.webp", viewModel.WindowTitle);
         Assert.Equal("第 1 張，共 1 張", viewModel.PositionLabel);
         Assert.Equal("原生檢視器目前尚不支援播放動畫 WEBP。", viewModel.UnsupportedMessage);
     }

@@ -59,7 +59,7 @@ FlaUI 測試是 opt-in，不屬於 `Release.ps1` 或預設 CI 驗證。執行：
 - 驗證左鍵 image selection 不顯示底部 action bar，右鍵 image context menu 會顯示 rename/trash actions。
 - 驗證 rename dialog 可取消，且不會修改原始檔案。
 - 驗證 thumbnail size slider persistence。
-- 驗證 inline viewer smoke：double click 在主視窗內開啟 viewer、previous/next、zoom controls、viewer image/status controls，以及 Escape close。
+- 驗證 inline viewer smoke：double click 在主視窗內開啟 viewer、app bar title update、previous/next、zoom controls、viewer image controls，以及 Escape close。
 
 失敗時會把 PID、data root、seeded library root、ERROR LOG、screenshot 與 UIA tree dump 寫到：
 

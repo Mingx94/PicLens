@@ -14,6 +14,8 @@ namespace PicLens;
 /// </summary>
 public sealed partial class MainWindow : Window
 {
+    private const string AppDisplayName = "PicLens";
+
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(nint hWnd);
 
@@ -26,10 +28,18 @@ public sealed partial class MainWindow : Window
         SetTitleBar(AppTitleBar);
 
         AppWindow.SetIcon("Assets/AppIcon.ico");
-        AppWindow.Title = "PicLens";
+        SetTitle(AppDisplayName);
         ResizeToLogicalSize(1220, 820);
 
         RootFrame.Navigate(typeof(MainPage));
+    }
+
+    public void SetViewerTitle(string? imageName)
+    {
+        var title = string.IsNullOrWhiteSpace(imageName)
+            ? AppDisplayName
+            : $"{AppDisplayName} - {imageName}";
+        SetTitle(title);
     }
 
     private void ResizeToLogicalSize(int width, int height)
@@ -37,5 +47,12 @@ public sealed partial class MainWindow : Window
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var scale = GetDpiForWindow(hwnd) / 96.0;
         AppWindow.Resize(new SizeInt32((int)(width * scale), (int)(height * scale)));
+    }
+
+    private void SetTitle(string title)
+    {
+        Title = title;
+        AppWindow.Title = title;
+        AppTitleBar.Title = title;
     }
 }

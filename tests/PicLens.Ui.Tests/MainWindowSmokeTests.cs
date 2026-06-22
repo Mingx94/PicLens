@@ -170,7 +170,7 @@ public sealed class MainWindowSmokeTests
             fixture.DoubleClickTile("Alpha-01.png，圖片");
 
             Assert.NotNull(fixture.FindByAutomationId("ViewerSurface"));
-            Assert.NotNull(fixture.FindByAutomationId("ViewerTitleBar"));
+            fixture.WaitForWindowTitle("PicLens - Alpha-01.png");
             Assert.NotNull(fixture.FindByAutomationId("ViewerPreviousButton"));
             Assert.NotNull(fixture.FindByAutomationId("ViewerNextButton"));
             Assert.NotNull(fixture.FindByAutomationId("ViewerZoomOutButton"));
@@ -178,16 +178,15 @@ public sealed class MainWindowSmokeTests
             Assert.NotNull(fixture.FindByAutomationId("ViewerZoomInButton"));
             Assert.NotNull(fixture.FindByAutomationId("ViewerCloseButton"));
             Assert.NotNull(fixture.FindByAutomationId("ViewerImage"));
-            Assert.NotNull(fixture.FindByAutomationId("ViewerStatusBar"));
 
             fixture.ClickByAutomationId("ViewerNextButton");
-            fixture.WaitForVisibleText("Bravo-02.png");
+            fixture.WaitForWindowTitle("PicLens - Bravo-02.png");
 
             fixture.ClickByAutomationId("ViewerZoomInButton");
-            fixture.WaitForVisibleText("120%");
 
             Keyboard.Press(VirtualKeyShort.ESCAPE);
             fixture.WaitForInlineViewerClosed();
+            fixture.WaitForWindowTitle("PicLens");
         });
     }
 }
@@ -387,6 +386,13 @@ public sealed class PicLensAppFixture : IDisposable
         WaitForCondition(
             () => mainWindow.FindFirstDescendant(condition => condition.ByAutomationId("ViewerSurface")) is null,
             "Inline viewer did not close.");
+    }
+
+    public void WaitForWindowTitle(string title)
+    {
+        WaitForCondition(
+            () => string.Equals(mainWindow.Title, title, StringComparison.Ordinal),
+            $"Window title did not become: {title}");
     }
 
     public void WaitForVisibleText(params string[] fragments) =>

@@ -76,7 +76,7 @@ public partial class ImageViewerWindowViewModel : ObservableObject
 
     public string WindowTitle => CurrentImage is null
         ? AppDisplayName
-        : $"{CurrentImage.Name} - {AppDisplayName}";
+        : $"{AppDisplayName} - {CurrentImage.Name}";
 
     public string PositionLabel => HasImages && CurrentIndex >= 0
         ? $"第 {CurrentIndex + 1} 張，共 {Snapshot.Images.Count} 張"

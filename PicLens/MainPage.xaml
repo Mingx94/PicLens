@@ -591,88 +591,80 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <TitleBar
-                x:Name="ViewerTitleBar"
-                AutomationProperties.AutomationId="ViewerTitleBar"
-                Title="{x:Bind PreviewViewModel.CurrentImageName, Mode=OneWay}"
-                Subtitle="{x:Bind PreviewViewModel.PositionLabel, Mode=OneWay}">
-                <TitleBar.IconSource>
-                    <ImageIconSource ImageSource="Assets/AppIcon.ico" />
-                </TitleBar.IconSource>
-                <TitleBar.RightHeader>
-                    <CommandBar
-                        AutomationProperties.AutomationId="ViewerTitleCommandBar"
-                        Background="Transparent"
-                        DefaultLabelPosition="Collapsed"
-                        IsDynamicOverflowEnabled="True">
-                        <AppBarButton
-                            AutomationProperties.AutomationId="ViewerPreviousButton"
-                            AutomationProperties.Name="上一張圖片"
-                            ToolTipService.ToolTip="上一張圖片"
-                            Command="{x:Bind PreviewViewModel.PreviousCommand}"
-                            Label="上一張">
-                            <AppBarButton.Icon>
-                                <SymbolIcon Symbol="Back" />
-                            </AppBarButton.Icon>
-                        </AppBarButton>
-                        <AppBarButton
-                            AutomationProperties.AutomationId="ViewerNextButton"
-                            AutomationProperties.Name="下一張圖片"
-                            ToolTipService.ToolTip="下一張圖片"
-                            Command="{x:Bind PreviewViewModel.NextCommand}"
-                            Label="下一張">
-                            <AppBarButton.Icon>
-                                <SymbolIcon Symbol="Forward" />
-                            </AppBarButton.Icon>
-                        </AppBarButton>
-                        <AppBarSeparator />
-                        <AppBarButton
-                            AutomationProperties.AutomationId="ViewerZoomOutButton"
-                            AutomationProperties.Name="縮小"
-                            ToolTipService.ToolTip="縮小"
-                            Command="{x:Bind PreviewViewModel.ZoomOutCommand}"
-                            Label="縮小">
-                            <AppBarButton.Icon>
-                                <SymbolIcon Symbol="ZoomOut" />
-                            </AppBarButton.Icon>
-                        </AppBarButton>
-                        <AppBarButton
-                            AutomationProperties.AutomationId="ViewerResetZoomButton"
-                            AutomationProperties.Name="重設縮放"
-                            ToolTipService.ToolTip="重設縮放"
-                            Command="{x:Bind PreviewViewModel.ResetZoomCommand}"
-                            Label="重設縮放">
-                            <AppBarButton.Icon>
-                                <SymbolIcon Symbol="Refresh" />
-                            </AppBarButton.Icon>
-                        </AppBarButton>
-                        <AppBarButton
-                            AutomationProperties.AutomationId="ViewerZoomInButton"
-                            AutomationProperties.Name="放大"
-                            ToolTipService.ToolTip="放大"
-                            Command="{x:Bind PreviewViewModel.ZoomInCommand}"
-                            Label="放大">
-                            <AppBarButton.Icon>
-                                <SymbolIcon Symbol="ZoomIn" />
-                            </AppBarButton.Icon>
-                        </AppBarButton>
-                        <AppBarSeparator />
-                        <AppBarButton
-                            AutomationProperties.AutomationId="ViewerCloseButton"
-                            AutomationProperties.Name="關閉預覽"
-                            ToolTipService.ToolTip="關閉預覽"
-                            Click="CloseViewer"
-                            Label="關閉">
-                            <AppBarButton.Icon>
-                                <SymbolIcon Symbol="Cancel" />
-                            </AppBarButton.Icon>
-                        </AppBarButton>
-                    </CommandBar>
-                </TitleBar.RightHeader>
-            </TitleBar>
+            <Border
+                Padding="16,4"
+                Background="{ThemeResource LayerOnMicaBaseAltFillColorSecondaryBrush}"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0,0,0,1">
+                <CommandBar
+                    AutomationProperties.AutomationId="ViewerTitleCommandBar"
+                    HorizontalAlignment="Center"
+                    Background="Transparent"
+                    DefaultLabelPosition="Collapsed"
+                    IsDynamicOverflowEnabled="True">
+                    <AppBarButton
+                        AutomationProperties.AutomationId="ViewerPreviousButton"
+                        AutomationProperties.Name="上一張圖片"
+                        ToolTipService.ToolTip="上一張圖片"
+                        Command="{x:Bind PreviewViewModel.PreviousCommand}"
+                        Label="上一張">
+                        <AppBarButton.Icon>
+                            <SymbolIcon Symbol="Back" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton
+                        AutomationProperties.AutomationId="ViewerNextButton"
+                        AutomationProperties.Name="下一張圖片"
+                        ToolTipService.ToolTip="下一張圖片"
+                        Command="{x:Bind PreviewViewModel.NextCommand}"
+                        Label="下一張">
+                        <AppBarButton.Icon>
+                            <SymbolIcon Symbol="Forward" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarSeparator />
+                    <AppBarButton
+                        AutomationProperties.AutomationId="ViewerZoomOutButton"
+                        AutomationProperties.Name="縮小"
+                        ToolTipService.ToolTip="縮小"
+                        Command="{x:Bind PreviewViewModel.ZoomOutCommand}"
+                        Label="縮小">
+                        <AppBarButton.Icon>
+                            <SymbolIcon Symbol="ZoomOut" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton
+                        AutomationProperties.AutomationId="ViewerResetZoomButton"
+                        AutomationProperties.Name="重設縮放"
+                        ToolTipService.ToolTip="重設縮放"
+                        Command="{x:Bind PreviewViewModel.ResetZoomCommand}"
+                        Label="重設縮放">
+                        <AppBarButton.Icon>
+                            <SymbolIcon Symbol="Refresh" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton
+                        AutomationProperties.AutomationId="ViewerZoomInButton"
+                        AutomationProperties.Name="放大"
+                        ToolTipService.ToolTip="放大"
+                        Command="{x:Bind PreviewViewModel.ZoomInCommand}"
+                        Label="放大">
+                        <AppBarButton.Icon>
+                            <SymbolIcon Symbol="ZoomIn" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarSeparator />
+                    <AppBarButton
+                        AutomationProperties.AutomationId="ViewerCloseButton"
+                        AutomationProperties.Name="關閉預覽"
+                        ToolTipService.ToolTip="關閉預覽"
+                        Click="CloseViewer"
+                        Icon="Cancel"
+                        Label="關閉" />
+                </CommandBar>
+            </Border>
 
             <Grid
                 x:Name="ViewerImageSurface"
@@ -731,34 +723,6 @@
                         </StackPanel>
                     </Border>
                 </Grid>
-            </Grid>
-
-            <Grid
-                Grid.Row="2"
-                AutomationProperties.AccessibilityView="Control"
-                MinHeight="32"
-                Padding="16,4"
-                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                BorderThickness="0,1,0,0"
-                ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <TextBlock
-                    AutomationProperties.AutomationId="ViewerStatusBar"
-                    Grid.Column="0"
-                    VerticalAlignment="Center"
-                    Text="{x:Bind PreviewViewModel.CurrentImageName, Mode=OneWay}"
-                    TextTrimming="CharacterEllipsis"
-                    Style="{StaticResource BodyStrongTextBlockStyle}" />
-                <TextBlock
-                    Grid.Column="1"
-                    VerticalAlignment="Center"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Text="{x:Bind PreviewViewModel.ZoomLabel, Mode=OneWay}"
-                    Style="{StaticResource CaptionTextBlockStyle}" />
             </Grid>
         </Grid>
     </Grid>
