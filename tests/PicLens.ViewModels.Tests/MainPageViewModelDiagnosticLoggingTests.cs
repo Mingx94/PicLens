@@ -27,6 +27,7 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
             AppSettings.CreateDefault() with { LastFolderPath = workspace.Path },
             [source, target],
             fileOperationService: fileOperations,
+            dialogService: new RecordingDropRenameDialogService(confirmDropRename: true),
             logger: logger);
 
         await viewModel.InitializeAsync();
@@ -126,6 +127,7 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
             AppSettings.CreateDefault() with { LastFolderPath = workspace.Path },
             [source, target],
             fileOperationService: fileOperations,
+            dialogService: new RecordingDropRenameDialogService(confirmDropRename: true),
             logger: logger);
 
         await viewModel.InitializeAsync();
@@ -150,6 +152,7 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
             AppSettings.CreateDefault() with { LastFolderPath = workspace.Path },
             [source, target],
             fileOperationService: new ThrowingDropFileOperationService(expected),
+            dialogService: new RecordingDropRenameDialogService(confirmDropRename: true),
             logger: logger);
 
         await viewModel.InitializeAsync();

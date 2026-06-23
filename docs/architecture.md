@@ -67,7 +67,7 @@ Filesystem、Windows UI、thumbnail codecs 與 recycle-bin behavior 應留在 Co
 `PicLens.Infrastructure` 負責：
 
 - JSON settings persistence
-- Direct 與 recursive folder scanning，包含 canonical directory de-duplication
+- Direct 與 recursive folder scanning，包含 canonical directory de-duplication；取消檢查留在 scan iteration 邊界，GIF/WebP 動畫判斷則只透過 Core stream parsers 處理檔案內容
 - Image file loading helpers
 - Local app data 下的 disk thumbnail cache generation
 - 保留 originals 並略過 collisions 的 JPG conversion

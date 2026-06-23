@@ -78,8 +78,6 @@ public sealed record ImageListItem(
     string Extension,
     long? ModifiedAtMs,
     long SizeBytes,
-    int? Width = null,
-    int? Height = null,
     bool IsAnimated = false)
     : ListItem(Id, Path, Name, ModifiedAtMs);
 

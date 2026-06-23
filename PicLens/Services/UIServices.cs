@@ -7,7 +7,7 @@ public interface IDialogService
 {
     Task<string?> ChooseFolderAsync();
     Task<bool> ConfirmAsync(string message, string title, string confirmButtonText);
-    Task<bool> ConfirmDropRenameAsync(DropRenamePreview preview) => Task.FromResult(true);
+    Task<bool> ConfirmDropRenameAsync(DropRenamePreview preview);
     Task<string?> RequestRenameAsync(ImageListItem item);
 }
 

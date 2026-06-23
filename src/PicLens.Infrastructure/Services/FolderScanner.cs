@@ -61,7 +61,7 @@ public sealed class FolderScanner : IFolderScanner
         foreach (var file in SafeEnumerateFiles(folderPath))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var image = CreateImageItem(file, cancellationToken);
+            var image = CreateImageItem(file);
             if (image is not null)
             {
                 yield return image;
@@ -105,7 +105,8 @@ public sealed class FolderScanner : IFolderScanner
 
             foreach (var file in SafeEnumerateFiles(current))
             {
-                var image = CreateImageItem(file, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                var image = CreateImageItem(file);
                 if (image is not null)
                 {
                     yield return image;
@@ -114,7 +115,7 @@ public sealed class FolderScanner : IFolderScanner
         }
     }
 
-    private static ImageListItem? CreateImageItem(string file, CancellationToken cancellationToken)
+    private static ImageListItem? CreateImageItem(string file)
     {
         var extension = ImageFormatRules.GetSupportedImageExtension(file);
         if (extension is null)
@@ -126,7 +127,7 @@ public sealed class FolderScanner : IFolderScanner
         {
             var info = new FileInfo(file);
             var isAnimated = RequiresAnimationDetection(extension)
-                && IsKnownAnimatedImage(file, extension, cancellationToken);
+                && IsKnownAnimatedImage(file, extension);
 
             return new ImageListItem(
                 Id: $"image:{file}",
@@ -149,15 +150,14 @@ public sealed class FolderScanner : IFolderScanner
 
     private static bool IsKnownAnimatedImage(
         string path,
-        string extension,
-        CancellationToken cancellationToken)
+        string extension)
     {
         try
         {
             return extension.ToLowerInvariant() switch
             {
-                "gif" => IsAnimatedGif(path, cancellationToken),
-                "webp" => IsAnimatedWebp(path, cancellationToken),
+                "gif" => IsAnimatedGif(path),
+                "webp" => IsAnimatedWebp(path),
                 _ => false
             };
         }
@@ -167,13 +167,13 @@ public sealed class FolderScanner : IFolderScanner
         }
     }
 
-    private static bool IsAnimatedGif(string path, CancellationToken cancellationToken)
+    private static bool IsAnimatedGif(string path)
     {
         using var stream = OpenProbeStream(path);
         return ImageFormatRules.IsAnimatedGif(stream);
     }
 
-    private static bool IsAnimatedWebp(string path, CancellationToken cancellationToken)
+    private static bool IsAnimatedWebp(string path)
     {
         using var stream = OpenProbeStream(path);
         return ImageFormatRules.IsAnimatedWebp(stream);

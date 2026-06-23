@@ -104,12 +104,15 @@ internal sealed class NullDialogService : IDialogService
 
     public Task<bool> ConfirmAsync(string message, string title, string confirmButtonText) => Task.FromResult(false);
 
+    public Task<bool> ConfirmDropRenameAsync(DropRenamePreview preview) => Task.FromResult(false);
+
     public Task<string?> RequestRenameAsync(ImageListItem item) => Task.FromResult<string?>(null);
 }
 
 internal sealed class TestDialogService(
     Func<Task<string?>>? chooseFolderAsync = null,
     Func<string, string, string, Task<bool>>? confirmAsync = null,
+    Func<DropRenamePreview, Task<bool>>? confirmDropRenameAsync = null,
     Func<ImageListItem, Task<string?>>? requestRenameAsync = null) : IDialogService
 {
     public Task<string?> ChooseFolderAsync() =>
@@ -117,6 +120,9 @@ internal sealed class TestDialogService(
 
     public Task<bool> ConfirmAsync(string message, string title, string confirmButtonText) =>
         confirmAsync?.Invoke(message, title, confirmButtonText) ?? Task.FromResult(false);
+
+    public Task<bool> ConfirmDropRenameAsync(DropRenamePreview preview) =>
+        confirmDropRenameAsync?.Invoke(preview) ?? Task.FromResult(false);
 
     public Task<string?> RequestRenameAsync(ImageListItem item) =>
         requestRenameAsync?.Invoke(item) ?? Task.FromResult<string?>(null);
