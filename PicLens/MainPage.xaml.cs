@@ -14,6 +14,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using Windows.Storage.Pickers;
 using Windows.System;
+using DispatcherQueueTimer = Microsoft.UI.Dispatching.DispatcherQueueTimer;
 using FoundationPoint = Windows.Foundation.Point;
 using static PicLens.Core.Domain.PathRules;
 
@@ -26,19 +27,25 @@ public sealed partial class MainPage : Page
 {
     private const double PointerDragThreshold = 8;
     private const double KeyboardPanStep = 48;
+    private const double LibraryDragAutoScrollEdgeSize = 72;
+    private const double LibraryDragAutoScrollMaxStep = 16;
 
     private readonly List<LibraryTileItem> librarySelectionOrder = [];
+    private readonly DispatcherQueueTimer libraryDragAutoScrollTimer;
     private LibraryTileItem? pointerDragSource;
     private LibraryTileItem? currentDropRenameTarget;
     private LibraryTileItem? contextFlyoutItem;
     private ImageViewerWindowViewModel previewViewModel = new();
+    private ScrollViewer? libraryGridScrollViewer;
     private FoundationPoint pointerDragStartPosition;
+    private FoundationPoint libraryDragLastPosition;
     private FoundationPoint viewerLastPointerPosition;
     private Pointer? pointerDragPointer;
     private UIElement? pointerDragCaptureElement;
     private bool pointerDragStarted;
     private bool viewerIsDragging;
     private bool isPreviewOpen;
+    private bool loggedLibraryDragAutoScrollViewerMissing;
     private IReadOnlyList<LibraryTileItem> pointerDragItems = [];
     private bool initialized;
 
@@ -61,6 +68,9 @@ public sealed partial class MainPage : Page
         BindSortMenuItem(SortByNameDescendingMenuItem, "name-desc");
         BindSortMenuItem(SortByModifiedAtAscendingMenuItem, "modified-asc");
         BindSortMenuItem(SortByModifiedAtDescendingMenuItem, "modified-desc");
+        libraryDragAutoScrollTimer = DispatcherQueue.CreateTimer();
+        libraryDragAutoScrollTimer.Interval = TimeSpan.FromMilliseconds(33);
+        libraryDragAutoScrollTimer.Tick += LibraryDragAutoScrollTimer_Tick;
         Loaded += OnLoaded;
     }
 
@@ -112,6 +122,33 @@ public sealed partial class MainPage : Page
         new(
             libraryGridPoint.X + libraryGridOriginInRoot.X,
             libraryGridPoint.Y + libraryGridOriginInRoot.Y);
+
+    public static double CalculateLibraryDragAutoScrollDelta(
+        double pointerY,
+        double viewportHeight,
+        double edgeSize = LibraryDragAutoScrollEdgeSize,
+        double maxStep = LibraryDragAutoScrollMaxStep)
+    {
+        if (viewportHeight <= 0 || edgeSize <= 0 || maxStep <= 0)
+        {
+            return 0;
+        }
+
+        var effectiveEdgeSize = Math.Min(edgeSize, viewportHeight / 2);
+        if (pointerY < effectiveEdgeSize)
+        {
+            var strength = (effectiveEdgeSize - pointerY) / effectiveEdgeSize;
+            return -Math.Clamp(strength * maxStep, 0, maxStep);
+        }
+
+        if (pointerY > viewportHeight - effectiveEdgeSize)
+        {
+            var strength = (pointerY - (viewportHeight - effectiveEdgeSize)) / effectiveEdgeSize;
+            return Math.Clamp(strength * maxStep, 0, maxStep);
+        }
+
+        return 0;
+    }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
@@ -388,6 +425,7 @@ public sealed partial class MainPage : Page
 
         UpdateDragPreview(position);
         SetDropRenameTarget(DropRenameTargetAt(ToRootPoint(position)));
+        UpdateLibraryDragAutoScroll(position);
         e.Handled = true;
     }
 
@@ -530,6 +568,7 @@ public sealed partial class MainPage : Page
         pointerDragItems = [];
         pointerDragPointer = null;
         pointerDragCaptureElement = null;
+        StopLibraryDragAutoScroll();
         HideDragPreview();
 
         if (releaseCapture && capturedElement is not null && capturedPointer is not null)
@@ -563,6 +602,99 @@ public sealed partial class MainPage : Page
         var maxY = Math.Max(0, LibraryGrid.ActualHeight - LibraryDragPreviewOverlay.ActualHeight - offset);
         LibraryDragPreviewTransform.X = Math.Clamp(position.X + offset, 0, maxX);
         LibraryDragPreviewTransform.Y = Math.Clamp(position.Y + offset, 0, maxY);
+    }
+
+    private void UpdateLibraryDragAutoScroll(FoundationPoint position)
+    {
+        libraryDragLastPosition = position;
+        if (!pointerDragStarted
+            || CalculateLibraryDragAutoScrollDelta(position.Y, LibraryGrid.ActualHeight) == 0)
+        {
+            StopLibraryDragAutoScroll();
+            return;
+        }
+
+        if (!libraryDragAutoScrollTimer.IsRunning)
+        {
+            libraryDragAutoScrollTimer.Start();
+        }
+    }
+
+    private void StopLibraryDragAutoScroll()
+    {
+        if (libraryDragAutoScrollTimer.IsRunning)
+        {
+            libraryDragAutoScrollTimer.Stop();
+        }
+    }
+
+    private void LibraryDragAutoScrollTimer_Tick(DispatcherQueueTimer sender, object args)
+    {
+        if (!pointerDragStarted)
+        {
+            StopLibraryDragAutoScroll();
+            return;
+        }
+
+        var delta = CalculateLibraryDragAutoScrollDelta(libraryDragLastPosition.Y, LibraryGrid.ActualHeight);
+        if (delta == 0)
+        {
+            StopLibraryDragAutoScroll();
+            return;
+        }
+
+        try
+        {
+            var scrollViewer = GetLibraryGridScrollViewer();
+            if (scrollViewer is null)
+            {
+                if (!loggedLibraryDragAutoScrollViewerMissing)
+                {
+                    loggedLibraryDragAutoScrollViewerMissing = true;
+                    App.Logger.Error(
+                        new InvalidOperationException("Library GridView ScrollViewer was not found."),
+                        "Library drag auto-scroll failed.");
+                }
+
+                StopLibraryDragAutoScroll();
+                return;
+            }
+
+            var maxOffset = Math.Max(0, scrollViewer.ScrollableHeight);
+            var nextOffset = Math.Clamp(scrollViewer.VerticalOffset + delta, 0, maxOffset);
+            if (Math.Abs(nextOffset - scrollViewer.VerticalOffset) < 0.1)
+            {
+                StopLibraryDragAutoScroll();
+                return;
+            }
+
+            if (!scrollViewer.ChangeView(null, nextOffset, null, disableAnimation: true))
+            {
+                App.Logger.Error(
+                    new InvalidOperationException("ScrollViewer.ChangeView returned false."),
+                    $"Library drag auto-scroll failed. Offset={scrollViewer.VerticalOffset}; NextOffset={nextOffset}; Delta={delta}");
+                StopLibraryDragAutoScroll();
+                return;
+            }
+
+            SetDropRenameTarget(DropRenameTargetAt(ToRootPoint(libraryDragLastPosition)));
+        }
+        catch (Exception ex)
+        {
+            App.Logger.Error(ex, $"Library drag auto-scroll failed. Y={libraryDragLastPosition.Y}; Height={LibraryGrid.ActualHeight}");
+            StopLibraryDragAutoScroll();
+        }
+    }
+
+    private ScrollViewer? GetLibraryGridScrollViewer()
+    {
+        if (libraryGridScrollViewer is not null)
+        {
+            return libraryGridScrollViewer;
+        }
+
+        libraryGridScrollViewer = FindDescendant<ScrollViewer>(LibraryGrid);
+        return libraryGridScrollViewer;
     }
 
     private void HideDragPreview()
@@ -881,6 +1013,28 @@ public sealed partial class MainPage : Page
             }
 
             current = VisualTreeHelper.GetParent(current);
+        }
+
+        return null;
+    }
+
+    private static T? FindDescendant<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        var childCount = VisualTreeHelper.GetChildrenCount(root);
+        for (var index = 0; index < childCount; index++)
+        {
+            var child = VisualTreeHelper.GetChild(root, index);
+            if (child is T match)
+            {
+                return match;
+            }
+
+            var descendant = FindDescendant<T>(child);
+            if (descendant is not null)
+            {
+                return descendant;
+            }
         }
 
         return null;
