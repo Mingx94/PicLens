@@ -148,6 +148,46 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void Trash_dialog_cancel_does_not_move_file()
+    {
+        using var fixture = PicLensAppFixture.StartSeeded(nameof(Trash_dialog_cancel_does_not_move_file));
+
+        fixture.WithDiagnostics(nameof(Trash_dialog_cancel_does_not_move_file), () =>
+        {
+            var originalPath = Path.Combine(fixture.LibraryRoot, "Alpha-01.png");
+
+            fixture.RightClickTile("Alpha-01.png，圖片");
+            fixture.ClickByAutomationId("ImageContextTrashButton");
+            fixture.WaitForVisibleText("要將", "移至回收筒");
+            fixture.ClickByName("取消");
+
+            Assert.True(File.Exists(originalPath));
+            Assert.NotNull(fixture.FindByTilePrefix("Alpha-01.png，圖片"));
+        });
+    }
+
+    [Fact]
+    public void Clear_same_basename_dialog_cancel_does_not_move_file()
+    {
+        using var fixture = PicLensAppFixture.StartSeeded(nameof(Clear_same_basename_dialog_cancel_does_not_move_file));
+
+        fixture.WithDiagnostics(nameof(Clear_same_basename_dialog_cancel_does_not_move_file), () =>
+        {
+            var originalPath = Path.Combine(fixture.LibraryRoot, "Alpha-01.png");
+            File.Copy(originalPath, Path.Combine(fixture.LibraryRoot, "Alpha-01.jpg"));
+
+            fixture.ClickByAutomationId("TitleBarRefreshLibraryButton");
+            fixture.WaitForVisibleText("已重新整理");
+            fixture.InvokeMenuItem("TitleBarMoreActionsButton", "清除同名非 JPG 檔案");
+            fixture.WaitForVisibleText("要將同名的非 JPG 檔案移至回收筒嗎？");
+            fixture.ClickByName("取消");
+
+            Assert.True(File.Exists(originalPath));
+            Assert.NotNull(fixture.FindByTilePrefix("Alpha-01.png，圖片"));
+        });
+    }
+
+    [Fact]
     public void Thumbnail_size_slider_persists_setting()
     {
         using var fixture = PicLensAppFixture.StartSeeded(nameof(Thumbnail_size_slider_persists_setting));

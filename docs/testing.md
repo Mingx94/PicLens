@@ -58,6 +58,8 @@ FlaUI 測試是 opt-in，不屬於 `Release.ps1` 或預設 CI 驗證。執行：
 - 驗證排序 flyout、含子資料夾 toggle、recursive image visibility，以及 settings persistence。
 - 驗證左鍵 image selection 不顯示底部 action bar，右鍵 image context menu 會顯示 rename/trash actions。
 - 驗證 rename dialog 可取消，且不會修改原始檔案。
+- 驗證 trash confirmation dialog 可取消，且不會移動原始檔案。
+- 驗證 clear same-basename confirmation dialog 可取消，且不會移動原始檔案。
 - 驗證 thumbnail size slider persistence。
 - 驗證 inline viewer smoke：double click 在主視窗內開啟 viewer、app bar title update、previous/next、zoom controls、viewer image controls，以及 Escape close。
 
@@ -66,6 +68,12 @@ FlaUI 測試是 opt-in，不屬於 `Release.ps1` 或預設 CI 驗證。執行：
 ```text
 artifacts\ui-tests\
 ```
+
+## Recent Verification
+
+單次驗證結果放在 `docs/verification/`，避免 runtime contract 變成測試報告。
+
+- [2026-06-24 WinUI runtime verification](verification/2026-06-24.md)
 
 ## WinUI Build
 
