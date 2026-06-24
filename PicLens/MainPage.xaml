@@ -370,6 +370,7 @@
                     ContainerContentChanging="LibraryGrid_ContainerContentChanging"
                     DoubleTapped="LibraryGrid_DoubleTapped"
                     IsItemClickEnabled="False"
+                    IsMultiSelectCheckBoxEnabled="False"
                     IsTabStop="True"
                     ItemsSource="{x:Bind ViewModel.LibraryItems, Mode=OneWay}"
                     KeyDown="LibraryGrid_KeyDown"
@@ -378,8 +379,13 @@
                     PointerMoved="LibraryGrid_PointerMoved"
                     PointerReleased="LibraryGrid_PointerReleased"
                     SelectionChanged="LibraryGrid_SelectionChanged"
-                    SelectionMode="Multiple"
+                    SelectionMode="Extended"
                     Visibility="{x:Bind local:MainPage.BoolToVisibility(ViewModel.HasCurrentFolder), Mode=OneWay}">
+                    <GridView.KeyboardAccelerators>
+                        <KeyboardAccelerator
+                            Key="Enter"
+                            Invoked="LibraryGridEnterKeyboardAccelerator_Invoked" />
+                    </GridView.KeyboardAccelerators>
                     <GridView.ItemsPanel>
                         <ItemsPanelTemplate>
                             <ItemsWrapGrid Orientation="Horizontal" />

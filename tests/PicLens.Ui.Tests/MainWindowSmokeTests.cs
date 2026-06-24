@@ -161,6 +161,21 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void Pressing_enter_on_selected_image_opens_inline_viewer()
+    {
+        using var fixture = PicLensAppFixture.StartSeeded(nameof(Pressing_enter_on_selected_image_opens_inline_viewer));
+
+        fixture.WithDiagnostics(nameof(Pressing_enter_on_selected_image_opens_inline_viewer), () =>
+        {
+            fixture.ClickTile("Alpha-01.png，圖片");
+            Keyboard.Press(VirtualKeyShort.ENTER);
+
+            Assert.NotNull(fixture.FindByAutomationId("ViewerSurface"));
+            fixture.WaitForWindowTitle("PicLens - Alpha-01.png");
+        });
+    }
+
+    [Fact]
     public void Double_clicking_image_opens_inline_viewer_and_viewer_controls_work()
     {
         using var fixture = PicLensAppFixture.StartSeeded(nameof(Double_clicking_image_opens_inline_viewer_and_viewer_controls_work));

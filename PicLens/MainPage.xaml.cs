@@ -212,13 +212,38 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        var item = LibraryGrid.SelectedItems.OfType<LibraryTileItem>().FirstOrDefault()
-            ?? LibraryGrid.SelectedItem as LibraryTileItem;
-        if (item is not null)
+        if (await OpenSelectedLibraryItemAsync())
         {
             e.Handled = true;
-            await OpenTileAsync(item);
         }
+    }
+
+    private async void LibraryGridEnterKeyboardAccelerator_Invoked(
+        KeyboardAccelerator sender,
+        KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        await OpenSelectedLibraryItemAsync();
+    }
+
+    private async Task<bool> OpenSelectedLibraryItemAsync()
+    {
+        var item = SelectedLibraryItemForOpen();
+        if (item is null)
+        {
+            return false;
+        }
+
+        await OpenTileAsync(item);
+        return true;
+    }
+
+    private LibraryTileItem? SelectedLibraryItemForOpen()
+    {
+        var orderedSelection = OrderedSelectedLibraryItems();
+        return orderedSelection.FirstOrDefault(item => !item.IsFolder)
+            ?? LibraryGrid.SelectedItem as LibraryTileItem
+            ?? orderedSelection.FirstOrDefault();
     }
 
     private async Task OpenTileAsync(LibraryTileItem item)
