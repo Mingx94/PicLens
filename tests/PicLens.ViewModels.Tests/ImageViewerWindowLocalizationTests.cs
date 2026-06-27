@@ -1,4 +1,3 @@
-using System.Xml.Linq;
 using PicLens.Core.Models;
 using PicLens.ViewModels;
 
@@ -82,23 +81,6 @@ public sealed class ImageViewerWindowLocalizationTests
         Assert.Equal("原生檢視器目前尚不支援播放動畫 WEBP。", viewModel.UnsupportedMessage);
     }
 
-    [Fact]
-    public void PackageManifestUsesTraditionalChineseVisibleDisplayText()
-    {
-        var manifestPath = Path.Combine(RepositoryRoot, "PicLens", "Package.appxmanifest");
-        var manifest = XDocument.Load(manifestPath);
-        XNamespace foundation = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
-        XNamespace uap = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
-
-        var properties = manifest.Root?.Element(foundation + "Properties");
-        var visualElements = manifest.Descendants(uap + "VisualElements").Single();
-
-        Assert.Equal("PicLens", properties?.Element(foundation + "DisplayName")?.Value);
-        Assert.Equal("PicLens", properties?.Element(foundation + "PublisherDisplayName")?.Value);
-        Assert.Equal("PicLens", visualElements.Attribute("DisplayName")?.Value);
-        Assert.Equal("PicLens", visualElements.Attribute("Description")?.Value);
-    }
-
     private static ImageViewerWindowViewModel CreateSingleImageViewModel()
     {
         var image = new ImageListItem(
@@ -118,20 +100,5 @@ public sealed class ImageViewerWindowLocalizationTests
             CurrentIndex: 0);
 
         return new ImageViewerWindowViewModel(snapshot);
-    }
-
-    private static string RepositoryRoot
-    {
-        get
-        {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-            while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "PicLens.slnx")))
-            {
-                directory = directory.Parent;
-            }
-
-            return directory?.FullName
-                ?? throw new InvalidOperationException("Could not find repository root.");
-        }
     }
 }

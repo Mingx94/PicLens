@@ -17,7 +17,7 @@ $testProjects = @(
     },
     @{
         Path = Join-Path $root "tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj"
-        Properties = @("/p:Platform=x64")
+        Properties = @()
     }
 )
 

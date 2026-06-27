@@ -1,15 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
-    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
-    <Platforms>x64</Platforms>
+    <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference
-      Include="..\..\PicLens\PicLens.csproj"
-      AdditionalProperties="WindowsAppSdkDeploymentManagerInitialize=false;WindowsAppSdkBootstrapInitialize=false;WindowsAppSdkAutoInitialize=false;WindowsAppSdkUndockedRegFreeWinRTInitialize=false" />
+    <ProjectReference Include="..\..\src\PicLens.Presentation\PicLens.Presentation.csproj" />
   </ItemGroup>
 
 </Project>

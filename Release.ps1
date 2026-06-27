@@ -97,8 +97,6 @@ Invoke-Native "dotnet" @(
     "-r",
     $RuntimeIdentifier,
     "/p:Platform=$Platform",
-    "/p:WindowsPackageType=None",
-    "/p:WindowsAppSDKSelfContained=false",
     "/p:SelfContained=false"
 )
 
@@ -114,8 +112,6 @@ Invoke-Native "dotnet" @(
     "--self-contained",
     "false",
     "/p:Platform=$Platform",
-    "/p:WindowsPackageType=None",
-    "/p:WindowsAppSDKSelfContained=false",
     "/p:PublishSelfContained=false",
     "/p:PublishSingleFile=false",
     "/p:PublishReadyToRun=false",

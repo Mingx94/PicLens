@@ -17,14 +17,13 @@ public sealed partial class MainPageViewModel
     public async Task ChangeThumbnailSizeAsync(double thumbnailSize)
     {
         var normalizedSize = SettingsRules.NormalizeThumbnailSize(thumbnailSize);
-        if (ThumbnailSize == normalizedSize)
+        if (ThumbnailSize != normalizedSize)
         {
-            return;
+            ThumbnailSize = normalizedSize;
+            CancelAllThumbnailLoads();
+            ApplyThumbnailSizeToLibraryItems();
         }
 
-        ThumbnailSize = normalizedSize;
-        CancelAllThumbnailLoads();
-        ApplyThumbnailSizeToLibraryItems();
         settings = await settingsStore.UpdateAsync(new AppSettingsPatch { ThumbnailSize = normalizedSize });
         SetStatus($"縮圖大小已調整為 {normalizedSize}。");
     }

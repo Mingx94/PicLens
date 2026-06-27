@@ -1,6 +1,6 @@
 # Portable Release
 
-PicLens 目前不是為 Microsoft Store 或 MSIX distribution 準備。Release target 是 framework-dependent no-install folder，可複製到已安裝必要 runtimes 的機器上，並透過 `PicLens.exe` 啟動。
+PicLens release target 是 framework-dependent no-install folder，可複製到已安裝必要 .NET runtime 的 Windows 機器上，並透過 `PicLens.exe` 啟動。
 
 ## 建置
 
@@ -32,27 +32,22 @@ artifacts/portable/PicLens-win-x64/PicLens.exe
 
 ## 注意事項
 
-這不是 single-file executable。WinUI unpackaged output 必須保留 `PicLens.exe` 旁邊的 DLL、PRI、WinUI 與 runtime files。
+這不是 single-file executable。請保留 `PicLens.exe` 旁邊的 DLL、runtimeconfig、deps、Avalonia assets 與 app assets。
 
 不要只散佈 `PicLens.exe`；請散佈完整資料夾。
 
-預設 output 是 framework-dependent。目標 machines 必須已安裝：
-
-- Windows App Runtime 1.8
-- .NET Runtime 10
-- .NET Windows Desktop Runtime 10
+預設 output 是 framework-dependent。目標 machines 必須已安裝 .NET Runtime 10。
 
 ## Script 行為
 
-1. 使用 repo-local `NuGet.Config` restore Core、Application、Infrastructure 與 ViewModels test projects。
-2. 除非傳入 `-SkipTests`，否則執行 Core、Application、Infrastructure 與 ViewModels tests。
+1. 使用 repo-local `NuGet.Config` restore Core、Infrastructure 與 ViewModels test projects。
+2. 除非傳入 `-SkipTests`，否則執行 Core、Infrastructure 與 ViewModels tests。
 3. Restore selected Windows RID 的 app。
-4. 使用下列設定 publish：
-   - `WindowsPackageType=None`
-   - `WindowsAppSDKSelfContained=false`
+4. Publish framework-dependent portable output：
    - `--self-contained false`
    - `PublishSelfContained=false`
    - `PublishSingleFile=false`
+   - `PublishTrimmed=false`
    - `SelfContained=false`
    - `DebugType=None`
    - `DebugSymbols=false`

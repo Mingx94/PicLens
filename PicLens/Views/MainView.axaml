@@ -1,0 +1,336 @@
+<UserControl
+    x:Class="PicLens.Views.MainView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:PicLens.ViewModels"
+    x:DataType="vm:MainPageViewModel"
+    x:Name="Root"
+    Focusable="True">
+
+    <UserControl.Styles>
+        <Style Selector="Button.toolbar">
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="MinWidth" Value="36" />
+        </Style>
+        <Style Selector="TextBlock.muted">
+            <Setter Property="Foreground" Value="{DynamicResource ThemeForegroundLowBrush}" />
+        </Style>
+        <Style Selector="Border.tile">
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeControlLowBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="8" />
+            <Setter Property="Background" Value="{DynamicResource ThemeControlBackgroundBrush}" />
+        </Style>
+        <Style Selector="Border.tile:pointerover">
+            <Setter Property="Background" Value="{DynamicResource ThemeControlHighlightLowBrush}" />
+        </Style>
+        <Style Selector="Border.drop-target">
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Border
+            Grid.Row="0"
+            Padding="10,8"
+            Background="{DynamicResource ThemeBackgroundBrush}"
+            BorderBrush="{DynamicResource ThemeControlLowBrush}"
+            BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*">
+                <StackPanel
+                    Grid.Column="0"
+                    Orientation="Horizontal"
+                    Spacing="6">
+                    <TextBlock
+                        Text="PicLens"
+                        FontWeight="SemiBold"
+                        VerticalAlignment="Center"
+                        Margin="0,0,8,0"
+                        AutomationProperties.AutomationId="AppTitleBar" />
+                    <TextBlock
+                        Text=" "
+                        Width="1"
+                        Height="1"
+                        FontSize="1"
+                        IsHitTestVisible="False"
+                        AutomationProperties.AutomationId="FolderNavigationCommandBar" />
+                    <TextBlock
+                        Text=" "
+                        Width="1"
+                        Height="1"
+                        FontSize="1"
+                        IsHitTestVisible="False"
+                        AutomationProperties.AutomationId="LibraryCommandBar" />
+                    <Button
+                        Classes="toolbar"
+                        Content="←"
+                        ToolTip.Tip="上一個資料夾"
+                        AutomationProperties.AutomationId="TitleBarBackButton"
+                        Command="{Binding BackCommand}" />
+                    <Button
+                        Classes="toolbar"
+                        Content="→"
+                        ToolTip.Tip="下一個資料夾"
+                        AutomationProperties.AutomationId="TitleBarForwardButton"
+                        Command="{Binding ForwardCommand}" />
+                    <Button
+                        Classes="toolbar"
+                        Content="重新整理"
+                        AutomationProperties.AutomationId="TitleBarRefreshLibraryButton"
+                        Command="{Binding RefreshLibraryCommand}" />
+                    <Button
+                        Classes="toolbar"
+                        Content="選擇資料夾"
+                        AutomationProperties.AutomationId="TitleBarOpenFolderButton"
+                        Command="{Binding OpenFolderCommand}" />
+                    <Button
+                        Classes="toolbar"
+                        Content="{Binding SortLabel}"
+                        AutomationProperties.AutomationId="TitleBarSortMenuButton">
+                        <Button.Flyout>
+                            <MenuFlyout>
+                                <MenuItem Header="名稱由小到大" AutomationProperties.AutomationId="SortByNameAscendingMenuItem" Command="{Binding ChangeSortOptionCommand}" CommandParameter="name-asc" />
+                                <MenuItem Header="名稱由大到小" AutomationProperties.AutomationId="SortByNameDescendingMenuItem" Command="{Binding ChangeSortOptionCommand}" CommandParameter="name-desc" />
+                                <MenuItem Header="修改時間最舊到最新" AutomationProperties.AutomationId="SortByModifiedAtAscendingMenuItem" Command="{Binding ChangeSortOptionCommand}" CommandParameter="modified-asc" />
+                                <MenuItem Header="修改時間最新到最舊" AutomationProperties.AutomationId="SortByModifiedAtDescendingMenuItem" Command="{Binding ChangeSortOptionCommand}" CommandParameter="modified-desc" />
+                            </MenuFlyout>
+                        </Button.Flyout>
+                    </Button>
+                    <Button
+                        Classes="toolbar"
+                        Content="{Binding RecursiveModeLabel}"
+                        AutomationProperties.AutomationId="TitleBarRecursiveModeToggle"
+                        Command="{Binding ToggleIncludeSubfoldersCommand}" />
+                    <Button
+                        Classes="toolbar"
+                        Content="更多"
+                        AutomationProperties.AutomationId="TitleBarMoreActionsButton">
+                        <Button.Flyout>
+                            <MenuFlyout>
+                                <MenuItem Header="將目前顯示項目轉為 JPG" AutomationProperties.AutomationId="TitleBarConvertVisibleButton" Command="{Binding ConvertVisibleCommand}" />
+                                <MenuItem Header="清除同名非 JPG 檔案" AutomationProperties.AutomationId="TitleBarClearSameBasenameButton" Command="{Binding ClearSameBasenameCommand}" />
+                            </MenuFlyout>
+                        </Button.Flyout>
+                    </Button>
+                </StackPanel>
+                <TextBlock
+                    Grid.Column="1"
+                    Text="{Binding CurrentFolderPath, TargetNullValue=''}"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Right"
+                    TextTrimming="CharacterEllipsis" />
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid ColumnDefinitions="280,4,*">
+                <Border Grid.Column="0" Padding="10" BorderBrush="{DynamicResource ThemeControlLowBrush}" BorderThickness="0,0,1,0">
+                    <Grid RowDefinitions="Auto,*">
+                        <TextBlock Text="資料夾" FontWeight="SemiBold" Margin="0,0,0,8" />
+                        <TreeView
+                            x:Name="FolderTree"
+                            Grid.Row="1"
+                            AutomationProperties.AutomationId="FolderTree"
+                            ItemsSource="{Binding FolderRoots}"
+                            SelectionChanged="FolderTree_SelectionChanged">
+                            <TreeView.Styles>
+                                <Style Selector="TreeViewItem">
+                                    <Setter Property="IsExpanded" Value="{ReflectionBinding IsExpanded, Mode=TwoWay}" />
+                                </Style>
+                            </TreeView.Styles>
+                            <TreeView.ItemTemplate>
+                                <TreeDataTemplate DataType="vm:FolderTreeItem" ItemsSource="{Binding Children}" x:DataType="vm:FolderTreeItem">
+                                    <TextBlock Text="{Binding Name}" />
+                                </TreeDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                    </Grid>
+                </Border>
+
+                <GridSplitter Grid.Column="1" ResizeDirection="Columns" Background="{DynamicResource ThemeControlLowBrush}" />
+
+                <Grid Grid.Column="2" RowDefinitions="Auto,*">
+                    <Border Grid.Row="0" Padding="14,10" BorderBrush="{DynamicResource ThemeControlLowBrush}" BorderThickness="0,0,0,1">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel>
+                                <TextBlock Text="{Binding CurrentParentFolderName}" Classes="muted" />
+                                <TextBlock Text="{Binding CurrentFolderName}" FontSize="22" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding LibraryItemCountText}" VerticalAlignment="Bottom" Classes="muted" />
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Row="1">
+                        <ListBox
+                            x:Name="LibraryGrid"
+                            AutomationProperties.AutomationId="LibraryGrid"
+                            ItemsSource="{Binding LibraryItems}"
+                            SelectionMode="Multiple"
+                            SelectionChanged="LibraryGrid_SelectionChanged"
+                            KeyDown="LibraryGrid_KeyDown"
+                            Background="Transparent"
+                            Padding="12">
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem">
+                                    <Setter Property="Padding" Value="0" />
+                                    <Setter Property="Margin" Value="4" />
+                                </Style>
+                            </ListBox.Styles>
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel ItemSpacing="4" LineSpacing="4" />
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="vm:LibraryTileItem" x:DataType="vm:LibraryTileItem">
+                                    <Border
+                                        Classes="tile"
+                                        Width="{Binding TileWidth}"
+                                        MinHeight="{Binding TileHeight}"
+                                        AutomationProperties.AutomationId="{Binding AutomationId}"
+                                        AutomationProperties.Name="{Binding AutomationName}"
+                                        Loaded="LibraryTile_Loaded"
+                                        Unloaded="LibraryTile_Unloaded"
+                                        Tapped="LibraryTile_Tapped"
+                                        DoubleTapped="LibraryTile_DoubleTapped"
+                                        RightTapped="LibraryTile_RightTapped"
+                                        PointerPressed="LibraryTile_PointerPressed"
+                                        PointerMoved="LibraryTile_PointerMoved"
+                                        PointerReleased="LibraryTile_PointerReleased"
+                                        PointerCaptureLost="LibraryTile_PointerCaptureLost">
+                                        <Grid RowDefinitions="*,Auto,Auto">
+                                            <Border Height="{Binding TileHeight}" Background="{DynamicResource ThemeControlLowBrush}" ClipToBounds="True" CornerRadius="4">
+                                                <Grid>
+                                                    <Image Source="{Binding ThumbnailPath}" Stretch="UniformToFill" IsVisible="{Binding CanShowThumbnail}" />
+                                                    <TextBlock Text="{Binding IconGlyph}" FontSize="40" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding ShouldShowIcon}" />
+                                                </Grid>
+                                            </Border>
+                                            <TextBlock Grid.Row="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis" Margin="0,8,0,0" />
+                                            <TextBlock Grid.Row="2" Text="{Binding Detail}" Classes="muted" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <StackPanel
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="12"
+                            IsVisible="{Binding HasNoCurrentFolder}">
+                            <TextBlock Text="尚未選擇資料夾" FontSize="22" HorizontalAlignment="Center" />
+                            <Button
+                                Content="選擇資料夾"
+                                HorizontalAlignment="Center"
+                                AutomationProperties.AutomationId="EmptyStateOpenFolderButton"
+                                Command="{Binding OpenFolderCommand}" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Grid>
+
+            <Border
+                x:Name="LibraryDragPreviewOverlay"
+                IsVisible="False"
+                Background="{DynamicResource SystemAccentColor}"
+                CornerRadius="6"
+                Padding="10,6"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                ZIndex="20">
+                <TextBlock x:Name="LibraryDragPreviewText" Foreground="White" />
+            </Border>
+
+            <Grid
+                x:Name="ViewerSurface"
+                IsVisible="False"
+                Focusable="True"
+                Background="{DynamicResource ThemeBackgroundBrush}"
+                KeyDown="ViewerSurface_KeyDown"
+                x:DataType="vm:ImageViewerWindowViewModel"
+                ZIndex="50">
+                <Grid RowDefinitions="Auto,*">
+                    <Border Grid.Row="0" Padding="10" BorderBrush="{DynamicResource ThemeControlLowBrush}" BorderThickness="0,0,0,1" IsVisible="{Binding IsChromeVisible}">
+                        <StackPanel Orientation="Horizontal" Spacing="6" AutomationProperties.AutomationId="ViewerTitleCommandBar">
+                            <TextBlock
+                                Text=" "
+                                Width="1"
+                                Height="1"
+                                FontSize="1"
+                                IsHitTestVisible="False"
+                                AutomationProperties.AutomationId="ViewerSurface" />
+                            <Button Content="上一張" AutomationProperties.AutomationId="ViewerPreviousButton" Command="{Binding PreviousCommand}" />
+                            <Button Content="下一張" AutomationProperties.AutomationId="ViewerNextButton" Command="{Binding NextCommand}" />
+                            <Button Content="縮小" AutomationProperties.AutomationId="ViewerZoomOutButton" Command="{Binding ZoomOutCommand}" />
+                            <Button Content="重設" AutomationProperties.AutomationId="ViewerResetZoomButton" Command="{Binding ResetZoomCommand}" />
+                            <Button Content="放大" AutomationProperties.AutomationId="ViewerZoomInButton" Command="{Binding ZoomInCommand}" />
+                            <Button Content="關閉" AutomationProperties.AutomationId="ViewerCloseButton" Click="CloseViewer_Click" />
+                            <TextBlock Text="{Binding CurrentImageName}" VerticalAlignment="Center" Margin="12,0,0,0" />
+                        </StackPanel>
+                    </Border>
+                    <Grid
+                        x:Name="ViewerImageSurface"
+                        Grid.Row="1"
+                        ClipToBounds="True"
+                        Background="Black"
+                        SizeChanged="ViewerImageSurface_SizeChanged"
+                        PointerWheelChanged="ViewerImageSurface_PointerWheelChanged"
+                        PointerPressed="ViewerImageSurface_PointerPressed"
+                        PointerMoved="ViewerImageSurface_PointerMoved"
+                        PointerReleased="ViewerImageSurface_PointerReleased"
+                        PointerCaptureLost="ViewerImageSurface_PointerCaptureLost">
+                        <Image
+                            x:Name="ViewerImage"
+                            AutomationProperties.AutomationId="ViewerImage"
+                            AutomationProperties.Name="{Binding CurrentImageName}"
+                            Source="{Binding CurrentImageSourcePath}"
+                            Stretch="Uniform"
+                            IsVisible="{Binding IsImageVisible}"
+                            RenderTransformOrigin="0.5,0.5">
+                            <Image.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}" />
+                                    <TranslateTransform X="{Binding OffsetX}" Y="{Binding OffsetY}" />
+                                </TransformGroup>
+                            </Image.RenderTransform>
+                        </Image>
+                        <TextBlock
+                            Text="{Binding UnsupportedMessage}"
+                            Foreground="White"
+                            FontSize="18"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            IsVisible="{Binding IsUnsupportedAnimatedImage}" />
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Grid>
+
+        <Border
+            Grid.Row="2"
+            Padding="10,6"
+            BorderBrush="{DynamicResource ThemeControlLowBrush}"
+            BorderThickness="0,1,0,0"
+            AutomationProperties.AutomationId="StatusBar">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock AutomationProperties.AutomationId="StatusInfoBar" Text="{Binding StatusMessage}" TextTrimming="CharacterEllipsis" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{Binding ThumbnailSizeLabel}" VerticalAlignment="Center" />
+                    <Slider
+                        x:Name="ThumbnailSizeSlider"
+                        AutomationProperties.AutomationId="ThumbnailSizeSlider"
+                        Minimum="{Binding ThumbnailSizeMinimum}"
+                        Maximum="{Binding ThumbnailSizeMaximum}"
+                        TickFrequency="{Binding ThumbnailSizeStep}"
+                        Value="{Binding ThumbnailSize, Mode=TwoWay}"
+                        Width="150"
+                        LostFocus="ThumbnailSizeSlider_CommitValue"
+                        PointerCaptureLost="ThumbnailSizeSlider_CommitValue"
+                        KeyUp="ThumbnailSizeSlider_KeyUp" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

@@ -692,7 +692,7 @@ public sealed class PicLensAppFixture : IDisposable
             }
             catch
             {
-                // UIA trees are transient while WinUI opens flyouts or windows. Retry until timeout.
+                // UIA trees are transient while menus or windows open. Retry until timeout.
             }
 
             Thread.Sleep(RetryInterval);

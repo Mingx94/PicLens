@@ -1,0 +1,16 @@
+<Window
+    x:Class="PicLens.MainWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:PicLens"
+    xmlns:views="using:PicLens.Views"
+    x:DataType="local:MainWindow"
+    Title="PicLens"
+    Width="1220"
+    Height="820"
+    MinWidth="760"
+    MinHeight="520"
+    Icon="/Assets/AppIcon.ico"
+    WindowStartupLocation="CenterScreen">
+    <views:MainView />
+</Window>

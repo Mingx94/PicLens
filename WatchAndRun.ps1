@@ -173,8 +173,8 @@ function Test-RelevantChange {
 
     $fileName = [System.IO.Path]::GetFileName($normalized)
     $extension = [System.IO.Path]::GetExtension($normalized)
-    $includedNames = @("NuGet.Config", "Package.appxmanifest", "app.manifest", "PicLens.slnx")
-    $includedExtensions = @(".cs", ".xaml", ".csproj", ".props", ".targets", ".resw", ".json", ".appxmanifest", ".manifest", ".ico", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".svg")
+    $includedNames = @("NuGet.Config", "app.manifest", "PicLens.slnx")
+    $includedExtensions = @(".cs", ".axaml", ".csproj", ".props", ".targets", ".json", ".manifest", ".ico", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".svg")
 
     return ($includedNames -icontains $fileName) -or ($includedExtensions -icontains $extension)
 }

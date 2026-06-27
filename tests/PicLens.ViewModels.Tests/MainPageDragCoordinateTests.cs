@@ -1,5 +1,5 @@
-using PicLens;
-using Windows.Foundation;
+using PicLens.Core.Models;
+using PicLens.ViewModels;
 
 namespace PicLens.ViewModels.Tests;
 
@@ -8,7 +8,7 @@ public sealed class MainPageDragCoordinateTests
     [Fact]
     public void Drag_hit_test_point_uses_root_coordinates()
     {
-        var point = MainPage.TranslateLibraryDragPointToRoot(
+        var point = DragInteractionRules.TranslateLibraryDragPointToRoot(
             new Point(24, 32),
             new Point(280, 96));
 
@@ -24,7 +24,7 @@ public sealed class MainPageDragCoordinateTests
     [InlineData(396, 15.11111111111111)]
     public void Drag_auto_scroll_delta_scales_near_vertical_edges(double pointerY, double expected)
     {
-        var delta = MainPage.CalculateLibraryDragAutoScrollDelta(pointerY, viewportHeight: 400);
+        var delta = DragInteractionRules.CalculateLibraryDragAutoScrollDelta(pointerY, viewportHeight: 400);
 
         Assert.Equal(expected, delta, precision: 12);
     }
@@ -34,7 +34,7 @@ public sealed class MainPageDragCoordinateTests
     [InlineData(440)]
     public void Drag_auto_scroll_delta_is_capped(double pointerY)
     {
-        var delta = Math.Abs(MainPage.CalculateLibraryDragAutoScrollDelta(pointerY, viewportHeight: 400));
+        var delta = Math.Abs(DragInteractionRules.CalculateLibraryDragAutoScrollDelta(pointerY, viewportHeight: 400));
 
         Assert.Equal(16, delta);
     }

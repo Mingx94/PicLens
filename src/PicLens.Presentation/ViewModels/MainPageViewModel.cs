@@ -91,6 +91,12 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     public bool HasCurrentFolder => !string.IsNullOrWhiteSpace(CurrentFolderPath);
 
+    public bool HasNoCurrentFolder => !HasCurrentFolder;
+
+    public bool HasLibraryItems => LibraryItems.Count > 0;
+
+    public bool HasNoLibraryItems => LibraryItems.Count == 0;
+
     public string CurrentFolderName => FolderDisplayName(CurrentFolderPath, "未選擇資料夾", appLogger);
 
     public string CurrentParentFolderName => ParentFolderDisplayName(CurrentFolderPath, appLogger);
@@ -344,6 +350,7 @@ public sealed partial class MainPageViewModel : ObservableObject
     partial void OnCurrentFolderPathChanged(string value)
     {
         OnPropertyChanged(nameof(HasCurrentFolder));
+        OnPropertyChanged(nameof(HasNoCurrentFolder));
         OnPropertyChanged(nameof(CurrentFolderName));
         OnPropertyChanged(nameof(CurrentParentFolderName));
     }
@@ -978,6 +985,8 @@ public sealed partial class MainPageViewModel : ObservableObject
     private void NotifyLibraryItemCount()
     {
         OnPropertyChanged(nameof(LibraryItemCountText));
+        OnPropertyChanged(nameof(HasLibraryItems));
+        OnPropertyChanged(nameof(HasNoLibraryItems));
     }
 
     private void NotifyNavigationCommands()

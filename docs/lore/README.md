@@ -13,7 +13,7 @@ Implicit knowledge that code, types, tests, and git history can't reveal: busine
 <!-- maintained as areas are added -->
 | Area | What's in it |
 |------|--------------|
-| `app/` | WinUI shell, view models, diagnostics, user-facing desktop behavior |
+| `app/` | Avalonia shell, view models, diagnostics, user-facing desktop behavior |
 | `imaging/` | Folder scanning, image rules, thumbnails, file operations |
 
 ## Optional
