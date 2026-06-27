@@ -33,6 +33,7 @@ public sealed class LibraryTileItem : ObservableObject
     public string Detail { get; }
     public bool IsFolder => SourceItem is FolderListItem;
     public bool IsAnimated => SourceItem is ImageListItem { IsAnimated: true };
+    public bool IsStillImage => SourceItem is ImageListItem { IsAnimated: false };
     public string IconGlyph { get; }
     public ListItem SourceItem { get; }
 

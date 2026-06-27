@@ -23,6 +23,16 @@
         <SolidColorBrush x:Key="AccentBrush" Color="#0078D4" />
         <SolidColorBrush x:Key="ViewerCanvasBrush" Color="#F7F7F7" />
         <converters:ImagePathConverter x:Key="ImagePathConverter" />
+        <StreamGeometry x:Key="IconBack">M20,11L7.83,11L13.42,5.41L12,4L4,12L12,20L13.42,18.59L7.83,13L20,13Z</StreamGeometry>
+        <StreamGeometry x:Key="IconForward">M4,11L16.17,11L10.58,5.41L12,4L20,12L12,20L10.58,18.59L16.17,13L4,13Z</StreamGeometry>
+        <StreamGeometry x:Key="IconRefresh">M17.65,6.35C16.2,4.9 14.21,4 12,4C7.58,4 4.01,7.58 4.01,12C4.01,16.42 7.58,20 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18C8.69,18 6,15.31 6,12C6,8.69 8.69,6 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4Z</StreamGeometry>
+        <StreamGeometry x:Key="IconFolder">M10,4L12,6H20C21.1,6 22,6.9 22,8V18C22,19.1 21.1,20 20,20H4C2.9,20 2,19.1 2,18V6C2,4.9 2.9,4 4,4Z</StreamGeometry>
+        <StreamGeometry x:Key="IconMore">M12,8C13.1,8 14,7.1 14,6C14,4.9 13.1,4 12,4C10.9,4 10,4.9 10,6C10,7.1 10.9,8 12,8M12,10C10.9,10 10,10.9 10,12C10,13.1 10.9,14 12,14C13.1,14 14,13.1 14,12C14,10.9 13.1,10 12,10M12,16C10.9,16 10,16.9 10,18C10,19.1 10.9,20 12,20C13.1,20 14,19.1 14,18C14,16.9 13.1,16 12,16Z</StreamGeometry>
+        <StreamGeometry x:Key="IconImage">M19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19V5C21,3.9 20.1,3 19,3M8.5,8.5C7.67,8.5 7,7.83 7,7C7,6.17 7.67,5.5 8.5,5.5C9.33,5.5 10,6.17 10,7C10,7.83 9.33,8.5 8.5,8.5M19,18H5L8.5,13.5L11,16.51L14.5,12Z</StreamGeometry>
+        <StreamGeometry x:Key="IconFilm">M18,4L20,8H17L15,4ZM10,4L12,8H9L7,4ZM4,4H5L7,8H4ZM4,10H20V18C20,19.1 19.1,20 18,20H6C4.9,20 4,19.1 4,18Z</StreamGeometry>
+        <StreamGeometry x:Key="IconZoomOut">M9.5,3C5.91,3 3,5.91 3,9.5C3,13.09 5.91,16 9.5,16C11.11,16 12.59,15.41 13.73,14.44L14,14.71V15.5L19,20.49L20.49,19L15.5,14H14.71L14.44,13.73C15.41,12.59 16,11.11 16,9.5C16,5.91 13.09,3 9.5,3M6,8.5H13V10.5H6Z</StreamGeometry>
+        <StreamGeometry x:Key="IconZoomIn">M9.5,3C5.91,3 3,5.91 3,9.5C3,13.09 5.91,16 9.5,16C11.11,16 12.59,15.41 13.73,14.44L14,14.71V15.5L19,20.49L20.49,19L15.5,14H14.71L14.44,13.73C15.41,12.59 16,11.11 16,9.5C16,5.91 13.09,3 9.5,3M8.5,6H10.5V8.5H13V10.5H10.5V13H8.5V10.5H6V8.5H8.5Z</StreamGeometry>
+        <StreamGeometry x:Key="IconClose">M18.3,5.71L16.89,4.29L12,9.17L7.11,4.29L5.7,5.71L10.59,10.59L5.7,15.48L7.11,16.89L12,12L16.89,16.89L18.3,15.48L13.41,10.59Z</StreamGeometry>
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -35,9 +45,9 @@
         <Style Selector="TextBlock.secondary">
             <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
         </Style>
-        <Style Selector="TextBlock.glyph">
-            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
-            <Setter Property="FontSize" Value="16" />
+        <Style Selector="PathIcon.glyph">
+            <Setter Property="Width" Value="16" />
+            <Setter Property="Height" Value="16" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style Selector="Button.toolbar">
@@ -78,10 +88,10 @@
             <Setter Property="Width" Value="38" />
             <Setter Property="Height" Value="36" />
         </Style>
-        <Style Selector="Button.icon TextBlock.glyph">
+        <Style Selector="Button.icon PathIcon.glyph">
             <Setter Property="Width" Value="20" />
+            <Setter Property="Height" Value="20" />
             <Setter Property="HorizontalAlignment" Value="Center" />
-            <Setter Property="TextAlignment" Value="Center" />
         </Style>
         <Style Selector="Border.tile">
             <Setter Property="Background" Value="Transparent" />
@@ -129,14 +139,14 @@
                         ToolTip.Tip="上一個資料夾"
                         AutomationProperties.AutomationId="TitleBarBackButton"
                         Command="{Binding BackCommand}">
-                        <TextBlock Classes="glyph" Text="&#xE72B;" />
+                        <PathIcon Classes="glyph" Data="{StaticResource IconBack}" />
                     </Button>
                     <Button
                         Classes="toolbar icon"
                         ToolTip.Tip="下一個資料夾"
                         AutomationProperties.AutomationId="TitleBarForwardButton"
                         Command="{Binding ForwardCommand}">
-                        <TextBlock Classes="glyph" Text="&#xE72A;" />
+                        <PathIcon Classes="glyph" Data="{StaticResource IconForward}" />
                     </Button>
                     <Border Width="1" Height="24" Margin="5,0" Background="{StaticResource LineBrush}" />
                     <Button
@@ -144,7 +154,7 @@
                         ToolTip.Tip="重新整理"
                         AutomationProperties.AutomationId="TitleBarRefreshLibraryButton"
                         Command="{Binding RefreshLibraryCommand}">
-                        <TextBlock Classes="glyph" Text="&#xE72C;" />
+                        <PathIcon Classes="glyph" Data="{StaticResource IconRefresh}" />
                     </Button>
                     <Button
                         Classes="toolbar"
@@ -152,7 +162,7 @@
                         AutomationProperties.AutomationId="TitleBarOpenFolderButton"
                         Command="{Binding OpenFolderCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
-                            <TextBlock Classes="glyph" Text="&#xE8B7;" />
+                            <PathIcon Classes="glyph" Data="{StaticResource IconFolder}" />
                             <TextBlock Text="選擇資料夾" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -179,7 +189,7 @@
                         AutomationProperties.AutomationId="TitleBarRecursiveModeToggle"
                         Command="{Binding ToggleIncludeSubfoldersCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
-                            <TextBlock Classes="glyph" Text="&#xE8B7;" />
+                            <PathIcon Classes="glyph" Data="{StaticResource IconFolder}" />
                             <TextBlock Text="{Binding RecursiveModeLabel}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -187,7 +197,7 @@
                         Classes="toolbar icon"
                         ToolTip.Tip="更多"
                         AutomationProperties.AutomationId="TitleBarMoreActionsButton">
-                        <TextBlock Classes="glyph" Text="&#xE712;" />
+                        <PathIcon Classes="glyph" Data="{StaticResource IconMore}" />
                         <Button.Flyout>
                             <MenuFlyout>
                                 <MenuItem Header="將目前顯示項目轉為 JPG" AutomationProperties.AutomationId="TitleBarConvertVisibleButton" Command="{Binding ConvertVisibleCommand}" />
@@ -231,7 +241,7 @@
                             <TreeView.ItemTemplate>
                                 <TreeDataTemplate DataType="vm:FolderTreeItem" ItemsSource="{Binding Children}" x:DataType="vm:FolderTreeItem">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Classes="glyph" Text="&#xE8B7;" />
+                                        <PathIcon Classes="glyph" Data="{StaticResource IconFolder}" />
                                         <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </TreeDataTemplate>
@@ -316,13 +326,14 @@
                                                 CornerRadius="4">
                                                 <Grid>
                                                     <Image Source="{Binding ThumbnailPath, Converter={StaticResource ImagePathConverter}}" Stretch="Uniform" IsVisible="{Binding CanShowThumbnail}" />
-                                                    <TextBlock
-                                                        Text="{Binding IconGlyph}"
-                                                        Classes="glyph muted"
-                                                        FontSize="36"
+                                                    <Panel
                                                         HorizontalAlignment="Center"
                                                         VerticalAlignment="Center"
-                                                        IsVisible="{Binding ShouldShowIcon}" />
+                                                        IsVisible="{Binding ShouldShowIcon}">
+                                                        <PathIcon Classes="glyph muted" Data="{StaticResource IconFolder}" Width="42" Height="42" IsVisible="{Binding IsFolder}" />
+                                                        <PathIcon Classes="glyph muted" Data="{StaticResource IconFilm}" Width="42" Height="42" IsVisible="{Binding IsAnimated}" />
+                                                        <PathIcon Classes="glyph muted" Data="{StaticResource IconImage}" Width="42" Height="42" IsVisible="{Binding IsStillImage}" />
+                                                    </Panel>
                                                 </Grid>
                                             </Border>
                                             <TextBlock
@@ -402,7 +413,7 @@
                 </Border>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                    <TextBlock Classes="glyph secondary" Text="&#xECA5;" />
+                    <PathIcon Classes="glyph secondary" Data="{StaticResource IconImage}" />
                     <TextBlock Text="{Binding ThumbnailSizeLabel}" Classes="secondary" VerticalAlignment="Center" />
                     <Slider
                         x:Name="ThumbnailSizeSlider"
@@ -451,24 +462,24 @@
                             VerticalAlignment="Center"
                             AutomationProperties.AutomationId="ViewerTitleCommandBar">
                             <Button Classes="toolbar icon" ToolTip.Tip="上一張" AutomationProperties.AutomationId="ViewerPreviousButton" Command="{Binding PreviousCommand}">
-                                <TextBlock Classes="glyph" Text="&#xE72B;" />
+                                <PathIcon Classes="glyph" Data="{StaticResource IconBack}" />
                             </Button>
                             <Button Classes="toolbar icon" ToolTip.Tip="下一張" AutomationProperties.AutomationId="ViewerNextButton" Command="{Binding NextCommand}">
-                                <TextBlock Classes="glyph" Text="&#xE72A;" />
+                                <PathIcon Classes="glyph" Data="{StaticResource IconForward}" />
                             </Button>
                             <Border Width="1" Height="24" Margin="5,0" Background="{StaticResource LineBrush}" />
                             <Button Classes="toolbar icon" ToolTip.Tip="縮小" AutomationProperties.AutomationId="ViewerZoomOutButton" Command="{Binding ZoomOutCommand}">
-                                <TextBlock Classes="glyph" Text="&#xE71F;" />
+                                <PathIcon Classes="glyph" Data="{StaticResource IconZoomOut}" />
                             </Button>
                             <Button Classes="toolbar icon" ToolTip.Tip="重設" AutomationProperties.AutomationId="ViewerResetZoomButton" Command="{Binding ResetZoomCommand}">
-                                <TextBlock Classes="glyph" Text="&#xE72C;" />
+                                <PathIcon Classes="glyph" Data="{StaticResource IconRefresh}" />
                             </Button>
                             <Button Classes="toolbar icon" ToolTip.Tip="放大" AutomationProperties.AutomationId="ViewerZoomInButton" Command="{Binding ZoomInCommand}">
-                                <TextBlock Classes="glyph" Text="&#xE71E;" />
+                                <PathIcon Classes="glyph" Data="{StaticResource IconZoomIn}" />
                             </Button>
                             <Border Width="1" Height="24" Margin="5,0" Background="{StaticResource LineBrush}" />
                             <Button Classes="toolbar icon" ToolTip.Tip="關閉" AutomationProperties.AutomationId="ViewerCloseButton" Click="CloseViewer_Click">
-                                <TextBlock Classes="glyph" Text="&#xE711;" />
+                                <PathIcon Classes="glyph" Data="{StaticResource IconClose}" />
                             </Button>
                         </StackPanel>
                         <TextBlock

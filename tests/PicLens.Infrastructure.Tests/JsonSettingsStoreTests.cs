@@ -113,15 +113,30 @@ public sealed class JsonSettingsStoreTests
             HasLastFolderPath = true,
             ThumbnailSize = 180
         });
-        await using var locked = new FileStream(settingsPath, FileMode.Open, FileAccess.Read, FileShare.None);
-
-        var exception = await Assert.ThrowsAsync<IOException>(() => store.UpdateAsync(new AppSettingsPatch
+        if (OperatingSystem.IsWindows())
         {
-            IncludeSubfolders = true
-        }));
+            await using var locked = new FileStream(settingsPath, FileMode.Open, FileAccess.Read, FileShare.None);
 
-        Assert.Contains("update skipped", exception.Message);
-        Assert.Empty(Directory.GetFiles(temp.Root, "*.tmp"));
+            await AssertUpdateSkippedAsync(store, temp.Root);
+        }
+        else
+        {
+            await File.WriteAllTextAsync(settingsPath, "{ invalid json");
+            var originalMode = File.GetUnixFileMode(temp.Root);
+
+            try
+            {
+                File.SetUnixFileMode(
+                    temp.Root,
+                    UnixFileMode.UserRead | UnixFileMode.UserExecute);
+
+                await AssertUpdateSkippedAsync(store, temp.Root);
+            }
+            finally
+            {
+                File.SetUnixFileMode(temp.Root, originalMode);
+            }
+        }
     }
 
     [Fact]
@@ -149,5 +164,16 @@ public sealed class JsonSettingsStoreTests
         Assert.Equal(@"C:\Images", loaded.LastFolderPath);
         Assert.Equal(new SortState(SortKey.Name, SortDirection.Asc), loaded.Sort);
         Assert.False(loaded.IncludeSubfolders);
+    }
+
+    private static async Task AssertUpdateSkippedAsync(JsonSettingsStore store, string root)
+    {
+        var exception = await Assert.ThrowsAsync<IOException>(() => store.UpdateAsync(new AppSettingsPatch
+        {
+            IncludeSubfolders = true
+        }));
+
+        Assert.Contains("update skipped", exception.Message);
+        Assert.Empty(Directory.GetFiles(root, "*.tmp"));
     }
 }

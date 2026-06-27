@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using PicLens.Core.Models;
 using CoreSortKey = PicLens.Core.Models.SortKey;
 
@@ -39,8 +38,98 @@ public static class ListItemSorter
         return sorted;
     }
 
-    private static int NaturalCompare(string left, string right) => StrCmpLogicalW(left, right);
+    private static int NaturalCompare(string left, string right)
+    {
+        var leftIndex = 0;
+        var rightIndex = 0;
 
-    [DllImport("shlwapi.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
-    private static extern int StrCmpLogicalW(string psz1, string psz2);
+        while (leftIndex < left.Length && rightIndex < right.Length)
+        {
+            var leftChar = left[leftIndex];
+            var rightChar = right[rightIndex];
+
+            if (char.IsDigit(leftChar) && char.IsDigit(rightChar))
+            {
+                var result = CompareNumberRuns(left, ref leftIndex, right, ref rightIndex);
+                if (result != 0)
+                {
+                    return result;
+                }
+
+                continue;
+            }
+
+            var charResult = char.ToUpperInvariant(leftChar).CompareTo(char.ToUpperInvariant(rightChar));
+            if (charResult != 0)
+            {
+                return charResult;
+            }
+
+            charResult = leftChar.CompareTo(rightChar);
+            if (charResult != 0)
+            {
+                return charResult;
+            }
+
+            leftIndex++;
+            rightIndex++;
+        }
+
+        return (left.Length - leftIndex).CompareTo(right.Length - rightIndex);
+    }
+
+    private static int CompareNumberRuns(string left, ref int leftIndex, string right, ref int rightIndex)
+    {
+        var leftStart = leftIndex;
+        while (leftIndex < left.Length && char.IsDigit(left[leftIndex]))
+        {
+            leftIndex++;
+        }
+
+        var rightStart = rightIndex;
+        while (rightIndex < right.Length && char.IsDigit(right[rightIndex]))
+        {
+            rightIndex++;
+        }
+
+        var leftSignificant = FirstSignificantDigit(left, leftStart, leftIndex);
+        var rightSignificant = FirstSignificantDigit(right, rightStart, rightIndex);
+        var leftSignificantLength = leftIndex - leftSignificant;
+        var rightSignificantLength = rightIndex - rightSignificant;
+
+        var lengthResult = leftSignificantLength.CompareTo(rightSignificantLength);
+        if (lengthResult != 0)
+        {
+            return lengthResult;
+        }
+
+        for (var i = 0; i < leftSignificantLength; i++)
+        {
+            var digitResult = left[leftSignificant + i].CompareTo(right[rightSignificant + i]);
+            if (digitResult != 0)
+            {
+                return digitResult;
+            }
+        }
+
+        var runLengthResult = (rightIndex - rightStart).CompareTo(leftIndex - leftStart);
+        if (runLengthResult != 0)
+        {
+            return runLengthResult;
+        }
+
+        return left.AsSpan(leftStart, leftIndex - leftStart)
+            .SequenceCompareTo(right.AsSpan(rightStart, rightIndex - rightStart));
+    }
+
+    private static int FirstSignificantDigit(string value, int start, int end)
+    {
+        var index = start;
+        while (index < end - 1 && value[index] == '0')
+        {
+            index++;
+        }
+
+        return index;
+    }
 }

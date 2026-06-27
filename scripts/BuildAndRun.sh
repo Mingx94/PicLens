@@ -60,6 +60,7 @@ dotnet build "$project_path" \
     /restore \
     "-p:Platform=$platform" \
     "-p:Configuration=$configuration" \
+    "-p:NuGetAudit=false" \
     "${extra_args[@]}"
 
 echo "BUILD SUCCEEDED"

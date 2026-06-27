@@ -3,6 +3,7 @@ namespace PicLens.Core.Domain;
 public static class FileRenamePlanner
 {
     private const string AlreadyTargetSequenceReason = "already_target_sequence";
+    private static readonly char[] ReservedFileNameChars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
 
     public static FileNameValidationResult ValidateImageFileName(string fileName)
     {
@@ -11,7 +12,9 @@ public static class FileRenamePlanner
             return new FileNameValidationResult(false, "empty_name");
         }
 
-        if (fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || fileName.Contains('/') || fileName.Contains('\\'))
+        if (fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
+            || fileName.IndexOfAny(ReservedFileNameChars) >= 0
+            || fileName.Any(char.IsControl))
         {
             return new FileNameValidationResult(false, "invalid_file_name");
         }
