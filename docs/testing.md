@@ -4,8 +4,16 @@
 
 日常 unit 與 ViewModel 驗證請執行：
 
+Windows：
+
 ```powershell
-.\Test.ps1
+.\scripts\Test.ps1
+```
+
+Linux：
+
+```bash
+bash ./scripts/Test.sh
 ```
 
 這會依序 restore/test Core、Infrastructure 與 ViewModels test projects。ViewModel tests target `net10.0` 並引用 `PicLens.Presentation`，不依賴 app project。
@@ -37,42 +45,36 @@ dotnet test .\tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj --n
 
 ## Build
 
+Windows：
+
 ```powershell
 dotnet build .\PicLens.slnx -p:Platform=x64
 dotnet restore .\PicLens\PicLens.csproj --configfile .\NuGet.Config -r win-x64 /p:Platform=x64
 dotnet build .\PicLens\PicLens.csproj --no-restore /p:Platform=x64
 ```
 
+Linux：
+
+```bash
+dotnet build ./PicLens.slnx -p:Platform=x64
+dotnet restore ./PicLens/PicLens.csproj --configfile ./NuGet.Config -r linux-x64 /p:Platform=x64
+dotnet build ./PicLens/PicLens.csproj --no-restore /p:Platform=x64
+```
+
 Visual Studio 開發時開啟 `PicLens.slnx`，solution platform 選 `x64`。Solution 會載入 app、src 與 tests projects；`PicLens.ViewModels.Tests` 與 `PicLens.Ui.Tests` 預設不參與 solution build，完整驗證請使用本文件列出的 scripts。
 
 Build-only helper：
 
-```powershell
-.\BuildAndRun.ps1 .\PicLens\PicLens.csproj -SkipRun
-```
-
-## Watch And Relaunch
-
-非 Visual Studio 開發 UI 時，可使用 watch runner 在存檔後看見變化：
+Windows：
 
 ```powershell
-.\WatchAndRun.ps1 .\PicLens\PicLens.csproj
+.\scripts\BuildAndRun.ps1 .\PicLens\PicLens.csproj -SkipRun
 ```
 
-這不是 Hot Reload。`WatchAndRun.ps1` 會監看 `.cs`、`.axaml`、`.csproj`、manifest、assets 與相關設定檔；變更穩定後停止既有 `PicLens` process，並呼叫 `BuildAndRun.ps1 -Detach` rebuild/relaunch。若只想驗證 build 而不啟動 app，使用 `-SkipLaunch`。
+Linux：
 
-ERROR LOG 位置：
-
-```text
-logs\watch-run\watch-run-*.log
-```
-
-常用選項：
-
-```powershell
-.\WatchAndRun.ps1 .\PicLens\PicLens.csproj -NoInitialRun
-.\WatchAndRun.ps1 .\PicLens\PicLens.csproj -DebounceMilliseconds 1500
-.\WatchAndRun.ps1 .\PicLens\PicLens.csproj -RunOnce -SkipLaunch
+```bash
+bash ./scripts/BuildAndRun.sh ./PicLens/PicLens.csproj --skip-run
 ```
 
 ## FlaUI UI Smoke Tests
@@ -80,14 +82,14 @@ logs\watch-run\watch-run-*.log
 FlaUI 測試是 opt-in。執行：
 
 ```powershell
-.\tools\RunUiTests.ps1
+.\scripts\RunUiTests.ps1
 ```
 
-這會先產生 framework-dependent portable output，再執行 `tests\PicLens.Ui.Tests`。測試啟動 app 時會設定 isolated `PICLENS_DATA_ROOT`，因此 settings、thumbnail cache 與 ERROR LOG 都會寫到測試 artifact 資料夾，不會覆蓋使用者的 `%LOCALAPPDATA%\PicLens`。
+這會先產生 Windows framework-dependent portable output，再執行 `tests\PicLens.Ui.Tests`。測試啟動 app 時會設定 isolated `PICLENS_DATA_ROOT`，因此 settings、thumbnail cache 與 ERROR LOG 都會寫到測試 artifact 資料夾，不會覆蓋使用者的 local app data。
 
 目前 UI smoke coverage 包含：
 
-- 啟動 published `PicLens.exe` 並等待 main window。
+- 啟動 published Windows `PicLens.exe` 並等待 main window。
 - 驗證 empty-state 主要 AutomationId：title bar、folder navigation command bar、library command bar、folder tree、library grid、status bar、thumbnail size slider、empty state action。
 - 開啟排序與更多圖庫動作 menus，確認預期 menu items 存在。
 - 以 seeded gallery 啟動 app，驗證 last-folder restore、folder tree、library grid、root image tiles、direct child folder tile 與 status feedback。
@@ -110,16 +112,28 @@ artifacts\ui-tests\
 
 執行：
 
+Windows：
+
 ```powershell
-.\Release.ps1
+.\scripts\Release.ps1
 ```
 
-這會先呼叫 `Test.ps1` 執行 Core、Infrastructure 與 ViewModel tests，再 restore/publish framework-dependent portable output folder，並驗證 `PicLens.exe` 存在。
+Linux：
+
+```bash
+bash ./scripts/Release.sh --skip-tests
+```
+
+這會先呼叫該平台的 test script 執行 Core、Infrastructure 與 ViewModel tests，再 restore/publish framework-dependent portable output folder，並驗證 executable 存在。
 
 Manual smoke check：
 
 ```powershell
 .\artifacts\portable\PicLens-win-x64\PicLens.exe
+```
+
+```bash
+./artifacts/portable/PicLens-linux-x64/PicLens
 ```
 
 App 應可不安裝直接啟動。
@@ -129,8 +143,15 @@ App 應可不安裝直接啟動。
 處理 desktop runtime 或 native/XAML crash 時，build 成功還不夠。App build 完後，執行短時間 launch 並檢查 app log：
 
 ```powershell
-.\BuildAndRun.ps1 .\PicLens\PicLens.csproj
+.\scripts\BuildAndRun.ps1 .\PicLens\PicLens.csproj
 Get-Content "$env:LOCALAPPDATA\PicLens\Logs\PicLens.log" -Tail 100
+```
+
+Linux：
+
+```bash
+bash ./scripts/BuildAndRun.sh ./PicLens/PicLens.csproj
+tail -n 100 "${XDG_DATA_HOME:-$HOME/.local/share}/PicLens/Logs/PicLens.log"
 ```
 
 可能失敗的 development paths 應透過 app logger 記錄，並包含足夠 context 來辨識失敗的 item、path 與 operation。App logger 使用 bounded best-effort queue；錯誤風暴下可能丟棄較舊 log，排查時請保留重現步驟與最新 ERROR context。

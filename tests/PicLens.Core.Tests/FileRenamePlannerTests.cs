@@ -160,6 +160,6 @@ public sealed class FileRenamePlannerTests
             && string.Equals(
                 Path.GetFileNameWithoutExtension(path),
                 Path.GetFileNameWithoutExtension(candidatePath),
-                StringComparison.OrdinalIgnoreCase));
+                PathRules.PathComparison));
     }
 }

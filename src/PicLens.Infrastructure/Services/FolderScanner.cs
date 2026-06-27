@@ -240,7 +240,7 @@ public sealed class FolderScanner : IFolderScanner
     private static long ToUnixMs(DateTime value) =>
         new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Utc)).ToUnixTimeMilliseconds();
 
-    private static StringComparer PathKeyComparer => StringComparer.OrdinalIgnoreCase;
+    private static StringComparer PathKeyComparer => PathRules.PathComparer;
 
     private static string? CanonicalDirectoryKey(string folderPath)
     {

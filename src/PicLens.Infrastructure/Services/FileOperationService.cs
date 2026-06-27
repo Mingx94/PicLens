@@ -2,10 +2,9 @@ using PicLens.Core.Services;
 using PicLens.Core.Domain;
 using PicLens.Core.Models;
 using Microsoft.VisualBasic.FileIO;
-using System.Runtime.InteropServices;
-using Windows.Graphics.Imaging;
-using Windows.Storage;
-using Windows.Storage.Streams;
+using System.ComponentModel;
+using System.Diagnostics;
+using SkiaSharp;
 
 namespace PicLens.Infrastructure.Services;
 
@@ -56,7 +55,7 @@ public sealed class FileOperationService : IFileOperationService
         var jpgBasenames = images
             .Where(image => JpgExtensions.Contains(image.Extension))
             .Select(image => BasenameKey(image.Path))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .ToHashSet(PathRules.PathComparer);
         var results = new List<FileOperationResult>();
 
         foreach (var image in images)
@@ -94,6 +93,10 @@ public sealed class FileOperationService : IFileOperationService
             return new FileOperationResult(path, FileOperationStatus.Trashed);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return new FileOperationResult(path, FileOperationStatus.Failed, Reason: "trash_failed", Message: ex.Message);
+        }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or PlatformNotSupportedException)
         {
             return new FileOperationResult(path, FileOperationStatus.Failed, Reason: "trash_failed", Message: ex.Message);
         }
@@ -230,7 +233,7 @@ public sealed class FileOperationService : IFileOperationService
             await encodeAsJpegAsync(image.Path, targetPath, cancellationToken);
             return new FileOperationResult(image.Path, FileOperationStatus.Converted, targetPath);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or COMException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         {
             return new FileOperationResult(image.Path, FileOperationStatus.Failed, targetPath, "conversion_failed", ex.Message);
         }
@@ -272,58 +275,92 @@ public sealed class FileOperationService : IFileOperationService
     private static async Task EncodeAsJpegAsync(string sourcePath, string targetPath, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var sourceFile = await StorageFile.GetFileFromPathAsync(sourcePath).AsTask(cancellationToken);
-        using var inputStream = await sourceFile.OpenReadAsync().AsTask(cancellationToken);
-        var decoder = await BitmapDecoder.CreateAsync(inputStream).AsTask(cancellationToken);
-
-        var targetDirectory = Path.GetDirectoryName(targetPath)
-            ?? throw new IOException("目標路徑必須包含資料夾。");
-        var targetFolder = await StorageFolder.GetFolderFromPathAsync(targetDirectory).AsTask(cancellationToken);
-        var targetFile = await targetFolder
-            .CreateFileAsync(Path.GetFileName(targetPath), CreationCollisionOption.FailIfExists)
-            .AsTask(cancellationToken);
-
-        try
+        await Task.Run(() =>
         {
-            using IRandomAccessStream outputStream = await targetFile.OpenAsync(FileAccessMode.ReadWrite).AsTask(cancellationToken);
-            var pixelData = await decoder.GetPixelDataAsync(
-                    BitmapPixelFormat.Bgra8,
-                    BitmapAlphaMode.Ignore,
-                    new BitmapTransform(),
-                    ExifOrientationMode.IgnoreExifOrientation,
-                    ColorManagementMode.ColorManageToSRgb)
-                .AsTask(cancellationToken);
-            var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, outputStream).AsTask(cancellationToken);
-            encoder.SetPixelData(
-                BitmapPixelFormat.Bgra8,
-                BitmapAlphaMode.Ignore,
-                decoder.PixelWidth,
-                decoder.PixelHeight,
-                decoder.DpiX,
-                decoder.DpiY,
-                pixelData.DetachPixelData());
-            await encoder.FlushAsync().AsTask(cancellationToken);
-        }
-        catch
-        {
-            await targetFile.DeleteAsync(StorageDeleteOption.PermanentDelete).AsTask();
-            throw;
-        }
+            cancellationToken.ThrowIfCancellationRequested();
+            using var input = File.OpenRead(sourcePath);
+            using var bitmap = SKBitmap.Decode(input)
+                ?? throw new NotSupportedException("Image could not be decoded.");
+
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                using var output = File.Create(targetPath);
+                if (!bitmap.Encode(output, SKEncodedImageFormat.Jpeg, quality: 90))
+                {
+                    throw new NotSupportedException("JPEG could not be encoded.");
+                }
+            }
+            catch
+            {
+                if (File.Exists(targetPath))
+                {
+                    File.Delete(targetPath);
+                }
+
+                throw;
+            }
+        }, cancellationToken);
     }
 
     private static async Task TrashPathAsync(string path, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        await Task.Run(() =>
+
+        if (OperatingSystem.IsWindows())
         {
-            if (File.Exists(path))
+            await Task.Run(() =>
             {
-                FileSystem.DeleteFile(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
-            }
-            else
+                if (File.Exists(path))
+                {
+                    FileSystem.DeleteFile(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                }
+                else
+                {
+                    FileSystem.DeleteDirectory(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                }
+            }, cancellationToken);
+            return;
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            await RunProcessAsync("gio", ["trash", path], cancellationToken);
+            return;
+        }
+
+        throw new PlatformNotSupportedException("Trash is only supported on Windows and Linux.");
+    }
+
+    private static async Task RunProcessAsync(
+        string fileName,
+        IReadOnlyList<string> arguments,
+        CancellationToken cancellationToken)
+    {
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
             {
-                FileSystem.DeleteDirectory(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                FileName = fileName,
+                UseShellExecute = false,
+                CreateNoWindow = true
             }
-        }, cancellationToken);
+        };
+
+        foreach (var argument in arguments)
+        {
+            process.StartInfo.ArgumentList.Add(argument);
+        }
+
+        if (!process.Start())
+        {
+            throw new InvalidOperationException($"{fileName} could not be started.");
+        }
+
+        await process.WaitForExitAsync(cancellationToken);
+        if (process.ExitCode != 0)
+        {
+            throw new IOException($"{fileName} failed with exit code {process.ExitCode}.");
+        }
     }
 }

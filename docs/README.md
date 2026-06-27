@@ -1,6 +1,6 @@
 # PicLens 文件
 
-PicLens 是 Windows-only Avalonia / MVVM 圖片整理與檢視 app。
+PicLens 是 Windows / Linux Avalonia / MVVM 圖片整理與檢視 app。
 
 ## 文件
 

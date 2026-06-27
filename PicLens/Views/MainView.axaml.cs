@@ -148,7 +148,7 @@ public partial class MainView : UserControl
         }
 
         var menu = new ContextMenu();
-        var reveal = new MenuItem { Header = "在檔案總管中顯示" };
+        var reveal = new MenuItem { Header = "在檔案管理器中顯示" };
         AutomationProperties.SetAutomationId(reveal, "ImageContextRevealInFileExplorerButton");
         reveal.Click += RevealInFileExplorer;
         menu.Items.Add(reveal);
@@ -239,17 +239,40 @@ public partial class MainView : UserControl
 
         try
         {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "explorer.exe",
-                Arguments = $"/select,\"{item.Path}\"",
-                UseShellExecute = true
-            });
+            Process.Start(CreateRevealStartInfo(item.Path));
         }
         catch (Exception ex)
         {
-            App.Logger.Error(ex, $"Reveal in Explorer failed. Path={item.Path}");
+            App.Logger.Error(ex, $"Reveal in file manager failed. Path={item.Path}");
         }
+    }
+
+    private static ProcessStartInfo CreateRevealStartInfo(string path)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"/select,\"{path}\"",
+                UseShellExecute = true
+            };
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            var directory = Path.GetDirectoryName(path)
+                ?? throw new IOException("Path must include a directory.");
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "xdg-open",
+                UseShellExecute = false
+            };
+            startInfo.ArgumentList.Add(directory);
+            return startInfo;
+        }
+
+        throw new PlatformNotSupportedException("Reveal is only supported on Windows and Linux.");
     }
 
     private void LibraryTile_PointerPressed(object? sender, PointerPressedEventArgs e)

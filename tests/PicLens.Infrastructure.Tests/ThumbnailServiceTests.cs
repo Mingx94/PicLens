@@ -1,8 +1,7 @@
 using PicLens.Core.Services;
 using PicLens.Infrastructure.Services;
+using SkiaSharp;
 using System.Reflection;
-using Windows.Graphics.Imaging;
-using Windows.Storage;
 
 namespace PicLens.Infrastructure.Tests;
 
@@ -39,8 +38,8 @@ public sealed class ThumbnailServiceTests
         Assert.True(File.Exists(thumbnailPath));
 
         var dimensions = await ReadDimensionsAsync(thumbnailPath);
-        Assert.InRange(dimensions.Width, 1u, 5u);
-        Assert.InRange(dimensions.Height, 1u, 5u);
+        Assert.InRange(dimensions.Width, 1, 5);
+        Assert.InRange(dimensions.Height, 1, 5);
     }
 
     [Fact]
@@ -118,12 +117,12 @@ public sealed class ThumbnailServiceTests
         Assert.False(File.Exists(oldCachePath));
     }
 
-    private static async Task<(uint Width, uint Height)> ReadDimensionsAsync(string path)
+    private static Task<(int Width, int Height)> ReadDimensionsAsync(string path)
     {
-        var file = await StorageFile.GetFileFromPathAsync(path);
-        using var stream = await file.OpenReadAsync();
-        var decoder = await BitmapDecoder.CreateAsync(stream);
-        return (decoder.PixelWidth, decoder.PixelHeight);
+        using var stream = File.OpenRead(path);
+        using var bitmap = SKBitmap.Decode(stream);
+        Assert.NotNull(bitmap);
+        return Task.FromResult((bitmap.Width, bitmap.Height));
     }
 
     private static byte[] Bmp(int width, int height)

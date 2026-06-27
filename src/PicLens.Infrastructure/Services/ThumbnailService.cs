@@ -1,11 +1,8 @@
 using PicLens.Core.Services;
 using PicLens.Core.Domain;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
-using Windows.Graphics.Imaging;
-using Windows.Storage;
-using Windows.Storage.Streams;
+using SkiaSharp;
 
 namespace PicLens.Infrastructure.Services;
 
@@ -102,68 +99,56 @@ public sealed class ThumbnailService : IThumbnailService
         var tempPath = Path.Combine(
             cacheRoot,
             $"{Path.GetFileNameWithoutExtension(cachePath)}-{Guid.NewGuid():N}.tmp");
-        var tempFileName = Path.GetFileName(tempPath);
-
-        cancellationToken.ThrowIfCancellationRequested();
-        var sourceFile = await StorageFile.GetFileFromPathAsync(sourcePath).AsTask();
-        cancellationToken.ThrowIfCancellationRequested();
-        using var inputStream = await sourceFile.OpenReadAsync().AsTask();
-        cancellationToken.ThrowIfCancellationRequested();
-        var decoder = await BitmapDecoder.CreateAsync(inputStream).AsTask();
-        var (width, height) = FitWithin(decoder.PixelWidth, decoder.PixelHeight, (uint)requestedSize);
-
-        if (width == 0 || height == 0)
-        {
-            throw new NotSupportedException("Image dimensions must be greater than zero.");
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-        var cacheFolder = await StorageFolder.GetFolderFromPathAsync(cacheRoot).AsTask();
-        cancellationToken.ThrowIfCancellationRequested();
-        var tempFile = await cacheFolder
-            .CreateFileAsync(tempFileName, CreationCollisionOption.FailIfExists)
-            .AsTask();
 
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using IRandomAccessStream outputStream = await tempFile.OpenAsync(FileAccessMode.ReadWrite).AsTask();
-            cancellationToken.ThrowIfCancellationRequested();
-            var pixelData = await decoder.GetPixelDataAsync(
-                    BitmapPixelFormat.Bgra8,
-                    BitmapAlphaMode.Premultiplied,
-                    new BitmapTransform
+            await Task.Run(() =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                using var source = DecodeBitmap(sourcePath);
+                var (width, height) = FitWithin((uint)source.Width, (uint)source.Height, (uint)requestedSize);
+
+                if (width == 0 || height == 0)
+                {
+                    throw new NotSupportedException("Image dimensions must be greater than zero.");
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                var info = new SKImageInfo((int)width, (int)height, source.ColorType, source.AlphaType);
+                SKBitmap? scaled = null;
+                try
+                {
+                    var output = source;
+                    if (source.Width != info.Width || source.Height != info.Height)
                     {
-                        ScaledWidth = width,
-                        ScaledHeight = height,
-                        InterpolationMode = BitmapInterpolationMode.Fant
-                    },
-                    ExifOrientationMode.RespectExifOrientation,
-                    ColorManagementMode.ColorManageToSRgb)
-                .AsTask();
-            cancellationToken.ThrowIfCancellationRequested();
-            var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, outputStream).AsTask();
-            cancellationToken.ThrowIfCancellationRequested();
-            encoder.SetPixelData(
-                BitmapPixelFormat.Bgra8,
-                BitmapAlphaMode.Premultiplied,
-                width,
-                height,
-                decoder.DpiX,
-                decoder.DpiY,
-                pixelData.DetachPixelData());
-            await encoder.FlushAsync().AsTask();
-            cancellationToken.ThrowIfCancellationRequested();
+                        scaled = source.Resize(info, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear))
+                            ?? throw new NotSupportedException("Image could not be resized.");
+                        output = scaled;
+                    }
+
+                    cancellationToken.ThrowIfCancellationRequested();
+                    using var stream = File.Create(tempPath);
+                    if (!output.Encode(stream, SKEncodedImageFormat.Png, quality: 90))
+                    {
+                        throw new NotSupportedException("Thumbnail could not be encoded.");
+                    }
+                }
+                finally
+                {
+                    scaled?.Dispose();
+                }
+            }, cancellationToken);
         }
         catch
         {
-            await TryDeleteStorageFileAsync(tempFile);
+            DeleteTempFile(tempPath);
             throw;
         }
 
         if (cancellationToken.IsCancellationRequested)
         {
-            await TryDeleteStorageFileAsync(tempFile);
+            DeleteTempFile(tempPath);
             cancellationToken.ThrowIfCancellationRequested();
         }
 
@@ -182,15 +167,18 @@ public sealed class ThumbnailService : IThumbnailService
         }
     }
 
-    private static async Task TryDeleteStorageFileAsync(StorageFile file)
+    private static SKBitmap DecodeBitmap(string path)
     {
-        try
+        using var input = File.OpenRead(path);
+        return SKBitmap.Decode(input)
+            ?? throw new NotSupportedException("Image could not be decoded.");
+    }
+
+    private static void DeleteTempFile(string tempPath)
+    {
+        if (File.Exists(tempPath))
         {
-            await file.DeleteAsync(StorageDeleteOption.PermanentDelete).AsTask();
-        }
-        catch
-        {
-            // Best-effort cleanup; preserve the original thumbnail failure.
+            File.Delete(tempPath);
         }
     }
 
@@ -336,7 +324,7 @@ public sealed class ThumbnailService : IThumbnailService
     private static string NormalizePathForKey(string path)
     {
         var fullPath = Path.GetFullPath(path);
-        return fullPath.ToUpperInvariant();
+        return OperatingSystem.IsWindows() ? fullPath.ToUpperInvariant() : fullPath;
     }
 
     private static string DefaultCacheRoot()
@@ -346,6 +334,5 @@ public sealed class ThumbnailService : IThumbnailService
         ex is IOException
             or UnauthorizedAccessException
             or NotSupportedException
-            or ArgumentException
-            or COMException;
+            or ArgumentException;
 }

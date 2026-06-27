@@ -8,7 +8,7 @@
 
 ## 產品定位
 
-PicLens 是 Windows 桌面圖片整理與檢視工具，聚焦在本機資料夾中的大量圖片瀏覽、選取、批次整理與快速檢視。
+PicLens 是 Windows / Linux 桌面圖片整理與檢視工具，聚焦在本機資料夾中的大量圖片瀏覽、選取、批次整理與快速檢視。
 
 產品優先順序：
 
@@ -175,7 +175,7 @@ Escape 行為：
 目前 app log 位置：
 
 ```text
-%LOCALAPPDATA%\PicLens\Logs\PicLens.log
+Local app data 下的 `PicLens/Logs/PicLens.log`
 ```
 
 ## 品質要求

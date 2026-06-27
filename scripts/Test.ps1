@@ -4,19 +4,23 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$root = $PSScriptRoot
+if ($PSVersionTable.ContainsKey("Platform") -and $PSVersionTable.Platform -ne "Win32NT") {
+    throw "scripts/Test.ps1 is Windows-only. Use bash ./scripts/Test.sh on Linux."
+}
+
+$root = Split-Path -Parent $PSScriptRoot
 $nugetConfig = Join-Path $root "NuGet.Config"
 $testProjects = @(
     @{
-        Path = Join-Path $root "tests\PicLens.Core.Tests\PicLens.Core.Tests.csproj"
+        Path = Join-Path (Join-Path $root "tests/PicLens.Core.Tests") "PicLens.Core.Tests.csproj"
         Properties = @()
     },
     @{
-        Path = Join-Path $root "tests\PicLens.Infrastructure.Tests\PicLens.Infrastructure.Tests.csproj"
+        Path = Join-Path (Join-Path $root "tests/PicLens.Infrastructure.Tests") "PicLens.Infrastructure.Tests.csproj"
         Properties = @()
     },
     @{
-        Path = Join-Path $root "tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj"
+        Path = Join-Path (Join-Path $root "tests/PicLens.ViewModels.Tests") "PicLens.ViewModels.Tests.csproj"
         Properties = @()
     }
 )

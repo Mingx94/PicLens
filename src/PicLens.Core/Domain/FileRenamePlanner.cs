@@ -120,7 +120,7 @@ public static class FileRenamePlanner
     private static int? TryExtractSequenceNumber(string targetPath, string targetBaseName)
     {
         var targetName = Path.GetFileNameWithoutExtension(targetPath);
-        if (!targetName.StartsWith($"{targetBaseName}-", StringComparison.OrdinalIgnoreCase))
+        if (!targetName.StartsWith($"{targetBaseName}-", PathRules.PathComparison))
         {
             return null;
         }

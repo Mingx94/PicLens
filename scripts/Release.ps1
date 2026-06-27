@@ -16,11 +16,15 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$root = $PSScriptRoot
-$project = Join-Path $root "PicLens\PicLens.csproj"
+if ($PSVersionTable.ContainsKey("Platform") -and $PSVersionTable.Platform -ne "Win32NT") {
+    throw "scripts/Release.ps1 is Windows-only. Use bash ./scripts/Release.sh on Linux."
+}
+
+$root = Split-Path -Parent $PSScriptRoot
+$project = Join-Path (Join-Path $root "PicLens") "PicLens.csproj"
 $nugetConfig = Join-Path $root "NuGet.Config"
-$testScript = Join-Path $root "Test.ps1"
-$outputRoot = Join-Path $root "artifacts\portable"
+$testScript = Join-Path $PSScriptRoot "Test.ps1"
+$outputRoot = Join-Path (Join-Path $root "artifacts") "portable"
 $outputName = "PicLens-$RuntimeIdentifier"
 $outputDir = Join-Path $outputRoot $outputName
 

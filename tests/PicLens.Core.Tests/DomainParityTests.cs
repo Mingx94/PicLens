@@ -81,16 +81,28 @@ public sealed class DomainParityTests
     [Fact]
     public void Path_rules_detect_same_basename_target_conflicts()
     {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var otherRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         string[] existingPaths =
         [
-            @"C:\Photos\target-01.png",
-            @"C:\Photos\source.jpg",
-            @"C:\Other\target-01.webp"
+            Path.Combine(root, "target-01.png"),
+            Path.Combine(root, "source.jpg"),
+            Path.Combine(otherRoot, "target-01.webp")
         ];
 
-        Assert.True(PathRules.TargetNameExists(existingPaths, @"C:\Photos\target-01.jpg", @"C:\Photos\source.jpg"));
-        Assert.False(PathRules.TargetNameExists(existingPaths, @"C:\Photos\source.webp", @"C:\Photos\source.jpg"));
-        Assert.False(PathRules.TargetNameExists(existingPaths, @"C:\Photos\target-02.jpg", @"C:\Photos\source.jpg"));
+        Assert.True(PathRules.TargetNameExists(existingPaths, Path.Combine(root, "target-01.jpg"), Path.Combine(root, "source.jpg")));
+        Assert.False(PathRules.TargetNameExists(existingPaths, Path.Combine(root, "source.webp"), Path.Combine(root, "source.jpg")));
+        Assert.False(PathRules.TargetNameExists(existingPaths, Path.Combine(root, "target-02.jpg"), Path.Combine(root, "source.jpg")));
+    }
+
+    [Fact]
+    public void Path_rules_follow_current_os_case_sensitivity()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var lower = Path.Combine(root, "photo.jpg");
+        var upper = Path.Combine(root, "PHOTO.jpg");
+
+        Assert.Equal(OperatingSystem.IsWindows(), PathRules.PathEquals(lower, upper));
     }
 
     [Fact]

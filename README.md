@@ -1,6 +1,6 @@
 # PicLens
 
-PicLens 是 Windows-only 的 Avalonia / MVVM 圖片整理與檢視 app。
+PicLens 是 Windows / Linux Avalonia / MVVM 圖片整理與檢視 app。
 
 ## 目前狀態
 
@@ -9,7 +9,7 @@ PicLens 是 Windows-only 的 Avalonia / MVVM 圖片整理與檢視 app。
 - 主視窗內嵌 image viewer 支援 previous/next、zoom、pan、keyboard navigation、Escape close，以及 animated-image unsupported feedback。
 - `src/PicLens.Presentation` 保留 UI-agnostic ViewModels 與 dialog/logger presentation contracts。
 - `src/PicLens.Core` 保留純 product rules 與 service contracts。
-- `src/PicLens.Infrastructure` 負責 settings persistence、scanning、thumbnails、recycle-bin trash、rename execution 與 file logging。
+- `src/PicLens.Infrastructure` 負責 settings persistence、scanning、thumbnails、OS trash、rename execution 與 file logging。
 - Core、Infrastructure 與 ViewModel behavior 由 xUnit tests 覆蓋；FlaUI smoke tests 覆蓋主要 UI flows。
 
 ## Solution
@@ -18,7 +18,7 @@ PicLens 是 Windows-only 的 Avalonia / MVVM 圖片整理與檢視 app。
 PicLens.slnx
 PicLens/                            Avalonia desktop app、AXAML views、assets、window setup
 src/PicLens.Core/                   Pure models、service contracts 與 deterministic rules
-src/PicLens.Infrastructure/         JSON、filesystem、thumbnail、recycle-bin 與 logging services
+src/PicLens.Infrastructure/         JSON、filesystem、thumbnail、OS trash 與 logging services
 src/PicLens.Presentation/           UI-agnostic ViewModels 與 presentation services
 tests/PicLens.Core.Tests/           xUnit domain tests
 tests/PicLens.Infrastructure.Tests/ xUnit infrastructure tests
@@ -28,28 +28,47 @@ tests/PicLens.Ui.Tests/             FlaUI smoke tests
 
 ## Build And Test
 
+Windows：
+
 ```powershell
-.\Test.ps1
+.\scripts\Test.ps1
 dotnet build .\PicLens.slnx -p:Platform=x64
-.\BuildAndRun.ps1 .\PicLens\PicLens.csproj
+.\scripts\BuildAndRun.ps1 .\PicLens\PicLens.csproj
 ```
 
-Opt-in UI smoke tests：
+Linux：
+
+```bash
+bash ./scripts/Test.sh
+dotnet build ./PicLens.slnx -p:Platform=x64
+bash ./scripts/BuildAndRun.sh ./PicLens/PicLens.csproj
+```
+
+Windows opt-in UI smoke tests：
 
 ```powershell
-.\tools\RunUiTests.ps1
+.\scripts\RunUiTests.ps1
 ```
 
 ## Portable Release
 
+Windows：
+
 ```powershell
-.\Release.ps1
+.\scripts\Release.ps1
+```
+
+Linux：
+
+```bash
+bash ./scripts/Release.sh
 ```
 
 Output：
 
 ```text
 artifacts/portable/PicLens-win-x64/PicLens.exe
+artifacts/portable/PicLens-linux-x64/PicLens
 ```
 
 請保留完整 folder；這是 framework-dependent portable output，不是 single-file exe。

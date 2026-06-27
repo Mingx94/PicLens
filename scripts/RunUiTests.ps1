@@ -13,8 +13,12 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+if ($PSVersionTable.ContainsKey("Platform") -and $PSVersionTable.Platform -ne "Win32NT") {
+    throw "RunUiTests.ps1 is Windows-only; FlaUI UIA smoke tests are not available on Linux."
+}
+
 $root = Split-Path -Parent $PSScriptRoot
-$releaseScript = Join-Path $root "Release.ps1"
+$releaseScript = Join-Path $PSScriptRoot "Release.ps1"
 $nugetConfig = Join-Path $root "NuGet.Config"
 $uiTestProject = Join-Path $root "tests\PicLens.Ui.Tests\PicLens.Ui.Tests.csproj"
 $appPath = Join-Path $root "artifacts\portable\PicLens-$RuntimeIdentifier\PicLens.exe"
@@ -47,7 +51,7 @@ Write-Host "==> Publishing PicLens for UI smoke tests" -ForegroundColor Cyan
     -Platform $Platform `
     -SkipTests
 if ($LASTEXITCODE -ne 0) {
-    throw "Release.ps1 failed with exit code $LASTEXITCODE."
+    throw "$releaseScript failed with exit code $LASTEXITCODE."
 }
 
 if (-not (Test-Path -LiteralPath $appPath)) {
