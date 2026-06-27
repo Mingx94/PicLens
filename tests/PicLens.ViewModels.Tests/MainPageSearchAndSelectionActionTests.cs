@@ -79,7 +79,6 @@ public sealed class MainPageSelectionActionTests
         Assert.Single(logger.ErrorMessages);
         Assert.Equal("Rename selected image failed.", logger.ErrorMessages[0].Message);
         Assert.Equal("重新命名時發生錯誤，已寫入診斷記錄。", viewModel.StatusMessage);
-        Assert.Equal(MainPageStatusSeverity.Error, viewModel.StatusSeverity);
     }
 
     [Fact]
@@ -103,7 +102,6 @@ public sealed class MainPageSelectionActionTests
         Assert.Single(logger.ErrorMessages);
         Assert.Equal("Trash selected images failed.", logger.ErrorMessages[0].Message);
         Assert.Equal("移至回收筒時發生錯誤，已寫入診斷記錄。", viewModel.StatusMessage);
-        Assert.Equal(MainPageStatusSeverity.Error, viewModel.StatusSeverity);
     }
 
     private static MainPageViewModel CreateViewModel(

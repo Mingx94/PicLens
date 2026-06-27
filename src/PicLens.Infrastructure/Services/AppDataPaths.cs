@@ -21,9 +21,6 @@ public static class AppDataPaths
         return Path.Combine(LocalAppDataRoot(), AppFolderName);
     }
 
-    public static bool IsDataRootOverrideEnabled() =>
-        !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(DataRootEnvironmentVariable));
-
     public static string SettingsPath() => Path.Combine(AppRoot(), SettingsFileName);
 
     public static string LogPath() => Path.Combine(AppRoot(), LogsFolderName, LogFileName);

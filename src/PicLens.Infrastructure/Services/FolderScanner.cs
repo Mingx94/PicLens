@@ -6,6 +6,12 @@ namespace PicLens.Infrastructure.Services;
 
 public sealed class FolderScanner : IFolderScanner
 {
+    private static readonly EnumerationOptions SafeEnumerationOptions = new()
+    {
+        AttributesToSkip = 0,
+        IgnoreInaccessible = true
+    };
+
     public Task<IReadOnlyList<ListItem>> ScanAsync(ListQuery query, CancellationToken cancellationToken = default)
     {
         return Task.Run(() => Scan(query, cancellationToken), cancellationToken);
@@ -183,59 +189,11 @@ public sealed class FolderScanner : IFolderScanner
     private static FileStream OpenProbeStream(string path) =>
         new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 
-    private static IEnumerable<string> SafeEnumerateDirectories(string folderPath)
-    {
-        return SafeEnumerateFileSystemEntries(() => Directory.EnumerateDirectories(folderPath));
-    }
+    private static IEnumerable<string> SafeEnumerateDirectories(string folderPath) =>
+        Directory.EnumerateDirectories(folderPath, "*", SafeEnumerationOptions);
 
-    private static IEnumerable<string> SafeEnumerateFiles(string folderPath)
-    {
-        return SafeEnumerateFileSystemEntries(() => Directory.EnumerateFiles(folderPath));
-    }
-
-    private static IEnumerable<string> SafeEnumerateFileSystemEntries(Func<IEnumerable<string>> enumerate)
-    {
-        IEnumerator<string> enumerator;
-        try
-        {
-            enumerator = enumerate().GetEnumerator();
-        }
-        catch (UnauthorizedAccessException)
-        {
-            yield break;
-        }
-        catch (IOException)
-        {
-            yield break;
-        }
-
-        using (enumerator)
-        {
-            while (true)
-            {
-                string current;
-                try
-                {
-                    if (!enumerator.MoveNext())
-                    {
-                        yield break;
-                    }
-
-                    current = enumerator.Current;
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    yield break;
-                }
-                catch (IOException)
-                {
-                    yield break;
-                }
-
-                yield return current;
-            }
-        }
-    }
+    private static IEnumerable<string> SafeEnumerateFiles(string folderPath) =>
+        Directory.EnumerateFiles(folderPath, "*", SafeEnumerationOptions);
 
     private static long ToUnixMs(DateTime value) =>
         new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Utc)).ToUnixTimeMilliseconds();

@@ -74,6 +74,7 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 root="$(cd -- "$script_dir/.." && pwd -P)"
 project="$root/PicLens/PicLens.csproj"
 nuget_config="$root/NuGet.Config"
+test_script="$script_dir/Test.sh"
 output_root="$root/artifacts/portable"
 output_dir="$output_root/PicLens-$runtime_identifier"
 exe_path="$output_dir/PicLens"
@@ -101,27 +102,9 @@ require_file() {
     fi
 }
 
-run_tests() {
-    local test_projects=(
-        "$root/tests/PicLens.Core.Tests/PicLens.Core.Tests.csproj"
-        "$root/tests/PicLens.Infrastructure.Tests/PicLens.Infrastructure.Tests.csproj"
-        "$root/tests/PicLens.ViewModels.Tests/PicLens.ViewModels.Tests.csproj"
-    )
-
-    for test_project in "${test_projects[@]}"; do
-        require_file "$test_project"
-        echo "==> Restoring test project: $test_project"
-        dotnet restore "$test_project" --configfile "$nuget_config"
-    done
-
-    for test_project in "${test_projects[@]}"; do
-        echo "==> Running tests: $test_project"
-        dotnet test "$test_project" --no-restore
-    done
-}
-
 require_file "$project"
 require_file "$nuget_config"
+require_file "$test_script"
 assert_under_root "$output_root"
 assert_under_root "$output_dir"
 
@@ -133,7 +116,7 @@ fi
 
 if [[ "$skip_tests" -eq 0 ]]; then
     echo "==> Running unit tests"
-    run_tests
+    bash "$test_script"
 fi
 
 echo "==> Restoring app for $runtime_identifier"

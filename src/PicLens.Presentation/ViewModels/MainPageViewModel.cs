@@ -70,9 +70,6 @@ public sealed partial class MainPageViewModel : ObservableObject
     public partial string StatusMessage { get; set; } = "就緒。PicLens 已初始化。";
 
     [ObservableProperty]
-    public partial MainPageStatusSeverity StatusSeverity { get; set; } = MainPageStatusSeverity.Informational;
-
-    [ObservableProperty]
     public partial bool IncludeSubfolders { get; set; }
 
     [ObservableProperty]
@@ -92,10 +89,6 @@ public sealed partial class MainPageViewModel : ObservableObject
     public bool HasCurrentFolder => !string.IsNullOrWhiteSpace(CurrentFolderPath);
 
     public bool HasNoCurrentFolder => !HasCurrentFolder;
-
-    public bool HasLibraryItems => LibraryItems.Count > 0;
-
-    public bool HasNoLibraryItems => LibraryItems.Count == 0;
 
     public string CurrentFolderName => FolderDisplayName(CurrentFolderPath, "未選擇資料夾", appLogger);
 
@@ -120,13 +113,6 @@ public sealed partial class MainPageViewModel : ObservableObject
     public bool HasSelectedImages => SelectedImageCount > 0;
 
     public bool HasSingleSelectedImage => SelectedImageCount == 1;
-
-    public string SelectionSummaryText => SelectedImageCount switch
-    {
-        0 => "未選取圖片",
-        1 => "已選 1 張圖片",
-        _ => $"已選 {SelectedImageCount} 張圖片"
-    };
 
     public async Task InitializeAsync()
     {
@@ -193,7 +179,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         if (!Directory.Exists(normalized))
         {
             appLogger.Info($"Navigate to folder ignored. FolderPath={normalized}; Reason=DirectoryNotFound");
-            SetStatus($"資料夾無法使用：{normalized}", MainPageStatusSeverity.Warning);
+            SetStatus($"資料夾無法使用：{normalized}");
             return;
         }
 
@@ -264,7 +250,7 @@ public sealed partial class MainPageViewModel : ObservableObject
                     ExistingTargetDirectoryFiles(targetImage.Path)));
             if (preview.Total == 0)
             {
-                SetStatus("沒有可拖放重新命名的圖片。", MainPageStatusSeverity.Warning);
+                SetStatus("沒有可拖放重新命名的圖片。");
                 appLogger.Info(
                     $"Drop dragged images ignored. Reason=EmptyPreview; Target={targetImage.Name}; TargetPath={targetImage.Path}");
                 return;
@@ -289,7 +275,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         catch (Exception ex)
         {
             appLogger.Error(ex, "Drop dragged images failed.");
-            SetStatus("拖放重新命名時發生錯誤，已寫入診斷記錄。", MainPageStatusSeverity.Error);
+            SetStatus("拖放重新命名時發生錯誤，已寫入診斷記錄。");
         }
         finally
         {
@@ -430,7 +416,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         catch (Exception ex)
         {
             appLogger.Error(ex, $"Change sort option failed. Token={token ?? "<null>"}");
-            SetStatus("排序時發生錯誤，已寫入診斷記錄。", MainPageStatusSeverity.Error);
+            SetStatus("排序時發生錯誤，已寫入診斷記錄。");
         }
     }
 
@@ -491,18 +477,16 @@ public sealed partial class MainPageViewModel : ObservableObject
             }
 
             var result = await fileOperationService.RenameAsync(selected.Path, nextName);
-            SetStatus(
-                result.Status == FileOperationStatus.Renamed
-                    ? $"已重新命名為 {Path.GetFileName(result.TargetPath)}。"
-                    : result.Message ?? result.Reason ?? "重新命名已略過。",
-                result.Status == FileOperationStatus.Renamed ? MainPageStatusSeverity.Informational : MainPageStatusSeverity.Warning);
+            SetStatus(result.Status == FileOperationStatus.Renamed
+                ? $"已重新命名為 {Path.GetFileName(result.TargetPath)}。"
+                : result.Message ?? result.Reason ?? "重新命名已略過。");
             ClearSelection();
             await LoadLibraryAsync();
         }
         catch (Exception ex)
         {
             appLogger.Error(ex, "Rename selected image failed.");
-            SetStatus("重新命名時發生錯誤，已寫入診斷記錄。", MainPageStatusSeverity.Error);
+            SetStatus("重新命名時發生錯誤，已寫入診斷記錄。");
         }
     }
 
@@ -544,7 +528,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         catch (Exception ex)
         {
             appLogger.Error(ex, "Trash selected images failed.");
-            SetStatus("移至回收筒時發生錯誤，已寫入診斷記錄。", MainPageStatusSeverity.Error);
+            SetStatus("移至回收筒時發生錯誤，已寫入診斷記錄。");
         }
     }
 
@@ -568,7 +552,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         catch (Exception ex)
         {
             appLogger.Error(ex, "Toggle include subfolders failed.");
-            SetStatus("切換子資料夾模式時發生錯誤，已寫入診斷記錄。", MainPageStatusSeverity.Error);
+            SetStatus("切換子資料夾模式時發生錯誤，已寫入診斷記錄。");
         }
     }
 
@@ -652,7 +636,7 @@ public sealed partial class MainPageViewModel : ObservableObject
             currentItems = [];
             LibraryItems.Clear();
             NotifyLibraryItemCount();
-            SetStatus($"無法載入資料夾：{ex.Message}", MainPageStatusSeverity.Error);
+            SetStatus($"無法載入資料夾：{ex.Message}");
         }
         finally
         {
@@ -870,7 +854,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         var images = VisibleImages();
         if (!images.Any(candidate => PathEquals(candidate.Path, image.Path)))
         {
-            SetStatus("圖片已不在目前圖庫中。", MainPageStatusSeverity.Warning);
+            SetStatus("圖片已不在目前圖庫中。");
             return;
         }
 
@@ -888,7 +872,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         catch (Exception ex)
         {
             appLogger.Error(ex, "Open image viewer failed.");
-            SetStatus("開啟圖片時發生錯誤，已寫入診斷記錄。", MainPageStatusSeverity.Error);
+            SetStatus("開啟圖片時發生錯誤，已寫入診斷記錄。");
         }
     }
 
@@ -924,11 +908,6 @@ public sealed partial class MainPageViewModel : ObservableObject
             CurrentIndex: currentIndex);
     }
 
-    public void ClearSelectedLibraryItems()
-    {
-        ClearSelection();
-    }
-
     private void ClearSelection()
     {
         selectedImagePaths.Clear();
@@ -940,7 +919,6 @@ public sealed partial class MainPageViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedImageCount));
         OnPropertyChanged(nameof(HasSelectedImages));
         OnPropertyChanged(nameof(HasSingleSelectedImage));
-        OnPropertyChanged(nameof(SelectionSummaryText));
         ConvertSelectedCommand.NotifyCanExecuteChanged();
         RenameSelectedCommand.NotifyCanExecuteChanged();
         TrashSelectedCommand.NotifyCanExecuteChanged();
@@ -949,8 +927,6 @@ public sealed partial class MainPageViewModel : ObservableObject
     private void NotifyLibraryItemCount()
     {
         OnPropertyChanged(nameof(LibraryItemCountText));
-        OnPropertyChanged(nameof(HasLibraryItems));
-        OnPropertyChanged(nameof(HasNoLibraryItems));
     }
 
     private void NotifyNavigationCommands()
@@ -993,14 +969,11 @@ public sealed partial class MainPageViewModel : ObservableObject
         $"{label}：成功 {result.Succeeded} 個，略過 {result.Skipped} 個，失敗 {result.Failed} 個。";
 
     private void SetBatchStatus(string label, FileOperationBatchResult result) =>
-        SetStatus(
-            DescribeBatchResult(label, result),
-            result.Failed > 0 ? MainPageStatusSeverity.Warning : MainPageStatusSeverity.Informational);
+        SetStatus(DescribeBatchResult(label, result));
 
-    private void SetStatus(string message, MainPageStatusSeverity severity = MainPageStatusSeverity.Informational)
+    private void SetStatus(string message)
     {
         StatusMessage = message;
-        StatusSeverity = severity;
     }
 
     private static string SortOptionLabel(SortState sort) =>
@@ -1015,12 +988,4 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     private sealed record LibraryLoadState(long Version, CancellationTokenSource CancellationSource);
 
-}
-
-public enum MainPageStatusSeverity
-{
-    Informational = 0,
-    Success = 1,
-    Warning = 2,
-    Error = 3
 }

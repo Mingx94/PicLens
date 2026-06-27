@@ -137,7 +137,6 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
         var entry = Assert.Single(logger.ErrorMessages, error => error.Message.StartsWith("Drop dragged images item failed.", StringComparison.Ordinal));
         Assert.Equal("locked", entry.Exception.Message);
         Assert.Contains("Reason=rename_failed", entry.Message);
-        Assert.Equal(MainPageStatusSeverity.Warning, viewModel.StatusSeverity);
     }
 
     [Fact]
@@ -165,7 +164,6 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
         var entry = Assert.Single(logger.ErrorMessages, error => error.Message == "Drop dragged images failed.");
         Assert.Same(expected, entry.Exception);
         Assert.Contains("拖放重新命名時發生錯誤", viewModel.StatusMessage);
-        Assert.Equal(MainPageStatusSeverity.Error, viewModel.StatusSeverity);
     }
 
     [Fact]

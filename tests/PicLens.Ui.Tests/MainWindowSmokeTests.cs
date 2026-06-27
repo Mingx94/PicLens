@@ -16,8 +16,6 @@ public sealed class MainWindowSmokeTests
     private static readonly string[] MainWindowAutomationIds =
     [
         "AppTitleBar",
-        "FolderNavigationCommandBar",
-        "LibraryCommandBar",
         "TitleBarOpenFolderButton",
         "TitleBarSortMenuButton",
         "TitleBarRecursiveModeToggle",
@@ -119,7 +117,6 @@ public sealed class MainWindowSmokeTests
         {
             fixture.ClickTile("Alpha-01.png，圖片");
 
-            fixture.WaitForAutomationIdGone("SelectionSummaryText");
             fixture.RightClickTile("Alpha-01.png，圖片");
             Assert.NotNull(fixture.FindByAutomationId("ImageContextRevealInFileExplorerButton"));
             Assert.NotNull(fixture.FindByAutomationId("ImageContextRenameButton"));
@@ -159,27 +156,6 @@ public sealed class MainWindowSmokeTests
             fixture.RightClickTile("Alpha-01.png，圖片");
             fixture.ClickByAutomationId("ImageContextTrashButton");
             fixture.WaitForVisibleText("要將", "移至回收筒");
-            fixture.ClickByName("取消");
-
-            Assert.True(File.Exists(originalPath));
-            Assert.NotNull(fixture.FindByTilePrefix("Alpha-01.png，圖片"));
-        });
-    }
-
-    [Fact]
-    public void Clear_same_basename_dialog_cancel_does_not_move_file()
-    {
-        using var fixture = PicLensAppFixture.StartSeeded(nameof(Clear_same_basename_dialog_cancel_does_not_move_file));
-
-        fixture.WithDiagnostics(nameof(Clear_same_basename_dialog_cancel_does_not_move_file), () =>
-        {
-            var originalPath = Path.Combine(fixture.LibraryRoot, "Alpha-01.png");
-            File.Copy(originalPath, Path.Combine(fixture.LibraryRoot, "Alpha-01.jpg"));
-
-            fixture.ClickByAutomationId("TitleBarRefreshLibraryButton");
-            fixture.WaitForVisibleText("已重新整理");
-            fixture.InvokeMenuItem("TitleBarMoreActionsButton", "清除同名非 JPG 檔案");
-            fixture.WaitForVisibleText("要將同名的非 JPG 檔案移至回收筒嗎？");
             fixture.ClickByName("取消");
 
             Assert.True(File.Exists(originalPath));
@@ -356,14 +332,6 @@ public sealed class PicLensAppFixture : IDisposable
             () =>
             {
                 var libraryGrid = mainWindow.FindFirstDescendant(condition => condition.ByAutomationId("LibraryGrid"));
-                var tileAutomationId = TileAutomationIdFromPrefix(namePrefix);
-                var byAutomationId = libraryGrid?.FindFirstDescendant(condition => condition.ByAutomationId(tileAutomationId))
-                    ?? libraryGrid?.FindFirstDescendant(condition => condition.ByAutomationId($"{tileAutomationId}_Container"));
-                if (byAutomationId is not null)
-                {
-                    return byAutomationId;
-                }
-
                 return libraryGrid?.FindAllDescendants()
                     .FirstOrDefault(element => MatchesTileName(element, namePrefix));
             },
@@ -411,13 +379,6 @@ public sealed class PicLensAppFixture : IDisposable
         slider.Focus();
         slider.Patterns.RangeValue.Pattern.SetValue(value);
         FindByAutomationId("LibraryGrid").Focus();
-    }
-
-    public void WaitForAutomationIdGone(string automationId)
-    {
-        WaitForCondition(
-            () => mainWindow.FindFirstDescendant(condition => condition.ByAutomationId(automationId)) is null,
-            $"AutomationId was still present: {automationId}");
     }
 
     public void WaitForSettings(Func<UiTestSettings, bool> predicate)
@@ -595,24 +556,6 @@ public sealed class PicLensAppFixture : IDisposable
         var displayName = prefix.Split('，')[0];
         return name.StartsWith(prefix, StringComparison.Ordinal)
             || name.Equals(displayName, StringComparison.Ordinal);
-    }
-
-    private static string TileAutomationIdFromPrefix(string prefix)
-    {
-        var displayName = prefix.Split('，')[0];
-        var kind = prefix.Contains("資料夾", StringComparison.Ordinal) ? "LibraryFolderTile" : "LibraryImageTile";
-        return $"{kind}_{SanitizeAutomationIdSegment(displayName)}";
-    }
-
-    private static string SanitizeAutomationIdSegment(string value)
-    {
-        var builder = new StringBuilder(value.Length);
-        foreach (var character in value)
-        {
-            builder.Append(char.IsLetterOrDigit(character) ? character : '_');
-        }
-
-        return builder.ToString();
     }
 
     private static bool ContainsAllNameFragments(AutomationElement element, IReadOnlyCollection<string> fragments)

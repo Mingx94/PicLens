@@ -75,8 +75,6 @@ public partial class MainView : UserControl
 
     public MainPageViewModel ViewModel { get; }
 
-    public ImageViewerWindowViewModel PreviewViewModel => previewViewModel;
-
     private async void OnLoaded(object? sender, RoutedEventArgs e)
     {
         if (initialized)
@@ -795,6 +793,14 @@ public partial class MainView : UserControl
             var confirm = new Button { Content = confirmButtonText };
             cancel.Click += (_, _) => Close(false);
             confirm.Click += (_, _) => Close(true);
+            var buttons = new StackPanel
+            {
+                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                Spacing = 8,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                Children = { cancel, confirm }
+            };
+            Grid.SetRow(buttons, 1);
 
             Content = new Grid
             {
@@ -803,13 +809,7 @@ public partial class MainView : UserControl
                 Children =
                 {
                     new ScrollViewer { Content = text },
-                    new StackPanel
-                    {
-                        Orientation = Avalonia.Layout.Orientation.Horizontal,
-                        Spacing = 8,
-                        HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
-                        Children = { cancel, confirm }
-                    }.WithGridRow(1)
+                    buttons
                 }
             };
         }
@@ -869,14 +869,4 @@ public partial class MainView : UserControl
 
     private IEnumerable<LibraryTileItem> SelectedLibraryTiles() =>
         LibraryGrid.SelectedItems?.Cast<LibraryTileItem>() ?? [];
-}
-
-internal static class GridExtensions
-{
-    public static T WithGridRow<T>(this T control, int row)
-        where T : Control
-    {
-        Grid.SetRow(control, row);
-        return control;
-    }
 }
