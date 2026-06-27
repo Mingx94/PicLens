@@ -7,11 +7,6 @@ public static class DragInteractionRules
     private const double DefaultAutoScrollEdgeSize = 72;
     private const double DefaultAutoScrollMaxStep = 16;
 
-    public static Point TranslateLibraryDragPointToRoot(Point libraryGridPoint, Point libraryGridOriginInRoot) =>
-        new(
-            libraryGridPoint.X + libraryGridOriginInRoot.X,
-            libraryGridPoint.Y + libraryGridOriginInRoot.Y);
-
     public static double CalculateLibraryDragAutoScrollDelta(
         double pointerY,
         double viewportHeight,

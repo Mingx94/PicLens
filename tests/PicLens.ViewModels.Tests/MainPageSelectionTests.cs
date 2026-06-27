@@ -123,7 +123,6 @@ public sealed class MainPageSelectionTests
             Name: name,
             Path: path,
             Detail: "JPG - 1 KB",
-            IsSelected: false,
             IconGlyph: "\uEB9F",
             SourceItem: new ImageListItem($"image:{name}", path, name, Path.GetExtension(name), 1, 1024));
 
@@ -132,16 +131,12 @@ public sealed class MainPageSelectionTests
             Name: name,
             Path: path,
             Detail: "開啟資料夾",
-            IsSelected: false,
             IconGlyph: "\uE8B7",
             SourceItem: new FolderListItem($"folder:{name}", path, name, 1));
 
     private sealed class ThrowingSettingsStore : ISettingsStore
     {
         public Task<AppSettings> LoadAsync(CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
         public Task<AppSettings> UpdateAsync(AppSettingsPatch patch, CancellationToken cancellationToken = default) =>
@@ -157,7 +152,6 @@ public sealed class MainPageSelectionTests
 
         public Task<IReadOnlyList<FolderListItem>> ScanChildFoldersAsync(
             string folderPath,
-            SortState sort,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
     }

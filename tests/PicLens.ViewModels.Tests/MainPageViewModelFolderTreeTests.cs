@@ -148,7 +148,6 @@ public sealed class MainPageViewModelFolderTreeTests
 
         public Task<IReadOnlyList<FolderListItem>> ScanChildFoldersAsync(
             string folderPath,
-            SortState sort,
             CancellationToken cancellationToken = default)
         {
             childFolders.TryGetValue(folderPath, out var folders);
@@ -163,7 +162,6 @@ public sealed class MainPageViewModelFolderTreeTests
 
         public Task<IReadOnlyList<FolderListItem>> ScanChildFoldersAsync(
             string folderPath,
-            SortState sort,
             CancellationToken cancellationToken = default) =>
             throw exception;
     }

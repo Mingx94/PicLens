@@ -53,7 +53,7 @@ public sealed class JsonSettingsStore : ISettingsStore
         }
     }
 
-    public async Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default)
+    private async Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default)
     {
         var directory = Path.GetDirectoryName(settingsPath);
         if (!string.IsNullOrEmpty(directory))

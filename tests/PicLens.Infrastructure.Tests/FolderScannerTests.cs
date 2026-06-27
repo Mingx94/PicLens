@@ -131,9 +131,7 @@ public sealed class FolderScannerTests
         await using var locked = File.Open(lockedImagePath, FileMode.Open, FileAccess.Read, FileShare.None);
         var scanner = new FolderScanner();
 
-        var folders = await scanner.ScanChildFoldersAsync(
-            temp.Root,
-            new SortState(SortKey.Name, SortDirection.Asc));
+        var folders = await scanner.ScanChildFoldersAsync(temp.Root);
 
         var folder = Assert.Single(folders);
         Assert.Equal("Nested", folder.Name);

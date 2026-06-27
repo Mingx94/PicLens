@@ -13,10 +13,9 @@ public sealed class FolderScanner : IFolderScanner
 
     public Task<IReadOnlyList<FolderListItem>> ScanChildFoldersAsync(
         string folderPath,
-        SortState sort,
         CancellationToken cancellationToken = default)
     {
-        return Task.Run(() => ScanChildFolders(folderPath, sort, cancellationToken), cancellationToken);
+        return Task.Run(() => ScanChildFolders(folderPath, cancellationToken), cancellationToken);
     }
 
     private static IReadOnlyList<ListItem> Scan(ListQuery query, CancellationToken cancellationToken)
@@ -36,7 +35,6 @@ public sealed class FolderScanner : IFolderScanner
 
     private static IReadOnlyList<FolderListItem> ScanChildFolders(
         string folderPath,
-        SortState sort,
         CancellationToken cancellationToken)
     {
         if (!Directory.Exists(folderPath))
@@ -45,7 +43,10 @@ public sealed class FolderScanner : IFolderScanner
         }
 
         var folders = EnumerateDirectFolders(folderPath, cancellationToken).Cast<ListItem>().ToList();
-        var sorted = ListItemSorter.Sort(folders, sort, keepFoldersFirst: false)
+        var sorted = ListItemSorter.Sort(
+                folders,
+                new SortState(SortKey.Name, SortDirection.Asc),
+                keepFoldersFirst: false)
             .OfType<FolderListItem>()
             .ToList();
         return sorted;

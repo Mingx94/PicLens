@@ -80,22 +80,22 @@ public sealed class JsonSettingsStoreTests
     }
 
     [Fact]
-    public async Task SaveAsync_preserves_existing_settings_and_removes_temp_file_when_write_is_canceled()
+    public async Task UpdateAsync_preserves_existing_settings_when_write_is_canceled()
     {
         using var temp = TempWorkspace.Create();
         var settingsPath = Path.Combine(temp.Root, "settings.json");
         var store = new JsonSettingsStore(settingsPath);
-        var original = AppSettings.CreateDefault() with
+        var original = await store.UpdateAsync(new AppSettingsPatch
         {
             LastFolderPath = temp.Root,
+            HasLastFolderPath = true,
             ThumbnailSize = 180
-        };
-        await store.SaveAsync(original);
+        });
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => store.SaveAsync(original with { IncludeSubfolders = true }, cancellation.Token));
+            () => store.UpdateAsync(new AppSettingsPatch { IncludeSubfolders = true }, cancellation.Token));
 
         Assert.Equal(original, await store.LoadAsync());
         Assert.Empty(Directory.GetFiles(temp.Root, "*.tmp"));
@@ -107,12 +107,12 @@ public sealed class JsonSettingsStoreTests
         using var temp = TempWorkspace.Create();
         var settingsPath = Path.Combine(temp.Root, "settings.json");
         var store = new JsonSettingsStore(settingsPath);
-        var original = AppSettings.CreateDefault() with
+        await store.UpdateAsync(new AppSettingsPatch
         {
             LastFolderPath = temp.Root,
+            HasLastFolderPath = true,
             ThumbnailSize = 180
-        };
-        await store.SaveAsync(original);
+        });
         await using var locked = new FileStream(settingsPath, FileMode.Open, FileAccess.Read, FileShare.None);
 
         var exception = await Assert.ThrowsAsync<IOException>(() => store.UpdateAsync(new AppSettingsPatch

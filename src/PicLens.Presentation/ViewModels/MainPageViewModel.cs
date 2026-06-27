@@ -105,17 +105,6 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     public string SortLabel => SortOptionLabel(Sort);
 
-    public IReadOnlyList<SortOption> SortOptions { get; } =
-    [
-        new("名稱由小到大", new SortState(SortKey.Name, SortDirection.Asc)),
-        new("名稱由大到小", new SortState(SortKey.Name, SortDirection.Desc)),
-        new("修改時間最舊到最新", new SortState(SortKey.ModifiedAt, SortDirection.Asc)),
-        new("修改時間最新到最舊", new SortState(SortKey.ModifiedAt, SortDirection.Desc))
-    ];
-
-    public SortOption SelectedSortOption =>
-        SortOptions.FirstOrDefault(option => option.State == Sort) ?? SortOptions[0];
-
     public double ThumbnailSizeMinimum => SettingsRules.MinThumbnailSize;
 
     public double ThumbnailSizeMaximum => SettingsRules.MaxThumbnailSize;
@@ -358,7 +347,6 @@ public sealed partial class MainPageViewModel : ObservableObject
     partial void OnSortChanged(SortState value)
     {
         OnPropertyChanged(nameof(SortLabel));
-        OnPropertyChanged(nameof(SelectedSortOption));
     }
 
     [RelayCommand(CanExecute = nameof(CanNavigateBack))]
@@ -408,24 +396,6 @@ public sealed partial class MainPageViewModel : ObservableObject
     {
         await LoadLibraryAsync();
         SetStatus($"已重新整理 {CurrentFolderPath} 的圖庫。");
-    }
-
-    [RelayCommand]
-    private async Task ToggleSortKey()
-    {
-        await ChangeSortAsync(Sort with
-        {
-            Key = Sort.Key == SortKey.Name ? SortKey.ModifiedAt : SortKey.Name
-        });
-    }
-
-    [RelayCommand]
-    private async Task ToggleSortDirection()
-    {
-        await ChangeSortAsync(Sort with
-        {
-            Direction = Sort.Direction == SortDirection.Asc ? SortDirection.Desc : SortDirection.Asc
-        });
     }
 
     public async Task ChangeSortAsync(SortState sort)
@@ -767,10 +737,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         IReadOnlyList<FolderListItem> folders;
         try
         {
-            folders = await folderScanner.ScanChildFoldersAsync(
-                folderPath,
-                new SortState(SortKey.Name, SortDirection.Asc),
-                cancellationToken);
+            folders = await folderScanner.ScanChildFoldersAsync(folderPath, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -818,10 +785,7 @@ public sealed partial class MainPageViewModel : ObservableObject
 
         try
         {
-            var folders = await folderScanner.ScanChildFoldersAsync(
-                node.Path,
-                new SortState(SortKey.Name, SortDirection.Asc),
-                CancellationToken.None);
+            var folders = await folderScanner.ScanChildFoldersAsync(node.Path, CancellationToken.None);
 
             node.Children.Clear();
             foreach (var folder in folders)
@@ -1014,14 +978,12 @@ public sealed partial class MainPageViewModel : ObservableObject
                 Name: folder.Name,
                 Path: folder.Path,
                 Detail: "開啟資料夾",
-                IsSelected: false,
                 IconGlyph: "\uE8B7",
                 SourceItem: folder),
             ImageListItem image => new LibraryTileItem(
                 Name: image.Name,
                 Path: image.Path,
                 Detail: $"{image.Extension.ToUpperInvariant()} - {image.SizeBytes / 1024} KB",
-                IsSelected: false,
                 IconGlyph: image.IsAnimated ? "\uE783" : "\uEB9F",
                 SourceItem: image),
             _ => throw new ArgumentOutOfRangeException(nameof(item))
@@ -1054,8 +1016,6 @@ public sealed partial class MainPageViewModel : ObservableObject
     private sealed record LibraryLoadState(long Version, CancellationTokenSource CancellationSource);
 
 }
-
-public sealed record SortOption(string Label, SortState State);
 
 public enum MainPageStatusSeverity
 {

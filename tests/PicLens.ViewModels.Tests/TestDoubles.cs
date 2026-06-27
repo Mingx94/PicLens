@@ -71,7 +71,6 @@ internal sealed class CountingFolderScanner(IReadOnlyList<ListItem> items) : IFo
 
     public Task<IReadOnlyList<FolderListItem>> ScanChildFoldersAsync(
         string folderPath,
-        SortState sort,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<FolderListItem>>([]);
 }
@@ -135,12 +134,6 @@ internal sealed class FakeSettingsStore(AppSettings initialSettings) : ISettings
     public AppSettings Current => Settings;
 
     public Task<AppSettings> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(Settings);
-
-    public Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default)
-    {
-        Settings = settings;
-        return Task.CompletedTask;
-    }
 
     public Task<AppSettings> UpdateAsync(AppSettingsPatch patch, CancellationToken cancellationToken = default)
     {

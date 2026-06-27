@@ -16,7 +16,6 @@ public sealed class LibraryTileItem : ObservableObject
         string Name,
         string Path,
         string Detail,
-        bool IsSelected,
         string IconGlyph,
         ListItem SourceItem,
         string? InitialThumbnailPath = null)
@@ -24,7 +23,6 @@ public sealed class LibraryTileItem : ObservableObject
         this.Name = Name;
         this.Path = Path;
         this.Detail = Detail;
-        this.IsSelected = IsSelected;
         this.IconGlyph = IconGlyph;
         this.SourceItem = SourceItem;
         thumbnailPath = InitialThumbnailPath;
@@ -34,7 +32,6 @@ public sealed class LibraryTileItem : ObservableObject
     public string Path { get; }
     public string Detail { get; }
     public bool IsFolder => SourceItem is FolderListItem;
-    public bool IsSelected { get; }
     public bool IsAnimated => SourceItem is ImageListItem { IsAnimated: true };
     public string IconGlyph { get; }
     public ListItem SourceItem { get; }

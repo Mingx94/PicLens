@@ -220,7 +220,6 @@ public sealed class MainPageViewModelStartupTests
 
         public Task<IReadOnlyList<FolderListItem>> ScanChildFoldersAsync(
             string folderPath,
-            SortState sort,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<FolderListItem>>([]);
 
@@ -250,9 +249,6 @@ public sealed class MainPageViewModelStartupTests
     private sealed class ThrowingUpdateSettingsStore(AppSettings initialSettings, Exception exception) : ISettingsStore
     {
         public Task<AppSettings> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(initialSettings);
-
-        public Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default) =>
-            throw exception;
 
         public Task<AppSettings> UpdateAsync(AppSettingsPatch patch, CancellationToken cancellationToken = default) =>
             throw exception;

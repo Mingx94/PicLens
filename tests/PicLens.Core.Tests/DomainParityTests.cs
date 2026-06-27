@@ -25,8 +25,8 @@ public sealed class DomainParityTests
         var staticGif = new byte[] { (byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a', 0, 0, 0, 0, 0, 0, 0, 0x2c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0x3b };
         var animatedGif = new byte[] { (byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a', 0, 0, 0, 0, 0, 0, 0, 0x2c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0x2c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0x3b };
 
-        Assert.False(ImageFormatRules.IsAnimatedGif(staticGif));
-        Assert.True(ImageFormatRules.IsAnimatedGif(animatedGif));
+        Assert.False(IsAnimatedGif(staticGif));
+        Assert.True(IsAnimatedGif(animatedGif));
     }
 
     [Fact]
@@ -35,8 +35,8 @@ public sealed class DomainParityTests
         var staticWebp = new byte[] { (byte)'R', (byte)'I', (byte)'F', (byte)'F', 0, 0, 0, 0, (byte)'W', (byte)'E', (byte)'B', (byte)'P', (byte)'V', (byte)'P', (byte)'8', (byte)'X', 0, 0, 0, 0, 0 };
         var animatedWebp = new byte[] { (byte)'R', (byte)'I', (byte)'F', (byte)'F', 0, 0, 0, 0, (byte)'W', (byte)'E', (byte)'B', (byte)'P', (byte)'V', (byte)'P', (byte)'8', (byte)'X', 0, 0, 0, 0, 0x02 };
 
-        Assert.False(ImageFormatRules.IsAnimatedWebp(staticWebp));
-        Assert.True(ImageFormatRules.IsAnimatedWebp(animatedWebp));
+        Assert.False(IsAnimatedWebp(staticWebp));
+        Assert.True(IsAnimatedWebp(animatedWebp));
     }
 
     [Fact]
@@ -152,6 +152,10 @@ public sealed class DomainParityTests
 
     private static FolderListItem Folder(string name, long modifiedAtMs) =>
         new($"folder:{name}", $@"C:\Images\{name}", name, modifiedAtMs);
+
+    private static bool IsAnimatedGif(byte[] bytes) => ImageFormatRules.IsAnimatedGif(new MemoryStream(bytes));
+
+    private static bool IsAnimatedWebp(byte[] bytes) => ImageFormatRules.IsAnimatedWebp(new MemoryStream(bytes));
 
     private static ImageListItem Image(string name, long modifiedAtMs) =>
         new(
