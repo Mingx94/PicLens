@@ -286,13 +286,14 @@
                                 <ir:ItemsRepeater.Layout>
                                     <irlayout:UniformGridLayout
                                         MinItemWidth="{Binding ThumbnailSize}"
-                                        MinItemHeight="{Binding ThumbnailSize}"
+                                        MinItemHeight="{Binding LibraryTileLayoutHeight}"
                                         MinRowSpacing="14"
                                         MinColumnSpacing="12" />
                                 </ir:ItemsRepeater.Layout>
                                 <ir:ItemsRepeater.ItemTemplate>
                                     <DataTemplate DataType="vm:LibraryTileItem" x:DataType="vm:LibraryTileItem">
                                         <Border
+                                            x:Name="LibraryTile"
                                             Classes="tile"
                                             Classes.selected="{Binding IsSelected}"
                                             Classes.drop-target="{Binding IsDropRenameTarget}"
@@ -309,15 +310,24 @@
                                             PointerMoved="LibraryTile_PointerMoved"
                                             PointerReleased="LibraryTile_PointerReleased"
                                             PointerCaptureLost="LibraryTile_PointerCaptureLost">
-                                            <Grid RowDefinitions="Auto,Auto">
-                                                <Border
-                                                    Height="{Binding TileHeight}"
-                                                    Background="{StaticResource TileFrameBrush}"
-                                                    BorderBrush="{StaticResource LineBrush}"
-                                                    BorderThickness="1"
-                                                    ClipToBounds="True"
-                                                    CornerRadius="4">
-                                                    <Grid>
+                                            <ToolTip.Tip>
+                                                <TextBlock
+                                                    x:DataType="vm:LibraryTileItem"
+                                                    DataContext="{Binding #LibraryTile.DataContext}"
+                                                    Text="{Binding Name}"
+                                                    TextWrapping="Wrap"
+                                                    MaxWidth="720" />
+                                            </ToolTip.Tip>
+                                            <Border
+                                                Background="{StaticResource TileFrameBrush}"
+                                                BorderBrush="{StaticResource LineBrush}"
+                                                BorderThickness="1"
+                                                ClipToBounds="True"
+                                                CornerRadius="4">
+                                                <Grid RowDefinitions="Auto,Auto">
+                                                    <Grid
+                                                        Height="{Binding TileHeight}"
+                                                        ClipToBounds="True">
                                                         <Image Source="{Binding ThumbnailPath, Converter={StaticResource ImagePathConverter}}" Stretch="Uniform" IsVisible="{Binding CanShowThumbnail}" />
                                                         <Panel
                                                             HorizontalAlignment="Center"
@@ -328,17 +338,17 @@
                                                             <ic:FluentIcon Classes="glyph muted" Icon="Image" IconVariant="Regular" IconSize="Size48" IsVisible="{Binding IsStillImage}" />
                                                         </Panel>
                                                     </Grid>
-                                                </Border>
-                                                <TextBlock
-                                                    Grid.Row="1"
-                                                    Text="{Binding Name}"
-                                                    FontWeight="SemiBold"
-                                                    FontSize="14"
-                                                    TextWrapping="Wrap"
-                                                    TextTrimming="CharacterEllipsis"
-                                                    MaxLines="2"
-                                                    Margin="4,8,4,0" />
-                                            </Grid>
+                                                    <TextBlock
+                                                        Grid.Row="1"
+                                                        Text="{Binding Name}"
+                                                        FontWeight="SemiBold"
+                                                        FontSize="14"
+                                                        TextWrapping="Wrap"
+                                                        TextTrimming="CharacterEllipsis"
+                                                        MaxLines="2"
+                                                        Margin="4,8,4,6" />
+                                                </Grid>
+                                            </Border>
                                         </Border>
                                     </DataTemplate>
                                 </ir:ItemsRepeater.ItemTemplate>

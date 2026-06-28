@@ -26,6 +26,7 @@ public sealed class MainPageViewModelThumbnailSizeTests
 
         var tile = Assert.Single(viewModel.LibraryItems);
         Assert.Equal(200, viewModel.ThumbnailSize);
+        Assert.Equal(256, viewModel.LibraryTileLayoutHeight);
         Assert.Equal(200, tile.TileWidth);
         Assert.Equal(196, tile.TileHeight);
     }
@@ -50,6 +51,7 @@ public sealed class MainPageViewModelThumbnailSizeTests
         await viewModel.ChangeThumbnailSizeAsync(188);
 
         Assert.Equal(180, viewModel.ThumbnailSize);
+        Assert.Equal(236, viewModel.LibraryTileLayoutHeight);
         Assert.Equal(180, settingsStore.Settings.ThumbnailSize);
         Assert.Equal(180, tile.TileWidth);
         Assert.Equal(176, tile.TileHeight);

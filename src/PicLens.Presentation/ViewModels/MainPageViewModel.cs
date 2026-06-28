@@ -73,6 +73,7 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ThumbnailSizeLabel))]
+    [NotifyPropertyChangedFor(nameof(LibraryTileLayoutHeight))]
     public partial int ThumbnailSize { get; set; } = SettingsRules.DefaultThumbnailSize;
 
     [ObservableProperty]
@@ -104,6 +105,8 @@ public sealed partial class MainPageViewModel : ObservableObject
     public double ThumbnailSizeStep => SettingsRules.ThumbnailSizeStep;
 
     public string ThumbnailSizeLabel => $"縮圖 {ThumbnailSize}";
+
+    public int LibraryTileLayoutHeight => ThumbnailSize + 56;
 
     public string LibraryItemCountText => $"{LibraryItems.Count} 個項目";
 

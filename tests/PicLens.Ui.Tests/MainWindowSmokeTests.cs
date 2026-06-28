@@ -8,6 +8,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using PicLens;
@@ -69,11 +70,31 @@ public sealed class MainWindowSmokeTests
     {
         using var fixture = PicLensHeadlessFixture.StartSeeded(nameof(Seeded_library_loads_folder_tree_grid_status_and_thumbnails));
         await fixture.WaitForLibraryCountAsync(3);
+        Assert.Contains("載入 3 個項目", fixture.View.ViewModel.StatusMessage, StringComparison.Ordinal);
 
-        Assert.NotNull(fixture.FindTile("Alpha-01.png"));
+        var longName = "8s_[8K] 251031 아이브 장원영 IVE WONYOUNG fancam very long original filename.png";
+        File.Copy(Path.Combine(fixture.LibraryRoot, "Alpha-01.png"), Path.Combine(fixture.LibraryRoot, longName));
+        fixture.ExecuteButtonCommand("TitleBarRefreshLibraryButton");
+        await fixture.WaitForLibraryCountAsync(4);
+
+        var alphaTile = fixture.FindTile("Alpha-01.png");
+        var longTile = fixture.FindTile(longName);
         Assert.NotNull(fixture.FindTile("Bravo-02.png"));
         Assert.NotNull(fixture.FindTile("Nested"));
-        Assert.Contains("載入 3 個項目", fixture.View.ViewModel.StatusMessage, StringComparison.Ordinal);
+        var alphaLabel = alphaTile.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == "Alpha-01.png");
+        Assert.Equal(TextWrapping.Wrap, alphaLabel.TextWrapping);
+        Assert.Equal(TextTrimming.CharacterEllipsis, alphaLabel.TextTrimming);
+        Assert.Equal(2, alphaLabel.MaxLines);
+        Assert.Null(ToolTip.GetTip(alphaLabel));
+        var longTooltip = Assert.IsType<TextBlock>(ToolTip.GetTip(longTile));
+        Assert.Equal(longName, longTooltip.Text);
+        Assert.Equal(TextWrapping.Wrap, longTooltip.TextWrapping);
+        Assert.Equal(TextTrimming.None, longTooltip.TextTrimming);
+        var labelTopLeft = alphaLabel.TranslatePoint(new Point(), alphaTile);
+        Assert.NotNull(labelTopLeft);
+        Assert.True(
+            labelTopLeft.Value.Y + alphaLabel.Bounds.Height <= alphaTile.Bounds.Height,
+            "Tile layout clipped the file name row.");
     }
 
     [AvaloniaFact]
