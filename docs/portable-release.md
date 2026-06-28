@@ -61,6 +61,7 @@ bash ./scripts/Release.sh --skip-tests
    - `--self-contained false`
    - `PublishSelfContained=false`
    - `PublishSingleFile=false`
+   - Release 時 `PublishReadyToRun=true`
    - `PublishTrimmed=false`
    - `SelfContained=false`
    - `DebugType=None`

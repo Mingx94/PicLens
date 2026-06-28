@@ -38,3 +38,9 @@ Windows file sharing modes can make a second open or move fail while a file is l
 `code:` `PicLens/Views/MainView.axaml` -> `AppTitleBar` · `updated:` `2026-06-28` · `status:` `active`
 
 FlaUI can test PicLens on Windows through the platform UI Automation tree, but Avalonia layout containers such as `Border` may stay out of the Control view even when they have an `AutomationProperties.AutomationId`. When a smoke test must locate a non-interactive container, set `AutomationProperties.AccessibilityView="Control"` and `AutomationProperties.ControlTypeOverride="Pane"` on that container instead of assuming the AutomationId alone is enough.
+
+## Avalonia devtools attach should be opt-in during startup work
+
+`code:` `PicLens/Program.cs` -> `BuildAvaloniaApp` · `updated:` `2026-06-28` · `status:` `active`
+
+Avalonia Developer Tools can throw "Developer tools have already been attached" when the app is launched in a context that already attached diagnostics. Keep Debug devtools opt-in for PicLens startup/performance checks instead of attaching on every Debug launch.

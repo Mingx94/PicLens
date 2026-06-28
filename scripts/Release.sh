@@ -78,6 +78,10 @@ test_script="$script_dir/Test.sh"
 output_root="$root/artifacts/portable"
 output_dir="$output_root/PicLens-$runtime_identifier"
 exe_path="$output_dir/PicLens"
+publish_ready_to_run="true"
+if [[ "$configuration" == "Debug" ]]; then
+    publish_ready_to_run="false"
+fi
 
 assert_under_root() {
     local path="$1"
@@ -124,6 +128,7 @@ dotnet restore "$project" \
     --configfile "$nuget_config" \
     -r "$runtime_identifier" \
     "/p:Platform=$platform" \
+    "/p:PublishReadyToRun=$publish_ready_to_run" \
     "/p:SelfContained=false"
 
 echo "==> Publishing framework-dependent output"
@@ -135,7 +140,7 @@ dotnet publish "$project" \
     "/p:Platform=$platform" \
     "/p:PublishSelfContained=false" \
     "/p:PublishSingleFile=false" \
-    "/p:PublishReadyToRun=false" \
+    "/p:PublishReadyToRun=$publish_ready_to_run" \
     "/p:PublishTrimmed=false" \
     "/p:SelfContained=false" \
     "/p:DebugType=None" \

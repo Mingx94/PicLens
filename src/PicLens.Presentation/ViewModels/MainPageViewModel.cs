@@ -580,12 +580,16 @@ public sealed partial class MainPageViewModel : ObservableObject
         IsBusy = true;
         try
         {
+            var existingRoot = FolderRoots.FirstOrDefault();
+            var isRootChanged = existingRoot == null || !PathEquals(existingRoot.Path, folderTreeRoot);
+            if (isRootChanged)
+            {
+                ShowPendingFolderTreeRoot(folderTreeRoot, folderPath);
+            }
+
             var loadedItems = await folderScanner.ScanAsync(
                 new ListQuery(folderPath, includeSubfolders, sort),
                 load.CancellationSource.Token);
-
-            var existingRoot = FolderRoots.FirstOrDefault();
-            var isRootChanged = existingRoot == null || !PathEquals(existingRoot.Path, folderTreeRoot);
 
             IReadOnlyList<FolderTreeItem>? loadedFolderRoots = null;
             if (isRootChanged)
@@ -615,7 +619,7 @@ public sealed partial class MainPageViewModel : ObservableObject
                     FolderRoots.Add(root);
                 }
             }
-            else
+            else if (!isRootChanged)
             {
                 UpdateFolderTreeSelection(folderPath);
             }
@@ -697,20 +701,32 @@ public sealed partial class MainPageViewModel : ObservableObject
         NotifyLibraryItemCount();
     }
 
+    private void ShowPendingFolderTreeRoot(string rootPath, string selectedPath)
+    {
+        var root = CreateFolderTreeRoot(rootPath, selectedPath);
+        root.Children.Add(new FolderTreeItem("", "", isReadable: false));
+        FolderRoots.Clear();
+        FolderRoots.Add(root);
+    }
+
     private async Task<IReadOnlyList<FolderTreeItem>> BuildFolderTreeAsync(
         string rootPath,
         string selectedPath,
         CancellationToken cancellationToken)
     {
-        var root = new FolderTreeItem(
+        var root = CreateFolderTreeRoot(rootPath, selectedPath);
+
+        await PopulateFolderChildrenAsync(root, rootPath, selectedPath, cancellationToken);
+        return [root];
+    }
+
+    private static FolderTreeItem CreateFolderTreeRoot(string rootPath, string selectedPath) =>
+        new(
             FolderDisplayName(rootPath),
             rootPath,
             isReadable: Directory.Exists(rootPath),
             isExpanded: true,
             isSelected: PathEquals(rootPath, selectedPath));
-        await PopulateFolderChildrenAsync(root, rootPath, selectedPath, cancellationToken);
-        return [root];
-    }
 
     private async Task PopulateFolderChildrenAsync(
         FolderTreeItem node,
@@ -796,7 +812,9 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            appLogger.Error(ex, $"Lazy load folder children failed for {node.Path}");
+            appLogger.Error(
+                ex,
+                $"Lazy load folder children failed. FolderPath={node.Path}; FolderTreeRootPath={folderTreeRootPath}; CurrentFolderPath={CurrentFolderPath}");
         }
     }
 

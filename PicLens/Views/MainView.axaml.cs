@@ -77,7 +77,7 @@ public partial class MainView : UserControl
 
     public MainPageViewModel ViewModel { get; }
 
-    private async void OnLoaded(object? sender, RoutedEventArgs e)
+    private void OnLoaded(object? sender, RoutedEventArgs e)
     {
         if (initialized)
         {
@@ -86,8 +86,23 @@ public partial class MainView : UserControl
 
         initialized = true;
         FolderTree.AddHandler(TreeViewItem.ExpandedEvent, FolderTreeItem_Expanded);
-        await ViewModel.InitializeAsync();
-        initialLoadCompleted = true;
+        _ = InitializeAfterLoadedAsync();
+    }
+
+    private async Task InitializeAfterLoadedAsync()
+    {
+        try
+        {
+            await ViewModel.InitializeAsync();
+        }
+        catch (Exception ex)
+        {
+            App.Logger.Error(ex, "Main view initialization failed.");
+        }
+        finally
+        {
+            initialLoadCompleted = true;
+        }
     }
 
     private async void FolderTree_SelectionChanged(object? sender, SelectionChangedEventArgs e)

@@ -10,11 +10,19 @@ internal static class Program
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
 
     public static AppBuilder BuildAvaloniaApp() =>
-        AppBuilder.Configure<App>()
+        ConfigureDeveloperTools(AppBuilder.Configure<App>()
             .UsePlatformDetect()
-            .WithInterFont()
-#if DEBUG
-            .WithDeveloperTools()
-#endif
+            .WithInterFont())
             .LogToTrace();
+
+    private static AppBuilder ConfigureDeveloperTools(AppBuilder builder)
+    {
+#if DEBUG
+        if (Environment.GetEnvironmentVariable("PICLENS_ENABLE_DEVTOOLS") == "1")
+        {
+            return builder.WithDeveloperTools();
+        }
+#endif
+        return builder;
+    }
 }

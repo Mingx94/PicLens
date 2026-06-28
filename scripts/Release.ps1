@@ -27,6 +27,7 @@ $testScript = Join-Path $PSScriptRoot "Test.ps1"
 $outputRoot = Join-Path (Join-Path $root "artifacts") "portable"
 $outputName = "PicLens-$RuntimeIdentifier"
 $outputDir = Join-Path $outputRoot $outputName
+$publishReadyToRun = if ($Configuration -eq "Debug") { "false" } else { "true" }
 
 function Assert-UnderRoot {
     param(
@@ -101,6 +102,7 @@ Invoke-Native "dotnet" @(
     "-r",
     $RuntimeIdentifier,
     "/p:Platform=$Platform",
+    "/p:PublishReadyToRun=$publishReadyToRun",
     "/p:SelfContained=false"
 )
 
@@ -118,7 +120,7 @@ Invoke-Native "dotnet" @(
     "/p:Platform=$Platform",
     "/p:PublishSelfContained=false",
     "/p:PublishSingleFile=false",
-    "/p:PublishReadyToRun=false",
+    "/p:PublishReadyToRun=$publishReadyToRun",
     "/p:PublishTrimmed=false",
     "/p:SelfContained=false",
     "/p:DebugType=None",
