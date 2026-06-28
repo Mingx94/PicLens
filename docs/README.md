@@ -10,7 +10,7 @@ PicLens 是 Windows / Linux Avalonia / MVVM 圖片整理與檢視 app。
 - [Testing](testing.md) 列出驗證命令與目前的 test coverage。
 - [Verification notes](verification/2026-06-24.md) 保存舊 milestone 的特定日期驗證結果與 smoke/profile 證據。
 - [Portable release](portable-release.md) 說明如何建置免安裝輸出資料夾。
-- [Installer release](installer-release.md) 說明如何建置 Windows MSIX 可安裝檔。
+- [Installer release](installer-release.md) 說明如何建置 Windows setup 可安裝檔。
 
 ## 目前狀態
 

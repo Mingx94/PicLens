@@ -75,7 +75,7 @@ artifacts/portable/PicLens-linux-x64/PicLens
 
 ## Installer Release
 
-Windows MSIX：
+Windows installer：
 
 ```powershell
 .\scripts\BuildInstaller.ps1
@@ -84,8 +84,7 @@ Windows MSIX：
 Output：
 
 ```text
-artifacts/installer/PicLens-win-x64.msix
-artifacts/installer/PicLens-win-x64.cer
+artifacts/installer/PicLens-win-x64-Setup.exe
 ```
 
 ## Docs
