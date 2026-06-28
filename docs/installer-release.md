@@ -1,6 +1,6 @@
 # Installer Release
 
-PicLens Windows installer output is an Inno Setup `.exe` built from the existing portable release folder.
+PicLens installer outputs are built from the existing portable release folder.
 
 ## Build
 
@@ -11,13 +11,13 @@ winget install --id JRSoftware.InnoSetup -e
 ```
 
 ```powershell
-.\scripts\BuildInstaller.ps1
+.\build\windows-x64.ps1
 ```
 
 Fast local build:
 
 ```powershell
-.\scripts\BuildInstaller.ps1 -SkipTests
+.\build\windows-x64.ps1 -SkipTests
 ```
 
 Default output:
@@ -26,12 +26,23 @@ Default output:
 artifacts/installer/PicLens-win-x64-Setup.exe
 ```
 
-## Options
+Fedora RPM:
+
+```bash
+bash ./build/fedora-x64.sh
+```
+
+Default output:
+
+```text
+artifacts/installer/PicLens-1.0.0-fedora-x86_64.rpm
+```
+
+## Windows options
 
 ```powershell
-.\scripts\BuildInstaller.ps1 -Version 1.0.1.0
-.\scripts\BuildInstaller.ps1 -RuntimeIdentifier win-x86 -Platform x86
-.\scripts\BuildInstaller.ps1 -InnoSetupCompiler "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+.\build\windows-x64.ps1 -Version 1.0.1.0
+.\build\windows-x64.ps1 -InnoSetupCompiler "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 ```
 
 ## Notes

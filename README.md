@@ -78,13 +78,20 @@ artifacts/portable/PicLens-linux-x64/PicLens
 Windows installer：
 
 ```powershell
-.\scripts\BuildInstaller.ps1
+.\build\windows-x64.ps1
+```
+
+Fedora RPM：
+
+```bash
+bash ./build/fedora-x64.sh
 ```
 
 Output：
 
 ```text
 artifacts/installer/PicLens-win-x64-Setup.exe
+artifacts/installer/PicLens-1.0.0-fedora-x86_64.rpm
 ```
 
 ## Docs

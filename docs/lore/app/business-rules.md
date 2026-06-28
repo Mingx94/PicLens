@@ -23,6 +23,6 @@ PicLens uses the `FluentIcons.Avalonia` package for in-app toolbar, tile fallbac
 
 ## Windows installer uses Inno Setup
 
-`code:` `scripts/BuildInstaller.ps1` · `code:` `installer/PicLens.iss` · `updated:` `2026-06-28` · `status:` `active`
+`code:` `build/windows-x64.ps1` · `code:` `installer/PicLens.iss` · `updated:` `2026-06-28` · `status:` `active`
 
 PicLens uses an Inno Setup `.exe` as the normal Windows installer because it installs like a regular desktop app without MSIX sideloading certificate setup. Keep the portable release separate; installer staging strips `.pdb` debug symbols while portable folders keep them.

@@ -3,12 +3,6 @@ param(
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Release",
 
-    [ValidateSet("win-x64", "win-arm64", "win-x86")]
-    [string]$RuntimeIdentifier = "win-x64",
-
-    [ValidateSet("x64", "ARM64", "x86")]
-    [string]$Platform = "x64",
-
     [string]$Version = "1.0.0.0",
     [string]$InnoSetupCompiler,
 
@@ -20,17 +14,19 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 if ($PSVersionTable.ContainsKey("Platform") -and $PSVersionTable.Platform -ne "Win32NT") {
-    throw "scripts/BuildInstaller.ps1 is Windows-only."
+    throw "build/windows-x64.ps1 is Windows-only."
 }
 
 $root = Split-Path -Parent $PSScriptRoot
-$releaseScript = Join-Path $PSScriptRoot "Release.ps1"
+$runtimeIdentifier = "win-x64"
+$platform = "x64"
+$releaseScript = Join-Path (Join-Path $root "scripts") "Release.ps1"
 $installerScript = Join-Path (Join-Path $root "installer") "PicLens.iss"
-$portableDir = Join-Path (Join-Path (Join-Path $root "artifacts") "portable") "PicLens-$RuntimeIdentifier"
+$portableDir = Join-Path (Join-Path (Join-Path $root "artifacts") "portable") "PicLens-$runtimeIdentifier"
 $installerRoot = Join-Path (Join-Path $root "artifacts") "installer"
 $stageRoot = Join-Path $installerRoot "setup-stage"
-$stageDir = Join-Path $stageRoot "PicLens-$RuntimeIdentifier"
-$outputBaseName = "PicLens-$RuntimeIdentifier-Setup"
+$stageDir = Join-Path $stageRoot "PicLens-$runtimeIdentifier"
+$outputBaseName = "PicLens-$runtimeIdentifier-Setup"
 $setupPath = Join-Path $installerRoot "$outputBaseName.exe"
 
 function Assert-UnderRoot {
@@ -119,8 +115,8 @@ foreach ($path in @($releaseScript, $installerScript)) {
 
 $releaseArgs = @{
     Configuration = $Configuration
-    RuntimeIdentifier = $RuntimeIdentifier
-    Platform = $Platform
+    RuntimeIdentifier = $runtimeIdentifier
+    Platform = $platform
 }
 if ($SkipTests) {
     $releaseArgs.SkipTests = $true
