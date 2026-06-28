@@ -28,40 +28,22 @@ tests/PicLens.Ui.Tests/             Avalonia Headless smoke tests
 
 ## Build And Test
 
-Windows：
-
-```powershell
-.\scripts\Test.ps1
-dotnet build .\PicLens.slnx -p:Platform=x64
-.\scripts\BuildAndRun.ps1 .\PicLens\PicLens.csproj
-```
-
-Linux：
-
 ```bash
-bash ./scripts/Test.sh
-dotnet build ./PicLens.slnx -p:Platform=x64
-bash ./scripts/BuildAndRun.sh ./PicLens/PicLens.csproj
+dotnet run --file scripts/Tasks.cs -- test
+dotnet build PicLens.slnx -p:Platform=x64
+dotnet run --file scripts/Tasks.cs -- run PicLens/PicLens.csproj
 ```
 
 Headless UI smoke tests：
 
-```powershell
-.\scripts\RunUiTests.ps1
+```bash
+dotnet run --file scripts/Tasks.cs -- ui-test
 ```
 
 ## Portable Release
 
-Windows：
-
-```powershell
-.\scripts\Release.ps1
-```
-
-Linux：
-
 ```bash
-bash ./scripts/Release.sh
+dotnet run --file scripts/Tasks.cs -- release
 ```
 
 Output：
@@ -75,16 +57,8 @@ artifacts/portable/PicLens-linux-x64/PicLens
 
 ## Installer Release
 
-Windows installer：
-
-```powershell
-.\build\windows-x64.ps1
-```
-
-Fedora RPM：
-
 ```bash
-bash ./build/fedora-x64.sh
+dotnet run --file scripts/Installer.cs --
 ```
 
 Output：

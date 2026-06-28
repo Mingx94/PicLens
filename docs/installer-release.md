@@ -4,35 +4,51 @@ PicLens installer outputs are built from the existing portable release folder.
 
 ## Build
 
-Install Inno Setup 6, then run from repository root:
+Run the platform-detecting installer wrapper from repository root:
+
+```bash
+dotnet run --file scripts/Installer.cs --
+```
+
+The wrapper builds the installer for the current host:
+
+- Windows: `artifacts/installer/PicLens-win-x64-Setup.exe`
+- Fedora Linux: `artifacts/installer/PicLens-1.0.0-fedora-x86_64.rpm`
+
+If a required packaging tool is missing, the wrapper prints the install command and exits.
+
+Installer builds do not run tests. Run `dotnet run --file scripts/Tasks.cs -- test` separately before packaging.
+
+## Options
+
+```bash
+dotnet run --file scripts/Installer.cs -- --version 1.0.1
+dotnet run --file scripts/Installer.cs -- --dry-run
+dotnet run --file scripts/Installer.cs -- --no-clean
+dotnet run --file scripts/Installer.cs -- --no-release
+```
+
+## Tooling
+
+Windows setup builds require Inno Setup 6:
 
 ```powershell
 winget install --id JRSoftware.InnoSetup -e
 ```
 
-```powershell
-.\build\windows-x64.ps1
-```
-
-Fast local build:
-
-```powershell
-.\build\windows-x64.ps1 -SkipTests
-```
-
-Default output:
+Windows default output:
 
 ```text
 artifacts/installer/PicLens-win-x64-Setup.exe
 ```
 
-Fedora RPM:
+Fedora RPM builds require `rpm-build`:
 
 ```bash
-bash ./build/fedora-x64.sh
+sudo dnf install rpm-build
 ```
 
-Default output:
+Fedora default output:
 
 ```text
 artifacts/installer/PicLens-1.0.0-fedora-x86_64.rpm
@@ -41,8 +57,8 @@ artifacts/installer/PicLens-1.0.0-fedora-x86_64.rpm
 ## Windows options
 
 ```powershell
-.\build\windows-x64.ps1 -Version 1.0.1.0
-.\build\windows-x64.ps1 -InnoSetupCompiler "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+dotnet run --file scripts/Installer.cs -- --version 1.0.1.0
+dotnet run --file scripts/Installer.cs -- --inno-setup-compiler "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 ```
 
 ## Notes

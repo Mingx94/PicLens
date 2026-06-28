@@ -65,6 +65,6 @@ Profiling a fresh 2000-BMP folder load showed the ViewModel/service path complet
 
 ## Former MSIX packaging needed source visual assets and trusted certificate roots
 
-`code:` `build/windows-x64.ps1` · `code:` `PicLens/PicLens.csproj` -> `AvaloniaResource Include="Assets\*.png"` · `updated:` `2026-06-28` · `status:` `resolved`
+`code:` `scripts/Installer.cs` · `code:` `PicLens/PicLens.csproj` -> `AvaloniaResource Include="Assets\*.png"` · `updated:` `2026-06-28` · `status:` `resolved`
 
 The former MSIX installer path needed PNG logo assets for shell identity and required self-signed dev certificates to be trusted in `Cert:\LocalMachine\Root`; user-level trust still produced `0x800B0109` in Windows App Installer. PicLens switched to Inno Setup for the normal Windows installer to avoid that sideloading certificate friction.

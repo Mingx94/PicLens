@@ -3,15 +3,15 @@
 #endif
 
 #ifndef RootDir
-#error RootDir must be passed by build/windows-x64.ps1.
+#error RootDir must be passed by scripts/Installer.cs.
 #endif
 
 #ifndef PayloadDir
-#error PayloadDir must be passed by build/windows-x64.ps1.
+#error PayloadDir must be passed by scripts/Installer.cs.
 #endif
 
 #ifndef OutputDir
-#error OutputDir must be passed by build/windows-x64.ps1.
+#error OutputDir must be passed by scripts/Installer.cs.
 #endif
 
 #ifndef OutputBaseFilename
