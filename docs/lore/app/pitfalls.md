@@ -32,3 +32,9 @@ PicLens targets Linux as well as Windows, so Core domain behavior must be determ
 `code:` `tests/PicLens.Infrastructure.Tests/JsonSettingsStoreTests.cs` -> `UpdateAsync_does_not_overwrite_existing_settings_when_read_failure_cannot_be_quarantined` · `updated:` `2026-06-27` · `status:` `active`
 
 Windows file sharing modes can make a second open or move fail while a file is locked with `FileShare.None`. Linux does not enforce the same mandatory locking semantics for this test case, so cross-platform filesystem failure tests should use Unix permissions on Linux and Windows file locks only on Windows.
+
+## Avalonia layout containers need explicit UIA exposure for FlaUI locators
+
+`code:` `PicLens/Views/MainView.axaml` -> `AppTitleBar` · `updated:` `2026-06-28` · `status:` `active`
+
+FlaUI can test PicLens on Windows through the platform UI Automation tree, but Avalonia layout containers such as `Border` may stay out of the Control view even when they have an `AutomationProperties.AutomationId`. When a smoke test must locate a non-interactive container, set `AutomationProperties.AccessibilityView="Control"` and `AutomationProperties.ControlTypeOverride="Pane"` on that container instead of assuming the AutomationId alone is enough.

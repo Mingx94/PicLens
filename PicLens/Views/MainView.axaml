@@ -127,6 +127,8 @@
             Background="{StaticResource CommandBarBrush}"
             BorderBrush="{StaticResource LineBrush}"
             BorderThickness="0,0,0,1"
+            AutomationProperties.AccessibilityView="Control"
+            AutomationProperties.ControlTypeOverride="Pane"
             AutomationProperties.AutomationId="AppTitleBar">
             <Grid ColumnDefinitions="*,Auto" Margin="12,0,14,0">
                 <StackPanel

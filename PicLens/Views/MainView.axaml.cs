@@ -23,6 +23,7 @@ public partial class MainView : UserControl
 {
     private const double PointerDragThreshold = 8;
     private const double KeyboardPanStep = 48;
+    private const double ThumbnailPreloadMargin = 240;
 
     private readonly List<LibraryTileItem> librarySelectionOrder = [];
     private readonly TranslateTransform libraryDragPreviewTransform = new();
@@ -41,6 +42,7 @@ public partial class MainView : UserControl
     private bool isPreviewOpen;
     private bool initialized;
     private bool initialLoadCompleted;
+    private bool libraryGridScrollViewerTracked;
     private IReadOnlyList<LibraryTileItem> pointerDragItems = [];
 
     public MainView()
@@ -444,7 +446,7 @@ public partial class MainView : UserControl
 
     private void LibraryDragAutoScrollTimer_Tick(object? sender, EventArgs e)
     {
-        libraryGridScrollViewer ??= LibraryGrid.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+        EnsureLibraryGridScrollViewer();
         if (libraryGridScrollViewer is null)
         {
             return;
@@ -464,7 +466,7 @@ public partial class MainView : UserControl
     {
         if (sender is Control { DataContext: LibraryTileItem item })
         {
-            QueueThumbnailLoad(item);
+            Dispatcher.UIThread.Post(() => QueueThumbnailLoadIfVisible((Control)sender, item));
         }
     }
 
@@ -478,7 +480,19 @@ public partial class MainView : UserControl
 
     private void QueueVisibleThumbnailLoads()
     {
-        foreach (var item in ViewModel.LibraryItems)
+        EnsureLibraryGridScrollViewer();
+        foreach (var tile in LibraryGrid.GetVisualDescendants().OfType<Border>())
+        {
+            if (tile.Classes.Contains("tile") && tile.DataContext is LibraryTileItem item)
+            {
+                QueueThumbnailLoadIfVisible(tile, item);
+            }
+        }
+    }
+
+    private void QueueThumbnailLoadIfVisible(Control tile, LibraryTileItem item)
+    {
+        if (IsInLibraryGridViewport(tile))
         {
             QueueThumbnailLoad(item);
         }
@@ -487,6 +501,47 @@ public partial class MainView : UserControl
     private void QueueThumbnailLoad(LibraryTileItem item)
     {
         Dispatcher.UIThread.Post(() => _ = ViewModel.LoadThumbnailAsync(item));
+    }
+
+    private void EnsureLibraryGridScrollViewer()
+    {
+        if (libraryGridScrollViewer is null)
+        {
+            libraryGridScrollViewer = LibraryGrid.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+        }
+
+        if (libraryGridScrollViewer is not null && !libraryGridScrollViewerTracked)
+        {
+            libraryGridScrollViewer.ScrollChanged += LibraryGridScrollViewer_ScrollChanged;
+            libraryGridScrollViewerTracked = true;
+        }
+    }
+
+    private void LibraryGridScrollViewer_ScrollChanged(object? sender, ScrollChangedEventArgs e) =>
+        QueueVisibleThumbnailLoads();
+
+    private bool IsInLibraryGridViewport(Control tile)
+    {
+        EnsureLibraryGridScrollViewer();
+        if (libraryGridScrollViewer is null)
+        {
+            return true;
+        }
+
+        var topLeft = tile.TranslatePoint(new Avalonia.Point(), libraryGridScrollViewer);
+        if (topLeft is null)
+        {
+            return false;
+        }
+
+        // ponytail: keep ListBox selection and only gate thumbnail work; use ItemsRepeater if grid virtualization is needed.
+        var viewport = new Rect(
+            -ThumbnailPreloadMargin,
+            -ThumbnailPreloadMargin,
+            libraryGridScrollViewer.Bounds.Width + ThumbnailPreloadMargin * 2,
+            libraryGridScrollViewer.Bounds.Height + ThumbnailPreloadMargin * 2);
+        var bounds = new Rect(topLeft.Value, tile.Bounds.Size);
+        return viewport.Intersects(bounds);
     }
 
     private async void ThumbnailSizeSlider_CommitValue(object? sender, RoutedEventArgs e)
