@@ -84,7 +84,7 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     public ObservableCollection<FolderTreeItem> FolderRoots { get; } = [];
 
-    public ObservableCollection<LibraryTileItem> LibraryItems { get; } = [];
+    public ObservableRangeCollection<LibraryTileItem> LibraryItems { get; } = [];
 
     public bool HasCurrentFolder => !string.IsNullOrWhiteSpace(CurrentFolderPath);
 
@@ -690,13 +690,12 @@ public sealed partial class MainPageViewModel : ObservableObject
     private void RefreshLibraryItems()
     {
         CancelAllThumbnailLoads();
-        LibraryItems.Clear();
-        foreach (var item in currentItems)
+        LibraryItems.ReplaceAll(currentItems.Select(item =>
         {
             var tile = ToTile(item);
             tile.ApplyThumbnailSize(ThumbnailSize);
-            LibraryItems.Add(tile);
-        }
+            return tile;
+        }));
 
         NotifyLibraryItemCount();
     }
@@ -959,11 +958,14 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     private List<ImageListItem> VisibleImages() => currentItems.OfType<ImageListItem>().ToList();
 
-    private List<ImageListItem> SelectedImages() =>
-        selectedImagePaths
-            .Select(path => VisibleImages().FirstOrDefault(image => PathEquals(image.Path, path)))
+    private List<ImageListItem> SelectedImages()
+    {
+        var imagesByPath = VisibleImages().ToDictionary(image => PathKey(image.Path), PathComparer);
+        return selectedImagePaths
+            .Select(path => imagesByPath.GetValueOrDefault(PathKey(path)))
             .OfType<ImageListItem>()
             .ToList();
+    }
 
     private static LibraryTileItem ToTile(ListItem item) =>
         item switch

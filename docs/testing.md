@@ -34,7 +34,7 @@ dotnet test .\tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj --n
 - Unit tests 驗證 domain、infrastructure 與 ViewModel 的可觀察行為。
 - ViewModel tests 可以驗證 runtime copy、狀態轉換、命令結果、ERROR LOG context 與檔案系統 side effects。
 - 不用 unit tests 讀取 `PicLens\*.axaml` 或 `PicLens\*.cs` 來 assert binding、event handler、layout spacing、control tree 或 code snippet。
-- UI runtime contract 由 FlaUI smoke tests 覆蓋，例如主要 AutomationId、menu/dialog、selection、inline viewer、settings persistence 與實際互動結果。
+- UI runtime contract 由 Avalonia Headless smoke tests 覆蓋，例如主要 control tree、menu bindings、tile selection、inline viewer、settings persistence 與 simulated input 結果。
 - Manifest XML、暫存測試檔與 log 檔屬於資料 contract，可在 unit tests 讀取並驗證。
 
 目前 coverage 包含：
@@ -77,36 +77,26 @@ Linux：
 bash ./scripts/BuildAndRun.sh ./PicLens/PicLens.csproj --skip-run
 ```
 
-## FlaUI UI Smoke Tests
+## Avalonia Headless UI Smoke Tests
 
-FlaUI 測試是 opt-in。執行：
+Headless UI smoke tests 是 opt-in，不會控制真實滑鼠鍵盤。執行：
 
 ```powershell
 .\scripts\RunUiTests.ps1
 ```
 
-這會先產生 Windows framework-dependent portable output，再執行 `tests\PicLens.Ui.Tests`。測試啟動 app 時會設定 isolated `PICLENS_DATA_ROOT`，因此 settings、thumbnail cache 與 ERROR LOG 都會寫到測試 artifact 資料夾，不會覆蓋使用者的 local app data。
+這會執行 `tests\PicLens.Ui.Tests`，以 `Avalonia.Headless.XUnit` 在 process 內建立 `MainWindow`。測試會設定 isolated `PICLENS_DATA_ROOT`，因此 settings、thumbnail cache 與 ERROR LOG 不會覆蓋使用者的 local app data。
 
 目前 UI smoke coverage 包含：
 
-- 啟動 published Windows `PicLens.exe` 並等待 main window。
-- 驗證 empty-state 主要 AutomationId：title bar、folder navigation command bar、library command bar、folder tree、library grid、status bar、thumbnail size slider、empty state action。
-- 開啟排序與更多圖庫動作 menus，確認預期 menu items 存在。
-- 以 seeded gallery 啟動 app，驗證 last-folder restore、folder tree、library grid、root image tiles、direct child folder tile 與 status feedback。
+- 驗證 empty-state 主要 controls：title bar、folder navigation command bar、library command bar、folder tree、library grid、status bar、thumbnail size slider、empty state action。
+- 驗證排序與更多圖庫動作 menu bindings。
+- 以 seeded gallery 建立 main window，驗證 last-folder restore、folder tree、library grid、root image tiles、direct child folder tile 與 status feedback。
 - 驗證資料夾歷史 back/forward buttons 會在 root 與 direct child folder 之間導覽。
-- 驗證排序 menu、含子資料夾 toggle、recursive image visibility，以及 settings persistence。
-- 驗證左鍵 image selection 不顯示底部 action bar，右鍵 image context menu 會顯示 rename/trash actions。
-- 驗證 rename dialog 可取消，且不會修改原始檔案。
-- 驗證 trash confirmation dialog 可取消，且不會移動原始檔案。
-- 驗證 clear same-basename confirmation dialog 可取消，且不會移動原始檔案。
-- 驗證 thumbnail size slider persistence。
-- 驗證 inline viewer smoke：double click 在主視窗內開啟 viewer、title update、previous/next、zoom controls、viewer image controls，以及 Escape close。
+- 驗證排序 command、含子資料夾 toggle、recursive image visibility，以及 settings persistence。
+- 驗證 ItemsRepeater tile selection、Ctrl multi-select，以及 Enter 開啟 inline viewer。
 
-失敗時會把 PID、data root、seeded library root、ERROR LOG、screenshot 與 UIA tree dump 寫到：
-
-```text
-artifacts\ui-tests\
-```
+Headless 不驗證 Windows UI Automation、native window focus、真實右鍵選單或平台檔案對話；這些若需要覆蓋，應另加少量真實 E2E/手動 smoke。
 
 ## Portable Release Verification
 

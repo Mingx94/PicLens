@@ -10,7 +10,7 @@ PicLens 是 Windows / Linux Avalonia / MVVM 圖片整理與檢視 app。
 - `src/PicLens.Presentation` 保留 UI-agnostic ViewModels 與 dialog/logger presentation contracts。
 - `src/PicLens.Core` 保留純 product rules 與 service contracts。
 - `src/PicLens.Infrastructure` 負責 settings persistence、scanning、thumbnails、OS trash、rename execution 與 file logging。
-- Core、Infrastructure 與 ViewModel behavior 由 xUnit tests 覆蓋；FlaUI smoke tests 覆蓋主要 UI flows。
+- Core、Infrastructure 與 ViewModel behavior 由 xUnit tests 覆蓋；Avalonia Headless smoke tests 覆蓋主要 UI flows。
 
 ## Solution
 
@@ -23,7 +23,7 @@ src/PicLens.Presentation/           UI-agnostic ViewModels 與 presentation serv
 tests/PicLens.Core.Tests/           xUnit domain tests
 tests/PicLens.Infrastructure.Tests/ xUnit infrastructure tests
 tests/PicLens.ViewModels.Tests/     xUnit ViewModel tests
-tests/PicLens.Ui.Tests/             FlaUI smoke tests
+tests/PicLens.Ui.Tests/             Avalonia Headless smoke tests
 ```
 
 ## Build And Test
@@ -44,7 +44,7 @@ dotnet build ./PicLens.slnx -p:Platform=x64
 bash ./scripts/BuildAndRun.sh ./PicLens/PicLens.csproj
 ```
 
-Windows opt-in UI smoke tests：
+Headless UI smoke tests：
 
 ```powershell
 .\scripts\RunUiTests.ps1

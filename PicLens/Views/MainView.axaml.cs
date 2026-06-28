@@ -124,17 +124,17 @@ public partial class MainView : UserControl
         }
     }
 
-    private void LibraryGrid_SelectionChanged(object? sender, SelectionChangedEventArgs e)
-    {
-        var ordered = OrderedSelectedLibraryItems();
-        ViewModel.UpdateSelectedLibraryItems(ordered);
-    }
-
     private async void LibraryTile_Tapped(object? sender, TappedEventArgs e)
     {
-        if (sender is Control { DataContext: LibraryTileItem { IsFolder: true } item })
+        if (sender is Control { DataContext: LibraryTileItem { IsFolder: true } folder })
         {
-            await OpenTileAsync(item);
+            await OpenTileAsync(folder);
+            e.Handled = true;
+        }
+        else if (sender is Control { DataContext: LibraryTileItem image })
+        {
+            SelectLibraryTile(image, e.KeyModifiers);
+            LibraryGrid.Focus();
             e.Handled = true;
         }
     }
@@ -158,8 +158,7 @@ public partial class MainView : UserControl
         contextMenuItem = item;
         if (SelectedLibraryTiles().All(selected => !PathEquals(selected.Path, item.Path)))
         {
-            LibraryGrid.SelectedItems?.Clear();
-            LibraryGrid.SelectedItems?.Add(item);
+            SelectLibraryTile(item, KeyModifiers.None);
         }
 
         var menu = new ContextMenu();
@@ -223,11 +222,6 @@ public partial class MainView : UserControl
 
     private LibraryTileItem? SelectedLibraryItemForOpen()
     {
-        if (LibraryGrid.SelectedItems is null || LibraryGrid.SelectedItems.Count == 0)
-        {
-            return null;
-        }
-
         var ordered = OrderedSelectedLibraryItems();
         return ordered.FirstOrDefault(item => !item.IsFolder) ?? ordered.FirstOrDefault();
     }
@@ -496,7 +490,7 @@ public partial class MainView : UserControl
     private void QueueVisibleThumbnailLoads()
     {
         EnsureLibraryGridScrollViewer();
-        foreach (var tile in LibraryGrid.GetVisualDescendants().OfType<Border>())
+        foreach (var tile in LibraryRepeater.GetVisualDescendants().OfType<Border>())
         {
             if (tile.Classes.Contains("tile") && tile.DataContext is LibraryTileItem item)
             {
@@ -522,7 +516,7 @@ public partial class MainView : UserControl
     {
         if (libraryGridScrollViewer is null)
         {
-            libraryGridScrollViewer = LibraryGrid.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+            libraryGridScrollViewer = LibraryGrid;
         }
 
         if (libraryGridScrollViewer is not null && !libraryGridScrollViewerTracked)
@@ -549,7 +543,6 @@ public partial class MainView : UserControl
             return false;
         }
 
-        // ponytail: keep ListBox selection and only gate thumbnail work; use ItemsRepeater if grid virtualization is needed.
         var viewport = new Rect(
             -ThumbnailPreloadMargin,
             -ThumbnailPreloadMargin,
@@ -594,6 +587,71 @@ public partial class MainView : UserControl
     {
         await ViewModel.ChangeThumbnailSizeAsync(ThumbnailSizeSlider.Value);
         QueueVisibleThumbnailLoads();
+    }
+
+    private void SelectLibraryTile(LibraryTileItem item, KeyModifiers modifiers)
+    {
+        var selected = SelectedLibraryTiles().ToList();
+        if ((modifiers & KeyModifiers.Shift) != 0)
+        {
+            SetSelectedLibraryTiles(SelectionRangeTo(item));
+            return;
+        }
+
+        if ((modifiers & KeyModifiers.Control) != 0)
+        {
+            if (item.IsSelected)
+            {
+                selected.RemoveAll(selectedItem => PathEquals(selectedItem.Path, item.Path));
+            }
+            else
+            {
+                selected.Add(item);
+            }
+
+            SetSelectedLibraryTiles(selected);
+            return;
+        }
+
+        SetSelectedLibraryTiles([item]);
+    }
+
+    private IReadOnlyList<LibraryTileItem> SelectionRangeTo(LibraryTileItem item)
+    {
+        var anchor = librarySelectionOrder.LastOrDefault();
+        var start = anchor is null ? -1 : ViewModel.LibraryItems.IndexOf(anchor);
+        var end = ViewModel.LibraryItems.IndexOf(item);
+        if (start < 0 || end < 0)
+        {
+            return [item];
+        }
+
+        if (start > end)
+        {
+            (start, end) = (end, start);
+        }
+
+        return ViewModel.LibraryItems.Skip(start).Take(end - start + 1).ToList();
+    }
+
+    private void SetSelectedLibraryTiles(IReadOnlyList<LibraryTileItem> selectedItems)
+    {
+        var selectedPaths = selectedItems.Select(item => PathKey(item.Path)).ToHashSet(PathComparer);
+        foreach (var item in ViewModel.LibraryItems)
+        {
+            item.IsSelected = selectedPaths.Contains(PathKey(item.Path));
+        }
+
+        librarySelectionOrder.RemoveAll(item => !selectedPaths.Contains(PathKey(item.Path)));
+        foreach (var item in selectedItems)
+        {
+            if (!librarySelectionOrder.Any(existing => PathEquals(existing.Path, item.Path)))
+            {
+                librarySelectionOrder.Add(item);
+            }
+        }
+
+        ViewModel.UpdateSelectedLibraryItems(OrderedSelectedLibraryItems());
     }
 
     private IReadOnlyList<LibraryTileItem> OrderedSelectedLibraryItems()
@@ -938,5 +996,5 @@ public partial class MainView : UserControl
     }
 
     private IEnumerable<LibraryTileItem> SelectedLibraryTiles() =>
-        LibraryGrid.SelectedItems?.Cast<LibraryTileItem>() ?? [];
+        ViewModel.LibraryItems.Where(item => item.IsSelected);
 }

@@ -17,6 +17,12 @@ This applied when thumbnails used WinRT APIs and the Infrastructure project targ
 
 Avalonia `Bitmap.Save` is useful for app-layer image display and thumbnail-style PNG output, but it is not the right contract for PicLens JPG conversion. Use SkiaSharp encoding for JPG so the converter controls the encoded format on both Windows and Linux.
 
+## Tiny PNG smoke fixtures do not exercise thumbnail generation
+
+`code:` `src/PicLens.Infrastructure/Services/ThumbnailService.cs` -> `ThumbnailService.GetOrCreateThumbnailAsync` · `updated:` `2026-06-28` · `status:` `active`
+
+The 68-byte 1x1 PNG fixture used by UI smoke tests can load the gallery but returns `null` from the SkiaSharp thumbnail path, leaving zero files in the thumbnail cache. For thumbnail or load-performance profiling, generate BMP files or real decodable image fixtures so a zero-cache result does not get mistaken for a thumbnail scheduling bug.
+
 <!--
 Each pitfall is a `## heading` + a one-line meta + the body:
 

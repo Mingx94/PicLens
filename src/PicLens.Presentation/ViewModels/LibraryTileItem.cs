@@ -10,6 +10,7 @@ public sealed class LibraryTileItem : ObservableObject
     private int? thumbnailSize;
     private int tileWidth = SettingsRules.DefaultThumbnailSize;
     private int tileHeight = SettingsRules.DefaultThumbnailSize - 4;
+    private bool isSelected;
     private bool isDropRenameTarget;
 
     public LibraryTileItem(
@@ -63,6 +64,12 @@ public sealed class LibraryTileItem : ObservableObject
     public bool CanShowThumbnail => !string.IsNullOrWhiteSpace(ThumbnailPath) && !IsAnimated;
 
     public bool ShouldShowIcon => !CanShowThumbnail;
+
+    public bool IsSelected
+    {
+        get => isSelected;
+        set => SetProperty(ref isSelected, value);
+    }
 
     public bool IsDropRenameTarget
     {

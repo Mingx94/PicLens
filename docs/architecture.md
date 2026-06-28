@@ -15,13 +15,13 @@ src/PicLens.Infrastructure/      JSON settings、filesystem、thumbnail、OS tra
 tests/PicLens.Core.Tests/        pure domain behavior 的 xUnit tests
 tests/PicLens.Infrastructure.Tests/ infrastructure behavior 的 xUnit tests
 tests/PicLens.ViewModels.Tests/  ViewModel behavior 的 xUnit tests
-tests/PicLens.Ui.Tests/          FlaUI smoke tests
+tests/PicLens.Ui.Tests/          Avalonia Headless smoke tests
 docs/                            專案文件
 scripts/                         repo-local scripts
 artifacts/portable/              產生的免安裝 release outputs
 ```
 
-`PicLens.slnx` 是 Visual Studio 開發入口，包含 x86/x64/ARM64 solution platforms。`PicLens.ViewModels.Tests` 與 `PicLens.Ui.Tests` 載入在 solution 中但不參與預設 solution build；Windows 請透過 `.\scripts\Test.ps1` 與 `.\scripts\RunUiTests.ps1` 驗證，Linux 請透過 `bash ./scripts/Test.sh` 驗證 non-UI smoke coverage。
+`PicLens.slnx` 是 Visual Studio 開發入口，包含 x86/x64/ARM64 solution platforms。`PicLens.ViewModels.Tests` 與 `PicLens.Ui.Tests` 載入在 solution 中但不參與預設 solution build；請透過 `.\scripts\Test.ps1` 與 `.\scripts\RunUiTests.ps1` 驗證 Windows 開發環境，Linux 請透過 `bash ./scripts/Test.sh` 驗證 non-UI smoke coverage。
 
 ## Avalonia App
 
@@ -33,7 +33,7 @@ App shell 使用：
 - `App.axaml` 設定 Fluent theme 與 Inter font。
 - `MainWindow.axaml` 承載 `Views/MainView.axaml`。
 - `MainView` code-behind 作為 composition root，手動建立 `MainPageViewModel` 與 Core/Infrastructure services，不引入 DI container。
-- Avalonia storage provider、modal dialogs、pointer events、TreeView/ListBox selection、context menu、drag preview overlay 與 inline viewer input 都留在 view 層。
+- Avalonia storage provider、modal dialogs、pointer events、TreeView/ItemsRepeater tile selection、context menu、drag preview overlay 與 inline viewer input 都留在 view 層。
 
 `MainView` 是目前的原生 shell：
 
@@ -47,7 +47,7 @@ App shell 使用：
 - File-operation status bar。
 - 主視窗內嵌 image viewer。
 
-Selection ownership 沿著 Avalonia 邊界切分：`ListBox.SelectedItems` 是 visual selection 的來源，`MainPageViewModel` 負責 selected image paths、command availability 與繁體中文 selection summary。Clearing selection 必須先清除 visual selection，再重設 view-model selection state，避免 reload 或 folder load 失敗後留下 stale selected paths。
+Selection ownership 沿著 Avalonia 邊界切分：`LibraryTileItem.IsSelected` 是 visual tile selection 的來源，`MainPageViewModel` 負責 selected image paths、command availability 與繁體中文 selection summary。Clearing selection 必須同步 visual selection 與 view-model selection state，避免 reload 或 folder load 失敗後留下 stale selected paths。
 
 ## Presentation
 

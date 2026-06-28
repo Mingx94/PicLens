@@ -4,6 +4,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:converters="using:PicLens.Converters"
     xmlns:ic="using:FluentIcons.Avalonia"
+    xmlns:ir="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.ItemsRepeater"
+    xmlns:irlayout="clr-namespace:Avalonia.Layout;assembly=Avalonia.Controls.ItemsRepeater"
     xmlns:vm="using:PicLens.ViewModels"
     x:DataType="vm:MainPageViewModel"
     x:Name="Root"
@@ -94,17 +96,12 @@
             <Setter Property="Background" Value="#08000000" />
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
         </Style>
+        <Style Selector="Border.tile.selected">
+            <Setter Property="Background" Value="{StaticResource SelectedBrush}" />
+        </Style>
         <Style Selector="Border.tile.drop-target">
             <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="2" />
-        </Style>
-        <Style Selector="ListBoxItem">
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="Margin" Value="4" />
-            <Setter Property="Background" Value="Transparent" />
-        </Style>
-        <Style Selector="ListBoxItem:selected">
-            <Setter Property="Background" Value="{StaticResource SelectedBrush}" />
         </Style>
         <Style Selector="TreeViewItem">
             <Setter Property="MinHeight" Value="30" />
@@ -276,73 +273,77 @@
                     </Border>
 
                     <Grid Grid.Row="1">
-                        <ListBox
+                        <ScrollViewer
                             x:Name="LibraryGrid"
                             AutomationProperties.AutomationId="LibraryGrid"
-                            ItemsSource="{Binding LibraryItems}"
-                            SelectionMode="Multiple"
-                            SelectionChanged="LibraryGrid_SelectionChanged"
+                            Focusable="True"
                             KeyDown="LibraryGrid_KeyDown"
-                            Background="Transparent"
-                            Padding="16,0,20,20"
-                            ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                            <ListBox.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel ItemSpacing="12" LineSpacing="14" />
-                                </ItemsPanelTemplate>
-                            </ListBox.ItemsPanel>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate DataType="vm:LibraryTileItem" x:DataType="vm:LibraryTileItem">
-                                    <Border
-                                        Classes="tile"
-                                        Classes.drop-target="{Binding IsDropRenameTarget}"
-                                        Width="{Binding TileWidth}"
-                                        MinHeight="{Binding TileHeight}"
-                                        AutomationProperties.AutomationId="{Binding AutomationId}"
-                                        AutomationProperties.Name="{Binding AutomationName}"
-                                        Loaded="LibraryTile_Loaded"
-                                        Unloaded="LibraryTile_Unloaded"
-                                        Tapped="LibraryTile_Tapped"
-                                        DoubleTapped="LibraryTile_DoubleTapped"
-                                        RightTapped="LibraryTile_RightTapped"
-                                        PointerPressed="LibraryTile_PointerPressed"
-                                        PointerMoved="LibraryTile_PointerMoved"
-                                        PointerReleased="LibraryTile_PointerReleased"
-                                        PointerCaptureLost="LibraryTile_PointerCaptureLost">
-                                        <Grid RowDefinitions="Auto,Auto">
-                                            <Border
-                                                Height="{Binding TileHeight}"
-                                                Background="{StaticResource TileFrameBrush}"
-                                                BorderBrush="{StaticResource LineBrush}"
-                                                BorderThickness="1"
-                                                ClipToBounds="True"
-                                                CornerRadius="4">
-                                                <Grid>
-                                                    <Image Source="{Binding ThumbnailPath, Converter={StaticResource ImagePathConverter}}" Stretch="Uniform" IsVisible="{Binding CanShowThumbnail}" />
-                                                    <Panel
-                                                        HorizontalAlignment="Center"
-                                                        VerticalAlignment="Center"
-                                                        IsVisible="{Binding ShouldShowIcon}">
-                                                        <ic:FluentIcon Classes="glyph muted" Icon="Folder" IconVariant="Regular" IconSize="Size48" IsVisible="{Binding IsFolder}" />
-                                                        <ic:FluentIcon Classes="glyph muted" Icon="Filmstrip" IconVariant="Regular" IconSize="Size48" IsVisible="{Binding IsAnimated}" />
-                                                        <ic:FluentIcon Classes="glyph muted" Icon="Image" IconVariant="Regular" IconSize="Size48" IsVisible="{Binding IsStillImage}" />
-                                                    </Panel>
-                                                </Grid>
-                                            </Border>
-                                            <TextBlock
-                                                Grid.Row="1"
-                                                Text="{Binding Name}"
-                                                FontWeight="SemiBold"
-                                                FontSize="14"
-                                                TextWrapping="Wrap"
-                                                TextTrimming="CharacterEllipsis"
-                                                MaxLines="2"
-                                                Margin="4,8,4,0" />
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                            HorizontalScrollBarVisibility="Disabled">
+                            <ir:ItemsRepeater
+                                x:Name="LibraryRepeater"
+                                ItemsSource="{Binding LibraryItems}"
+                                Margin="16,0,20,20">
+                                <ir:ItemsRepeater.Layout>
+                                    <irlayout:UniformGridLayout
+                                        MinItemWidth="{Binding ThumbnailSize}"
+                                        MinItemHeight="{Binding ThumbnailSize}"
+                                        MinRowSpacing="14"
+                                        MinColumnSpacing="12" />
+                                </ir:ItemsRepeater.Layout>
+                                <ir:ItemsRepeater.ItemTemplate>
+                                    <DataTemplate DataType="vm:LibraryTileItem" x:DataType="vm:LibraryTileItem">
+                                        <Border
+                                            Classes="tile"
+                                            Classes.selected="{Binding IsSelected}"
+                                            Classes.drop-target="{Binding IsDropRenameTarget}"
+                                            Width="{Binding TileWidth}"
+                                            MinHeight="{Binding TileHeight}"
+                                            AutomationProperties.AutomationId="{Binding AutomationId}"
+                                            AutomationProperties.Name="{Binding AutomationName}"
+                                            Loaded="LibraryTile_Loaded"
+                                            Unloaded="LibraryTile_Unloaded"
+                                            Tapped="LibraryTile_Tapped"
+                                            DoubleTapped="LibraryTile_DoubleTapped"
+                                            RightTapped="LibraryTile_RightTapped"
+                                            PointerPressed="LibraryTile_PointerPressed"
+                                            PointerMoved="LibraryTile_PointerMoved"
+                                            PointerReleased="LibraryTile_PointerReleased"
+                                            PointerCaptureLost="LibraryTile_PointerCaptureLost">
+                                            <Grid RowDefinitions="Auto,Auto">
+                                                <Border
+                                                    Height="{Binding TileHeight}"
+                                                    Background="{StaticResource TileFrameBrush}"
+                                                    BorderBrush="{StaticResource LineBrush}"
+                                                    BorderThickness="1"
+                                                    ClipToBounds="True"
+                                                    CornerRadius="4">
+                                                    <Grid>
+                                                        <Image Source="{Binding ThumbnailPath, Converter={StaticResource ImagePathConverter}}" Stretch="Uniform" IsVisible="{Binding CanShowThumbnail}" />
+                                                        <Panel
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            IsVisible="{Binding ShouldShowIcon}">
+                                                            <ic:FluentIcon Classes="glyph muted" Icon="Folder" IconVariant="Regular" IconSize="Size48" IsVisible="{Binding IsFolder}" />
+                                                            <ic:FluentIcon Classes="glyph muted" Icon="Filmstrip" IconVariant="Regular" IconSize="Size48" IsVisible="{Binding IsAnimated}" />
+                                                            <ic:FluentIcon Classes="glyph muted" Icon="Image" IconVariant="Regular" IconSize="Size48" IsVisible="{Binding IsStillImage}" />
+                                                        </Panel>
+                                                    </Grid>
+                                                </Border>
+                                                <TextBlock
+                                                    Grid.Row="1"
+                                                    Text="{Binding Name}"
+                                                    FontWeight="SemiBold"
+                                                    FontSize="14"
+                                                    TextWrapping="Wrap"
+                                                    TextTrimming="CharacterEllipsis"
+                                                    MaxLines="2"
+                                                    Margin="4,8,4,0" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ir:ItemsRepeater.ItemTemplate>
+                            </ir:ItemsRepeater>
+                        </ScrollViewer>
 
                         <StackPanel
                             HorizontalAlignment="Center"
