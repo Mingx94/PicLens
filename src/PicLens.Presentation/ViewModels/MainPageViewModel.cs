@@ -31,7 +31,6 @@ public sealed partial class MainPageViewModel : ObservableObject
     private string folderTreeRootPath = string.Empty;
     private bool suppressIncludeSubfoldersReload;
     private CancellationTokenSource? libraryLoadCancellationSource;
-    private long libraryLoadVersion;
 
     public MainPageViewModel(
         ISettingsStore settingsStore,
@@ -591,10 +590,10 @@ public sealed partial class MainPageViewModel : ObservableObject
                 new ListQuery(folderPath, includeSubfolders, sort),
                 load.CancellationSource.Token);
 
-            IReadOnlyList<FolderTreeItem>? loadedFolderRoots = null;
+            FolderTreeItem? loadedFolderRoot = null;
             if (isRootChanged)
             {
-                loadedFolderRoots = await BuildFolderTreeAsync(
+                loadedFolderRoot = await BuildFolderTreeAsync(
                     folderTreeRoot,
                     folderPath,
                     load.CancellationSource.Token);
@@ -611,13 +610,10 @@ public sealed partial class MainPageViewModel : ObservableObject
             currentItems = loadedItems;
             RefreshLibraryItems();
 
-            if (isRootChanged && loadedFolderRoots != null)
+            if (isRootChanged && loadedFolderRoot != null)
             {
                 FolderRoots.Clear();
-                foreach (var root in loadedFolderRoots)
-                {
-                    FolderRoots.Add(root);
-                }
+                FolderRoots.Add(loadedFolderRoot);
             }
             else if (!isRootChanged)
             {
@@ -670,21 +666,18 @@ public sealed partial class MainPageViewModel : ObservableObject
         var next = new CancellationTokenSource();
         libraryLoadCancellationSource = next;
         previous?.Cancel();
-        var version = Interlocked.Increment(ref libraryLoadVersion);
-        return new LibraryLoadState(version, next);
+        return new LibraryLoadState(next);
     }
 
     private void CancelActiveLibraryLoad()
     {
         libraryLoadCancellationSource?.Cancel();
         libraryLoadCancellationSource = null;
-        Interlocked.Increment(ref libraryLoadVersion);
         IsBusy = false;
     }
 
     private bool IsCurrentLibraryLoad(LibraryLoadState load) =>
         ReferenceEquals(libraryLoadCancellationSource, load.CancellationSource)
-        && Volatile.Read(ref libraryLoadVersion) == load.Version
         && !load.CancellationSource.IsCancellationRequested;
 
     private void RefreshLibraryItems()
@@ -708,7 +701,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         FolderRoots.Add(root);
     }
 
-    private async Task<IReadOnlyList<FolderTreeItem>> BuildFolderTreeAsync(
+    private async Task<FolderTreeItem> BuildFolderTreeAsync(
         string rootPath,
         string selectedPath,
         CancellationToken cancellationToken)
@@ -716,7 +709,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         var root = CreateFolderTreeRoot(rootPath, selectedPath);
 
         await PopulateFolderChildrenAsync(root, rootPath, selectedPath, cancellationToken);
-        return [root];
+        return root;
     }
 
     private static FolderTreeItem CreateFolderTreeRoot(string rootPath, string selectedPath) =>
@@ -974,13 +967,11 @@ public sealed partial class MainPageViewModel : ObservableObject
                 Name: folder.Name,
                 Path: folder.Path,
                 Detail: "開啟資料夾",
-                IconGlyph: "\uE8B7",
                 SourceItem: folder),
             ImageListItem image => new LibraryTileItem(
                 Name: image.Name,
                 Path: image.Path,
                 Detail: $"{image.Extension.ToUpperInvariant()} - {image.SizeBytes / 1024} KB",
-                IconGlyph: image.IsAnimated ? "\uE783" : "\uEB9F",
                 SourceItem: image),
             _ => throw new ArgumentOutOfRangeException(nameof(item))
         };
@@ -1006,6 +997,6 @@ public sealed partial class MainPageViewModel : ObservableObject
             _ => "名稱由小到大"
         };
 
-    private sealed record LibraryLoadState(long Version, CancellationTokenSource CancellationSource);
+    private sealed record LibraryLoadState(CancellationTokenSource CancellationSource);
 
 }

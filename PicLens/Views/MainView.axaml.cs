@@ -33,7 +33,6 @@ public partial class MainView : UserControl
     private LibraryTileItem? pointerDragSource;
     private LibraryTileItem? currentDropRenameTarget;
     private LibraryTileItem? contextMenuItem;
-    private ScrollViewer? libraryGridScrollViewer;
     private Avalonia.Point pointerDragStartPosition;
     private Avalonia.Point libraryDragLastPosition;
     private Avalonia.Point viewerLastPointerPosition;
@@ -42,7 +41,6 @@ public partial class MainView : UserControl
     private bool isPreviewOpen;
     private bool initialized;
     private bool initialLoadCompleted;
-    private bool libraryGridScrollViewerTracked;
     private IReadOnlyList<LibraryTileItem> pointerDragItems = [];
 
     public MainView()
@@ -66,6 +64,7 @@ public partial class MainView : UserControl
         DataContext = ViewModel;
         ViewerSurface.DataContext = previewViewModel;
         LibraryDragPreviewOverlay.RenderTransform = libraryDragPreviewTransform;
+        LibraryGrid.ScrollChanged += LibraryGridScrollViewer_ScrollChanged;
         AddHandler(KeyDownEvent, Root_KeyDown, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
         libraryDragAutoScrollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
         libraryDragAutoScrollTimer.Tick += LibraryDragAutoScrollTimer_Tick;
@@ -455,12 +454,6 @@ public partial class MainView : UserControl
 
     private void LibraryDragAutoScrollTimer_Tick(object? sender, EventArgs e)
     {
-        EnsureLibraryGridScrollViewer();
-        if (libraryGridScrollViewer is null)
-        {
-            return;
-        }
-
         var delta = DragInteractionRules.CalculateLibraryDragAutoScrollDelta(libraryDragLastPosition.Y, LibraryGrid.Bounds.Height);
         if (delta == 0)
         {
@@ -468,7 +461,7 @@ public partial class MainView : UserControl
             return;
         }
 
-        libraryGridScrollViewer.Offset = libraryGridScrollViewer.Offset.WithY(Math.Max(0, libraryGridScrollViewer.Offset.Y + delta));
+        LibraryGrid.Offset = LibraryGrid.Offset.WithY(Math.Max(0, LibraryGrid.Offset.Y + delta));
     }
 
     private void LibraryTile_Loaded(object? sender, RoutedEventArgs e)
@@ -489,7 +482,6 @@ public partial class MainView : UserControl
 
     private void QueueVisibleThumbnailLoads()
     {
-        EnsureLibraryGridScrollViewer();
         foreach (var tile in LibraryRepeater.GetVisualDescendants().OfType<Border>())
         {
             if (tile.Classes.Contains("tile") && tile.DataContext is LibraryTileItem item)
@@ -501,29 +493,12 @@ public partial class MainView : UserControl
 
     private void QueueThumbnailLoadIfVisible(Control tile, LibraryTileItem item)
     {
-        if (IsInLibraryGridViewport(tile))
+        if (!IsInLibraryGridViewport(tile))
         {
-            QueueThumbnailLoad(item);
+            return;
         }
-    }
 
-    private void QueueThumbnailLoad(LibraryTileItem item)
-    {
         Dispatcher.UIThread.Post(() => _ = ViewModel.LoadThumbnailAsync(item));
-    }
-
-    private void EnsureLibraryGridScrollViewer()
-    {
-        if (libraryGridScrollViewer is null)
-        {
-            libraryGridScrollViewer = LibraryGrid;
-        }
-
-        if (libraryGridScrollViewer is not null && !libraryGridScrollViewerTracked)
-        {
-            libraryGridScrollViewer.ScrollChanged += LibraryGridScrollViewer_ScrollChanged;
-            libraryGridScrollViewerTracked = true;
-        }
     }
 
     private void LibraryGridScrollViewer_ScrollChanged(object? sender, ScrollChangedEventArgs e) =>
@@ -531,13 +506,7 @@ public partial class MainView : UserControl
 
     private bool IsInLibraryGridViewport(Control tile)
     {
-        EnsureLibraryGridScrollViewer();
-        if (libraryGridScrollViewer is null)
-        {
-            return true;
-        }
-
-        var topLeft = tile.TranslatePoint(new Avalonia.Point(), libraryGridScrollViewer);
+        var topLeft = tile.TranslatePoint(new Avalonia.Point(), LibraryGrid);
         if (topLeft is null)
         {
             return false;
@@ -546,8 +515,8 @@ public partial class MainView : UserControl
         var viewport = new Rect(
             -ThumbnailPreloadMargin,
             -ThumbnailPreloadMargin,
-            libraryGridScrollViewer.Bounds.Width + ThumbnailPreloadMargin * 2,
-            libraryGridScrollViewer.Bounds.Height + ThumbnailPreloadMargin * 2);
+            LibraryGrid.Bounds.Width + ThumbnailPreloadMargin * 2,
+            LibraryGrid.Bounds.Height + ThumbnailPreloadMargin * 2);
         var bounds = new Rect(topLeft.Value, tile.Bounds.Size);
         return viewport.Intersects(bounds);
     }

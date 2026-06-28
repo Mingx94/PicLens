@@ -17,16 +17,12 @@ public sealed class LibraryTileItem : ObservableObject
         string Name,
         string Path,
         string Detail,
-        string IconGlyph,
-        ListItem SourceItem,
-        string? InitialThumbnailPath = null)
+        ListItem SourceItem)
     {
         this.Name = Name;
         this.Path = Path;
         this.Detail = Detail;
-        this.IconGlyph = IconGlyph;
         this.SourceItem = SourceItem;
-        thumbnailPath = InitialThumbnailPath;
     }
 
     public string Name { get; }
@@ -35,7 +31,6 @@ public sealed class LibraryTileItem : ObservableObject
     public bool IsFolder => SourceItem is FolderListItem;
     public bool IsAnimated => SourceItem is ImageListItem { IsAnimated: true };
     public bool IsStillImage => SourceItem is ImageListItem { IsAnimated: false };
-    public string IconGlyph { get; }
     public ListItem SourceItem { get; }
 
     public string KindLabel => IsFolder ? "資料夾" : IsAnimated ? "不支援動畫圖片" : "圖片";
