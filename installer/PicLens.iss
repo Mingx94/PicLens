@@ -3,15 +3,15 @@
 #endif
 
 #ifndef RootDir
-#error RootDir must be passed by scripts/Installer.cs.
+#error RootDir must be passed by the Tasks.cs installer task.
 #endif
 
 #ifndef PayloadDir
-#error PayloadDir must be passed by scripts/Installer.cs.
+#error PayloadDir must be passed by the Tasks.cs installer task.
 #endif
 
 #ifndef OutputDir
-#error OutputDir must be passed by scripts/Installer.cs.
+#error OutputDir must be passed by the Tasks.cs installer task.
 #endif
 
 #ifndef OutputBaseFilename

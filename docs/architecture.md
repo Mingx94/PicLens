@@ -17,11 +17,11 @@ tests/PicLens.Infrastructure.Tests/ infrastructure behavior 的 xUnit tests
 tests/PicLens.ViewModels.Tests/  ViewModel behavior 的 xUnit tests
 tests/PicLens.Ui.Tests/          Avalonia Headless smoke tests
 docs/                            專案文件
-scripts/                         repo-local dotnet file-based scripts
+Tasks.cs                         repo-local dotnet file-based tasks
 artifacts/portable/              產生的免安裝 release outputs
 ```
 
-`PicLens.slnx` 是 Visual Studio 開發入口，包含 x86/x64/ARM64 solution platforms。`PicLens.ViewModels.Tests` 與 `PicLens.Ui.Tests` 載入在 solution 中但不參與預設 solution build；請透過 `dotnet run --file scripts/Tasks.cs -- test` 與 `dotnet run --file scripts/Tasks.cs -- ui-test` 做完整驗證。
+`PicLens.slnx` 是 Visual Studio 開發入口，包含 x86/x64/ARM64 solution platforms。`PicLens.ViewModels.Tests` 與 `PicLens.Ui.Tests` 載入在 solution 中但不參與預設 solution build；請透過 `dotnet run --file Tasks.cs -- test` 與 `dotnet run --file Tasks.cs -- ui-test` 做完整驗證。
 
 ## Avalonia App
 

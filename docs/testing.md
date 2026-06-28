@@ -5,7 +5,7 @@
 日常 unit 與 ViewModel 驗證請執行：
 
 ```bash
-dotnet run --file scripts/Tasks.cs -- test
+dotnet run --file Tasks.cs -- test
 ```
 
 這會依序 restore/test Core、Infrastructure 與 ViewModels test projects。ViewModel tests target `net10.0` 並引用 `PicLens.Presentation`，不依賴 app project。
@@ -58,7 +58,7 @@ Visual Studio 開發時開啟 `PicLens.slnx`，solution platform 選 `x64`。Sol
 Build-only helper：
 
 ```bash
-dotnet run --file scripts/Tasks.cs -- run PicLens/PicLens.csproj --skip-run
+dotnet run --file Tasks.cs -- run PicLens/PicLens.csproj --skip-run
 ```
 
 ## Avalonia Headless UI Smoke Tests
@@ -66,7 +66,7 @@ dotnet run --file scripts/Tasks.cs -- run PicLens/PicLens.csproj --skip-run
 Headless UI smoke tests 是 opt-in，不會控制真實滑鼠鍵盤。執行：
 
 ```bash
-dotnet run --file scripts/Tasks.cs -- ui-test
+dotnet run --file Tasks.cs -- ui-test
 ```
 
 這會執行 `tests\PicLens.Ui.Tests`，以 `Avalonia.Headless.XUnit` 在 process 內建立 `MainWindow`。測試會設定 isolated `PICLENS_DATA_ROOT`，因此 settings、thumbnail cache 與 ERROR LOG 不會覆蓋使用者的 local app data。
@@ -87,10 +87,10 @@ Headless 不驗證 Windows UI Automation、native window focus、真實右鍵選
 執行：
 
 ```bash
-dotnet run --file scripts/Tasks.cs -- release
+dotnet run --file Tasks.cs -- release
 ```
 
-Release 不會執行 tests；需要驗證時先跑 `dotnet run --file scripts/Tasks.cs -- test`。Release 只 restore/publish framework-dependent portable output folder，並驗證 executable 存在。
+Release 不會執行 tests；需要驗證時先跑 `dotnet run --file Tasks.cs -- test`。Release 只 restore/publish framework-dependent portable output folder，並驗證 executable 存在。
 
 Manual smoke check：
 
@@ -109,14 +109,14 @@ App 應可不安裝直接啟動。
 處理 desktop runtime 或 native/XAML crash 時，build 成功還不夠。App build 完後，執行短時間 launch 並檢查 app log：
 
 ```powershell
-dotnet run --file scripts/Tasks.cs -- run PicLens/PicLens.csproj
+dotnet run --file Tasks.cs -- run PicLens/PicLens.csproj
 Get-Content "$env:LOCALAPPDATA\PicLens\Logs\PicLens.log" -Tail 100
 ```
 
 Linux：
 
 ```bash
-dotnet run --file scripts/Tasks.cs -- run PicLens/PicLens.csproj
+dotnet run --file Tasks.cs -- run PicLens/PicLens.csproj
 tail -n 100 "${XDG_DATA_HOME:-$HOME/.local/share}/PicLens/Logs/PicLens.log"
 ```
 

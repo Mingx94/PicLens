@@ -4,10 +4,10 @@ PicLens installer outputs are built from the existing portable release folder.
 
 ## Build
 
-Run the platform-detecting installer wrapper from repository root:
+Run the platform-detecting installer task from repository root:
 
 ```bash
-dotnet run --file scripts/Installer.cs --
+dotnet run --file Tasks.cs -- installer
 ```
 
 The wrapper builds the installer for the current host:
@@ -17,15 +17,15 @@ The wrapper builds the installer for the current host:
 
 If a required packaging tool is missing, the wrapper prints the install command and exits.
 
-Installer builds do not run tests. Run `dotnet run --file scripts/Tasks.cs -- test` separately before packaging.
+Installer builds do not run tests. Run `dotnet run --file Tasks.cs -- test` separately before packaging.
 
 ## Options
 
 ```bash
-dotnet run --file scripts/Installer.cs -- --version 1.0.1
-dotnet run --file scripts/Installer.cs -- --dry-run
-dotnet run --file scripts/Installer.cs -- --no-clean
-dotnet run --file scripts/Installer.cs -- --no-release
+dotnet run --file Tasks.cs -- installer --version 1.0.1
+dotnet run --file Tasks.cs -- installer --dry-run
+dotnet run --file Tasks.cs -- installer --no-clean
+dotnet run --file Tasks.cs -- installer --no-release
 ```
 
 ## Tooling
@@ -57,8 +57,8 @@ artifacts/installer/PicLens-1.0.0-fedora-x86_64.rpm
 ## Windows options
 
 ```powershell
-dotnet run --file scripts/Installer.cs -- --version 1.0.1.0
-dotnet run --file scripts/Installer.cs -- --inno-setup-compiler "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+dotnet run --file Tasks.cs -- installer --version 1.0.1.0
+dotnet run --file Tasks.cs -- installer --inno-setup-compiler "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 ```
 
 ## Notes
