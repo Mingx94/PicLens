@@ -127,6 +127,7 @@ echo "==> Restoring app for $runtime_identifier"
 dotnet restore "$project" \
     --configfile "$nuget_config" \
     -r "$runtime_identifier" \
+    "/p:Configuration=$configuration" \
     "/p:Platform=$platform" \
     "/p:PublishReadyToRun=$publish_ready_to_run" \
     "/p:SelfContained=false"

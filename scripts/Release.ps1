@@ -101,6 +101,7 @@ Invoke-Native "dotnet" @(
     $nugetConfig,
     "-r",
     $RuntimeIdentifier,
+    "/p:Configuration=$Configuration",
     "/p:Platform=$Platform",
     "/p:PublishReadyToRun=$publishReadyToRun",
     "/p:SelfContained=false"

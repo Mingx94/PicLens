@@ -73,6 +73,21 @@ artifacts/portable/PicLens-linux-x64/PicLens
 
 請保留完整 folder；這是 framework-dependent portable output，不是 single-file exe。
 
+## Installer Release
+
+Windows MSIX：
+
+```powershell
+.\scripts\BuildInstaller.ps1
+```
+
+Output：
+
+```text
+artifacts/installer/PicLens-win-x64.msix
+artifacts/installer/PicLens-win-x64.cer
+```
+
 ## Docs
 
 從 [docs/README.md](docs/README.md) 開始。

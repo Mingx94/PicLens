@@ -62,3 +62,9 @@ Avalonia docs mention `ItemsRepeater` and `UniformGridLayout` for large custom g
 `code:` `PicLens/Views/MainView.axaml` -> `LibraryRepeater` · `code:` `PicLens/Views/MainView.axaml.cs` -> `LibraryTile_Loaded` · `updated:` `2026-06-28` · `status:` `resolved`
 
 Profiling a fresh 2000-BMP folder load showed the ViewModel/service path completing in about 155 ms, but the former `ListBox` + `WrapPanel` materialized all 2000 tile controls before visible thumbnail requests began. Replacing that grid with `ItemsRepeater` fixed the first-load materialization bottleneck while keeping thumbnail work gated to visible tiles.
+
+## MSIX packaging needs source visual assets and matching certificate subject
+
+`code:` `scripts/BuildInstaller.ps1` -> `AppxManifest.xml` · `code:` `PicLens/PicLens.csproj` -> `AvaloniaResource Include="Assets\*.png"` · `updated:` `2026-06-28` · `status:` `active`
+
+The portable publish output copies `Assets\AppIcon.ico`, but the MSIX manifest needs PNG logo assets for shell identity. Build MSIX staging from the portable folder, then copy the required PNGs from `PicLens/Assets`; keep the manifest `Publisher` equal to the signing certificate subject; and trust self-signed dev certificates in `Cert:\LocalMachine\Root` from an elevated shell before install, because user-level trust still produced `0x800B0109` on Windows App Installer.
