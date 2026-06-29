@@ -1,6 +1,6 @@
 # PicLens
 
-PicLens 是 Windows / Linux 桌面圖片整理與檢視工具。它以本機資料夾為工作區，讓使用者快速瀏覽大量圖片、調整排序與顯示範圍、選取圖片、執行保守的檔案操作，並在主視窗內直接檢視單張圖片。
+PicLens 是 Windows / 主流 Linux 桌面圖片整理與檢視工具。它以本機資料夾為工作區，讓使用者快速瀏覽大量圖片、調整排序與顯示範圍、選取圖片、執行保守的檔案操作，並在主視窗內直接檢視單張圖片。
 
 詳細文件從 [docs/README.md](docs/README.md) 開始。
 
@@ -87,7 +87,7 @@ artifacts/installer/PicLens-win-x64-Setup.exe
 artifacts/installer/PicLens-1.0.0-fedora-x86_64.rpm
 ```
 
-Windows installer 使用 Inno Setup 6；Fedora RPM 需要 `rpm-build`。Release 與 installer tasks 不會自動跑測試，打包前請先執行 `dotnet run Tasks.cs test`。
+Windows installer 使用 Inno Setup 6；Linux installer 目前已實作 Fedora RPM，但產品支援範圍是主流 Linux 桌面發行版，不以 Fedora/RPM 作為最終完整範圍。Release 與 installer tasks 不會自動跑測試，打包前請先執行 `dotnet run Tasks.cs test`。
 
 ## 文件
 

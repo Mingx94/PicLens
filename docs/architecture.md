@@ -2,7 +2,7 @@
 
 ## 目標
 
-PicLens 是 Windows / Linux 的 Avalonia 圖片整理與檢視 app。UI shell 使用 Avalonia Desktop；可測試的 product rules、ViewModels 與 infrastructure behavior 分開放在 Core、Presentation 與 Infrastructure projects。
+PicLens 是 Windows / 主流 Linux 的 Avalonia 圖片整理與檢視 app。UI shell 使用 Avalonia Desktop；可測試的 product rules、ViewModels 與 infrastructure behavior 分開放在 Core、Presentation 與 Infrastructure projects。
 
 ## Solution Layout
 

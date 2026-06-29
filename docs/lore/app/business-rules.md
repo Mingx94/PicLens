@@ -26,3 +26,9 @@ PicLens uses the `FluentIcons.Avalonia` package for in-app toolbar, tile fallbac
 `code:` `Tasks.cs` -> `BuildWindowsInstaller` · `code:` `installer/PicLens.iss` · `updated:` `2026-06-29` · `status:` `active`
 
 PicLens uses an Inno Setup `.exe` as the normal Windows installer because it installs like a regular desktop app without MSIX sideloading certificate setup. Keep the portable release separate; installer staging strips `.pdb` debug symbols while portable folders keep them.
+
+## Linux support covers mainstream desktop distributions
+
+`code:` `docs/product-spec.md` -> `產品範圍` · `code:` `docs/installer-release.md` -> `Linux coverage` · `updated:` `2026-06-29` · `status:` `active`
+
+PicLens support scope is Windows plus mainstream Linux desktop distributions. Do not describe Fedora/RPM as the complete Linux story; Fedora RPM is only the currently implemented Linux installer output, and Debian/Ubuntu-compatible or generic cross-distro release coverage must remain part of the product/release plan.

@@ -1,6 +1,6 @@
 # Portable Release
 
-PicLens release target 是 framework-dependent no-install folder，可複製到已安裝必要 .NET runtime 的 Windows 或 Linux 機器上。
+PicLens release target 是 framework-dependent no-install folder，可複製到已安裝必要 .NET runtime 的 Windows 或主流 Linux 機器上。
 
 ## 建置
 
