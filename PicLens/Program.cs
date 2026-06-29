@@ -11,8 +11,7 @@ internal static class Program
 
     public static AppBuilder BuildAvaloniaApp() =>
         ConfigureDeveloperTools(AppBuilder.Configure<App>()
-            .UsePlatformDetect()
-            .WithInterFont())
+            .UsePlatformDetect())
             .LogToTrace();
 
     private static AppBuilder ConfigureDeveloperTools(AppBuilder builder)

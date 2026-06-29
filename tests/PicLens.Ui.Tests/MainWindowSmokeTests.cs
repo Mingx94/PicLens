@@ -2,6 +2,7 @@ using System.Text.Json;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -25,7 +26,6 @@ public static class TestAppBuilder
     public static AppBuilder BuildAvaloniaApp() =>
         AppBuilder.Configure<App>()
             .UseHeadless(new AvaloniaHeadlessPlatformOptions())
-            .WithInterFont()
             .LogToTrace();
 }
 
@@ -52,6 +52,7 @@ public sealed class MainWindowSmokeTests
         await fixture.WaitForConditionAsync(() => fixture.View.ViewModel.HasNoCurrentFolder, "empty state did not load");
 
         Assert.Equal("PicLens", fixture.Window.Title);
+        Assert.Equal("Noto Sans CJK TC", TextElement.GetFontFamily(fixture.Window).Name);
         foreach (var automationId in MainWindowAutomationIds)
         {
             Assert.NotNull(fixture.FindByAutomationId<Control>(automationId));

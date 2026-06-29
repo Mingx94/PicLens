@@ -30,7 +30,7 @@ artifacts/portable/              產生的免安裝 release outputs
 App shell 使用：
 
 - `Program.cs` 啟動 Avalonia classic desktop lifetime。
-- `App.axaml` 設定 Fluent theme 與 Inter font。
+- `App.axaml` 設定 Fluent theme 與 embedded Noto Sans CJK TC font。
 - `MainWindow.axaml` 承載 `Views/MainView.axaml`。
 - `MainView` code-behind 作為 composition root，手動建立 `MainPageViewModel` 與 Core/Infrastructure services，不引入 DI container。
 - Avalonia storage provider、modal dialogs、pointer events、TreeView/ItemsRepeater tile selection、context menu、drag preview overlay 與 inline viewer input 都留在 view 層。

@@ -6,6 +6,7 @@ PicLens 是 Windows / 主流 Linux Avalonia / MVVM 圖片整理與檢視 app。
 
 - [產品規格](product-spec.md) 定義不含使用框架與工程實作細節的產品行為、使用者流程與品質要求。
 - [Architecture](architecture.md) 說明 solution layout、責任邊界，以及目前的 Avalonia shell。
+- [Design system](../DESIGN.md) 記錄 PicLens 的視覺 token、字型與 UI 規則。
 - [Runtime contract](runtime-contract.md) 記錄 desktop runtime 必須保留的行為契約。
 - [Testing](testing.md) 列出驗證命令與目前的 test coverage。
 - [Verification notes](verification/2026-06-24.md) 保存舊 milestone 的特定日期驗證結果與 smoke/profile 證據。
