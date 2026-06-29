@@ -6,8 +6,8 @@ PicLens installer outputs are built from the existing portable release folder.
 
 Run the platform-detecting installer task from repository root:
 
-```bash
-dotnet run --file Tasks.cs -- installer
+```shell
+dotnet run Tasks.cs installer
 ```
 
 The wrapper builds the installer for the current host:
@@ -17,15 +17,15 @@ The wrapper builds the installer for the current host:
 
 If a required packaging tool is missing, the wrapper prints the install command and exits.
 
-Installer builds do not run tests. Run `dotnet run --file Tasks.cs -- test` separately before packaging.
+Installer builds do not run tests. Run `dotnet run Tasks.cs test` separately before packaging.
 
 ## Options
 
-```bash
-dotnet run --file Tasks.cs -- installer --version 1.0.1
-dotnet run --file Tasks.cs -- installer --dry-run
-dotnet run --file Tasks.cs -- installer --no-clean
-dotnet run --file Tasks.cs -- installer --no-release
+```shell
+dotnet run Tasks.cs installer --version 1.0.1
+dotnet run Tasks.cs installer --dry-run
+dotnet run Tasks.cs installer --no-clean
+dotnet run Tasks.cs installer --no-release
 ```
 
 ## Tooling
@@ -44,7 +44,7 @@ artifacts/installer/PicLens-win-x64-Setup.exe
 
 Fedora RPM builds require `rpm-build`:
 
-```bash
+```shell
 sudo dnf install rpm-build
 ```
 
@@ -57,8 +57,8 @@ artifacts/installer/PicLens-1.0.0-fedora-x86_64.rpm
 ## Windows options
 
 ```powershell
-dotnet run --file Tasks.cs -- installer --version 1.0.1.0
-dotnet run --file Tasks.cs -- installer --inno-setup-compiler "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+dotnet run Tasks.cs -- installer --version 1.0.1.0
+dotnet run Tasks.cs -- installer --inno-setup-compiler "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 ```
 
 ## Notes

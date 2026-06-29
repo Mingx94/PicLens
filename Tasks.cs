@@ -34,7 +34,7 @@ static int Test(string root, string[] args)
 {
     if (HasHelp(args))
     {
-        Console.WriteLine("Usage: dotnet run --file Tasks.cs -- test");
+        Console.WriteLine("Usage: dotnet run Tasks.cs -- test");
         return 0;
     }
 
@@ -72,7 +72,7 @@ static int UiTest(string root, string[] args)
         {
             case "-h":
             case "--help":
-                Console.WriteLine("Usage: dotnet run --file Tasks.cs -- ui-test [--configuration Debug|Release]");
+                Console.WriteLine("Usage: dotnet run Tasks.cs -- ui-test [--configuration Debug|Release]");
                 return 0;
             case "--configuration":
                 configuration = ReadValue(args, ref i, args[i]);
@@ -111,7 +111,7 @@ static int BuildAndRun(string root, string[] args)
             case "--help":
                 Console.WriteLine("""
                 Usage:
-                  dotnet run --file Tasks.cs -- run [project] [--skip-run] [--detach] [MSBuild args]
+                  dotnet run Tasks.cs -- run [project] [--skip-run] [--detach] [MSBuild args]
                 """);
                 return 0;
             case "--skip-run":
@@ -225,7 +225,7 @@ static int Release(string root, string[] args)
             case "--help":
                 Console.WriteLine("""
                 Usage:
-                  dotnet run --file Tasks.cs -- release [options]
+                  dotnet run Tasks.cs -- release [options]
 
                 Options:
                   --configuration Debug|Release
@@ -879,7 +879,7 @@ static void PrintUsage()
 {
     Console.WriteLine("""
     Usage:
-      dotnet run --file Tasks.cs -- <command> [options]
+      dotnet run Tasks.cs -- <command> [options]
 
     Commands:
       test       Restore and run Core, Infrastructure, and ViewModel tests
@@ -925,7 +925,7 @@ sealed record InstallerOptions
     {
         Console.WriteLine("""
         Usage:
-          dotnet run --file Tasks.cs -- installer [options]
+          dotnet run Tasks.cs -- installer [options]
 
         Options:
           --version VERSION             Installer version. Default: 1.0.0
