@@ -1,79 +1,99 @@
 # PicLens
 
-PicLens 是 Windows / Linux Avalonia / MVVM 圖片整理與檢視 app。
+PicLens 是 Windows / Linux 桌面圖片整理與檢視工具。它以本機資料夾為工作區，讓使用者快速瀏覽大量圖片、調整排序與顯示範圍、選取圖片、執行保守的檔案操作，並在主視窗內直接檢視單張圖片。
 
-## 目前狀態
+詳細文件從 [docs/README.md](docs/README.md) 開始。
 
-- Avalonia desktop app shell，使用 Fluent theme、Inter font 與 CommunityToolkit.Mvvm。
-- Main window 支援明確資料夾選取、上一個資料夾還原、資料夾掃描、縮圖載入、選取狀態、context menu actions，以及保守的檔案操作。
-- 主視窗內嵌 image viewer 支援 previous/next、zoom、pan、keyboard navigation、Escape close，以及 animated-image unsupported feedback。
-- `src/PicLens.Presentation` 保留 UI-agnostic ViewModels 與 dialog/logger presentation contracts。
-- `src/PicLens.Core` 保留純 product rules 與 service contracts。
-- `src/PicLens.Infrastructure` 負責 settings persistence、scanning、thumbnails、OS trash、rename execution 與 file logging。
-- Core、Infrastructure 與 ViewModel behavior 由 xUnit tests 覆蓋；Avalonia Headless smoke tests 覆蓋主要 UI flows。
+## 功能重點
 
-## Solution
+- 明確選取資料夾；啟動時可還原上一個可用的資料夾。
+- 資料夾樹加縮圖圖庫，支援 `jpg`、`jpeg`、`png`、`bmp`、`webp`、`gif`。
+- 支援排序、包含子資料夾、縮圖大小保存、資料夾歷史導覽與滑鼠側鍵導覽。
+- 圖片選取後可重新命名、移至作業系統回收筒、轉換 JPG，批次操作會回報成功、略過與失敗結果。
+- 內嵌圖片檢視器支援上一張/下一張、縮放、平移、鍵盤操作與 Escape 返回。
+- 動畫 GIF / WebP 會被辨識，但目前不播放；檢視時會顯示不支援預覽的提示。
+
+## 專案結構
 
 ```text
-PicLens.slnx
-PicLens/                            Avalonia desktop app、AXAML views、assets、window setup
-src/PicLens.Core/                   Pure models、service contracts 與 deterministic rules
-src/PicLens.Infrastructure/         JSON、filesystem、thumbnail、OS trash 與 logging services
-src/PicLens.Presentation/           UI-agnostic ViewModels 與 presentation services
-tests/PicLens.Core.Tests/           xUnit domain tests
-tests/PicLens.Infrastructure.Tests/ xUnit infrastructure tests
-tests/PicLens.ViewModels.Tests/     xUnit ViewModel tests
-tests/PicLens.Ui.Tests/             Avalonia Headless smoke tests
+PicLens.slnx                         Visual Studio solution
+PicLens/                             Avalonia desktop app、AXAML views、assets、window setup
+src/PicLens.Core/                    Pure models、service contracts、domain rules
+src/PicLens.Presentation/            UI-agnostic ViewModels、presentation contracts
+src/PicLens.Infrastructure/          Settings、filesystem、thumbnail、trash、logging services
+tests/PicLens.Core.Tests/            Core xUnit tests
+tests/PicLens.Infrastructure.Tests/  Infrastructure xUnit tests
+tests/PicLens.ViewModels.Tests/      ViewModel xUnit tests
+tests/PicLens.Ui.Tests/              Avalonia Headless smoke tests
+docs/                                Product、architecture、testing、release docs
+Tasks.cs                             Repo-local build/test/release tasks
 ```
 
-## Build And Test
+## 開發
 
-Run:
+需要可建置 `net10.0` 的 .NET SDK。
 
 ```shell
 dotnet run Tasks.cs run
 ```
 
-Test:
+只建置、不啟動 app：
+
+```shell
+dotnet run Tasks.cs run --skip-run
+```
+
+單元與 ViewModel 測試：
 
 ```shell
 dotnet run Tasks.cs test
 ```
 
-Headless UI smoke tests：
+Avalonia Headless UI smoke tests：
 
 ```shell
 dotnet run Tasks.cs ui-test
 ```
 
-## Portable Release
+Visual Studio 開發時開啟 `PicLens.slnx`，solution platform 選 `x64`。
+
+## Release
+
+免安裝資料夾：
 
 ```shell
 dotnet run Tasks.cs release
 ```
 
-Output：
+輸出：
 
 ```text
 artifacts/portable/PicLens-win-x64/PicLens.exe
 artifacts/portable/PicLens-linux-x64/PicLens
 ```
 
-請保留完整 folder；這是 framework-dependent portable output，不是 single-file exe。
+這是 framework-dependent portable output，不是 single-file executable；散佈時請保留完整資料夾。
 
-## Installer Release
+安裝檔：
 
 ```shell
 dotnet run Tasks.cs installer
 ```
 
-Output：
+輸出：
 
 ```text
 artifacts/installer/PicLens-win-x64-Setup.exe
 artifacts/installer/PicLens-1.0.0-fedora-x86_64.rpm
 ```
 
-## Docs
+Windows installer 使用 Inno Setup 6；Fedora RPM 需要 `rpm-build`。Release 與 installer tasks 不會自動跑測試，打包前請先執行 `dotnet run Tasks.cs test`。
 
-從 [docs/README.md](docs/README.md) 開始。
+## 文件
+
+- [產品規格](docs/product-spec.md)
+- [Architecture](docs/architecture.md)
+- [Runtime contract](docs/runtime-contract.md)
+- [Testing](docs/testing.md)
+- [Portable release](docs/portable-release.md)
+- [Installer release](docs/installer-release.md)
