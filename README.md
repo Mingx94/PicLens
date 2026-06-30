@@ -80,6 +80,8 @@ artifacts/portable/PicLens-linux-x64/PicLens
 dotnet run Tasks.cs installer
 ```
 
+Package 版號讀取 repository root 的 `VERSION`；一般發版請先更新該檔。
+
 輸出：
 
 ```text

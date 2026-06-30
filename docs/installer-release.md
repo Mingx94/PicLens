@@ -17,6 +17,8 @@ The wrapper builds the implemented installer for the current host:
 - Windows: `artifacts/installer/PicLens-win-x64-Setup.exe`
 - Fedora Linux: `artifacts/installer/PicLens-1.0.0-fedora-x86_64.rpm`
 
+Package version is read from the repository root `VERSION` file. Update that file for normal releases.
+
 If a required packaging tool is missing, the wrapper prints the install command and exits.
 
 Installer builds do not run tests. Run `dotnet run Tasks.cs test` separately before packaging.
@@ -28,10 +30,15 @@ The current Linux installer implementation emits a Fedora RPM. This is not compl
 ## Options
 
 ```shell
-dotnet run Tasks.cs installer --version 1.0.1
 dotnet run Tasks.cs installer --dry-run
 dotnet run Tasks.cs installer --no-clean
 dotnet run Tasks.cs installer --no-release
+```
+
+Use `--version` only for an explicit one-off override:
+
+```shell
+dotnet run Tasks.cs installer --version 1.0.1
 ```
 
 ## Tooling
@@ -63,7 +70,6 @@ artifacts/installer/PicLens-1.0.0-fedora-x86_64.rpm
 ## Windows options
 
 ```powershell
-dotnet run Tasks.cs -- installer --version 1.0.1.0
 dotnet run Tasks.cs -- installer --inno-setup-compiler "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 ```
 

@@ -1,5 +1,5 @@
 #ifndef AppVersion
-#define AppVersion "1.0.0.0"
+#error AppVersion must be passed by the Tasks.cs installer task.
 #endif
 
 #ifndef RootDir

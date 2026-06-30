@@ -333,7 +333,9 @@ static int Installer(string root, string[] args)
         return 0;
     }
 
+    options = options with { Version = ResolvePackageVersion(root, options.Version) };
     Console.WriteLine($"Platform: {RuntimeInformation.OSDescription.Trim()} ({RuntimeInformation.OSArchitecture})");
+    Console.WriteLine($"Package version: {options.Version}");
 
     if (OperatingSystem.IsWindows())
     {
@@ -346,6 +348,20 @@ static int Installer(string root, string[] args)
     }
 
     throw new PlatformNotSupportedException("No installer exists for this platform. Supported hosts: Windows and Fedora Linux.");
+}
+
+static string ResolvePackageVersion(string root, string versionOverride)
+{
+    var version = string.IsNullOrWhiteSpace(versionOverride)
+        ? File.ReadAllText(RequiredFile(root, "VERSION")).Trim()
+        : versionOverride.Trim();
+
+    if (string.IsNullOrWhiteSpace(version))
+    {
+        throw new ArgumentException("Package version must not be empty.");
+    }
+
+    return version;
 }
 
 static int BuildWindowsInstaller(string root, InstallerOptions options)
@@ -892,7 +908,7 @@ static void PrintUsage()
 
 sealed record InstallerOptions
 {
-    public string Version { get; init; } = "1.0.0";
+    public string Version { get; init; } = "";
     public string RuntimeRequires { get; init; } = "dotnet-runtime-10.0";
     public string? InnoSetupCompiler { get; init; }
     public bool NoClean { get; init; }
@@ -928,7 +944,7 @@ sealed record InstallerOptions
           dotnet run Tasks.cs -- installer [options]
 
         Options:
-          --version VERSION             Installer version. Default: 1.0.0
+          --version VERSION             Override package version from VERSION
           --no-clean                    Keep existing portable output where possible
           --no-release                  Reuse existing portable output for RPM builds
           --runtime-requires PACKAGE    RPM runtime dependency. Default: dotnet-runtime-10.0
