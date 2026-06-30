@@ -144,6 +144,7 @@ public sealed class MainWindowSmokeTests
         await fixture.WaitForConditionAsync(
             () => fixture.View.ViewModel.LibraryItems.Any(item => item.Name == "Nested-03.png"),
             "nested folder did not open");
+        await fixture.WaitForSettingsAsync(settings => settings.LastFolderPath == fixture.LibraryRoot);
 
         fixture.ExecuteButtonCommand("TitleBarBackButton");
         await fixture.WaitForConditionAsync(

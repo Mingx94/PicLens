@@ -15,4 +15,4 @@ PicLens 是 Windows / 主流 Linux Avalonia / MVVM 圖片整理與檢視 app。
 
 ## 目前狀態
 
-目前的原生 milestone 是一個整合完成的 Avalonia app，包含 UI-agnostic ViewModels、明確的資料夾選取、上一個資料夾還原、資料夾掃描、真實縮圖載入、contextual image actions、主視窗內嵌圖片預覽、繁體中文（台灣）runtime copy，以及保守的檔案操作。Core、Presentation、Infrastructure 與 UI smoke behavior 由聚焦的 test projects 覆蓋。
+目前的原生 milestone 是一個整合完成的 Avalonia app，包含 UI-agnostic ViewModels、明確的資料夾選取、上次透過資料夾選擇器選取的資料夾還原、資料夾掃描、真實縮圖載入、contextual image actions、主視窗內嵌圖片預覽、繁體中文（台灣）runtime copy，以及保守的檔案操作。Core、Presentation、Infrastructure 與 UI smoke behavior 由聚焦的 test projects 覆蓋。

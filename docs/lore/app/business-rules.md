@@ -21,6 +21,12 @@ The rule, the reasoning, and edge cases.
 
 PicLens uses the `FluentIcons.Avalonia` package for in-app toolbar, tile fallback, and viewer icons. Use `FluentIcon` in the Avalonia app layer instead of reintroducing embedded `StreamGeometry` resources.
 
+## Startup folder persistence is picker-only
+
+`code:` `src/PicLens.Presentation/ViewModels/MainPageViewModel.cs` -> `NavigateToFolderAsync` · `code:` `PicLens/Views/MainView.axaml.cs` -> `OpenTileAsync` · `updated:` `2026-06-30` · `status:` `active`
+
+`LastFolderPath` represents the folder explicitly chosen through the folder picker, not the last folder the user happened to visit. Folder tree navigation, folder tile navigation, and history navigation may change the current view but must not overwrite the startup restore folder.
+
 ## Windows installer uses Inno Setup
 
 `code:` `Tasks.cs` -> `BuildWindowsInstaller` · `code:` `installer/PicLens.iss` · `updated:` `2026-06-29` · `status:` `active`

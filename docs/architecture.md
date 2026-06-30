@@ -37,8 +37,9 @@ App shell 使用：
 
 `MainView` 是目前的原生 shell：
 
-- 沒有有效上一個資料夾時，瀏覽前會明確選取資料夾。
-- 啟動時還原上一個開啟的資料夾。
+- 沒有有效的資料夾選擇器選取資料夾時，瀏覽前會明確選取資料夾。
+- 啟動時還原上次透過資料夾選擇器選取且仍可用的資料夾。
+- 資料夾樹、資料夾縮圖、上一頁或下一頁導覽不會覆蓋啟動還原資料夾。
 - 以目前資料夾為 root 的 folder tree。
 - 用於 history、sort key/direction、recursive mode 與 file operations 的 library toolbar。
 - 用於 rename、OS trash 與 reveal-in-file-manager 的 image context menu。

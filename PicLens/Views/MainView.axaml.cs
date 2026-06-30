@@ -113,7 +113,7 @@ public partial class MainView : UserControl
             && !string.IsNullOrWhiteSpace(node.Path)
             && !PathEquals(node.Path, ViewModel.CurrentFolderPath))
         {
-            await ViewModel.NavigateToFolderAsync(node.Path, persist: true, resetFolderTreeRoot: false);
+            await ViewModel.NavigateToFolderAsync(node.Path, persist: false, resetFolderTreeRoot: false);
         }
     }
 
@@ -231,7 +231,7 @@ public partial class MainView : UserControl
     {
         if (item.IsFolder)
         {
-            await ViewModel.NavigateToFolderAsync(item.Path, persist: true, resetFolderTreeRoot: false);
+            await ViewModel.NavigateToFolderAsync(item.Path, persist: false, resetFolderTreeRoot: false);
         }
         else if (item.SourceItem is ImageListItem image)
         {

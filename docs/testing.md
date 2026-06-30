@@ -75,7 +75,7 @@ dotnet run Tasks.cs ui-test
 
 - 驗證 empty-state 主要 controls：title bar、folder navigation command bar、library command bar、folder tree、library grid、status bar、thumbnail size slider、empty state action。
 - 驗證排序與更多圖庫動作 menu bindings。
-- 以 seeded gallery 建立 main window，驗證 last-folder restore、folder tree、library grid、root image tiles、direct child folder tile 與 status feedback。
+- 以 seeded gallery 建立 main window，驗證資料夾選擇器 last-folder restore、folder tree、library grid、root image tiles、direct child folder tile 與 status feedback。
 - 驗證資料夾歷史 back/forward buttons 會在 root 與 direct child folder 之間導覽。
 - 驗證排序 command、含子資料夾 toggle、recursive image visibility，以及 settings persistence。
 - 驗證 ItemsRepeater tile selection、Ctrl multi-select，以及 Enter 開啟 inline viewer。
