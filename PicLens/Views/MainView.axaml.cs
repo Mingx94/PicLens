@@ -65,6 +65,8 @@ public partial class MainView : UserControl
         ViewerSurface.DataContext = previewViewModel;
         LibraryDragPreviewOverlay.RenderTransform = libraryDragPreviewTransform;
         LibraryGrid.ScrollChanged += LibraryGridScrollViewer_ScrollChanged;
+        ViewModel.LibraryItems.CollectionChanged += (_, _) =>
+            Dispatcher.UIThread.Post(QueueVisibleThumbnailLoads, DispatcherPriority.Loaded);
         AddHandler(KeyDownEvent, Root_KeyDown, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
         libraryDragAutoScrollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
         libraryDragAutoScrollTimer.Tick += LibraryDragAutoScrollTimer_Tick;

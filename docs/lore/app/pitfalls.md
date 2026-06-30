@@ -63,6 +63,12 @@ Avalonia docs mention `ItemsRepeater` and `UniformGridLayout` for large custom g
 
 Profiling a fresh 2000-BMP folder load showed the ViewModel/service path completing in about 155 ms, but the former `ListBox` + `WrapPanel` materialized all 2000 tile controls before visible thumbnail requests began. Replacing that grid with `ItemsRepeater` fixed the first-load materialization bottleneck while keeping thumbnail work gated to visible tiles.
 
+## ItemsRepeater resets need an explicit visible-thumbnail requeue
+
+`code:` `PicLens/Views/MainView.axaml.cs` -> `QueueVisibleThumbnailLoads` · `code:` `src/PicLens.Presentation/ViewModels/MainPageViewModel.cs` -> `RefreshLibraryItems` · `updated:` `2026-06-30` · `status:` `active`
+
+When `RefreshLibraryItems` replaces `LibraryItems`, new tile view models start with empty thumbnail paths, but already realized `ItemsRepeater` visuals may not run the tile `Loaded` handler again. Keep a view-layer collection-reset requeue after layout so refreshed visible tiles request thumbnails without waiting for a scroll or size-change event.
+
 ## Former MSIX packaging needed source visual assets and trusted certificate roots
 
 `code:` `Tasks.cs` -> `Installer` · `code:` `PicLens/PicLens.csproj` -> `AvaloniaResource Include="Assets\*.png"` · `updated:` `2026-06-29` · `status:` `resolved`

@@ -99,6 +99,21 @@ public sealed class MainWindowSmokeTests
     }
 
     [AvaloniaFact]
+    public async Task Refresh_library_reloads_visible_thumbnails()
+    {
+        using var fixture = PicLensHeadlessFixture.StartThumbnailableSeeded(nameof(Refresh_library_reloads_visible_thumbnails));
+        await fixture.WaitForLibraryCountAsync(3);
+        await fixture.WaitForTileThumbnailAsync("Alpha-01.bmp");
+
+        fixture.ExecuteButtonCommand("TitleBarRefreshLibraryButton");
+        await fixture.WaitForConditionAsync(
+            () => fixture.View.ViewModel.StatusMessage.Contains("已重新整理", StringComparison.Ordinal),
+            "refresh did not complete");
+
+        await fixture.WaitForTileThumbnailAsync("Alpha-01.bmp");
+    }
+
+    [AvaloniaFact]
     public async Task Sort_and_recursive_toggle_update_visible_gallery_and_settings()
     {
         using var fixture = PicLensHeadlessFixture.StartSeeded(nameof(Sort_and_recursive_toggle_update_visible_gallery_and_settings));
@@ -173,10 +188,12 @@ internal sealed class PicLensHeadlessFixture : IDisposable
     };
     private static readonly byte[] TinyPngBytes = Convert.FromBase64String(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=");
+    private static readonly byte[] BmpBytes = Convert.FromBase64String(
+        "Qk1mAAAAAAAAADYAAAAoAAAABAAAAAQAAAABABgAAAAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAACAVQCAqgCA/wCAAFWAVVWAqlWA/1WAAKqAVaqAqqqA/6qAAP+AVf+Aqv+A//+A");
 
     private readonly string? previousDataRoot;
 
-    private PicLensHeadlessFixture(string testName, bool seedLibrary)
+    private PicLensHeadlessFixture(string testName, bool seedLibrary, bool useThumbnailableImages = false)
     {
         Root = Path.Combine(Path.GetTempPath(), "PicLens.Ui.Tests", SanitizeFileName(testName), Guid.NewGuid().ToString("N"));
         DataRoot = Path.Combine(Root, "data");
@@ -185,7 +202,7 @@ internal sealed class PicLensHeadlessFixture : IDisposable
 
         if (seedLibrary)
         {
-            SeedLibrary();
+            SeedLibrary(useThumbnailableImages);
         }
 
         previousDataRoot = Environment.GetEnvironmentVariable(AppDataPaths.DataRootEnvironmentVariable);
@@ -204,6 +221,9 @@ internal sealed class PicLensHeadlessFixture : IDisposable
     public static PicLensHeadlessFixture StartEmpty(string testName) => new(testName, seedLibrary: false);
 
     public static PicLensHeadlessFixture StartSeeded(string testName) => new(testName, seedLibrary: true);
+
+    public static PicLensHeadlessFixture StartThumbnailableSeeded(string testName) =>
+        new(testName, seedLibrary: true, useThumbnailableImages: true);
 
     public string Root { get; }
 
@@ -234,6 +254,23 @@ internal sealed class PicLensHeadlessFixture : IDisposable
                 return settings is not null && predicate(settings);
             },
             "settings predicate was not satisfied");
+
+    public async Task WaitForTileThumbnailAsync(string name) =>
+        await WaitForConditionAsync(
+            () =>
+            {
+                var tile = Window.GetVisualDescendants().OfType<Control>()
+                    .FirstOrDefault(control =>
+                        control.Classes.Contains("tile")
+                        && control.DataContext is LibraryTileItem item
+                        && item.Name == name);
+                return tile?.DataContext is LibraryTileItem
+                {
+                    CanShowThumbnail: true,
+                    ThumbnailPath: { Length: > 0 } thumbnailPath
+                } && File.Exists(thumbnailPath);
+            },
+            $"thumbnail did not load for {name}");
 
     public async Task WaitForConditionAsync(Func<bool> predicate, string timeoutMessage)
     {
@@ -366,15 +403,24 @@ internal sealed class PicLensHeadlessFixture : IDisposable
             .Concat(Window.GetLogicalDescendants().OfType<Control>())
             .OfType<T>();
 
-    private void SeedLibrary()
+    private void SeedLibrary(bool useThumbnailableImages)
     {
         Directory.CreateDirectory(LibraryRoot);
         var nested = Path.Combine(LibraryRoot, "Nested");
         Directory.CreateDirectory(nested);
 
-        WritePng(Path.Combine(LibraryRoot, "Alpha-01.png"));
-        WritePng(Path.Combine(LibraryRoot, "Bravo-02.png"));
-        WritePng(Path.Combine(nested, "Nested-03.png"));
+        if (useThumbnailableImages)
+        {
+            WriteBmp(Path.Combine(LibraryRoot, "Alpha-01.bmp"));
+            WriteBmp(Path.Combine(LibraryRoot, "Bravo-02.bmp"));
+            WriteBmp(Path.Combine(nested, "Nested-03.bmp"));
+        }
+        else
+        {
+            WritePng(Path.Combine(LibraryRoot, "Alpha-01.png"));
+            WritePng(Path.Combine(LibraryRoot, "Bravo-02.png"));
+            WritePng(Path.Combine(nested, "Nested-03.png"));
+        }
 
         var settings = new
         {
@@ -390,6 +436,8 @@ internal sealed class PicLensHeadlessFixture : IDisposable
     }
 
     private static void WritePng(string path) => File.WriteAllBytes(path, TinyPngBytes);
+
+    private static void WriteBmp(string path) => File.WriteAllBytes(path, BmpBytes);
 
     private static void FlushUi()
     {
