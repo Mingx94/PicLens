@@ -73,10 +73,10 @@ When `RefreshLibraryItems` replaces `LibraryItems`, new tile view models start w
 
 `code:` `Tasks.cs` -> `Installer` · `code:` `PicLens/PicLens.csproj` -> `AvaloniaResource Include="Assets\*.png"` · `updated:` `2026-06-29` · `status:` `resolved`
 
-The former MSIX installer path needed PNG logo assets for shell identity and required self-signed dev certificates to be trusted in `Cert:\LocalMachine\Root`; user-level trust still produced `0x800B0109` in Windows App Installer. PicLens switched to Inno Setup for the normal Windows installer to avoid that sideloading certificate friction.
+The former MSIX installer path needed PNG logo assets for shell identity and required self-signed dev certificates to be trusted in `Cert:\LocalMachine\Root`; user-level trust still produced `0x800B0109` in Windows App Installer. PicLens moved away from MSIX to avoid that sideloading certificate friction.
 
-## Inno Setup display name defaults include version text
+## Former Inno Setup display name defaults included version text
 
-`code:` `installer/PicLens.iss` -> `AppVerName` · `updated:` `2026-07-01` · `status:` `active`
+`code:` `installer/PicLens.iss` -> `AppVerName` · `updated:` `2026-07-01` · `status:` `resolved`
 
-Inno Setup's default `AppVerName` combines the app name and version, which makes Windows installed-apps surfaces show names such as `PicLens version 1.0.1`. Keep `AppVerName={#AppName}` so version stays in package metadata without becoming part of the user-facing app name.
+The former Inno Setup path needed `AppVerName={#AppName}` because its default combined the app name and version, making Windows installed-apps surfaces show names such as `PicLens version 1.0.1`. This stopped applying when the Windows installer moved to WiX MSI.

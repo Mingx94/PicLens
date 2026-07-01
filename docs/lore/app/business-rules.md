@@ -27,11 +27,11 @@ PicLens uses the `FluentIcons.Avalonia` package for in-app toolbar, tile fallbac
 
 `LastFolderPath` represents the folder explicitly chosen through the folder picker, not the last folder the user happened to visit. Folder tree navigation, folder tile navigation, and history navigation may change the current view but must not overwrite the startup restore folder.
 
-## Windows installer uses Inno Setup
+## Windows installer uses MSI
 
-`code:` `Tasks.cs` -> `BuildWindowsInstaller` · `code:` `installer/PicLens.iss` · `updated:` `2026-06-29` · `status:` `active`
+`code:` `Tasks.cs` -> `BuildWindowsInstaller` · `code:` `installer/PicLens.wixproj` · `code:` `installer/Package.wxs` · `updated:` `2026-07-01` · `status:` `active`
 
-PicLens uses an Inno Setup `.exe` as the normal Windows installer because it installs like a regular desktop app without MSIX sideloading certificate setup. Keep the portable release separate; installer staging strips `.pdb` debug symbols while portable folders keep them.
+PicLens uses a WiX-built `.msi` as the normal Windows installer. Keep the portable release separate; installer staging strips `.pdb` debug symbols while portable folders keep them. The MSI installs machine-wide under `%ProgramFiles%\PicLens`, so it can require Administrator rights.
 
 ## Linux support covers mainstream desktop distributions
 

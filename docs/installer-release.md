@@ -14,7 +14,7 @@ dotnet run Tasks.cs installer
 
 The wrapper builds the implemented installer for the current host:
 
-- Windows: `artifacts/installer/PicLens-win-x64-Setup.exe`
+- Windows: `artifacts/installer/PicLens-win-x64.msi`
 - Fedora Linux: `artifacts/installer/PicLens-1.0.0-fedora-x86_64.rpm`
 
 Package version is read from the repository root `VERSION` file. Update that file for normal releases.
@@ -43,16 +43,12 @@ dotnet run Tasks.cs installer --version 1.0.1
 
 ## Tooling
 
-Windows setup builds require Inno Setup 6:
-
-```powershell
-winget install --id JRSoftware.InnoSetup -e
-```
+Windows MSI builds restore WiX Toolset through `installer/PicLens.wixproj`.
 
 Windows default output:
 
 ```text
-artifacts/installer/PicLens-win-x64-Setup.exe
+artifacts/installer/PicLens-win-x64.msi
 ```
 
 Fedora RPM builds require `rpm-build`:
@@ -67,15 +63,9 @@ Fedora default output:
 artifacts/installer/PicLens-1.0.0-fedora-x86_64.rpm
 ```
 
-## Windows options
-
-```powershell
-dotnet run Tasks.cs -- installer --inno-setup-compiler "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-```
-
 ## Notes
 
-The setup installs per-user under `%LOCALAPPDATA%\Programs\PicLens`, so it does not need Administrator rights.
+The MSI installs machine-wide under `%ProgramFiles%\PicLens`, so installation may require Administrator rights.
 
 This package is still framework-dependent. Target machines must have .NET Runtime 10 installed.
 

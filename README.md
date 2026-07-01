@@ -85,11 +85,11 @@ Package 版號讀取 repository root 的 `VERSION`；一般發版請先更新該
 輸出：
 
 ```text
-artifacts/installer/PicLens-win-x64-Setup.exe
+artifacts/installer/PicLens-win-x64.msi
 artifacts/installer/PicLens-1.0.0-fedora-x86_64.rpm
 ```
 
-Windows installer 使用 Inno Setup 6；Linux installer 目前已實作 Fedora RPM，但產品支援範圍是主流 Linux 桌面發行版，不以 Fedora/RPM 作為最終完整範圍。Release 與 installer tasks 不會自動跑測試，打包前請先執行 `dotnet run Tasks.cs test`。
+Windows installer 使用 WiX Toolset 建置 MSI；Linux installer 目前已實作 Fedora RPM，但產品支援範圍是主流 Linux 桌面發行版，不以 Fedora/RPM 作為最終完整範圍。Release 與 installer tasks 不會自動跑測試，打包前請先執行 `dotnet run Tasks.cs test`。
 
 ## 文件
 

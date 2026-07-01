@@ -1,0 +1,13 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+  <PropertyGroup>
+    <OutputType>Package</OutputType>
+    <SuppressPdbOutput>true</SuppressPdbOutput>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <DefineConstants>AppVersion=$(AppVersion);PayloadDir=$(PayloadDir)</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Package.wxs" />
+  </ItemGroup>
+</Project>

@@ -371,25 +371,19 @@ static int BuildWindowsInstaller(string root, InstallerOptions options)
         throw new ArgumentException($"Installer version must be three or four dot-separated numbers: {options.Version}");
     }
 
-    Console.WriteLine("Installer: Windows setup (.exe)");
-
-    var iscc = FindInnoSetupCompiler(options.InnoSetupCompiler);
-    if (iscc is null)
-    {
-        Console.Error.WriteLine("Inno Setup 6 not found. Install: winget install --id JRSoftware.InnoSetup -e");
-        return 1;
-    }
-
     var tasks = RequiredFile(root, "Tasks.cs");
-    var installerScript = RequiredFile(root, "installer", "PicLens.iss");
+    var installerProject = RequiredFile(root, "installer", "PicLens.wixproj");
     var runtime = "win-x64";
     var platform = "x64";
     var portableDir = SafePath(root, "artifacts", "portable", $"PicLens-{runtime}");
     var installerRoot = SafePath(root, "artifacts", "installer");
-    var stageRoot = SafePath(root, "artifacts", "installer", "setup-stage");
-    var stageDir = SafePath(root, "artifacts", "installer", "setup-stage", $"PicLens-{runtime}");
-    var outputBaseName = $"PicLens-{runtime}-Setup";
-    var setupPath = SafePath(root, "artifacts", "installer", $"{outputBaseName}.exe");
+    var stageRoot = SafePath(root, "artifacts", "installer", "msi-stage");
+    var stageDir = SafePath(root, "artifacts", "installer", "msi-stage", $"PicLens-{runtime}");
+    var outputName = $"PicLens-{runtime}";
+    var msiPath = SafePath(root, "artifacts", "installer", $"{outputName}.msi");
+    var cabinetPath = SafePath(root, "artifacts", "installer", "cab1.cab");
+
+    Console.WriteLine("Installer: Windows MSI (.msi)");
 
     var releaseArgs = new List<string>
     {
@@ -401,20 +395,21 @@ static int BuildWindowsInstaller(string root, InstallerOptions options)
     };
     if (options.NoClean) releaseArgs.Add("--no-clean");
 
-    var isccArgs = new[]
+    var wixArgs = new List<string>
     {
-        $"/DAppVersion={options.Version}",
-        $"/DRootDir={root}",
-        $"/DPayloadDir={stageDir}",
-        $"/DOutputDir={installerRoot}",
-        $"/DOutputBaseFilename={outputBaseName}",
-        installerScript
+        "build",
+        installerProject,
+        "--configuration", "Release",
+        $"/p:AppVersion={options.Version}",
+        $"/p:PayloadDir={stageDir}",
+        $"/p:OutputPath={installerRoot}{Path.DirectorySeparatorChar}",
+        $"/p:OutputName={outputName}"
     };
 
     if (options.DryRun)
     {
         PrintCommand("dotnet", releaseArgs);
-        PrintCommand(iscc, isccArgs);
+        PrintCommand("dotnet", wixArgs);
         return 0;
     }
 
@@ -431,7 +426,8 @@ static int BuildWindowsInstaller(string root, InstallerOptions options)
     if (!options.NoClean)
     {
         DeleteIfExists(stageRoot);
-        DeleteIfExists(setupPath);
+        DeleteIfExists(msiPath);
+        DeleteIfExists(cabinetPath);
     }
 
     CopyDirectory(portableDir, stageDir);
@@ -440,19 +436,19 @@ static int BuildWindowsInstaller(string root, InstallerOptions options)
         File.Delete(pdb);
     }
 
-    Console.WriteLine("==> Building Inno Setup installer");
-    RunOrThrow(iscc, isccArgs, root);
+    Console.WriteLine("==> Building WiX MSI installer");
+    RunOrThrow("dotnet", wixArgs, root);
 
-    if (!File.Exists(setupPath))
+    if (!File.Exists(msiPath))
     {
-        throw new InvalidOperationException($"Installer build completed but setup file was not found: {setupPath}");
+        throw new InvalidOperationException($"Installer build completed but MSI file was not found: {msiPath}");
     }
 
     Console.WriteLine();
     Console.WriteLine("Installer output ready:");
-    Console.WriteLine($"  Setup:  {setupPath}");
-    Console.WriteLine($"  Bytes:  {new FileInfo(setupPath).Length}");
-    Console.WriteLine($"  SHA256: {Sha256(setupPath)}");
+    Console.WriteLine($"  MSI:    {msiPath}");
+    Console.WriteLine($"  Bytes:  {new FileInfo(msiPath).Length}");
+    Console.WriteLine($"  SHA256: {Sha256(msiPath)}");
     return 0;
 }
 
@@ -661,35 +657,6 @@ static string FindRepoRoot()
     }
 
     throw new InvalidOperationException("Run this from the PicLens repository.");
-}
-
-static string? FindInnoSetupCompiler(string? path)
-{
-    if (!string.IsNullOrWhiteSpace(path))
-    {
-        var resolved = Path.GetFullPath(path);
-        if (!File.Exists(resolved))
-        {
-            throw new InvalidOperationException($"Inno Setup compiler was not found: {resolved}");
-        }
-
-        return resolved;
-    }
-
-    var command = FindCommand("iscc.exe");
-    if (command is not null)
-    {
-        return command;
-    }
-
-    var candidates = new[]
-    {
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Inno Setup 6", "ISCC.exe"),
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Inno Setup 6", "ISCC.exe"),
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Inno Setup 6", "ISCC.exe")
-    };
-
-    return candidates.FirstOrDefault(File.Exists);
 }
 
 static string? FindCommand(string command)
@@ -910,7 +877,6 @@ sealed record InstallerOptions
 {
     public string Version { get; init; } = "";
     public string RuntimeRequires { get; init; } = "dotnet-runtime-10.0";
-    public string? InnoSetupCompiler { get; init; }
     public bool NoClean { get; init; }
     public bool NoRelease { get; init; }
     public bool DryRun { get; init; }
@@ -929,7 +895,6 @@ sealed record InstallerOptions
                 "--dry-run" => options with { DryRun = true },
                 "--version" => options with { Version = ReadValue(args, ref i, args[i]) },
                 "--runtime-requires" => options with { RuntimeRequires = ReadValue(args, ref i, args[i]) },
-                "--inno-setup-compiler" => options with { InnoSetupCompiler = ReadValue(args, ref i, args[i]) },
                 _ => throw new ArgumentException($"Unknown option: {args[i]}")
             };
         }
@@ -948,7 +913,6 @@ sealed record InstallerOptions
           --no-clean                    Keep existing portable output where possible
           --no-release                  Reuse existing portable output for RPM builds
           --runtime-requires PACKAGE    RPM runtime dependency. Default: dotnet-runtime-10.0
-          --inno-setup-compiler PATH    Windows ISCC.exe path
           --dry-run                     Print commands without running them
         """);
     }

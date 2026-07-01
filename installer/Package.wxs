@@ -1,0 +1,46 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="PicLens"
+    Manufacturer="PicLens"
+    Version="$(var.AppVersion)"
+    UpgradeCode="{4B3899A4-2E9E-4B4F-9CF5-36F8D8D6767D}"
+    Scope="perMachine">
+
+    <Icon Id="AppIcon.ico" SourceFile="$(var.PayloadDir)\Assets\AppIcon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="PicLens" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="PicLens" />
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="PicLens" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PayloadDir)\**" />
+    </ComponentGroup>
+
+    <Component Id="StartMenuShortcut" Directory="ApplicationProgramsFolder" Guid="*">
+      <Shortcut
+        Id="ApplicationStartMenuShortcut"
+        Name="PicLens"
+        Target="[INSTALLFOLDER]PicLens.exe"
+        WorkingDirectory="INSTALLFOLDER" />
+      <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
+      <RegistryValue
+        Root="HKCU"
+        Key="Software\PicLens"
+        Name="installed"
+        Type="integer"
+        Value="1"
+        KeyPath="yes" />
+    </Component>
+  </Package>
+</Wix>
