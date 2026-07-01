@@ -24,6 +24,7 @@
 AppId={{4B3899A4-2E9E-4B4F-9CF5-36F8D8D6767D}
 AppName={#AppName}
 AppVersion={#AppVersion}
+AppVerName={#AppName}
 AppPublisher=PicLens
 DefaultDirName={localappdata}\Programs\PicLens
 DefaultGroupName=PicLens
