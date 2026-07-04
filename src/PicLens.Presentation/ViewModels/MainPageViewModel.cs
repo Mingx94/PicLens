@@ -22,13 +22,13 @@ public sealed partial class MainPageViewModel : ObservableObject
     private readonly Action<ImageSequenceSnapshot> openImageViewer;
     private readonly Func<bool> hasUiThreadAccess;
     private readonly Func<Action, bool> tryEnqueueOnUiThread;
+    private readonly FolderTreeModule folderTree;
     private readonly FolderNavigationHistory folderHistory = new();
     private readonly List<string> selectedImagePaths = [];
     private readonly List<ImageListItem> dragSources = [];
 
     private AppSettings settings = AppSettings.CreateDefault();
     private IReadOnlyList<ListItem> currentItems = [];
-    private string folderTreeRootPath = string.Empty;
     private bool suppressIncludeSubfoldersReload;
     private CancellationTokenSource? libraryLoadCancellationSource;
 
@@ -60,6 +60,7 @@ public sealed partial class MainPageViewModel : ObservableObject
             ? timeout
             : DefaultThumbnailLoadTimeout;
         this.appLogger = appLogger ?? NullAppLogger.Instance;
+        folderTree = new FolderTreeModule(folderScanner, this.appLogger);
     }
 
     [ObservableProperty]
@@ -82,7 +83,7 @@ public sealed partial class MainPageViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsBusy { get; set; }
 
-    public ObservableCollection<FolderTreeItem> FolderRoots { get; } = [];
+    public ObservableCollection<FolderTreeItem> FolderRoots => folderTree.Roots;
 
     public ObservableRangeCollection<LibraryTileItem> LibraryItems { get; } = [];
 
@@ -144,7 +145,7 @@ public sealed partial class MainPageViewModel : ObservableObject
                 currentItems = [];
                 LibraryItems.Clear();
                 NotifyLibraryItemCount();
-                FolderRoots.Clear();
+                folderTree.Clear();
                 SetStatus("請選擇資料夾以開始瀏覽。");
                 return;
             }
@@ -189,13 +190,13 @@ public sealed partial class MainPageViewModel : ObservableObject
             $"Navigate to folder started. FolderPath={normalized}; ReplaceHistory={replaceHistory}; Persist={persist}; ResetFolderTreeRoot={resetFolderTreeRoot}; IncludeSubfolders={IncludeSubfolders}; Sort={Sort.Key}/{Sort.Direction}");
 
         ClearSelection();
-        if (resetFolderTreeRoot || string.IsNullOrWhiteSpace(folderTreeRootPath))
+        if (resetFolderTreeRoot || string.IsNullOrWhiteSpace(folderTree.RootPath))
         {
-            folderTreeRootPath = normalized;
+            folderTree.UseRoot(normalized);
         }
 
         CurrentFolderPath = normalized;
-        folderHistory.Record(new FolderNavigationHistory.Entry(normalized, folderTreeRootPath), replaceHistory);
+        folderHistory.Record(new FolderNavigationHistory.Entry(normalized, folderTree.RootPath), replaceHistory);
         NotifyNavigationCommands();
         if (persist)
         {
@@ -567,7 +568,7 @@ public sealed partial class MainPageViewModel : ObservableObject
             CancelActiveLibraryLoad();
             LibraryItems.Clear();
             NotifyLibraryItemCount();
-            FolderRoots.Clear();
+            folderTree.Clear();
             currentItems = [];
             return;
         }
@@ -575,18 +576,15 @@ public sealed partial class MainPageViewModel : ObservableObject
         var folderPath = CurrentFolderPath;
         var includeSubfolders = IncludeSubfolders;
         var sort = Sort;
-        var folderTreeRoot = string.IsNullOrWhiteSpace(folderTreeRootPath)
-            ? folderPath
-            : folderTreeRootPath;
+        var folderTreeRoot = folderTree.EnsureRoot(folderPath);
         var load = BeginLibraryLoad();
         IsBusy = true;
         try
         {
-            var existingRoot = FolderRoots.FirstOrDefault();
-            var isRootChanged = existingRoot == null || !PathEquals(existingRoot.Path, folderTreeRoot);
+            var isRootChanged = folderTree.IsDisplayedRootChanged(folderTreeRoot);
             if (isRootChanged)
             {
-                ShowPendingFolderTreeRoot(folderTreeRoot, folderPath);
+                folderTree.ShowPendingRoot(folderTreeRoot, folderPath);
             }
 
             var loadedItems = await folderScanner.ScanAsync(
@@ -596,7 +594,7 @@ public sealed partial class MainPageViewModel : ObservableObject
             FolderTreeItem? loadedFolderRoot = null;
             if (isRootChanged)
             {
-                loadedFolderRoot = await BuildFolderTreeAsync(
+                loadedFolderRoot = await folderTree.BuildRootAsync(
                     folderTreeRoot,
                     folderPath,
                     load.CancellationSource.Token);
@@ -615,12 +613,11 @@ public sealed partial class MainPageViewModel : ObservableObject
 
             if (isRootChanged && loadedFolderRoot != null)
             {
-                FolderRoots.Clear();
-                FolderRoots.Add(loadedFolderRoot);
+                folderTree.ReplaceRoot(loadedFolderRoot);
             }
             else if (!isRootChanged)
             {
-                UpdateFolderTreeSelection(folderPath);
+                folderTree.SelectPath(folderPath);
             }
 
             NotifySelectionCommands();
@@ -696,168 +693,13 @@ public sealed partial class MainPageViewModel : ObservableObject
         NotifyLibraryItemCount();
     }
 
-    private void ShowPendingFolderTreeRoot(string rootPath, string selectedPath)
-    {
-        var root = CreateFolderTreeRoot(rootPath, selectedPath);
-        root.Children.Add(new FolderTreeItem("", "", isReadable: false));
-        FolderRoots.Clear();
-        FolderRoots.Add(root);
-    }
-
-    private async Task<FolderTreeItem> BuildFolderTreeAsync(
-        string rootPath,
-        string selectedPath,
-        CancellationToken cancellationToken)
-    {
-        var root = CreateFolderTreeRoot(rootPath, selectedPath);
-
-        await PopulateFolderChildrenAsync(root, rootPath, selectedPath, cancellationToken);
-        return root;
-    }
-
-    private static FolderTreeItem CreateFolderTreeRoot(string rootPath, string selectedPath) =>
-        new(
-            FolderDisplayName(rootPath),
-            rootPath,
-            isReadable: Directory.Exists(rootPath),
-            isExpanded: true,
-            isSelected: PathEquals(rootPath, selectedPath));
-
-    private async Task PopulateFolderChildrenAsync(
-        FolderTreeItem node,
-        string folderPath,
-        string selectedPath,
-        CancellationToken cancellationToken)
-    {
-        IReadOnlyList<FolderListItem> folders;
-        try
-        {
-            folders = await folderScanner.ScanChildFoldersAsync(folderPath, cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            appLogger.Error(
-                ex,
-                $"Load folder tree children failed. FolderPath={folderPath}; FolderTreeRootPath={folderTreeRootPath}; CurrentFolderPath={selectedPath}");
-            return;
-        }
-
-        node.Children.Clear();
-        foreach (var folder in folders)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var isExpanded = IsPathAncestorOrEqual(folder.Path, selectedPath);
-            var child = new FolderTreeItem(
-                folder.Name,
-                folder.Path,
-                isReadable: true,
-                isExpanded: isExpanded,
-                isSelected: PathEquals(folder.Path, selectedPath));
-            node.Children.Add(child);
-
-            if (isExpanded)
-            {
-                await PopulateFolderChildrenAsync(child, folder.Path, selectedPath, cancellationToken);
-            }
-            else
-            {
-                child.Children.Add(new FolderTreeItem("", "", isReadable: false));
-            }
-        }
-        node.HasLoadedChildren = true;
-    }
-
-    public async Task LoadFolderChildrenOnDemandAsync(FolderTreeItem node)
-    {
-        if (node.HasLoadedChildren)
-        {
-            return;
-        }
-
-        try
-        {
-            var folders = await folderScanner.ScanChildFoldersAsync(node.Path, CancellationToken.None);
-
-            node.Children.Clear();
-            foreach (var folder in folders)
-            {
-                var isExpanded = IsPathAncestorOrEqual(folder.Path, CurrentFolderPath);
-                var child = new FolderTreeItem(
-                    folder.Name,
-                    folder.Path,
-                    isReadable: true,
-                    isExpanded: isExpanded,
-                    isSelected: PathEquals(folder.Path, CurrentFolderPath));
-
-                if (isExpanded)
-                {
-                    await PopulateFolderChildrenAsync(child, folder.Path, CurrentFolderPath, CancellationToken.None);
-                }
-                else
-                {
-                    child.Children.Add(new FolderTreeItem("", "", isReadable: false));
-                }
-                node.Children.Add(child);
-            }
-            node.HasLoadedChildren = true;
-        }
-        catch (Exception ex)
-        {
-            appLogger.Error(
-                ex,
-                $"Lazy load folder children failed. FolderPath={node.Path}; FolderTreeRootPath={folderTreeRootPath}; CurrentFolderPath={CurrentFolderPath}");
-        }
-    }
-
-    private void UpdateFolderTreeSelection(string selectedPath)
-    {
-        foreach (var root in FolderRoots)
-        {
-            UpdateFolderTreeSelection(root, selectedPath);
-        }
-    }
-
-    private bool UpdateFolderTreeSelection(FolderTreeItem node, string selectedPath)
-    {
-        if (string.IsNullOrEmpty(node.Path))
-        {
-            return false;
-        }
-
-        var isSelected = PathEquals(node.Path, selectedPath);
-        var isAncestor = IsPathAncestor(node.Path, selectedPath);
-
-        node.IsSelected = isSelected;
-
-        if (isSelected || isAncestor)
-        {
-            node.IsExpanded = true;
-            if (isAncestor && !node.HasLoadedChildren)
-            {
-                _ = LoadFolderChildrenOnDemandAsync(node);
-            }
-        }
-
-        var anyChildSelectedOrAncestor = false;
-        foreach (var child in node.Children)
-        {
-            if (UpdateFolderTreeSelection(child, selectedPath))
-            {
-                anyChildSelectedOrAncestor = true;
-            }
-        }
-
-        return isSelected || isAncestor || anyChildSelectedOrAncestor;
-    }
+    public Task LoadFolderChildrenOnDemandAsync(FolderTreeItem node) =>
+        folderTree.LoadChildrenOnDemandAsync(node, CurrentFolderPath);
 
     private async Task NavigateToFolderFromHistoryAsync(FolderNavigationHistory.Entry entry)
     {
         ClearSelection();
-        folderTreeRootPath = entry.FolderTreeRootPath;
+        folderTree.UseRoot(entry.FolderTreeRootPath);
         CurrentFolderPath = entry.FolderPath;
         await LoadLibraryAsync();
     }
