@@ -6,11 +6,11 @@ namespace PicLens.ViewModels.Tests;
 public sealed class MainPageDragCoordinateTests
 {
     [Theory]
-    [InlineData(4, -15.11111111111111)]
-    [InlineData(36, -8)]
+    [InlineData(4, -45.333333333333336)]
+    [InlineData(36, -24)]
     [InlineData(200, 0)]
-    [InlineData(364, 8)]
-    [InlineData(396, 15.11111111111111)]
+    [InlineData(364, 24)]
+    [InlineData(396, 45.333333333333336)]
     public void Drag_auto_scroll_delta_scales_near_vertical_edges(double pointerY, double expected)
     {
         var delta = DragInteractionRules.CalculateLibraryDragAutoScrollDelta(pointerY, viewportHeight: 400);
@@ -25,6 +25,6 @@ public sealed class MainPageDragCoordinateTests
     {
         var delta = Math.Abs(DragInteractionRules.CalculateLibraryDragAutoScrollDelta(pointerY, viewportHeight: 400));
 
-        Assert.Equal(16, delta);
+        Assert.Equal(48, delta);
     }
 }

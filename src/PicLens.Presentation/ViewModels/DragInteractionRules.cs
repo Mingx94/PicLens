@@ -5,7 +5,7 @@ namespace PicLens.ViewModels;
 public static class DragInteractionRules
 {
     private const double DefaultAutoScrollEdgeSize = 72;
-    private const double DefaultAutoScrollMaxStep = 16;
+    private const double DefaultAutoScrollMaxStep = 48;
 
     public static double CalculateLibraryDragAutoScrollDelta(
         double pointerY,
