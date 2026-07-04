@@ -12,6 +12,7 @@ PicLens 是 Windows / 主流 Linux Avalonia / MVVM 圖片整理與檢視 app。
 - [Verification notes](verification/2026-06-24.md) 保存舊 milestone 的特定日期驗證結果與 smoke/profile 證據。
 - [Portable release](portable-release.md) 說明如何建置免安裝輸出資料夾。
 - [Installer release](installer-release.md) 說明如何建置 Windows MSI 與目前已實作的 Fedora RPM 安裝檔；主流 Linux 支援不以 Fedora/RPM 作為最終完整範圍。
+- [Agent skills](agents/issue-tracker.md) 記錄本機 markdown issue tracker、triage labels 與 domain docs 設定。
 
 ## 目前狀態
 
