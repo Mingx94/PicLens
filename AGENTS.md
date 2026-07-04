@@ -1,3 +1,2 @@
 - 專案文件入口放在 `docs/README.md`
-- 專案 lore 放在 `docs/lore/`；規劃或修 bug 前先查，學到隱性知識就記進去。
 - Avalonia 的 docs 請用 avalonia-docs mcp
