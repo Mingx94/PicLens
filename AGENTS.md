@@ -17,5 +17,6 @@ This repo uses single-context domain docs: `CONTEXT.md` at the repo root and ADR
 
 
 - 專案文件入口放在 `docs/README.md`
+- UI / 視覺設計變更前必須先閱讀並遵守 `DESIGN.md`
 - Avalonia 的 docs 請用 avalonia-docs mcp
 - DO NOT send optional commentary
