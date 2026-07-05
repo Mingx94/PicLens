@@ -41,6 +41,7 @@ public partial class MainView : UserControl
     private bool isPreviewOpen;
     private bool initialized;
     private bool initialLoadCompleted;
+    private bool visibleThumbnailLoadQueued;
     private IReadOnlyList<LibraryTileItem> pointerDragItems = [];
 
     public MainView()
@@ -66,7 +67,7 @@ public partial class MainView : UserControl
         LibraryDragPreviewOverlay.RenderTransform = libraryDragPreviewTransform;
         LibraryGrid.ScrollChanged += LibraryGridScrollViewer_ScrollChanged;
         ViewModel.LibraryItems.CollectionChanged += (_, _) =>
-            Dispatcher.UIThread.Post(QueueVisibleThumbnailLoads, DispatcherPriority.Loaded);
+            ScheduleVisibleThumbnailLoads();
         AddHandler(KeyDownEvent, Root_KeyDown, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
         libraryDragAutoScrollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
         libraryDragAutoScrollTimer.Tick += LibraryDragAutoScrollTimer_Tick;
@@ -493,9 +494,9 @@ public partial class MainView : UserControl
 
     private void LibraryTile_Loaded(object? sender, RoutedEventArgs e)
     {
-        if (sender is Control { DataContext: LibraryTileItem item })
+        if (sender is Control { DataContext: LibraryTileItem })
         {
-            Dispatcher.UIThread.Post(() => QueueThumbnailLoadIfVisible((Control)sender, item));
+            ScheduleVisibleThumbnailLoads();
         }
     }
 
@@ -528,8 +529,25 @@ public partial class MainView : UserControl
         Dispatcher.UIThread.Post(() => _ = ViewModel.LoadThumbnailAsync(item));
     }
 
+    private void ScheduleVisibleThumbnailLoads()
+    {
+        if (visibleThumbnailLoadQueued)
+        {
+            return;
+        }
+
+        visibleThumbnailLoadQueued = true;
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                visibleThumbnailLoadQueued = false;
+                QueueVisibleThumbnailLoads();
+            },
+            DispatcherPriority.Background);
+    }
+
     private void LibraryGridScrollViewer_ScrollChanged(object? sender, ScrollChangedEventArgs e) =>
-        QueueVisibleThumbnailLoads();
+        ScheduleVisibleThumbnailLoads();
 
     private bool IsInLibraryGridViewport(Control tile)
     {
@@ -582,7 +600,7 @@ public partial class MainView : UserControl
     private async Task CommitThumbnailSizeSliderValueAsync()
     {
         await ViewModel.ChangeThumbnailSizeAsync(ThumbnailSizeSlider.Value);
-        QueueVisibleThumbnailLoads();
+        ScheduleVisibleThumbnailLoads();
     }
 
     private void SelectLibraryTile(LibraryTileItem item, KeyModifiers modifiers)

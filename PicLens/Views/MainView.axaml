@@ -67,7 +67,7 @@
                         CornerRadius="8"
                         Height="{Binding TileHeight}">
                         <Grid ClipToBounds="True">
-                            <Image Source="{Binding ThumbnailPath, Converter={StaticResource ImagePathConverter}}" Stretch="UniformToFill" IsVisible="{Binding CanShowThumbnail}" />
+                            <Image Source="{Binding ThumbnailPath, Converter={StaticResource ImagePathConverter}, ConverterParameter=cache}" Stretch="UniformToFill" IsVisible="{Binding CanShowThumbnail}" />
                             <Panel
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
