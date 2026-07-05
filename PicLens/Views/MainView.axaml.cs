@@ -125,6 +125,15 @@ public partial class MainView : UserControl
         }
     }
 
+    private async void RecentFolder_Click(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string folderPath }
+            && ViewModel.OpenRecentFolderCommand.CanExecute(folderPath))
+        {
+            await ViewModel.OpenRecentFolderCommand.ExecuteAsync(folderPath);
+        }
+    }
+
     private async void LibraryTile_Tapped(object? sender, TappedEventArgs e)
     {
         if (sender is Control { DataContext: LibraryTileItem { IsFolder: true } folder })
@@ -247,13 +256,29 @@ public partial class MainView : UserControl
             return;
         }
 
+        RevealPathInFileExplorer(item.Path);
+    }
+
+    private void RevealSelected_Click(object? sender, RoutedEventArgs e)
+    {
+        var path = ViewModel.SelectedImagePathForReveal;
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return;
+        }
+
+        RevealPathInFileExplorer(path);
+    }
+
+    private void RevealPathInFileExplorer(string path)
+    {
         try
         {
-            Process.Start(CreateRevealStartInfo(item.Path));
+            Process.Start(CreateRevealStartInfo(path));
         }
         catch (Exception ex)
         {
-            App.Logger.Error(ex, $"Reveal in file manager failed. Path={item.Path}");
+            App.Logger.Error(ex, $"Reveal in file manager failed. Path={path}");
         }
     }
 
@@ -484,7 +509,7 @@ public partial class MainView : UserControl
 
     private void QueueVisibleThumbnailLoads()
     {
-        foreach (var tile in LibraryRepeater.GetVisualDescendants().OfType<Border>())
+        foreach (var tile in LibraryGrid.GetVisualDescendants().OfType<Border>())
         {
             if (tile.Classes.Contains("tile") && tile.DataContext is LibraryTileItem item)
             {

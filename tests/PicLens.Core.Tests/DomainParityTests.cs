@@ -120,11 +120,32 @@ public sealed class DomainParityTests
                 IncludeSubfolders = true
             });
 
-        Assert.Equal(1, merged.Version);
+        Assert.Equal(2, merged.Version);
         Assert.Equal(@"D:\Manual", merged.LastFolderPath);
         Assert.Equal(new SortState(SortKey.ModifiedAt, SortDirection.Desc), merged.Sort);
         Assert.True(merged.IncludeSubfolders);
         Assert.Equal(SettingsRules.DefaultThumbnailSize, merged.ThumbnailSize);
+    }
+
+    [Fact]
+    public void Settings_patch_normalizes_recent_folders()
+    {
+        var first = Path.Combine(Path.GetTempPath(), "PicLens-A");
+        var duplicate = first.ToUpperInvariant();
+        var paths = Enumerable.Range(0, 8)
+            .Select(index => Path.Combine(Path.GetTempPath(), $"PicLens-{index}"))
+            .Prepend(duplicate)
+            .Prepend(first)
+            .ToArray();
+
+        var merged = SettingsRules.MergeSettingsPatch(
+            AppSettings.CreateDefault(),
+            new AppSettingsPatch { RecentFolderPaths = paths });
+
+        Assert.Equal(2, merged.Version);
+        Assert.True(merged.RecentFolderPaths.Count <= SettingsRules.MaxRecentFolderCount);
+        Assert.Equal(Path.GetFullPath(first), merged.RecentFolderPaths[0]);
+        Assert.Equal(merged.RecentFolderPaths.Count, merged.RecentFolderPaths.Distinct(PathRules.PathComparer).Count());
     }
 
     [Theory]

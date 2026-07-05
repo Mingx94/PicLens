@@ -12,25 +12,107 @@
     Focusable="True">
 
     <UserControl.Resources>
-        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F8F9FA" />
-        <SolidColorBrush x:Key="CommandBarBrush" Color="#F1F3F5" />
-        <SolidColorBrush x:Key="SidebarBrush" Color="#FBFCFD" />
+        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#FAF9F6" />
+        <SolidColorBrush x:Key="ChromeBrush" Color="#FFFDFC" />
+        <SolidColorBrush x:Key="SidebarBrush" Color="#F6FBF8" />
         <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
-        <SolidColorBrush x:Key="TileFrameBrush" Color="#EEF0F2" />
-        <SolidColorBrush x:Key="LineBrush" Color="#E2E5E9" />
-        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#1F2328" />
-        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#5F6368" />
-        <SolidColorBrush x:Key="MutedTextBrush" Color="#7A8088" />
-        <SolidColorBrush x:Key="HoverBrush" Color="#E8EBEF" />
-        <SolidColorBrush x:Key="SelectedBrush" Color="#DFECFF" />
-        <SolidColorBrush x:Key="AccentBrush" Color="#0078D4" />
-        <SolidColorBrush x:Key="ViewerCanvasBrush" Color="#F7F7F7" />
+        <SolidColorBrush x:Key="TileFrameBrush" Color="#F3F7F8" />
+        <SolidColorBrush x:Key="LineBrush" Color="#E5E8EA" />
+        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#26302F" />
+        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#5E6A67" />
+        <SolidColorBrush x:Key="MutedTextBrush" Color="#87918D" />
+        <SolidColorBrush x:Key="HoverBrush" Color="#EEF7F3" />
+        <SolidColorBrush x:Key="SelectedBrush" Color="#DDF4EC" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#2CB89E" />
+        <SolidColorBrush x:Key="AccentSoftBrush" Color="#E7F8F4" />
+        <SolidColorBrush x:Key="SkyBrush" Color="#EAF5FF" />
+        <SolidColorBrush x:Key="CoralBrush" Color="#F36F5B" />
+        <SolidColorBrush x:Key="ViewerCanvasBrush" Color="#F8F7F3" />
         <converters:ImagePathConverter x:Key="ImagePathConverter" />
+
+        <DataTemplate x:Key="LibraryTileTemplate" DataType="vm:LibraryTileItem" x:DataType="vm:LibraryTileItem">
+            <Border
+                x:Name="LibraryTile"
+                Classes="tile"
+                Classes.selected="{Binding IsSelected}"
+                Classes.drop-target="{Binding IsDropRenameTarget}"
+                MinWidth="{Binding TileWidth}"
+                MinHeight="{Binding TileHeight}"
+                AutomationProperties.AutomationId="{Binding AutomationId}"
+                AutomationProperties.Name="{Binding AutomationName}"
+                Loaded="LibraryTile_Loaded"
+                Unloaded="LibraryTile_Unloaded"
+                Tapped="LibraryTile_Tapped"
+                DoubleTapped="LibraryTile_DoubleTapped"
+                RightTapped="LibraryTile_RightTapped"
+                PointerPressed="LibraryTile_PointerPressed"
+                PointerMoved="LibraryTile_PointerMoved"
+                PointerReleased="LibraryTile_PointerReleased"
+                PointerCaptureLost="LibraryTile_PointerCaptureLost">
+                <ToolTip.Tip>
+                    <TextBlock
+                        x:DataType="vm:LibraryTileItem"
+                        DataContext="{Binding #LibraryTile.DataContext}"
+                        Text="{Binding Name}"
+                        TextWrapping="Wrap"
+                        MaxWidth="720" />
+                </ToolTip.Tip>
+                <Grid RowDefinitions="Auto,Auto,Auto">
+                    <Border
+                        Grid.Row="0"
+                        Background="{StaticResource TileFrameBrush}"
+                        BorderBrush="{StaticResource LineBrush}"
+                        BorderThickness="1"
+                        ClipToBounds="True"
+                        CornerRadius="8"
+                        Height="{Binding TileHeight}">
+                        <Grid ClipToBounds="True">
+                            <Image Source="{Binding ThumbnailPath, Converter={StaticResource ImagePathConverter}}" Stretch="UniformToFill" IsVisible="{Binding CanShowThumbnail}" />
+                            <Panel
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                IsVisible="{Binding ShouldShowIcon}">
+                                <ic:FluentIcon Classes="glyph muted" Icon="Folder" IconVariant="Regular" IconSize="Size48" IsVisible="{Binding IsFolder}" />
+                                <ic:FluentIcon Classes="glyph muted" Icon="Filmstrip" IconVariant="Regular" IconSize="Size48" IsVisible="{Binding IsAnimated}" />
+                                <ic:FluentIcon Classes="glyph muted" Icon="Image" IconVariant="Regular" IconSize="Size48" IsVisible="{Binding IsStillImage}" />
+                            </Panel>
+                            <Border
+                                Classes="check-dot"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Top"
+                                Margin="8"
+                                IsVisible="{Binding IsSelected}">
+                                <TextBlock Text="✓" Foreground="White" FontSize="13" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </Grid>
+                    </Border>
+                    <TextBlock
+                        Grid.Row="1"
+                        Text="{Binding Name}"
+                        FontWeight="SemiBold"
+                        FontSize="14"
+                        TextWrapping="Wrap"
+                        TextTrimming="CharacterEllipsis"
+                        MaxLines="2"
+                        Margin="2,9,2,0" />
+                    <TextBlock
+                        Grid.Row="2"
+                        Text="{Binding Detail}"
+                        Classes="caption"
+                        TextTrimming="CharacterEllipsis"
+                        Margin="2,2,2,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
     </UserControl.Resources>
 
     <UserControl.Styles>
         <Style Selector="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+        </Style>
+        <Style Selector="TextBlock.caption">
+            <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+            <Setter Property="FontSize" Value="12" />
         </Style>
         <Style Selector="TextBlock.muted">
             <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
@@ -43,8 +125,18 @@
             <Setter Property="Height" Value="16" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
+        <Style Selector="ic|FluentIcon.muted">
+            <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+        </Style>
+        <Style Selector="Border.panel">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
         <Style Selector="Button.toolbar">
             <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -56,25 +148,17 @@
         <Style Selector="Button.toolbar /template/ ContentPresenter">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="7" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="VerticalAlignment" Value="Stretch" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
-        <Style Selector="Button.toolbar:pointerover">
-            <Setter Property="Background" Value="{StaticResource HoverBrush}" />
-        </Style>
         <Style Selector="Button.toolbar:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{StaticResource HoverBrush}" />
-            <Setter Property="BorderBrush" Value="Transparent" />
         </Style>
         <Style Selector="Button.toolbar:disabled">
-            <Setter Property="Background" Value="Transparent" />
             <Setter Property="Opacity" Value="0.45" />
-        </Style>
-        <Style Selector="Button.toolbar:disabled /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="Transparent" />
         </Style>
         <Style Selector="Button.icon">
             <Setter Property="Padding" Value="0" />
@@ -86,83 +170,144 @@
             <Setter Property="Height" Value="20" />
             <Setter Property="HorizontalAlignment" Value="Center" />
         </Style>
+        <Style Selector="Button.pill">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="MinHeight" Value="36" />
+        </Style>
+        <Style Selector="Button.pill:pointerover">
+            <Setter Property="Background" Value="{StaticResource HoverBrush}" />
+        </Style>
+        <Style Selector="Button.view-toggle.active /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
+        </Style>
+        <Style Selector="Button.sidebar-row">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="8,7" />
+        </Style>
+        <Style Selector="Button.sidebar-row /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.sidebar-row:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource HoverBrush}" />
+        </Style>
+        <Style Selector="Button.action">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="MinHeight" Value="46" />
+        </Style>
+        <Style Selector="Button.action:pointerover">
+            <Setter Property="Background" Value="{StaticResource HoverBrush}" />
+        </Style>
+        <Style Selector="Button.action:disabled">
+            <Setter Property="Opacity" Value="0.45" />
+        </Style>
         <Style Selector="Border.tile">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Padding" Value="4" />
+            <Setter Property="Padding" Value="8" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="8" />
         </Style>
         <Style Selector="Border.tile:pointerover">
-            <Setter Property="Background" Value="#08000000" />
+            <Setter Property="Background" Value="#66F4FBF8" />
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
         </Style>
         <Style Selector="Border.tile.selected">
             <Setter Property="Background" Value="{StaticResource SelectedBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
         </Style>
         <Style Selector="Border.tile.drop-target">
-            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource CoralBrush}" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+        <Style Selector="Border.check-dot">
+            <Setter Property="Width" Value="22" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="CornerRadius" Value="11" />
+            <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="White" />
             <Setter Property="BorderThickness" Value="2" />
         </Style>
         <Style Selector="TreeViewItem">
             <Setter Property="MinHeight" Value="30" />
             <Setter Property="Padding" Value="2" />
         </Style>
+        <Style Selector="TextBox.search">
+            <Setter Property="MinHeight" Value="36" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        </Style>
     </UserControl.Styles>
 
-    <Grid RowDefinitions="56,*,64" Background="{StaticResource AppBackgroundBrush}">
+    <Grid RowDefinitions="54,*,60" Background="{StaticResource AppBackgroundBrush}">
         <Border
             Grid.Row="0"
-            Background="{StaticResource CommandBarBrush}"
+            Background="{StaticResource ChromeBrush}"
             BorderBrush="{StaticResource LineBrush}"
             BorderThickness="0,0,0,1"
             AutomationProperties.AccessibilityView="Control"
             AutomationProperties.ControlTypeOverride="Pane"
             AutomationProperties.AutomationId="AppTitleBar">
-            <Grid ColumnDefinitions="*,Auto" Margin="12,0,14,0">
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="14,0" ColumnSpacing="12">
+                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Button
+                        Classes="toolbar icon"
+                        ToolTip.Tip="收合側欄"
+                        AutomationProperties.AutomationId="TitleBarSidebarToggleButton"
+                        Command="{Binding ToggleSidebarCommand}">
+                        <ic:FluentIcon Classes="glyph" Icon="PanelLeft" IconVariant="Regular" IconSize="Size20" />
+                    </Button>
+                    <TextBlock Text="PicLens" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </StackPanel>
+
                 <StackPanel
                     Grid.Column="1"
                     Orientation="Horizontal"
                     Spacing="2"
                     VerticalAlignment="Center">
-                    <Button
-                        Classes="toolbar icon"
-                        ToolTip.Tip="上一個資料夾"
-                        AutomationProperties.AutomationId="TitleBarBackButton"
-                        Command="{Binding BackCommand}">
+                    <Button Classes="toolbar icon" ToolTip.Tip="上一個資料夾" AutomationProperties.AutomationId="TitleBarBackButton" Command="{Binding BackCommand}">
                         <ic:FluentIcon Classes="glyph" Icon="ArrowLeft" IconVariant="Regular" IconSize="Size20" />
                     </Button>
-                    <Button
-                        Classes="toolbar icon"
-                        ToolTip.Tip="下一個資料夾"
-                        AutomationProperties.AutomationId="TitleBarForwardButton"
-                        Command="{Binding ForwardCommand}">
+                    <Button Classes="toolbar icon" ToolTip.Tip="下一個資料夾" AutomationProperties.AutomationId="TitleBarForwardButton" Command="{Binding ForwardCommand}">
                         <ic:FluentIcon Classes="glyph" Icon="ArrowRight" IconVariant="Regular" IconSize="Size20" />
                     </Button>
-                    <Border Width="1" Height="24" Margin="5,0" Background="{StaticResource LineBrush}" />
-                    <Button
-                        Classes="toolbar icon"
-                        ToolTip.Tip="重新整理"
-                        AutomationProperties.AutomationId="TitleBarRefreshLibraryButton"
-                        Command="{Binding RefreshLibraryCommand}">
+                    <Button Classes="toolbar icon" ToolTip.Tip="重新整理" AutomationProperties.AutomationId="TitleBarRefreshLibraryButton" Command="{Binding RefreshLibraryCommand}">
                         <ic:FluentIcon Classes="glyph" Icon="ArrowClockwise" IconVariant="Regular" IconSize="Size20" />
                     </Button>
-                    <Button
-                        Classes="toolbar"
-                        ToolTip.Tip="選擇資料夾"
-                        AutomationProperties.AutomationId="TitleBarOpenFolderButton"
-                        Command="{Binding OpenFolderCommand}">
-                        <StackPanel Orientation="Horizontal" Spacing="7">
-                            <ic:FluentIcon Classes="glyph" Icon="Folder" IconVariant="Regular" IconSize="Size20" />
-                            <TextBlock Text="選擇資料夾" VerticalAlignment="Center" />
-                        </StackPanel>
+                    <Button Classes="toolbar icon" ToolTip.Tip="選擇資料夾" AutomationProperties.AutomationId="TitleBarOpenFolderButton" Command="{Binding OpenFolderCommand}">
+                        <ic:FluentIcon Classes="glyph" Icon="FolderOpen" IconVariant="Regular" IconSize="Size20" />
                     </Button>
-                    <Button
-                        Classes="toolbar"
-                        ToolTip.Tip="排序"
-                        AutomationProperties.AutomationId="TitleBarSortMenuButton">
+                    <TextBlock Text="{Binding CurrentFolderPath}" Classes="secondary" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="420" Margin="8,0,4,0" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBox
+                        Classes="search"
+                        Width="190"
+                        PlaceholderText="搜尋圖片"
+                        AutomationProperties.AutomationId="LibrarySearchBox"
+                        Text="{Binding SearchQuery, Mode=TwoWay}" />
+                    <Button Classes="toolbar icon" ToolTip.Tip="清除搜尋" AutomationProperties.AutomationId="LibrarySearchClearButton" IsVisible="{Binding HasSearchQuery}" Command="{Binding ClearSearchCommand}">
+                        <ic:FluentIcon Classes="glyph" Icon="Dismiss" IconVariant="Regular" IconSize="Size20" />
+                    </Button>
+                    <Button Classes="pill" ToolTip.Tip="排序" AutomationProperties.AutomationId="TitleBarSortMenuButton">
                         <StackPanel Orientation="Horizontal" Spacing="7">
-                            <TextBlock Text="↕" FontSize="16" VerticalAlignment="Center" />
                             <TextBlock Text="{Binding SortLabel}" VerticalAlignment="Center" />
+                            <TextBlock Text="⌄" Classes="muted" VerticalAlignment="Center" />
                         </StackPanel>
                         <Button.Flyout>
                             <MenuFlyout>
@@ -173,20 +318,23 @@
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
-                    <Button
-                        Classes="toolbar"
-                        ToolTip.Tip="子資料夾"
-                        AutomationProperties.AutomationId="TitleBarRecursiveModeToggle"
-                        Command="{Binding ToggleIncludeSubfoldersCommand}">
+                    <Button Classes="pill" ToolTip.Tip="子資料夾" AutomationProperties.AutomationId="TitleBarRecursiveModeToggle" Command="{Binding ToggleIncludeSubfoldersCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
-                            <ic:FluentIcon Classes="glyph" Icon="Folder" IconVariant="Regular" IconSize="Size20" />
                             <TextBlock Text="{Binding RecursiveModeLabel}" VerticalAlignment="Center" />
+                            <Border Width="28" Height="16" CornerRadius="8" Background="{StaticResource AccentBrush}">
+                                <Border Width="12" Height="12" CornerRadius="6" Background="White" HorizontalAlignment="Right" Margin="2" />
+                            </Border>
                         </StackPanel>
                     </Button>
-                    <Button
-                        Classes="toolbar icon"
-                        ToolTip.Tip="更多"
-                        AutomationProperties.AutomationId="TitleBarMoreActionsButton">
+                    <StackPanel Orientation="Horizontal" Spacing="2">
+                        <Button Classes="toolbar icon view-toggle" Classes.active="{Binding IsGridViewMode}" ToolTip.Tip="格狀檢視" AutomationProperties.AutomationId="TitleBarGridViewButton" Command="{Binding SetViewModeCommand}" CommandParameter="grid">
+                            <ic:FluentIcon Classes="glyph" Icon="LayoutColumnTwo" IconVariant="Regular" IconSize="Size20" />
+                        </Button>
+                        <Button Classes="toolbar icon view-toggle" Classes.active="{Binding IsListViewMode}" ToolTip.Tip="列表檢視" AutomationProperties.AutomationId="TitleBarListViewButton" Command="{Binding SetViewModeCommand}" CommandParameter="list">
+                            <ic:FluentIcon Classes="glyph" Icon="TextBulletListSquare" IconVariant="Regular" IconSize="Size20" />
+                        </Button>
+                    </StackPanel>
+                    <Button Classes="toolbar icon" ToolTip.Tip="更多" AutomationProperties.AutomationId="TitleBarMoreActionsButton">
                         <ic:FluentIcon Classes="glyph" Icon="MoreVertical" IconVariant="Regular" IconSize="Size20" />
                         <Button.Flyout>
                             <MenuFlyout>
@@ -199,78 +347,76 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1">
-            <Grid ColumnDefinitions="280,1,*">
-                <Border
-                    Grid.Column="0"
-                    Padding="16,18,12,12"
-                    Background="{StaticResource SidebarBrush}"
-                    BorderBrush="{StaticResource LineBrush}"
-                    BorderThickness="0,0,1,0">
-                    <Grid RowDefinitions="Auto,*">
-                        <StackPanel Spacing="6" Margin="0,0,0,12">
-                            <TextBlock Text="資料夾" FontSize="22" FontWeight="SemiBold" />
-                            <TextBlock
-                                Text="{Binding CurrentFolderPath}"
-                                Classes="secondary"
-                                FontSize="12"
-                                TextTrimming="CharacterEllipsis"
-                                IsVisible="{Binding HasCurrentFolder}" />
-                        </StackPanel>
-                        <TreeView
-                            x:Name="FolderTree"
-                            Grid.Row="1"
-                            AutomationProperties.AutomationId="FolderTree"
-                            ItemsSource="{Binding FolderRoots}"
-                            SelectionChanged="FolderTree_SelectionChanged">
-                            <TreeView.Styles>
-                                <Style Selector="TreeViewItem">
-                                    <Setter Property="IsExpanded" Value="{ReflectionBinding IsExpanded, Mode=TwoWay}" />
-                                </Style>
-                            </TreeView.Styles>
-                            <TreeView.ItemTemplate>
-                                <TreeDataTemplate DataType="vm:FolderTreeItem" ItemsSource="{Binding Children}" x:DataType="vm:FolderTreeItem">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <ic:FluentIcon Classes="glyph" Icon="Folder" IconVariant="Regular" IconSize="Size20" />
-                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                </TreeDataTemplate>
-                            </TreeView.ItemTemplate>
-                        </TreeView>
-                    </Grid>
-                </Border>
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,4,*,286" Margin="12,10,12,4">
+            <Border
+                Grid.Column="0"
+                Width="250"
+                Padding="12"
+                Background="{StaticResource SidebarBrush}"
+                BorderBrush="{StaticResource LineBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                IsVisible="{Binding IsSidebarOpen}">
+                <Grid RowDefinitions="Auto,*,Auto">
+                    <StackPanel Spacing="8" Margin="0,2,0,10">
+                        <TextBlock Text="圖片集" FontSize="15" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding CurrentFolderName}" Classes="secondary" FontSize="12" TextTrimming="CharacterEllipsis" IsVisible="{Binding HasCurrentFolder}" />
+                    </StackPanel>
+                    <TreeView
+                        x:Name="FolderTree"
+                        Grid.Row="1"
+                        AutomationProperties.AutomationId="FolderTree"
+                        ItemsSource="{Binding FolderRoots}"
+                        SelectionChanged="FolderTree_SelectionChanged">
+                        <TreeView.Styles>
+                            <Style Selector="TreeViewItem">
+                                <Setter Property="IsExpanded" Value="{ReflectionBinding IsExpanded, Mode=TwoWay}" />
+                            </Style>
+                        </TreeView.Styles>
+                        <TreeView.ItemTemplate>
+                            <TreeDataTemplate DataType="vm:FolderTreeItem" ItemsSource="{Binding Children}" x:DataType="vm:FolderTreeItem">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <ic:FluentIcon Classes="glyph" Icon="Folder" IconVariant="Regular" IconSize="Size20" />
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                    <StackPanel Grid.Row="2" Spacing="8" Margin="0,12,0,0">
+                        <Border Height="1" Background="{StaticResource LineBrush}" />
+                        <TextBlock Text="最近使用的資料夾" Classes="caption" FontWeight="SemiBold" />
+                        <TextBlock Text="尚無最近資料夾" Classes="caption" IsVisible="{Binding HasNoRecentFolders}" />
+                        <ItemsControl ItemsSource="{Binding RecentFolderPaths}" IsVisible="{Binding HasRecentFolders}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <Button Classes="sidebar-row" Tag="{Binding}" Click="RecentFolder_Click">
+                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                            <ic:FluentIcon Classes="glyph" Icon="Folder" IconVariant="Regular" IconSize="Size16" />
+                                            <TextBlock Text="{Binding}" Classes="secondary" TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
-                <GridSplitter Grid.Column="1" ResizeDirection="Columns" Background="{StaticResource LineBrush}" />
+            <GridSplitter Grid.Column="1" ResizeDirection="Columns" Background="Transparent" IsVisible="{Binding IsSidebarOpen}" />
 
-                <Grid Grid.Column="2" RowDefinitions="82,*" Background="{StaticResource SurfaceBrush}">
-                    <Border Grid.Row="0" Padding="20,18,24,10">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                <TextBlock
-                                    Text="{Binding CurrentParentFolderName}"
-                                    Classes="secondary"
-                                    FontSize="20"
-                                    FontWeight="SemiBold"
-                                    TextTrimming="CharacterEllipsis" />
-                                <TextBlock
-                                    Text="›"
-                                    Classes="muted"
-                                    FontSize="24"
-                                    VerticalAlignment="Center"
-                                    IsVisible="{Binding HasCurrentFolder}" />
-                                <TextBlock
-                                    Text="{Binding CurrentFolderName}"
-                                    FontSize="24"
-                                    FontWeight="SemiBold"
-                                    TextTrimming="CharacterEllipsis" />
+            <Border Grid.Column="2" Classes="panel" Padding="18,16,18,0" Margin="8,0">
+                <Grid RowDefinitions="Auto,*">
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                        <StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{Binding CurrentParentFolderName}" Classes="secondary" FontSize="17" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="›" Classes="muted" FontSize="20" IsVisible="{Binding HasCurrentFolder}" />
+                                <TextBlock Text="{Binding CurrentFolderName}" FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                             </StackPanel>
-                            <TextBlock
-                                Grid.Column="1"
-                                Text="{Binding LibraryItemCountText}"
-                                Classes="muted"
-                                VerticalAlignment="Center" />
-                        </Grid>
-                    </Border>
+                            <TextBlock Text="{Binding LibraryItemCountText}" Classes="caption" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="{Binding SearchQuery, StringFormat='搜尋：{0}'}" Classes="caption" VerticalAlignment="Center" IsVisible="{Binding HasSearchQuery}" />
+                    </Grid>
 
                     <Grid Grid.Row="1">
                         <ScrollViewer
@@ -279,146 +425,131 @@
                             Focusable="True"
                             KeyDown="LibraryGrid_KeyDown"
                             HorizontalScrollBarVisibility="Disabled">
-                            <ir:ItemsRepeater
-                                x:Name="LibraryRepeater"
-                                ItemsSource="{Binding LibraryItems}"
-                                Margin="16,0,20,20">
-                                <ir:ItemsRepeater.Layout>
-                                    <irlayout:UniformGridLayout
-                                        MinItemWidth="{Binding ThumbnailSize}"
-                                        MinItemHeight="{Binding LibraryTileLayoutHeight}"
-                                        MinRowSpacing="14"
-                                        MinColumnSpacing="12" />
-                                </ir:ItemsRepeater.Layout>
-                                <ir:ItemsRepeater.ItemTemplate>
-                                    <DataTemplate DataType="vm:LibraryTileItem" x:DataType="vm:LibraryTileItem">
-                                        <Border
-                                            x:Name="LibraryTile"
-                                            Classes="tile"
-                                            Classes.selected="{Binding IsSelected}"
-                                            Classes.drop-target="{Binding IsDropRenameTarget}"
-                                            Width="{Binding TileWidth}"
-                                            MinHeight="{Binding TileHeight}"
-                                            AutomationProperties.AutomationId="{Binding AutomationId}"
-                                            AutomationProperties.Name="{Binding AutomationName}"
-                                            Loaded="LibraryTile_Loaded"
-                                            Unloaded="LibraryTile_Unloaded"
-                                            Tapped="LibraryTile_Tapped"
-                                            DoubleTapped="LibraryTile_DoubleTapped"
-                                            RightTapped="LibraryTile_RightTapped"
-                                            PointerPressed="LibraryTile_PointerPressed"
-                                            PointerMoved="LibraryTile_PointerMoved"
-                                            PointerReleased="LibraryTile_PointerReleased"
-                                            PointerCaptureLost="LibraryTile_PointerCaptureLost">
-                                            <ToolTip.Tip>
-                                                <TextBlock
-                                                    x:DataType="vm:LibraryTileItem"
-                                                    DataContext="{Binding #LibraryTile.DataContext}"
-                                                    Text="{Binding Name}"
-                                                    TextWrapping="Wrap"
-                                                    MaxWidth="720" />
-                                            </ToolTip.Tip>
-                                            <Border
-                                                Background="{StaticResource TileFrameBrush}"
-                                                BorderBrush="{StaticResource LineBrush}"
-                                                BorderThickness="1"
-                                                ClipToBounds="True"
-                                                CornerRadius="4">
-                                                <Grid RowDefinitions="Auto,Auto">
-                                                    <Grid
-                                                        Height="{Binding TileHeight}"
-                                                        ClipToBounds="True">
-                                                        <Image Source="{Binding ThumbnailPath, Converter={StaticResource ImagePathConverter}}" Stretch="Uniform" IsVisible="{Binding CanShowThumbnail}" />
-                                                        <Panel
-                                                            HorizontalAlignment="Center"
-                                                            VerticalAlignment="Center"
-                                                            IsVisible="{Binding ShouldShowIcon}">
-                                                            <ic:FluentIcon Classes="glyph muted" Icon="Folder" IconVariant="Regular" IconSize="Size48" IsVisible="{Binding IsFolder}" />
-                                                            <ic:FluentIcon Classes="glyph muted" Icon="Filmstrip" IconVariant="Regular" IconSize="Size48" IsVisible="{Binding IsAnimated}" />
-                                                            <ic:FluentIcon Classes="glyph muted" Icon="Image" IconVariant="Regular" IconSize="Size48" IsVisible="{Binding IsStillImage}" />
-                                                        </Panel>
-                                                    </Grid>
-                                                    <TextBlock
-                                                        Grid.Row="1"
-                                                        Text="{Binding Name}"
-                                                        FontWeight="SemiBold"
-                                                        FontSize="14"
-                                                        TextWrapping="Wrap"
-                                                        TextTrimming="CharacterEllipsis"
-                                                        MaxLines="2"
-                                                        Margin="4,8,4,6" />
-                                                </Grid>
-                                            </Border>
-                                        </Border>
-                                    </DataTemplate>
-                                </ir:ItemsRepeater.ItemTemplate>
-                            </ir:ItemsRepeater>
+                            <StackPanel Spacing="18" Margin="0,0,0,20">
+                                <StackPanel Spacing="10" IsVisible="{Binding HasFolderLibraryItems}">
+                                    <TextBlock Text="{Binding FolderItemCountText}" FontSize="16" FontWeight="SemiBold" />
+                                    <ir:ItemsRepeater ItemsSource="{Binding FolderLibraryItems}" ItemTemplate="{StaticResource LibraryTileTemplate}">
+                                        <ir:ItemsRepeater.Layout>
+                                            <irlayout:UniformGridLayout
+                                                MinItemWidth="{Binding LibraryLayoutMinItemWidth}"
+                                                MinItemHeight="{Binding LibraryTileLayoutHeight}"
+                                                MinRowSpacing="12"
+                                                MinColumnSpacing="10" />
+                                        </ir:ItemsRepeater.Layout>
+                                    </ir:ItemsRepeater>
+                                </StackPanel>
+
+                                <StackPanel Spacing="10" IsVisible="{Binding HasImageLibraryItems}">
+                                    <TextBlock Text="{Binding ImageItemCountText}" FontSize="16" FontWeight="SemiBold" />
+                                    <ir:ItemsRepeater ItemsSource="{Binding ImageLibraryItems}" ItemTemplate="{StaticResource LibraryTileTemplate}">
+                                        <ir:ItemsRepeater.Layout>
+                                            <irlayout:UniformGridLayout
+                                                MinItemWidth="{Binding LibraryLayoutMinItemWidth}"
+                                                MinItemHeight="{Binding LibraryTileLayoutHeight}"
+                                                MinRowSpacing="12"
+                                                MinColumnSpacing="10" />
+                                        </ir:ItemsRepeater.Layout>
+                                    </ir:ItemsRepeater>
+                                </StackPanel>
+                            </StackPanel>
                         </ScrollViewer>
 
-                        <StackPanel
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Spacing="14"
-                            IsVisible="{Binding HasNoCurrentFolder}">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14" IsVisible="{Binding HasNoCurrentFolder}">
                             <TextBlock Text="尚未選擇資料夾" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                            <Button
-                                Content="選擇資料夾"
-                                HorizontalAlignment="Center"
-                                AutomationProperties.AutomationId="EmptyStateOpenFolderButton"
-                                Command="{Binding OpenFolderCommand}" />
+                            <Button Content="選擇資料夾" Classes="pill" HorizontalAlignment="Center" AutomationProperties.AutomationId="EmptyStateOpenFolderButton" Command="{Binding OpenFolderCommand}" />
+                        </StackPanel>
+
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" IsVisible="{Binding HasNoVisibleItems}">
+                            <TextBlock Text="找不到符合條件的項目" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                            <TextBlock Text="清除搜尋或換個關鍵字。" Classes="secondary" HorizontalAlignment="Center" />
                         </StackPanel>
                     </Grid>
                 </Grid>
-            </Grid>
+            </Border>
+
+            <Border Grid.Column="3" Classes="panel" Padding="16" AutomationProperties.AutomationId="SelectionActionPanel">
+                <Grid RowDefinitions="Auto,Auto,*,Auto">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{Binding SelectedSummaryText}" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding SelectedDetailText}" Classes="secondary" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Spacing="10" Margin="0,22,0,18">
+                        <Button Classes="action" AutomationProperties.AutomationId="SelectionConvertSelectedButton" IsEnabled="{Binding HasSelectedImages}" Command="{Binding ConvertSelectedCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <ic:FluentIcon Classes="glyph" Icon="DocumentArrowRight" IconVariant="Regular" IconSize="Size20" />
+                                <TextBlock Text="轉成 JPG" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="action" AutomationProperties.AutomationId="SelectionRenameSelectedButton" IsEnabled="{Binding HasSingleSelectedImage}" Command="{Binding RenameSelectedCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <TextBlock Text="✎" FontSize="18" Width="18" HorizontalAlignment="Center" />
+                                <TextBlock Text="重新命名" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="action" AutomationProperties.AutomationId="SelectionTrashSelectedButton" IsEnabled="{Binding HasSelectedImages}" Command="{Binding TrashSelectedCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <TextBlock Text="🗑" FontSize="16" Width="18" HorizontalAlignment="Center" />
+                                <TextBlock Text="移至回收筒" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="action" AutomationProperties.AutomationId="SelectionRevealInFileExplorerButton" IsEnabled="{Binding CanRevealSelectedImage}" Click="RevealSelected_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <ic:FluentIcon Classes="glyph" Icon="FolderOpen" IconVariant="Regular" IconSize="Size20" />
+                                <TextBlock Text="在檔案管理器中顯示" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Spacing="10">
+                        <Border Height="1" Background="{StaticResource LineBrush}" />
+                        <TextBlock Text="詳細資訊" FontSize="14" FontWeight="SemiBold" />
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="10" ColumnSpacing="20">
+                            <TextBlock Text="類型" Classes="caption" />
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedSummaryText}" Classes="secondary" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Grid.Row="1" Text="位置" Classes="caption" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding CurrentFolderName}" Classes="secondary" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Grid.Row="2" Text="狀態" Classes="caption" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding StatusMessage}" Classes="secondary" TextWrapping="Wrap" MaxLines="3" />
+                        </Grid>
+                    </StackPanel>
+
+                    <Border Grid.Row="3" Background="{StaticResource SkyBrush}" CornerRadius="8" Padding="12" Margin="0,14,0,0">
+                        <TextBlock Text="檔案操作會跳過衝突並保留失敗紀錄。" Classes="secondary" TextWrapping="Wrap" />
+                    </Border>
+                </Grid>
+            </Border>
 
             <Border
                 x:Name="LibraryDragPreviewOverlay"
                 IsVisible="False"
                 Background="{StaticResource AccentBrush}"
-                CornerRadius="4"
+                CornerRadius="8"
                 Padding="10,6"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Top"
                 ZIndex="20">
                 <TextBlock x:Name="LibraryDragPreviewText" Foreground="White" />
             </Border>
-
         </Grid>
 
         <Border
             Grid.Row="2"
-            Background="{StaticResource SurfaceBrush}"
+            Background="{StaticResource ChromeBrush}"
             BorderBrush="{StaticResource LineBrush}"
             BorderThickness="0,1,0,0"
             Padding="24,8">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                <Border
-                    BorderBrush="{StaticResource LineBrush}"
-                    BorderThickness="1"
-                    Background="#FBFBFC"
-                    CornerRadius="4"
-                    Padding="14,9"
-                    AutomationProperties.AutomationId="StatusBar">
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Border
-                            Width="16"
-                            Height="16"
-                            Background="{StaticResource AccentBrush}"
-                            CornerRadius="8"
-                            VerticalAlignment="Center">
-                            <TextBlock Text="i" Foreground="White" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <TextBlock
-                            AutomationProperties.AutomationId="StatusInfoBar"
-                            Text="{Binding StatusMessage}"
-                            TextTrimming="CharacterEllipsis"
-                            VerticalAlignment="Center" />
-                    </StackPanel>
-                </Border>
+                <StackPanel Orientation="Horizontal" Spacing="10" AutomationProperties.AutomationId="StatusBar">
+                    <Border Width="22" Height="22" Background="{StaticResource AccentBrush}" CornerRadius="11" VerticalAlignment="Center">
+                        <TextBlock Text="✓" Foreground="White" FontSize="13" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock AutomationProperties.AutomationId="StatusInfoBar" Text="{Binding StatusMessage}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                    <ic:FluentIcon Classes="glyph secondary" Icon="Image" IconVariant="Regular" IconSize="Size16" />
-                    <TextBlock Text="{Binding ThumbnailSizeLabel}" Classes="secondary" VerticalAlignment="Center" />
+                    <TextBlock Text="縮圖大小" Classes="secondary" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding ThumbnailSizeLabel}" Classes="caption" VerticalAlignment="Center" />
                     <Slider
                         x:Name="ThumbnailSizeSlider"
                         AutomationProperties.AutomationId="ThumbnailSizeSlider"
@@ -430,6 +561,7 @@
                         LostFocus="ThumbnailSizeSlider_CommitValue"
                         PointerCaptureLost="ThumbnailSizeSlider_CommitValue"
                         KeyUp="ThumbnailSizeSlider_KeyUp" />
+                    <ic:FluentIcon Classes="glyph muted" Icon="ImageMultiple" IconVariant="Regular" IconSize="Size16" />
                 </StackPanel>
             </Grid>
         </Border>
@@ -440,62 +572,19 @@
             Grid.RowSpan="3"
             IsVisible="False"
             Focusable="True"
-            Background="{StaticResource ViewerCanvasBrush}"
+            Background="#D9FAF9F6"
             KeyDown="ViewerSurface_KeyDown"
             x:DataType="vm:ImageViewerWindowViewModel"
+            AutomationProperties.AutomationId="ViewerSurface"
             ZIndex="50">
-            <Grid RowDefinitions="56,*">
-                <Border
-                    Grid.Row="0"
-                    Background="{StaticResource CommandBarBrush}"
-                    BorderBrush="{StaticResource LineBrush}"
-                    BorderThickness="0,0,0,1"
-                    IsVisible="{Binding IsChromeVisible}">
-                    <Grid ColumnDefinitions="*,Auto,*">
-                        <TextBlock
-                            Text=" "
-                            Width="1"
-                            Height="1"
-                            FontSize="1"
-                            IsHitTestVisible="False"
-                            AutomationProperties.AutomationId="ViewerSurface" />
-                        <StackPanel
-                            Grid.Column="1"
-                            Orientation="Horizontal"
-                            Spacing="2"
-                            VerticalAlignment="Center"
-                            AutomationProperties.AutomationId="ViewerTitleCommandBar">
-                            <Button Classes="toolbar icon" ToolTip.Tip="上一張" AutomationProperties.AutomationId="ViewerPreviousButton" Command="{Binding PreviousCommand}">
-                                <ic:FluentIcon Classes="glyph" Icon="ArrowLeft" IconVariant="Regular" IconSize="Size20" />
-                            </Button>
-                            <Button Classes="toolbar icon" ToolTip.Tip="下一張" AutomationProperties.AutomationId="ViewerNextButton" Command="{Binding NextCommand}">
-                                <ic:FluentIcon Classes="glyph" Icon="ArrowRight" IconVariant="Regular" IconSize="Size20" />
-                            </Button>
-                            <Border Width="1" Height="24" Margin="5,0" Background="{StaticResource LineBrush}" />
-                            <Button Classes="toolbar icon" ToolTip.Tip="縮小" AutomationProperties.AutomationId="ViewerZoomOutButton" Command="{Binding ZoomOutCommand}">
-                                <ic:FluentIcon Classes="glyph" Icon="ZoomOut" IconVariant="Regular" IconSize="Size20" />
-                            </Button>
-                            <Button Classes="toolbar icon" ToolTip.Tip="重設" AutomationProperties.AutomationId="ViewerResetZoomButton" Command="{Binding ResetZoomCommand}">
-                                <ic:FluentIcon Classes="glyph" Icon="ArrowClockwise" IconVariant="Regular" IconSize="Size20" />
-                            </Button>
-                            <Button Classes="toolbar icon" ToolTip.Tip="放大" AutomationProperties.AutomationId="ViewerZoomInButton" Command="{Binding ZoomInCommand}">
-                                <ic:FluentIcon Classes="glyph" Icon="ZoomIn" IconVariant="Regular" IconSize="Size20" />
-                            </Button>
-                            <Border Width="1" Height="24" Margin="5,0" Background="{StaticResource LineBrush}" />
-                            <Button Classes="toolbar icon" ToolTip.Tip="關閉" AutomationProperties.AutomationId="ViewerCloseButton" Click="CloseViewer_Click">
-                                <ic:FluentIcon Classes="glyph" Icon="Dismiss" IconVariant="Regular" IconSize="Size20" />
-                            </Button>
-                        </StackPanel>
-                        <TextBlock
-                            Grid.Column="2"
-                            Text="{Binding CurrentImageName}"
-                            Classes="secondary"
-                            VerticalAlignment="Center"
-                            HorizontalAlignment="Right"
-                            Margin="16,0,18,0"
-                            TextTrimming="CharacterEllipsis" />
-                    </Grid>
-                </Border>
+            <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+                <Border Grid.RowSpan="3" Background="{StaticResource ViewerCanvasBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="8" />
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="18,14" IsVisible="{Binding IsChromeVisible}">
+                    <TextBlock Text="{Binding CurrentImageName}" Classes="secondary" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <Button Grid.Column="1" Classes="toolbar icon" ToolTip.Tip="關閉" AutomationProperties.AutomationId="ViewerCloseButton" Click="CloseViewer_Click">
+                        <ic:FluentIcon Classes="glyph" Icon="Dismiss" IconVariant="Regular" IconSize="Size20" />
+                    </Button>
+                </Grid>
                 <Grid
                     x:Name="ViewerImageSurface"
                     Grid.Row="1"
@@ -530,6 +619,38 @@
                         VerticalAlignment="Center"
                         IsVisible="{Binding IsUnsupportedAnimatedImage}" />
                 </Grid>
+                <Border Grid.Row="2" Background="#E61F2328" CornerRadius="8" Padding="8" HorizontalAlignment="Center" Margin="0,0,0,16" IsVisible="{Binding IsChromeVisible}">
+                    <StackPanel Orientation="Horizontal" Spacing="6" AutomationProperties.AutomationId="ViewerTitleCommandBar">
+                        <Button Classes="toolbar icon" ToolTip.Tip="上一張" AutomationProperties.AutomationId="ViewerPreviousButton" Command="{Binding PreviousCommand}">
+                            <ic:FluentIcon Classes="glyph" Icon="ArrowLeft" IconVariant="Regular" IconSize="Size20" Foreground="White" />
+                        </Button>
+                        <Button Classes="toolbar" ToolTip.Tip="上一張" Command="{Binding PreviousCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <ic:FluentIcon Classes="glyph" Icon="ArrowLeft" IconVariant="Regular" IconSize="Size16" Foreground="White" />
+                                <TextBlock Text="上一張" Foreground="White" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="toolbar icon" ToolTip.Tip="縮小" AutomationProperties.AutomationId="ViewerZoomOutButton" Command="{Binding ZoomOutCommand}">
+                            <ic:FluentIcon Classes="glyph" Icon="ZoomOut" IconVariant="Regular" IconSize="Size20" Foreground="White" />
+                        </Button>
+                        <TextBlock Text="{Binding Zoom, StringFormat='{}{0:P0}'}" Foreground="White" VerticalAlignment="Center" MinWidth="54" TextAlignment="Center" />
+                        <Button Classes="toolbar icon" ToolTip.Tip="放大" AutomationProperties.AutomationId="ViewerZoomInButton" Command="{Binding ZoomInCommand}">
+                            <ic:FluentIcon Classes="glyph" Icon="ZoomIn" IconVariant="Regular" IconSize="Size20" Foreground="White" />
+                        </Button>
+                        <Button Classes="toolbar icon" ToolTip.Tip="重設" AutomationProperties.AutomationId="ViewerResetZoomButton" Command="{Binding ResetZoomCommand}">
+                            <ic:FluentIcon Classes="glyph" Icon="ArrowClockwise" IconVariant="Regular" IconSize="Size20" Foreground="White" />
+                        </Button>
+                        <Button Classes="toolbar" ToolTip.Tip="下一張" Command="{Binding NextCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="下一張" Foreground="White" />
+                                <ic:FluentIcon Classes="glyph" Icon="ArrowRight" IconVariant="Regular" IconSize="Size16" Foreground="White" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="toolbar icon" ToolTip.Tip="下一張" AutomationProperties.AutomationId="ViewerNextButton" Command="{Binding NextCommand}">
+                            <ic:FluentIcon Classes="glyph" Icon="ArrowRight" IconVariant="Regular" IconSize="Size20" Foreground="White" />
+                        </Button>
+                    </StackPanel>
+                </Border>
             </Grid>
         </Grid>
     </Grid>

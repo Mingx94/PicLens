@@ -28,15 +28,17 @@ public sealed record AppSettings(
     string? LastFolderPath,
     SortState Sort,
     bool IncludeSubfolders,
-    int ThumbnailSize)
+    int ThumbnailSize,
+    IReadOnlyList<string> RecentFolderPaths)
 {
     public static AppSettings CreateDefault() =>
         new(
-            Version: 1,
+            Version: 2,
             LastFolderPath: null,
             Sort: new SortState(SortKey.Name, SortDirection.Asc),
             IncludeSubfolders: false,
-            ThumbnailSize: 160);
+            ThumbnailSize: 160,
+            RecentFolderPaths: []);
 }
 
 public sealed record AppSettingsPatch
@@ -46,6 +48,7 @@ public sealed record AppSettingsPatch
     public SortState? Sort { get; init; }
     public bool? IncludeSubfolders { get; init; }
     public int? ThumbnailSize { get; init; }
+    public IReadOnlyList<string>? RecentFolderPaths { get; init; }
 }
 
 public abstract record ListItem

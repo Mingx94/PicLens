@@ -83,9 +83,30 @@ public sealed partial class MainPageViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsBusy { get; set; }
 
+    [ObservableProperty]
+    public partial string SearchQuery { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool IsSidebarOpen { get; set; } = true;
+
+    [ObservableProperty]
+    public partial bool IsGridViewMode { get; set; } = true;
+
     public ObservableCollection<FolderTreeItem> FolderRoots => folderTree.Roots;
 
     public ObservableRangeCollection<LibraryTileItem> LibraryItems { get; } = [];
+
+    public ObservableRangeCollection<LibraryTileItem> FolderLibraryItems { get; } = [];
+
+    public ObservableRangeCollection<LibraryTileItem> ImageLibraryItems { get; } = [];
+
+    public ObservableRangeCollection<string> RecentFolderPaths { get; } = [];
+
+    public bool HasRecentFolders => RecentFolderPaths.Count > 0;
+
+    public bool HasNoRecentFolders => !HasRecentFolders;
+
+    public bool HasSearchQuery => !string.IsNullOrWhiteSpace(SearchQuery);
 
     public bool HasCurrentFolder => !string.IsNullOrWhiteSpace(CurrentFolderPath);
 
@@ -111,11 +132,43 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     public string LibraryItemCountText => $"{LibraryItems.Count} 個項目";
 
+    public string FolderItemCountText => $"資料夾 ({FolderLibraryItems.Count})";
+
+    public string ImageItemCountText => $"圖片 ({ImageLibraryItems.Count})";
+
+    public bool HasFolderLibraryItems => FolderLibraryItems.Count > 0;
+
+    public bool HasImageLibraryItems => ImageLibraryItems.Count > 0;
+
+    public bool HasNoVisibleItems => HasCurrentFolder && LibraryItems.Count == 0;
+
     public int SelectedImageCount => selectedImagePaths.Count;
 
     public bool HasSelectedImages => SelectedImageCount > 0;
 
     public bool HasSingleSelectedImage => SelectedImageCount == 1;
+
+    public bool CanRevealSelectedImage => HasSingleSelectedImage;
+
+    public bool IsListViewMode => !IsGridViewMode;
+
+    public int LibraryLayoutMinItemWidth => IsGridViewMode ? ThumbnailSize + 8 : 640;
+
+    public string SelectedSummaryText => SelectedImageCount switch
+    {
+        0 => "尚未選取",
+        1 => "1 張已選取",
+        _ => $"{SelectedImageCount} 張已選取"
+    };
+
+    public string SelectedDetailText => SelectedImages() switch
+    {
+        [] => "選取圖片後可在這裡執行安全整理動作。",
+        [var image] => $"{image.Name} · {image.SizeBytes / 1024} KB",
+        var images => $"共 {images.Sum(image => image.SizeBytes) / 1024 / 1024.0:0.#} MB"
+    };
+
+    public string? SelectedImagePathForReveal => SelectedImages() is [var image] ? image.Path : null;
 
     public async Task InitializeAsync()
     {
@@ -128,6 +181,7 @@ public sealed partial class MainPageViewModel : ObservableObject
             IncludeSubfolders = settings.IncludeSubfolders;
             ThumbnailSize = settings.ThumbnailSize;
             suppressIncludeSubfoldersReload = false;
+            RefreshRecentFolderPaths(settings.RecentFolderPaths);
 
             var initialFolder = string.IsNullOrWhiteSpace(settings.LastFolderPath) || !Directory.Exists(settings.LastFolderPath)
                 ? null
@@ -200,11 +254,14 @@ public sealed partial class MainPageViewModel : ObservableObject
         NotifyNavigationCommands();
         if (persist)
         {
+            var recentFolders = MoveFolderToRecent(normalized, settings.RecentFolderPaths);
             settings = await settingsStore.UpdateAsync(new AppSettingsPatch
             {
                 LastFolderPath = normalized,
-                HasLastFolderPath = true
+                HasLastFolderPath = true,
+                RecentFolderPaths = recentFolders
             });
+            RefreshRecentFolderPaths(settings.RecentFolderPaths);
         }
 
         await LoadLibraryAsync();
@@ -329,6 +386,7 @@ public sealed partial class MainPageViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(HasCurrentFolder));
         OnPropertyChanged(nameof(HasNoCurrentFolder));
+        OnPropertyChanged(nameof(HasNoVisibleItems));
         OnPropertyChanged(nameof(CurrentFolderName));
         OnPropertyChanged(nameof(CurrentParentFolderName));
     }
@@ -336,6 +394,24 @@ public sealed partial class MainPageViewModel : ObservableObject
     partial void OnSortChanged(SortState value)
     {
         OnPropertyChanged(nameof(SortLabel));
+    }
+
+    partial void OnSearchQueryChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasSearchQuery));
+        ClearSelection();
+        ApplyLibraryFilter();
+    }
+
+    partial void OnThumbnailSizeChanged(int value)
+    {
+        OnPropertyChanged(nameof(LibraryLayoutMinItemWidth));
+    }
+
+    partial void OnIsGridViewModeChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsListViewMode));
+        OnPropertyChanged(nameof(LibraryLayoutMinItemWidth));
     }
 
     [RelayCommand(CanExecute = nameof(CanNavigateBack))]
@@ -425,6 +501,29 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     [RelayCommand]
     private void ToggleIncludeSubfolders() => IncludeSubfolders = !IncludeSubfolders;
+
+    [RelayCommand]
+    private void ClearSearch() => SearchQuery = string.Empty;
+
+    [RelayCommand]
+    private async Task OpenRecentFolder(string? folderPath)
+    {
+        if (string.IsNullOrWhiteSpace(folderPath))
+        {
+            return;
+        }
+
+        await NavigateToFolderAsync(folderPath, persist: true, resetFolderTreeRoot: true);
+    }
+
+    [RelayCommand]
+    private void ToggleSidebar() => IsSidebarOpen = !IsSidebarOpen;
+
+    [RelayCommand]
+    private void SetViewMode(string? mode)
+    {
+        IsGridViewMode = !string.Equals(mode, "list", StringComparison.OrdinalIgnoreCase);
+    }
 
     [RelayCommand]
     private async Task ConvertVisible()
@@ -683,14 +782,41 @@ public sealed partial class MainPageViewModel : ObservableObject
     private void RefreshLibraryItems()
     {
         CancelAllThumbnailLoads();
-        LibraryItems.ReplaceAll(currentItems.Select(item =>
+        ApplyLibraryFilter();
+    }
+
+    private void ApplyLibraryFilter()
+    {
+        var query = SearchQuery?.Trim() ?? string.Empty;
+        var filteredItems = string.IsNullOrWhiteSpace(query)
+            ? currentItems
+            : currentItems
+                .Where(item =>
+                    item.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                    || item.Path.Contains(query, StringComparison.CurrentCultureIgnoreCase))
+                .ToList();
+
+        var tiles = filteredItems.Select(item =>
         {
             var tile = ToTile(item);
             tile.ApplyThumbnailSize(ThumbnailSize);
             return tile;
-        }));
+        }).ToList();
 
+        LibraryItems.ReplaceAll(tiles);
+        FolderLibraryItems.ReplaceAll(tiles.Where(item => item.IsFolder));
+        ImageLibraryItems.ReplaceAll(tiles.Where(item => !item.IsFolder));
         NotifyLibraryItemCount();
+    }
+
+    private static IReadOnlyList<string> MoveFolderToRecent(string folderPath, IEnumerable<string> existingFolders) =>
+        SettingsRules.NormalizeRecentFolderPaths([folderPath, .. existingFolders]);
+
+    private void RefreshRecentFolderPaths(IEnumerable<string> paths)
+    {
+        RecentFolderPaths.ReplaceAll(paths);
+        OnPropertyChanged(nameof(HasRecentFolders));
+        OnPropertyChanged(nameof(HasNoRecentFolders));
     }
 
     public Task LoadFolderChildrenOnDemandAsync(FolderTreeItem node) =>
@@ -765,6 +891,11 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     private void ClearSelection()
     {
+        foreach (var item in LibraryItems)
+        {
+            item.IsSelected = false;
+        }
+
         selectedImagePaths.Clear();
         NotifySelectionCommands();
     }
@@ -774,6 +905,10 @@ public sealed partial class MainPageViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedImageCount));
         OnPropertyChanged(nameof(HasSelectedImages));
         OnPropertyChanged(nameof(HasSingleSelectedImage));
+        OnPropertyChanged(nameof(CanRevealSelectedImage));
+        OnPropertyChanged(nameof(SelectedSummaryText));
+        OnPropertyChanged(nameof(SelectedDetailText));
+        OnPropertyChanged(nameof(SelectedImagePathForReveal));
         ConvertSelectedCommand.NotifyCanExecuteChanged();
         RenameSelectedCommand.NotifyCanExecuteChanged();
         TrashSelectedCommand.NotifyCanExecuteChanged();
@@ -782,6 +917,11 @@ public sealed partial class MainPageViewModel : ObservableObject
     private void NotifyLibraryItemCount()
     {
         OnPropertyChanged(nameof(LibraryItemCountText));
+        OnPropertyChanged(nameof(FolderItemCountText));
+        OnPropertyChanged(nameof(ImageItemCountText));
+        OnPropertyChanged(nameof(HasFolderLibraryItems));
+        OnPropertyChanged(nameof(HasImageLibraryItems));
+        OnPropertyChanged(nameof(HasNoVisibleItems));
     }
 
     private void NotifyNavigationCommands()
@@ -794,7 +934,8 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     private bool CanNavigateForward() => folderHistory.CanForward;
 
-    private List<ImageListItem> VisibleImages() => currentItems.OfType<ImageListItem>().ToList();
+    private List<ImageListItem> VisibleImages() =>
+        LibraryItems.Select(item => item.SourceItem).OfType<ImageListItem>().ToList();
 
     private List<ImageListItem> SelectedImages()
     {

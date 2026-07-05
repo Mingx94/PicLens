@@ -4,7 +4,8 @@ namespace PicLens.Core.Domain;
 
 public static class SettingsRules
 {
-    public const int SettingsVersion = 1;
+    public const int SettingsVersion = 2;
+    public const int MaxRecentFolderCount = 5;
     public const int DefaultThumbnailSize = 160;
     public const int MinThumbnailSize = 140;
     public const int MaxThumbnailSize = 200;
@@ -19,7 +20,8 @@ public static class SettingsRules
         return settings with
         {
             Version = SettingsVersion,
-            ThumbnailSize = thumbnailSize
+            ThumbnailSize = thumbnailSize,
+            RecentFolderPaths = NormalizeRecentFolderPaths(settings.RecentFolderPaths)
         };
     }
 
@@ -46,7 +48,50 @@ public static class SettingsRules
             IncludeSubfolders = patch.IncludeSubfolders ?? normalizedCurrent.IncludeSubfolders,
             ThumbnailSize = patch.ThumbnailSize.HasValue
                 ? NormalizeThumbnailSize(patch.ThumbnailSize.Value)
-                : normalizedCurrent.ThumbnailSize
+                : normalizedCurrent.ThumbnailSize,
+            RecentFolderPaths = patch.RecentFolderPaths is null
+                ? normalizedCurrent.RecentFolderPaths
+                : NormalizeRecentFolderPaths(patch.RecentFolderPaths)
         };
+    }
+
+    public static IReadOnlyList<string> NormalizeRecentFolderPaths(IEnumerable<string>? paths)
+    {
+        if (paths is null)
+        {
+            return [];
+        }
+
+        var normalized = new List<string>();
+        var seen = new HashSet<string>(PathRules.PathComparer);
+        foreach (var path in paths)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                continue;
+            }
+
+            string fullPath;
+            try
+            {
+                fullPath = Path.GetFullPath(path);
+            }
+            catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                continue;
+            }
+
+            if (seen.Add(PathRules.PathKey(fullPath)))
+            {
+                normalized.Add(fullPath);
+            }
+
+            if (normalized.Count == MaxRecentFolderCount)
+            {
+                break;
+            }
+        }
+
+        return normalized;
     }
 }

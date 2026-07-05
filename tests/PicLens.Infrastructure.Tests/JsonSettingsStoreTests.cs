@@ -29,7 +29,7 @@ public sealed class JsonSettingsStoreTests
 
         var settings = await store.LoadAsync();
 
-        Assert.Equal(AppSettings.CreateDefault(), settings);
+        AssertSettingsEqual(AppSettings.CreateDefault(), settings);
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public sealed class JsonSettingsStoreTests
 
         var settings = await store.LoadAsync();
 
-        Assert.Equal(AppSettings.CreateDefault(), settings);
+        AssertSettingsEqual(AppSettings.CreateDefault(), settings);
         Assert.False(File.Exists(settingsPath));
         var quarantinedFiles = Directory.GetFiles(temp.Root, "settings.json.corrupt.*");
         var quarantinedPath = Assert.Single(quarantinedFiles);
@@ -51,7 +51,7 @@ public sealed class JsonSettingsStoreTests
 
         var loadedAgain = await store.LoadAsync();
 
-        Assert.Equal(AppSettings.CreateDefault(), loadedAgain);
+        AssertSettingsEqual(AppSettings.CreateDefault(), loadedAgain);
         Assert.False(File.Exists(settingsPath));
         Assert.Equal(quarantinedPath, Assert.Single(Directory.GetFiles(temp.Root, "settings.json.corrupt.*")));
     }
@@ -97,7 +97,7 @@ public sealed class JsonSettingsStoreTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => store.UpdateAsync(new AppSettingsPatch { IncludeSubfolders = true }, cancellation.Token));
 
-        Assert.Equal(original, await store.LoadAsync());
+        AssertSettingsEqual(original, await store.LoadAsync());
         Assert.Empty(Directory.GetFiles(temp.Root, "*.tmp"));
     }
 
@@ -175,5 +175,15 @@ public sealed class JsonSettingsStoreTests
 
         Assert.Contains("update skipped", exception.Message);
         Assert.Empty(Directory.GetFiles(root, "*.tmp"));
+    }
+
+    private static void AssertSettingsEqual(AppSettings expected, AppSettings actual)
+    {
+        Assert.Equal(expected.Version, actual.Version);
+        Assert.Equal(expected.LastFolderPath, actual.LastFolderPath);
+        Assert.Equal(expected.Sort, actual.Sort);
+        Assert.Equal(expected.IncludeSubfolders, actual.IncludeSubfolders);
+        Assert.Equal(expected.ThumbnailSize, actual.ThumbnailSize);
+        Assert.Equal(expected.RecentFolderPaths, actual.RecentFolderPaths);
     }
 }

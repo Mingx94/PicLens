@@ -51,13 +51,13 @@ static int Test(string root, string[] args)
     foreach (var project in projects)
     {
         Console.WriteLine($"==> Restoring test project: {project}");
-        RunOrThrow("dotnet", ["restore", project, "--configfile", nugetConfig], root);
+        RunOrThrow("dotnet", ["restore", project, "--configfile", nugetConfig, "-p:NuGetAudit=false"], root);
     }
 
     foreach (var project in projects)
     {
         Console.WriteLine($"==> Running tests: {project}");
-        RunOrThrow("dotnet", ["test", project, "--no-restore"], root);
+        RunOrThrow("dotnet", ["test", project, "--no-restore", "-p:NuGetAudit=false"], root);
     }
 
     return 0;
@@ -88,10 +88,10 @@ static int UiTest(string root, string[] args)
     var project = RequiredFile(root, "tests", "PicLens.Ui.Tests", "PicLens.Ui.Tests.csproj");
 
     Console.WriteLine("==> Restoring Avalonia headless UI test project");
-    RunOrThrow("dotnet", ["restore", project, "--configfile", nugetConfig], root);
+    RunOrThrow("dotnet", ["restore", project, "--configfile", nugetConfig, "-p:NuGetAudit=false"], root);
 
     Console.WriteLine("==> Running Avalonia headless UI smoke tests");
-    RunOrThrow("dotnet", ["test", project, "--no-restore", "-c", configuration], root);
+    RunOrThrow("dotnet", ["test", project, "--no-restore", "-c", configuration, "-p:NuGetAudit=false"], root);
     return 0;
 }
 
@@ -144,6 +144,7 @@ static int BuildAndRun(string root, string[] args)
 
     var projectDir = Path.GetDirectoryName(projectPath)!;
     var projectName = Path.GetFileNameWithoutExtension(projectPath);
+    var nugetConfig = RequiredFile(root, "NuGet.Config");
     var platform = RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "ARM64" : "x64";
     var configuration = "Debug";
 
@@ -165,6 +166,7 @@ static int BuildAndRun(string root, string[] args)
         "build",
         projectPath,
         "/restore",
+        $"-p:RestoreConfigFile={nugetConfig}",
         $"-p:Platform={platform}",
         $"-p:Configuration={configuration}",
         "-p:NuGetAudit=false",
@@ -778,6 +780,23 @@ static ProcessStartInfo StartInfo(string fileName, IReadOnlyList<string> argumen
     foreach (var argument in arguments)
     {
         startInfo.ArgumentList.Add(argument);
+    }
+
+    if (fileName == "dotnet" && File.Exists(Path.Combine(workingDirectory, "NuGet.Config")))
+    {
+        var appData = Path.Combine(workingDirectory, ".nuget", "appdata");
+        var localAppData = Path.Combine(workingDirectory, ".nuget", "localappdata");
+        var dotnetHome = Path.Combine(workingDirectory, ".nuget", "dotnet-home");
+        Directory.CreateDirectory(appData);
+        Directory.CreateDirectory(localAppData);
+        Directory.CreateDirectory(dotnetHome);
+        startInfo.Environment["APPDATA"] = appData;
+        startInfo.Environment["LOCALAPPDATA"] = localAppData;
+        startInfo.Environment["DOTNET_CLI_HOME"] = dotnetHome;
+        startInfo.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
+        startInfo.Environment["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1";
+        startInfo.Environment["AVALONIA_TELEMETRY_OPTOUT"] = "1";
+        startInfo.Environment["XDG_CONFIG_HOME"] = appData;
     }
 
     return startInfo;

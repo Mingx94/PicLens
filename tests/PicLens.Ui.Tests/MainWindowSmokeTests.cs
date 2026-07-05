@@ -34,12 +34,21 @@ public sealed class MainWindowSmokeTests
     private static readonly string[] MainWindowAutomationIds =
     [
         "AppTitleBar",
+        "TitleBarSidebarToggleButton",
         "TitleBarOpenFolderButton",
         "TitleBarSortMenuButton",
         "TitleBarRecursiveModeToggle",
+        "TitleBarGridViewButton",
+        "TitleBarListViewButton",
         "TitleBarMoreActionsButton",
+        "LibrarySearchBox",
         "FolderTree",
         "LibraryGrid",
+        "SelectionActionPanel",
+        "SelectionConvertSelectedButton",
+        "SelectionRenameSelectedButton",
+        "SelectionTrashSelectedButton",
+        "SelectionRevealInFileExplorerButton",
         "StatusInfoBar",
         "ThumbnailSizeSlider",
         "EmptyStateOpenFolderButton"
@@ -82,6 +91,8 @@ public sealed class MainWindowSmokeTests
         var longTile = fixture.FindTile(longName);
         Assert.NotNull(fixture.FindTile("Bravo-02.png"));
         Assert.NotNull(fixture.FindTile("Nested"));
+        Assert.NotNull(fixture.FindText("資料夾 (1)"));
+        Assert.NotNull(fixture.FindText("圖片 (3)"));
         var alphaLabel = alphaTile.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == "Alpha-01.png");
         Assert.Equal(TextWrapping.Wrap, alphaLabel.TextWrapping);
         Assert.Equal(TextTrimming.CharacterEllipsis, alphaLabel.TextTrimming);
@@ -165,9 +176,13 @@ public sealed class MainWindowSmokeTests
 
         fixture.ClickTile("Alpha-01.png");
         Assert.Equal(1, fixture.View.ViewModel.SelectedImageCount);
+        Assert.Equal("1 張已選取", fixture.FindText("1 張已選取").Text);
+        Assert.True(fixture.FindByAutomationId<Button>("SelectionConvertSelectedButton").IsEnabled);
+        Assert.True(fixture.FindByAutomationId<Button>("SelectionRenameSelectedButton").IsEnabled);
 
         fixture.ClickTile("Bravo-02.png", RawInputModifiers.Control);
         Assert.Equal(2, fixture.View.ViewModel.SelectedImageCount);
+        Assert.False(fixture.FindByAutomationId<Button>("SelectionRenameSelectedButton").IsEnabled);
 
         fixture.ClickTile("Alpha-01.png");
         fixture.PressEnter();
@@ -175,6 +190,10 @@ public sealed class MainWindowSmokeTests
             () => fixture.Window.Title == "PicLens - Alpha-01.png",
             "viewer title did not update");
         Assert.True(fixture.FindByAutomationId<Control>("ViewerSurface").IsVisible);
+        Assert.NotNull(fixture.FindByAutomationId<Button>("ViewerPreviousButton"));
+        Assert.NotNull(fixture.FindByAutomationId<Button>("ViewerNextButton"));
+        Assert.NotNull(fixture.FindByAutomationId<Button>("ViewerZoomInButton"));
+        Assert.NotNull(fixture.FindByAutomationId<Button>("ViewerZoomOutButton"));
     }
 }
 
@@ -348,6 +367,14 @@ internal sealed class PicLensHeadlessFixture : IDisposable
                 && control.DataContext is LibraryTileItem item
                 && item.Name == name)
             ?? throw new InvalidOperationException($"Tile was not found: {name}");
+    }
+
+    public TextBlock FindText(string text)
+    {
+        FlushUi();
+        return Window.GetVisualDescendants().OfType<TextBlock>()
+            .FirstOrDefault(textBlock => textBlock.Text == text)
+            ?? throw new InvalidOperationException($"Text was not found: {text}");
     }
 
     public void ClickTile(string name, RawInputModifiers modifiers = RawInputModifiers.None)
