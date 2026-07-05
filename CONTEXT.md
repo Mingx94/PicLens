@@ -17,7 +17,7 @@ A folder or image entry shown in the library.
 _Avoid_: Tile, grid item
 
 **Selected Image**:
-An image in the library that is marked for an action such as rename, trash, conversion, or drag rename.
+An image in the library that is marked for an action such as rename, trash, reveal, or drag rename.
 _Avoid_: Picked image, active image
 
 **Safe File Action**:

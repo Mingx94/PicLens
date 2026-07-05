@@ -14,7 +14,6 @@ public sealed class MainPageSelectionTests
         Assert.Equal(0, viewModel.SelectedImageCount);
         Assert.False(viewModel.HasSelectedImages);
         Assert.False(viewModel.HasSingleSelectedImage);
-        Assert.False(viewModel.ConvertSelectedCommand.CanExecute(null));
         Assert.False(viewModel.RenameSelectedCommand.CanExecute(null));
         Assert.False(viewModel.TrashSelectedCommand.CanExecute(null));
     }
@@ -30,7 +29,6 @@ public sealed class MainPageSelectionTests
         Assert.Equal(1, viewModel.SelectedImageCount);
         Assert.True(viewModel.HasSelectedImages);
         Assert.True(viewModel.HasSingleSelectedImage);
-        Assert.True(viewModel.ConvertSelectedCommand.CanExecute(null));
         Assert.True(viewModel.RenameSelectedCommand.CanExecute(null));
         Assert.True(viewModel.TrashSelectedCommand.CanExecute(null));
     }
@@ -49,7 +47,6 @@ public sealed class MainPageSelectionTests
         Assert.Equal(2, viewModel.SelectedImageCount);
         Assert.True(viewModel.HasSelectedImages);
         Assert.False(viewModel.HasSingleSelectedImage);
-        Assert.True(viewModel.ConvertSelectedCommand.CanExecute(null));
         Assert.False(viewModel.RenameSelectedCommand.CanExecute(null));
         Assert.True(viewModel.TrashSelectedCommand.CanExecute(null));
     }
@@ -68,7 +65,6 @@ public sealed class MainPageSelectionTests
         Assert.Equal(1, viewModel.SelectedImageCount);
         Assert.True(viewModel.HasSelectedImages);
         Assert.True(viewModel.HasSingleSelectedImage);
-        Assert.True(viewModel.ConvertSelectedCommand.CanExecute(null));
     }
 
     [Fact]
@@ -83,7 +79,6 @@ public sealed class MainPageSelectionTests
         Assert.Equal(0, viewModel.SelectedImageCount);
         Assert.False(viewModel.HasSelectedImages);
         Assert.False(viewModel.HasSingleSelectedImage);
-        Assert.False(viewModel.ConvertSelectedCommand.CanExecute(null));
         Assert.False(viewModel.RenameSelectedCommand.CanExecute(null));
         Assert.False(viewModel.TrashSelectedCommand.CanExecute(null));
     }

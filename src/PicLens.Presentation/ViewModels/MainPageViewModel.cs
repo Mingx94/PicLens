@@ -533,21 +533,6 @@ public sealed partial class MainPageViewModel : ObservableObject
         await LoadLibraryAsync();
     }
 
-    [RelayCommand(CanExecute = nameof(HasSelectedImages))]
-    private async Task ConvertSelected()
-    {
-        var selected = SelectedImages();
-        if (selected.Count == 0)
-        {
-            return;
-        }
-
-        var result = await fileOperationService.ConvertVisibleToJpgAsync(selected);
-        SetBatchStatus("轉成 JPG", result);
-        ClearSelection();
-        await LoadLibraryAsync();
-    }
-
     [RelayCommand]
     private async Task ClearSameBasename()
     {
@@ -909,7 +894,6 @@ public sealed partial class MainPageViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedSummaryText));
         OnPropertyChanged(nameof(SelectedDetailText));
         OnPropertyChanged(nameof(SelectedImagePathForReveal));
-        ConvertSelectedCommand.NotifyCanExecuteChanged();
         RenameSelectedCommand.NotifyCanExecuteChanged();
         TrashSelectedCommand.NotifyCanExecuteChanged();
     }

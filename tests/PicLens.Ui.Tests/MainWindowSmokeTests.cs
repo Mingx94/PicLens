@@ -45,7 +45,6 @@ public sealed class MainWindowSmokeTests
         "FolderTree",
         "LibraryGrid",
         "SelectionActionPanel",
-        "SelectionConvertSelectedButton",
         "SelectionRenameSelectedButton",
         "SelectionTrashSelectedButton",
         "SelectionRevealInFileExplorerButton",
@@ -177,7 +176,6 @@ public sealed class MainWindowSmokeTests
         fixture.ClickTile("Alpha-01.png");
         Assert.Equal(1, fixture.View.ViewModel.SelectedImageCount);
         Assert.Equal("1 張已選取", fixture.FindText("1 張已選取").Text);
-        Assert.True(fixture.FindByAutomationId<Button>("SelectionConvertSelectedButton").IsEnabled);
         Assert.True(fixture.FindByAutomationId<Button>("SelectionRenameSelectedButton").IsEnabled);
 
         fixture.ClickTile("Bravo-02.png", RawInputModifiers.Control);

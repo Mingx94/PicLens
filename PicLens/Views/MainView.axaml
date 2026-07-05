@@ -424,7 +424,13 @@
                             AutomationProperties.AutomationId="LibraryGrid"
                             Focusable="True"
                             KeyDown="LibraryGrid_KeyDown"
-                            HorizontalScrollBarVisibility="Disabled">
+                            HorizontalScrollBarVisibility="Disabled"
+                            IsScrollInertiaEnabled="True">
+                            <ScrollViewer.Transitions>
+                                <Transitions>
+                                    <VectorTransition Property="Offset" Duration="0:0:0.14" />
+                                </Transitions>
+                            </ScrollViewer.Transitions>
                             <StackPanel Spacing="18" Margin="0,0,0,20">
                                 <StackPanel Spacing="10" IsVisible="{Binding HasFolderLibraryItems}">
                                     <TextBlock Text="{Binding FolderItemCountText}" FontSize="16" FontWeight="SemiBold" />
@@ -475,12 +481,6 @@
                     </StackPanel>
 
                     <StackPanel Grid.Row="1" Spacing="10" Margin="0,22,0,18">
-                        <Button Classes="action" AutomationProperties.AutomationId="SelectionConvertSelectedButton" IsEnabled="{Binding HasSelectedImages}" Command="{Binding ConvertSelectedCommand}">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <ic:FluentIcon Classes="glyph" Icon="DocumentArrowRight" IconVariant="Regular" IconSize="Size20" />
-                                <TextBlock Text="轉成 JPG" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
                         <Button Classes="action" AutomationProperties.AutomationId="SelectionRenameSelectedButton" IsEnabled="{Binding HasSingleSelectedImage}" Command="{Binding RenameSelectedCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="10">
                                 <TextBlock Text="✎" FontSize="18" Width="18" HorizontalAlignment="Center" />
