@@ -1,5 +1,4 @@
-- 專案文件入口放在 `docs/README.md`
-- Avalonia 的 docs 請用 avalonia-docs mcp
+
 
 ## Agent skills
 
@@ -14,3 +13,9 @@ Triage uses the default five-role vocabulary: `needs-triage`, `needs-info`, `rea
 ### Domain docs
 
 This repo uses single-context domain docs: `CONTEXT.md` at the repo root and ADRs under `docs/adr/`. See `docs/agents/domain.md`.
+
+
+
+- 專案文件入口放在 `docs/README.md`
+- Avalonia 的 docs 請用 avalonia-docs mcp
+- DO NOT send optional commentary
