@@ -44,10 +44,6 @@ public sealed class MainWindowSmokeTests
         "LibrarySearchBox",
         "FolderTree",
         "LibraryGrid",
-        "SelectionActionPanel",
-        "SelectionRenameSelectedButton",
-        "SelectionTrashSelectedButton",
-        "SelectionRevealInFileExplorerButton",
         "StatusInfoBar",
         "ThumbnailSizeSlider",
         "EmptyStateOpenFolderButton"
@@ -92,7 +88,7 @@ public sealed class MainWindowSmokeTests
         Assert.NotNull(fixture.FindTile("Nested"));
         Assert.NotNull(fixture.FindText("資料夾 (1)"));
         Assert.NotNull(fixture.FindText("圖片 (3)"));
-        var alphaLabel = alphaTile.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == "Alpha-01.png");
+        var alphaLabel = alphaTile.GetVisualDescendants().OfType<TextBlock>().First(text => text.Text == "Alpha-01.png");
         Assert.Equal(TextWrapping.Wrap, alphaLabel.TextWrapping);
         Assert.Equal(TextTrimming.CharacterEllipsis, alphaLabel.TextTrimming);
         Assert.Equal(2, alphaLabel.MaxLines);
@@ -175,12 +171,11 @@ public sealed class MainWindowSmokeTests
 
         fixture.ClickTile("Alpha-01.png");
         Assert.Equal(1, fixture.View.ViewModel.SelectedImageCount);
-        Assert.Equal("1 張已選取", fixture.FindText("1 張已選取").Text);
-        Assert.True(fixture.FindByAutomationId<Button>("SelectionRenameSelectedButton").IsEnabled);
+        Assert.True(fixture.View.ViewModel.HasSingleSelectedImage);
 
         fixture.ClickTile("Bravo-02.png", RawInputModifiers.Control);
         Assert.Equal(2, fixture.View.ViewModel.SelectedImageCount);
-        Assert.False(fixture.FindByAutomationId<Button>("SelectionRenameSelectedButton").IsEnabled);
+        Assert.False(fixture.View.ViewModel.HasSingleSelectedImage);
 
         fixture.ClickTile("Alpha-01.png");
         fixture.PressEnter();

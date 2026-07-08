@@ -12,6 +12,7 @@ public sealed class LibraryTileItem : ObservableObject
     private int tileHeight = SettingsRules.DefaultThumbnailSize - 4;
     private bool isSelected;
     private bool isDropRenameTarget;
+    private bool isGridViewMode = true;
 
     public LibraryTileItem(
         string Name,
@@ -84,16 +85,40 @@ public sealed class LibraryTileItem : ObservableObject
         private set => SetProperty(ref tileHeight, value);
     }
 
+    public int TileDisplayHeight => IsGridViewMode ? TileHeight + 44 : 88;
+
+    public int ListThumbnailWidth => 96;
+
+    public int ListThumbnailHeight => 68;
+
+    public bool IsGridViewMode
+    {
+        get => isGridViewMode;
+        private set
+        {
+            if (SetProperty(ref isGridViewMode, value))
+            {
+                OnPropertyChanged(nameof(IsListViewMode));
+                OnPropertyChanged(nameof(TileDisplayHeight));
+            }
+        }
+    }
+
+    public bool IsListViewMode => !IsGridViewMode;
+
     public void ApplyThumbnailSize(int thumbnailSize)
     {
         var normalizedSize = SettingsRules.NormalizeThumbnailSize(thumbnailSize);
         TileWidth = normalizedSize;
         TileHeight = normalizedSize - 4;
+        OnPropertyChanged(nameof(TileDisplayHeight));
         if (this.thumbnailSize.HasValue && this.thumbnailSize.Value != normalizedSize)
         {
             ClearThumbnail();
         }
     }
+
+    public void ApplyViewMode(bool isGridViewMode) => IsGridViewMode = isGridViewMode;
 
     public bool HasThumbnailFor(int thumbnailSize)
     {

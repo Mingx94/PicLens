@@ -59,6 +59,31 @@ public sealed class MainPageViewModelThumbnailSizeTests
     }
 
     [Fact]
+    public async Task SetViewMode_updates_existing_tiles_to_compact_list_layout()
+    {
+        using var workspace = new TempDirectory();
+        var scanner = new CountingFolderScanner(
+        [
+            new ImageListItem("image:first", Path.Combine(workspace.Path, "first.jpg"), "first.jpg", "jpg", 100, 1024)
+        ]);
+        var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
+        {
+            LastFolderPath = workspace.Path
+        });
+        var viewModel = CreateViewModel(settingsStore, scanner);
+
+        await viewModel.InitializeAsync();
+        var tile = Assert.Single(viewModel.LibraryItems);
+
+        viewModel.SetViewModeCommand.Execute("list");
+
+        Assert.False(tile.IsGridViewMode);
+        Assert.True(tile.IsListViewMode);
+        Assert.Equal(88, tile.TileDisplayHeight);
+        Assert.Equal(100, viewModel.LibraryTileLayoutHeight);
+    }
+
+    [Fact]
     public async Task LoadThumbnailAsync_updates_still_image_tile_with_cached_thumbnail_path()
     {
         using var workspace = new TempDirectory();

@@ -128,7 +128,7 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     public string ThumbnailSizeLabel => $"縮圖 {ThumbnailSize}";
 
-    public int LibraryTileLayoutHeight => ThumbnailSize + 56;
+    public int LibraryTileLayoutHeight => IsGridViewMode ? ThumbnailSize + 56 : 100;
 
     public string LibraryItemCountText => $"{LibraryItems.Count} 個項目";
 
@@ -412,6 +412,8 @@ public sealed partial class MainPageViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(IsListViewMode));
         OnPropertyChanged(nameof(LibraryLayoutMinItemWidth));
+        OnPropertyChanged(nameof(LibraryTileLayoutHeight));
+        ApplyViewModeToLibraryTiles();
     }
 
     [RelayCommand(CanExecute = nameof(CanNavigateBack))]
@@ -785,6 +787,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         {
             var tile = ToTile(item);
             tile.ApplyThumbnailSize(ThumbnailSize);
+            tile.ApplyViewMode(IsGridViewMode);
             return tile;
         }).ToList();
 
@@ -906,6 +909,14 @@ public sealed partial class MainPageViewModel : ObservableObject
         OnPropertyChanged(nameof(HasFolderLibraryItems));
         OnPropertyChanged(nameof(HasImageLibraryItems));
         OnPropertyChanged(nameof(HasNoVisibleItems));
+    }
+
+    private void ApplyViewModeToLibraryTiles()
+    {
+        foreach (var item in LibraryItems)
+        {
+            item.ApplyViewMode(IsGridViewMode);
+        }
     }
 
     private void NotifyNavigationCommands()
