@@ -209,7 +209,7 @@ public sealed partial class MainPageViewModel : ObservableObject
             resetFolderTreeRoot: true);
         if (HasCurrentFolder)
         {
-            SetStatus($"已從 {CurrentFolderPath} 載入 {LibraryItems.Count} 個項目。");
+            SetStatus($"已載入 {LibraryItems.Count} 個項目。");
         }
     }
 
@@ -426,7 +426,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         await NavigateToFolderAsync(folderPath, persist: true, resetFolderTreeRoot: true);
         if (HasCurrentFolder)
         {
-            SetStatus($"已從 {CurrentFolderPath} 載入 {LibraryItems.Count} 個項目。");
+            SetStatus($"已載入 {LibraryItems.Count} 個項目。");
         }
     }
 
