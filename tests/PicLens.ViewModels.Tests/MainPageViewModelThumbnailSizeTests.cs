@@ -188,7 +188,7 @@ public sealed class MainPageViewModelThumbnailSizeTests
         var firstLoadTask = viewModel.LoadThumbnailAsync(tile);
         await thumbnailService.WaitForRequestAsync();
 
-        await viewModel.LoadThumbnailAsync(tile).WaitAsync(TimeSpan.FromSeconds(5));
+        await viewModel.LoadThumbnailAsync(tile).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         Assert.Equal(1, thumbnailService.RequestCount);
 
@@ -228,7 +228,7 @@ public sealed class MainPageViewModelThumbnailSizeTests
         await thumbnailService.WaitForStalledRequestsAsync(4);
         var fifthTask = viewModel.LoadThumbnailAsync(viewModel.LibraryItems[4]);
 
-        await Task.WhenAll(stalledTasks.Append(fifthTask)).WaitAsync(TimeSpan.FromSeconds(5));
+        await Task.WhenAll(stalledTasks.Append(fifthTask)).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         Assert.Equal(fifthThumbnailPath, viewModel.LibraryItems[4].ThumbnailPath);
         Assert.Equal(5, thumbnailService.RequestCount);

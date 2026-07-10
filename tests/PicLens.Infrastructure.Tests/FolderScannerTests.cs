@@ -10,16 +10,16 @@ public sealed class FolderScannerTests
     {
         using var temp = TempWorkspace.Create();
         Directory.CreateDirectory(Path.Combine(temp.Root, "Nested"));
-        await File.WriteAllBytesAsync(Path.Combine(temp.Root, "b10.jpg"), [1, 2, 3]);
-        await File.WriteAllBytesAsync(Path.Combine(temp.Root, "b2.txt"), [1, 2, 3]);
-        await File.WriteAllBytesAsync(Path.Combine(temp.Root, "loop.gif"), StaticGifBytes());
-        await File.WriteAllBytesAsync(Path.Combine(temp.Root, "Nested", "deep.png"), [1, 2, 3]);
+        await File.WriteAllBytesAsync(Path.Combine(temp.Root, "b10.jpg"), [1, 2, 3], TestContext.Current.CancellationToken);
+        await File.WriteAllBytesAsync(Path.Combine(temp.Root, "b2.txt"), [1, 2, 3], TestContext.Current.CancellationToken);
+        await File.WriteAllBytesAsync(Path.Combine(temp.Root, "loop.gif"), StaticGifBytes(), TestContext.Current.CancellationToken);
+        await File.WriteAllBytesAsync(Path.Combine(temp.Root, "Nested", "deep.png"), [1, 2, 3], TestContext.Current.CancellationToken);
         var scanner = new FolderScanner();
 
         var items = await scanner.ScanAsync(new ListQuery(
             temp.Root,
             IncludeSubfolders: false,
-            Sort: new SortState(SortKey.Name, SortDirection.Asc)));
+            Sort: new SortState(SortKey.Name, SortDirection.Asc)), TestContext.Current.CancellationToken);
 
         Assert.Equal(["Nested", "b10.jpg", "loop.gif"], items.Select(item => item.Name));
         Assert.Contains(items.OfType<ImageListItem>(), image => image.Name == "loop.gif" && image.IsAnimated == false);
@@ -31,15 +31,15 @@ public sealed class FolderScannerTests
     {
         using var temp = TempWorkspace.Create();
         var nested = Directory.CreateDirectory(Path.Combine(temp.Root, "Nested")).FullName;
-        await File.WriteAllBytesAsync(Path.Combine(temp.Root, "cover.gif"), AnimatedGifBytes());
-        await File.WriteAllBytesAsync(Path.Combine(nested, "z.png"), [1, 2, 3]);
-        await File.WriteAllBytesAsync(Path.Combine(nested, "ignored.txt"), [1, 2, 3]);
+        await File.WriteAllBytesAsync(Path.Combine(temp.Root, "cover.gif"), AnimatedGifBytes(), TestContext.Current.CancellationToken);
+        await File.WriteAllBytesAsync(Path.Combine(nested, "z.png"), [1, 2, 3], TestContext.Current.CancellationToken);
+        await File.WriteAllBytesAsync(Path.Combine(nested, "ignored.txt"), [1, 2, 3], TestContext.Current.CancellationToken);
         var scanner = new FolderScanner();
 
         var items = await scanner.ScanAsync(new ListQuery(
             temp.Root,
             IncludeSubfolders: true,
-            Sort: new SortState(SortKey.Name, SortDirection.Asc)));
+            Sort: new SortState(SortKey.Name, SortDirection.Asc)), TestContext.Current.CancellationToken);
 
         Assert.Equal(["cover.gif", "z.png"], items.Select(item => item.Name));
         Assert.All(items, item => Assert.IsType<ImageListItem>(item));
@@ -57,7 +57,7 @@ public sealed class FolderScannerTests
         var items = await scanner.ScanAsync(new ListQuery(
             temp.Root,
             IncludeSubfolders: false,
-            Sort: new SortState(SortKey.Name, SortDirection.Asc)));
+            Sort: new SortState(SortKey.Name, SortDirection.Asc)), TestContext.Current.CancellationToken);
 
         var image = Assert.Single(items.OfType<ImageListItem>());
         Assert.Equal("locked.jpg", image.Name);
@@ -98,7 +98,7 @@ public sealed class FolderScannerTests
         var items = await scanner.ScanAsync(new ListQuery(
             temp.Root,
             IncludeSubfolders: false,
-            Sort: new SortState(SortKey.Name, SortDirection.Asc)));
+            Sort: new SortState(SortKey.Name, SortDirection.Asc)), TestContext.Current.CancellationToken);
 
         var image = Assert.Single(items.OfType<ImageListItem>());
         Assert.Equal("locked.gif", image.Name);
@@ -115,7 +115,7 @@ public sealed class FolderScannerTests
         var items = await scanner.ScanAsync(new ListQuery(
             temp.Root,
             IncludeSubfolders: false,
-            Sort: new SortState(SortKey.Name, SortDirection.Asc)));
+            Sort: new SortState(SortKey.Name, SortDirection.Asc)), TestContext.Current.CancellationToken);
 
         var image = Assert.Single(items.OfType<ImageListItem>());
         Assert.Equal("not-a-gif.gif", image.Name);
@@ -131,7 +131,7 @@ public sealed class FolderScannerTests
         await using var locked = File.Open(lockedImagePath, FileMode.Open, FileAccess.Read, FileShare.None);
         var scanner = new FolderScanner();
 
-        var folders = await scanner.ScanChildFoldersAsync(temp.Root);
+        var folders = await scanner.ScanChildFoldersAsync(temp.Root, TestContext.Current.CancellationToken);
 
         var folder = Assert.Single(folders);
         Assert.Equal("Nested", folder.Name);
@@ -143,14 +143,14 @@ public sealed class FolderScannerTests
         using var temp = TempWorkspace.Create();
         var realFolder = Directory.CreateDirectory(Path.Combine(temp.Root, "Real")).FullName;
         var aliasFolder = Path.Combine(temp.Root, "Alias");
-        await File.WriteAllBytesAsync(Path.Combine(realFolder, "photo.jpg"), [1, 2, 3]);
+        await File.WriteAllBytesAsync(Path.Combine(realFolder, "photo.jpg"), [1, 2, 3], TestContext.Current.CancellationToken);
         CreateDirectoryAlias(aliasFolder, realFolder);
         var scanner = new FolderScanner();
 
         var items = await scanner.ScanAsync(new ListQuery(
             temp.Root,
             IncludeSubfolders: true,
-            Sort: new SortState(SortKey.Name, SortDirection.Asc)));
+            Sort: new SortState(SortKey.Name, SortDirection.Asc)), TestContext.Current.CancellationToken);
 
         Assert.Equal(["photo.jpg"], items.Select(item => item.Name));
     }

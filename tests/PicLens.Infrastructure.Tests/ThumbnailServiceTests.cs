@@ -30,7 +30,7 @@ public sealed class ThumbnailServiceTests
         var cacheRoot = Path.Combine(temp.Root, "cache");
         IThumbnailService service = new ThumbnailService(cacheRoot);
 
-        var thumbnailPath = await service.GetOrCreateThumbnailAsync(sourcePath, requestedSize: 5);
+        var thumbnailPath = await service.GetOrCreateThumbnailAsync(sourcePath, requestedSize: 5, TestContext.Current.CancellationToken);
 
         Assert.NotNull(thumbnailPath);
         Assert.StartsWith(cacheRoot, thumbnailPath, StringComparison.OrdinalIgnoreCase);
@@ -50,12 +50,12 @@ public sealed class ThumbnailServiceTests
         File.SetLastWriteTimeUtc(sourcePath, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         IThumbnailService service = new ThumbnailService(Path.Combine(temp.Root, "cache"));
 
-        var firstPath = await service.GetOrCreateThumbnailAsync(sourcePath, requestedSize: 8);
-        var repeatedPath = await service.GetOrCreateThumbnailAsync(sourcePath, requestedSize: 8);
-        var differentSizePath = await service.GetOrCreateThumbnailAsync(sourcePath, requestedSize: 12);
+        var firstPath = await service.GetOrCreateThumbnailAsync(sourcePath, requestedSize: 8, TestContext.Current.CancellationToken);
+        var repeatedPath = await service.GetOrCreateThumbnailAsync(sourcePath, requestedSize: 8, TestContext.Current.CancellationToken);
+        var differentSizePath = await service.GetOrCreateThumbnailAsync(sourcePath, requestedSize: 12, TestContext.Current.CancellationToken);
 
         File.SetLastWriteTimeUtc(sourcePath, new DateTime(2026, 1, 1, 0, 0, 2, DateTimeKind.Utc));
-        var changedSourcePath = await service.GetOrCreateThumbnailAsync(sourcePath, requestedSize: 8);
+        var changedSourcePath = await service.GetOrCreateThumbnailAsync(sourcePath, requestedSize: 8, TestContext.Current.CancellationToken);
 
         Assert.Equal(firstPath, repeatedPath);
         Assert.NotEqual(firstPath, differentSizePath);
@@ -72,9 +72,9 @@ public sealed class ThumbnailServiceTests
         var cacheRoot = Path.Combine(temp.Root, "cache");
         IThumbnailService service = new ThumbnailService(cacheRoot);
 
-        var unsupported = await service.GetOrCreateThumbnailAsync(unsupportedPath, requestedSize: 8);
-        var missing = await service.GetOrCreateThumbnailAsync(missingPath, requestedSize: 8);
-        var animated = await service.GetOrCreateThumbnailAsync(animatedGifPath, requestedSize: 8);
+        var unsupported = await service.GetOrCreateThumbnailAsync(unsupportedPath, requestedSize: 8, TestContext.Current.CancellationToken);
+        var missing = await service.GetOrCreateThumbnailAsync(missingPath, requestedSize: 8, TestContext.Current.CancellationToken);
+        var animated = await service.GetOrCreateThumbnailAsync(animatedGifPath, requestedSize: 8, TestContext.Current.CancellationToken);
 
         Assert.Null(unsupported);
         Assert.Null(missing);
@@ -106,11 +106,11 @@ public sealed class ThumbnailServiceTests
         var cacheRoot = Path.Combine(temp.Root, "cache");
         Directory.CreateDirectory(cacheRoot);
         var oldCachePath = Path.Combine(cacheRoot, "old.png");
-        await File.WriteAllBytesAsync(oldCachePath, new byte[4096]);
+        await File.WriteAllBytesAsync(oldCachePath, new byte[4096], TestContext.Current.CancellationToken);
         File.SetLastWriteTimeUtc(oldCachePath, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         var service = new ThumbnailService(cacheRoot, maxCacheBytes: 1024);
 
-        var thumbnailPath = await service.GetOrCreateThumbnailAsync(sourcePath, requestedSize: 5);
+        var thumbnailPath = await service.GetOrCreateThumbnailAsync(sourcePath, requestedSize: 5, TestContext.Current.CancellationToken);
 
         Assert.NotNull(thumbnailPath);
         Assert.True(File.Exists(thumbnailPath));

@@ -111,14 +111,14 @@ public sealed class MainPageDesignStateTests
 
         await viewModel.InitializeAsync();
         var commandTask = viewModel.ConvertVisibleCommand.ExecuteAsync(null);
-        await fileOperations.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await fileOperations.Started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         Assert.True(viewModel.IsFileOperationActive);
         Assert.True(viewModel.CancelFileOperationCommand.CanExecute(null));
         Assert.Contains("正在轉換", viewModel.StatusMessage, StringComparison.Ordinal);
 
         viewModel.CancelFileOperationCommand.Execute(null);
-        await commandTask.WaitAsync(TimeSpan.FromSeconds(5));
+        await commandTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         Assert.True(fileOperations.WasCanceled);
         Assert.False(viewModel.IsFileOperationActive);

@@ -21,7 +21,7 @@ public sealed class FileOperationServiceTests
             Image(png),
             Image(webp),
             Image(jpg)
-        ]);
+        ], TestContext.Current.CancellationToken);
 
         Assert.Equal(3, result.Total);
         Assert.Equal(1, result.Succeeded);
@@ -41,7 +41,7 @@ public sealed class FileOperationServiceTests
         var convertedSources = new List<string>();
         var service = CreateService(convertedSources: convertedSources);
 
-        var result = await service.ConvertVisibleToJpgAsync([Image(gif) with { IsAnimated = true }]);
+        var result = await service.ConvertVisibleToJpgAsync([Image(gif) with { IsAnimated = true }], TestContext.Current.CancellationToken);
 
         var item = Assert.Single(result.Items);
         Assert.Equal(FileOperationStatus.Skipped, item.Status);
@@ -59,7 +59,7 @@ public sealed class FileOperationServiceTests
         var trashedPaths = new List<string>();
         var service = CreateService(trashedPaths: trashedPaths);
 
-        var result = await service.TrashSameBasenameNonJpgAsync([Image(jpg), Image(matchingPng), Image(unrelatedWebp)]);
+        var result = await service.TrashSameBasenameNonJpgAsync([Image(jpg), Image(matchingPng), Image(unrelatedWebp)], TestContext.Current.CancellationToken);
 
         Assert.Equal(3, result.Total);
         Assert.Equal(1, result.Succeeded);
@@ -77,8 +77,8 @@ public sealed class FileOperationServiceTests
         await temp.WriteFileAsync("taken.png", [2]);
         var service = CreateService();
 
-        var collision = await service.RenameAsync(source, "taken.png");
-        var renamed = await service.RenameAsync(source, "new.png");
+        var collision = await service.RenameAsync(source, "taken.png", TestContext.Current.CancellationToken);
+        var renamed = await service.RenameAsync(source, "new.png", TestContext.Current.CancellationToken);
 
         Assert.Equal(FileOperationStatus.Failed, collision.Status);
         Assert.Equal("invalid_request", collision.Reason);
@@ -96,8 +96,8 @@ public sealed class FileOperationServiceTests
         await temp.WriteFileAsync("taken.png", [2]);
         var service = CreateService();
 
-        var sameName = await service.RenameAsync(source, "old.png");
-        var collision = await service.RenameAsync(source, "taken.png");
+        var sameName = await service.RenameAsync(source, "old.png", TestContext.Current.CancellationToken);
+        var collision = await service.RenameAsync(source, "taken.png", TestContext.Current.CancellationToken);
 
         Assert.Equal(FileOperationStatus.Skipped, sameName.Status);
         Assert.Equal("same_name", sameName.Reason);
@@ -117,7 +117,7 @@ public sealed class FileOperationServiceTests
         await temp.WriteFileAsync("Album-01.jpg", [5]);
         var service = CreateService();
 
-        var result = await service.RenameByDropTargetAsync([first, target, already, second], target);
+        var result = await service.RenameByDropTargetAsync([first, target, already, second], target, TestContext.Current.CancellationToken);
 
         Assert.Equal(3, result.Total);
         Assert.Equal(2, result.Succeeded);
@@ -136,7 +136,7 @@ public sealed class FileOperationServiceTests
         var source = await temp.WriteFileAsync("Album-03.jpg", [2]);
         var service = CreateService();
 
-        var result = await service.RenameByDropTargetAsync([source], target);
+        var result = await service.RenameByDropTargetAsync([source], target, TestContext.Current.CancellationToken);
 
         var item = Assert.Single(result.Items);
         Assert.Equal(FileOperationStatus.Renamed, item.Status);
@@ -153,7 +153,7 @@ public sealed class FileOperationServiceTests
         var trashedPaths = new List<string>();
         var service = CreateService(trashedPaths: trashedPaths);
 
-        var result = await service.TrashAsync(file);
+        var result = await service.TrashAsync(file, TestContext.Current.CancellationToken);
 
         Assert.Equal(FileOperationStatus.Trashed, result.Status);
         Assert.Equal([file], trashedPaths);
@@ -167,10 +167,10 @@ public sealed class FileOperationServiceTests
         var target = Path.Combine(temp.Root, "source.jpg");
         var service = new FileOperationService();
 
-        var result = await service.ConvertVisibleToJpgAsync([Image(source)]);
+        var result = await service.ConvertVisibleToJpgAsync([Image(source)], TestContext.Current.CancellationToken);
 
         Assert.Equal(FileOperationStatus.Converted, Assert.Single(result.Items).Status);
-        var bytes = await File.ReadAllBytesAsync(target);
+        var bytes = await File.ReadAllBytesAsync(target, TestContext.Current.CancellationToken);
         Assert.True(bytes.Length > 2);
         Assert.Equal(0xFF, bytes[0]);
         Assert.Equal(0xD8, bytes[1]);

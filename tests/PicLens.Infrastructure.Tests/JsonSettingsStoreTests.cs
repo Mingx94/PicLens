@@ -27,7 +27,7 @@ public sealed class JsonSettingsStoreTests
         using var temp = TempWorkspace.Create();
         var store = new JsonSettingsStore(Path.Combine(temp.Root, "settings.json"));
 
-        var settings = await store.LoadAsync();
+        var settings = await store.LoadAsync(TestContext.Current.CancellationToken);
 
         AssertSettingsEqual(AppSettings.CreateDefault(), settings);
     }
@@ -38,18 +38,18 @@ public sealed class JsonSettingsStoreTests
         using var temp = TempWorkspace.Create();
         var settingsPath = Path.Combine(temp.Root, "settings.json");
         const string invalidJson = "{ invalid json";
-        await File.WriteAllTextAsync(settingsPath, invalidJson);
+        await File.WriteAllTextAsync(settingsPath, invalidJson, TestContext.Current.CancellationToken);
         var store = new JsonSettingsStore(settingsPath);
 
-        var settings = await store.LoadAsync();
+        var settings = await store.LoadAsync(TestContext.Current.CancellationToken);
 
         AssertSettingsEqual(AppSettings.CreateDefault(), settings);
         Assert.False(File.Exists(settingsPath));
         var quarantinedFiles = Directory.GetFiles(temp.Root, "settings.json.corrupt.*");
         var quarantinedPath = Assert.Single(quarantinedFiles);
-        Assert.Equal(invalidJson, await File.ReadAllTextAsync(quarantinedPath));
+        Assert.Equal(invalidJson, await File.ReadAllTextAsync(quarantinedPath, TestContext.Current.CancellationToken));
 
-        var loadedAgain = await store.LoadAsync();
+        var loadedAgain = await store.LoadAsync(TestContext.Current.CancellationToken);
 
         AssertSettingsEqual(AppSettings.CreateDefault(), loadedAgain);
         Assert.False(File.Exists(settingsPath));
@@ -68,9 +68,9 @@ public sealed class JsonSettingsStoreTests
             HasLastFolderPath = true,
             IncludeSubfolders = true,
             Sort = new SortState(SortKey.ModifiedAt, SortDirection.Desc)
-        });
+        }, TestContext.Current.CancellationToken);
 
-        var loaded = await store.LoadAsync();
+        var loaded = await store.LoadAsync(TestContext.Current.CancellationToken);
 
         Assert.True(updated.IncludeSubfolders);
         Assert.Equal(updated.LastFolderPath, loaded.LastFolderPath);
@@ -89,14 +89,14 @@ public sealed class JsonSettingsStoreTests
             LastFolderPath = temp.Root,
             HasLastFolderPath = true,
             ThumbnailSize = 180
-        });
+        }, TestContext.Current.CancellationToken);
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => store.UpdateAsync(new AppSettingsPatch { IncludeSubfolders = true }, cancellation.Token));
 
-        AssertSettingsEqual(original, await store.LoadAsync());
+        AssertSettingsEqual(original, await store.LoadAsync(TestContext.Current.CancellationToken));
         Assert.Empty(Directory.GetFiles(temp.Root, "*.tmp"));
     }
 
@@ -111,7 +111,7 @@ public sealed class JsonSettingsStoreTests
             LastFolderPath = temp.Root,
             HasLastFolderPath = true,
             ThumbnailSize = 180
-        });
+        }, TestContext.Current.CancellationToken);
         if (OperatingSystem.IsWindows())
         {
             await using var locked = new FileStream(settingsPath, FileMode.Open, FileAccess.Read, FileShare.None);
@@ -120,7 +120,7 @@ public sealed class JsonSettingsStoreTests
         }
         else
         {
-            await File.WriteAllTextAsync(settingsPath, "{ invalid json");
+            await File.WriteAllTextAsync(settingsPath, "{ invalid json", TestContext.Current.CancellationToken);
             var originalMode = File.GetUnixFileMode(temp.Root);
 
             try
@@ -155,10 +155,10 @@ public sealed class JsonSettingsStoreTests
                 { "id": "user:old", "path": "C:\\Old", "source": "User", "order": 0 }
               ]
             }
-            """);
+            """, TestContext.Current.CancellationToken);
         var store = new JsonSettingsStore(settingsPath);
 
-        var loaded = await store.LoadAsync();
+        var loaded = await store.LoadAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(@"C:\Images", loaded.LastFolderPath);
         Assert.Equal(new SortState(SortKey.Name, SortDirection.Asc), loaded.Sort);
