@@ -2,7 +2,13 @@
 
 ## 1. Atmosphere & Identity
 
-PicLens is a quiet desktop workspace for browsing and organizing local image folders. It should feel focused, dense enough for repeated file work, and visually calm around the images. The signature is restrained utility: neutral surfaces, compact controls, and clear thumbnail/file-name reading.
+PicLens is a quiet desktop workspace for browsing and organizing local image folders. It should feel focused, dense enough for repeated file work, and visually calm around the images. The signature is an image-first workbench: neutral layered surfaces, a single cobalt accent, compact commands, and generous breathing room around library content.
+
+The app uses three visually distinct zones:
+
+- A compact command bar for global navigation, search, and opening folders.
+- A calm Folder Tree pane that anchors navigation without competing with images.
+- A raised white Library workspace that owns folder context, display controls, and content.
 
 ## 2. Color
 
@@ -10,19 +16,21 @@ PicLens is a quiet desktop workspace for browsing and organizing local image fol
 
 | Role | Token | Light | Dark | Usage |
 |------|-------|-------|------|-------|
-| Surface/app | `AppBackgroundBrush` | `#F8F9FA` | TBD | Main shell background |
-| Surface/command | `CommandBarBrush` | `#F1F3F5` | TBD | Toolbar and viewer command bar |
-| Surface/sidebar | `SidebarBrush` | `#FBFCFD` | TBD | Folder pane |
+| Surface/app | `AppBackgroundBrush` | `#F4F5F7` | TBD | Main shell background |
+| Surface/command | `CommandBarBrush` | `#FBFBFC` | TBD | Global command and status bars |
+| Surface/sidebar | `SidebarBrush` | `#F8F9FB` | TBD | Folder pane |
 | Surface/content | `SurfaceBrush` | `#FFFFFF` | TBD | Main library surface |
-| Surface/tile | `TileFrameBrush` | `#EEF0F2` | TBD | Thumbnail tile frame |
-| Border/default | `LineBrush` | `#E2E5E9` | TBD | Dividers and tile borders |
-| Text/primary | `PrimaryTextBrush` | `#1F2328` | TBD | Main labels and file names |
-| Text/secondary | `SecondaryTextBrush` | `#5F6368` | TBD | Paths, metadata, viewer filename |
-| Text/muted | `MutedTextBrush` | `#7A8088` | TBD | Lower emphasis icons/text |
-| State/hover | `HoverBrush` | `#E8EBEF` | TBD | Toolbar hover |
-| State/selected | `SelectedBrush` | `#DFECFF` | TBD | Selected library tile |
-| Accent/primary | `AccentBrush` | `#0078D4` | TBD | Info badge and drop target |
-| Surface/viewer | `ViewerCanvasBrush` | `#F7F7F7` | TBD | Image viewer canvas |
+| Surface/tile | `TileFrameBrush` | `#ECEEF2` | TBD | Thumbnail tile frame |
+| Border/default | `LineBrush` | `#E2E5EA` | TBD | Dividers and tile borders |
+| Border/strong | `StrongLineBrush` | `#D5D9E1` | TBD | Interactive hover boundary |
+| Text/primary | `PrimaryTextBrush` | `#20242B` | TBD | Main labels and file names |
+| Text/secondary | `SecondaryTextBrush` | `#5F6672` | TBD | Paths, metadata, viewer filename |
+| Text/muted | `MutedTextBrush` | `#8A919D` | TBD | Lower emphasis icons/text |
+| State/hover | `HoverBrush` | `#ECEFF4` | TBD | Toolbar hover |
+| State/selected | `SelectedBrush` | `#E7EEFF` | TBD | Selected Library Item |
+| Accent/primary | `AccentBrush` | `#4968E8` | TBD | Primary action, selection, and status |
+| Accent/soft | `AccentSoftBrush` | `#EDF1FF` | TBD | Empty-state icon and active scope |
+| Surface/viewer | `ViewerCanvasBrush` | `#11141A` | TBD | Image Viewer canvas |
 
 ### Rules
 
@@ -71,20 +79,21 @@ All spacing derives from a base of 4px.
 
 ### Grid
 
-- Main shell: title bar, folder sidebar, resizable splitter, library content, status bar.
+- Main shell: global command bar, Folder Tree, resizable splitter, Library workspace, status bar.
 - Thumbnail grid: `ItemsRepeater` with `UniformGridLayout`.
 
 ### Rules
 
 - Keep layout values compact and multiples of 4px where practical.
 - Preserve the resizable sidebar and virtualized thumbnail grid.
+- Keep global commands in the top bar and Library-specific sort, scope, and view controls in the Library header.
 
 ## 5. Components
 
 ### Toolbar Buttons
 
 - **Structure**: `Button.toolbar` with Fluent icon and optional text.
-- **Spacing**: 7px icon/text spacing, compact 36px minimum height.
+- **Spacing**: 7px icon/text spacing, compact 36-38px minimum height.
 - **States**: default transparent, hover uses `HoverBrush`, disabled uses opacity.
 - **Accessibility**: tooltip plus automation IDs for primary controls.
 
@@ -117,6 +126,6 @@ PicLens uses borders plus tonal shifts. Surfaces are separated with `LineBrush` 
 
 | Type | Value | Usage |
 |------|-------|-------|
-| Default border | 1px `LineBrush` | Pane dividers, tile frame, status bar |
+| Default border | 1px `LineBrush` | Pane dividers, Library workspace, tile frame, status bar |
 | Selected fill | `SelectedBrush` | Active library selection |
 | Drop target border | 2px `AccentBrush` | Drag rename target |

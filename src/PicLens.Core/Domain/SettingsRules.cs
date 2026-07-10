@@ -6,9 +6,9 @@ public static class SettingsRules
 {
     public const int SettingsVersion = 2;
     public const int MaxRecentFolderCount = 5;
-    public const int DefaultThumbnailSize = 160;
-    public const int MinThumbnailSize = 140;
-    public const int MaxThumbnailSize = 200;
+    public const int DefaultThumbnailSize = 200;
+    public const int MinThumbnailSize = 120;
+    public const int MaxThumbnailSize = 240;
     public const int ThumbnailSizeStep = 20;
 
     public static AppSettings NormalizeSettings(AppSettings settings)

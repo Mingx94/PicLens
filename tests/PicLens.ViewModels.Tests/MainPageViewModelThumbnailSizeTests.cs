@@ -18,17 +18,17 @@ public sealed class MainPageViewModelThumbnailSizeTests
         var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
         {
             LastFolderPath = workspace.Path,
-            ThumbnailSize = 350
+            ThumbnailSize = 420
         });
         var viewModel = CreateViewModel(settingsStore, scanner);
 
         await viewModel.InitializeAsync();
 
         var tile = Assert.Single(viewModel.LibraryItems);
-        Assert.Equal(200, viewModel.ThumbnailSize);
-        Assert.Equal(256, viewModel.LibraryTileLayoutHeight);
-        Assert.Equal(200, tile.TileWidth);
-        Assert.Equal(196, tile.TileHeight);
+        Assert.Equal(240, viewModel.ThumbnailSize);
+        Assert.Equal(296, viewModel.LibraryTileLayoutHeight);
+        Assert.Equal(240, tile.TileWidth);
+        Assert.Equal(236, tile.TileHeight);
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public sealed class MainPageViewModelThumbnailSizeTests
         var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
         {
             LastFolderPath = workspace.Path,
-            ThumbnailSize = 350
+            ThumbnailSize = 420
         });
         var thumbnailService = new TestThumbnailService((_, _, _) => Task.FromResult<string?>(cachedThumbnailPath));
         var viewModel = CreateViewModel(settingsStore, scanner, thumbnailService);
@@ -111,7 +111,7 @@ public sealed class MainPageViewModelThumbnailSizeTests
         Assert.Equal(cachedThumbnailPath, tile.ThumbnailPath);
         Assert.True(tile.CanShowThumbnail);
         Assert.False(tile.ShouldShowIcon);
-        Assert.Equal([(imagePath, 200)], thumbnailService.Requests);
+        Assert.Equal([(imagePath, 240)], thumbnailService.Requests);
     }
 
     [Fact]

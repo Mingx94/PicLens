@@ -62,12 +62,41 @@ public sealed class MainWindowSmokeTests
             Assert.NotNull(fixture.FindByAutomationId<Control>(automationId));
         }
 
+        var thumbnailSlider = fixture.FindByAutomationId<Slider>("ThumbnailSizeSlider");
+        Assert.Equal(120, thumbnailSlider.Minimum);
+        Assert.Equal(240, thumbnailSlider.Maximum);
+        Assert.Equal(200, thumbnailSlider.Value);
+
         Assert.Equal(
             ["名稱由小到大", "名稱由大到小", "修改時間最舊到最新", "修改時間最新到最舊"],
             fixture.MenuHeaders("TitleBarSortMenuButton"));
         Assert.Equal(
             ["將目前顯示項目轉為 JPG", "清除同名非 JPG 檔案"],
             fixture.MenuHeaders("TitleBarMoreActionsButton"));
+    }
+
+    [AvaloniaFact]
+    public async Task Thumbnail_slider_thumb_is_centered_without_footer_clipping()
+    {
+        using var fixture = PicLensHeadlessFixture.StartEmpty(nameof(Thumbnail_slider_thumb_is_centered_without_footer_clipping));
+        await fixture.WaitForConditionAsync(() => fixture.View.ViewModel.HasNoCurrentFolder, "empty state did not load");
+
+        var slider = fixture.FindByAutomationId<Slider>("ThumbnailSizeSlider");
+        var thumb = slider.GetVisualDescendants().OfType<Thumb>().Single();
+        var footer = slider.GetVisualAncestors()
+            .OfType<Border>()
+            .First(border => Grid.GetRow(border) == 2);
+        var thumbTopLeft = thumb.TranslatePoint(new Point(), footer);
+
+        Assert.NotNull(thumbTopLeft);
+        Assert.True(thumbTopLeft.Value.Y >= 0, "Slider thumb was clipped above the status bar.");
+        Assert.True(
+            thumbTopLeft.Value.Y + thumb.Bounds.Height <= footer.Bounds.Height,
+            "Slider thumb was clipped below the status bar.");
+        Assert.InRange(
+            Math.Abs(thumbTopLeft.Value.Y + thumb.Bounds.Height / 2 - footer.Bounds.Height / 2),
+            0,
+            1);
     }
 
     [AvaloniaFact]

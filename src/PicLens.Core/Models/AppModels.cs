@@ -37,7 +37,7 @@ public sealed record AppSettings(
             LastFolderPath: null,
             Sort: new SortState(SortKey.Name, SortDirection.Asc),
             IncludeSubfolders: false,
-            ThumbnailSize: 160,
+            ThumbnailSize: 200,
             RecentFolderPaths: []);
 }
 
