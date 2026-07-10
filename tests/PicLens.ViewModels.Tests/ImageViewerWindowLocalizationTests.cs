@@ -13,27 +13,6 @@ public sealed class ImageViewerWindowLocalizationTests
         Assert.Equal("尚未選取圖片", viewModel.CurrentImageName);
         Assert.Equal("PicLens", viewModel.WindowTitle);
         Assert.Equal("0 張，共 0 張", viewModel.PositionLabel);
-        Assert.Equal("全螢幕", viewModel.FullScreenLabel);
-
-        viewModel.IsFullScreen = true;
-
-        Assert.Equal("結束全螢幕", viewModel.FullScreenLabel);
-    }
-
-    [Fact]
-    public void FullScreenStateHidesViewerChrome()
-    {
-        var viewModel = new ImageViewerWindowViewModel();
-
-        Assert.True(viewModel.IsChromeVisible);
-
-        viewModel.IsFullScreen = true;
-
-        Assert.False(viewModel.IsChromeVisible);
-
-        viewModel.IsFullScreen = false;
-
-        Assert.True(viewModel.IsChromeVisible);
     }
 
     [Fact]

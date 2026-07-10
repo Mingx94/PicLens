@@ -7,7 +7,9 @@ namespace PicLens.Converters;
 public sealed class ImagePathConverter : IValueConverter
 {
     private const int MaxCachedImages = 512;
+    private static readonly object Sync = new();
     private static readonly Dictionary<string, CachedImage> Cache = new(StringComparer.Ordinal);
+    private static readonly Queue<string> CacheKeys = new();
 
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
@@ -36,20 +38,56 @@ public sealed class ImagePathConverter : IValueConverter
         var info = new FileInfo(path);
         var key = System.IO.Path.GetFullPath(path);
         var stamp = new ImageStamp(info.Length, info.LastWriteTimeUtc);
-        if (Cache.TryGetValue(key, out var cached) && cached.Stamp == stamp)
+        lock (Sync)
         {
-            return cached.Bitmap;
-        }
-
-        if (Cache.Count >= MaxCachedImages)
-        {
-            // ponytail: blunt cap; use LRU only if thumbnail browsing proves this too wasteful.
-            Cache.Clear();
+            if (Cache.TryGetValue(key, out var cached) && cached.Stamp == stamp)
+            {
+                return cached.Bitmap;
+            }
         }
 
         var bitmap = new Bitmap(path);
-        Cache[key] = new CachedImage(stamp, bitmap);
+        lock (Sync)
+        {
+            if (Cache.TryGetValue(key, out var old))
+            {
+                old.Bitmap.Dispose();
+            }
+            else
+            {
+                CacheKeys.Enqueue(key);
+            }
+
+            Cache[key] = new CachedImage(stamp, bitmap);
+            TrimCache();
+        }
+
         return bitmap;
+    }
+
+    public static void ClearCache()
+    {
+        lock (Sync)
+        {
+            foreach (var cached in Cache.Values)
+            {
+                cached.Bitmap.Dispose();
+            }
+
+            Cache.Clear();
+            CacheKeys.Clear();
+        }
+    }
+
+    private static void TrimCache()
+    {
+        while (Cache.Count > MaxCachedImages && CacheKeys.TryDequeue(out var key))
+        {
+            if (Cache.Remove(key, out var cached))
+            {
+                cached.Bitmap.Dispose();
+            }
+        }
     }
 
     private sealed record CachedImage(ImageStamp Stamp, Bitmap Bitmap);

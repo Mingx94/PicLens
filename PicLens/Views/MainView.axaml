@@ -553,7 +553,7 @@
             ZIndex="50">
             <Grid RowDefinitions="Auto,*,Auto" Margin="24">
                 <Border Grid.RowSpan="3" Background="{StaticResource ViewerCanvasBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="8" />
-                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="18,14" IsVisible="{Binding IsChromeVisible}">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="18,14">
                     <TextBlock Text="{Binding CurrentImageName}" Classes="secondary" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                     <Button Grid.Column="1" Classes="toolbar icon" ToolTip.Tip="關閉" AutomationProperties.AutomationId="ViewerCloseButton" Click="CloseViewer_Click">
                         <ic:FluentIcon Classes="glyph" Icon="Dismiss" IconVariant="Regular" IconSize="Size20" />
@@ -574,7 +574,6 @@
                         x:Name="ViewerImage"
                         AutomationProperties.AutomationId="ViewerImage"
                         AutomationProperties.Name="{Binding CurrentImageName}"
-                        Source="{Binding CurrentImageSourcePath, Converter={StaticResource ImagePathConverter}}"
                         Stretch="Uniform"
                         IsVisible="{Binding IsImageVisible}"
                         RenderTransformOrigin="0.5,0.5">
@@ -593,7 +592,7 @@
                         VerticalAlignment="Center"
                         IsVisible="{Binding IsUnsupportedAnimatedImage}" />
                 </Grid>
-                <Border Grid.Row="2" Background="#E61F2328" CornerRadius="8" Padding="8" HorizontalAlignment="Center" Margin="0,0,0,16" IsVisible="{Binding IsChromeVisible}">
+                <Border Grid.Row="2" Background="#E61F2328" CornerRadius="8" Padding="8" HorizontalAlignment="Center" Margin="0,0,0,16">
                     <StackPanel Orientation="Horizontal" Spacing="6" AutomationProperties.AutomationId="ViewerTitleCommandBar">
                         <Button Classes="toolbar icon" ToolTip.Tip="上一張" AutomationProperties.AutomationId="ViewerPreviousButton" Command="{Binding PreviousCommand}">
                             <ic:FluentIcon Classes="glyph" Icon="ArrowLeft" IconVariant="Regular" IconSize="Size20" Foreground="White" />
@@ -607,7 +606,6 @@
                         <Button Classes="toolbar icon" ToolTip.Tip="縮小" AutomationProperties.AutomationId="ViewerZoomOutButton" Command="{Binding ZoomOutCommand}">
                             <ic:FluentIcon Classes="glyph" Icon="ZoomOut" IconVariant="Regular" IconSize="Size20" Foreground="White" />
                         </Button>
-                        <TextBlock Text="{Binding Zoom, StringFormat='{}{0:P0}'}" Foreground="White" VerticalAlignment="Center" MinWidth="54" TextAlignment="Center" />
                         <Button Classes="toolbar icon" ToolTip.Tip="放大" AutomationProperties.AutomationId="ViewerZoomInButton" Command="{Binding ZoomInCommand}">
                             <ic:FluentIcon Classes="glyph" Icon="ZoomIn" IconVariant="Regular" IconSize="Size20" Foreground="White" />
                         </Button>

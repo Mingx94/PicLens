@@ -38,9 +38,6 @@ public partial class ImageViewerWindowViewModel : ObservableObject
     [ObservableProperty]
     public partial double OffsetY { get; set; }
 
-    [ObservableProperty]
-    public partial bool IsFullScreen { get; set; }
-
     public ImageListItem? CurrentImage => IsValidIndex(CurrentIndex) ? Snapshot.Images[CurrentIndex] : null;
 
     public string? CurrentImageSourcePath
@@ -62,8 +59,6 @@ public partial class ImageViewerWindowViewModel : ObservableObject
 
     public bool IsUnsupportedAnimatedImage => CurrentImage?.IsAnimated == true;
 
-    public bool IsChromeVisible => !IsFullScreen;
-
     public bool CanGoPrevious => CurrentIndex > 0;
 
     public bool CanGoNext => CurrentIndex >= 0 && CurrentIndex < Snapshot.Images.Count - 1;
@@ -81,10 +76,6 @@ public partial class ImageViewerWindowViewModel : ObservableObject
     public string PositionLabel => HasImages && CurrentIndex >= 0
         ? $"第 {CurrentIndex + 1} 張，共 {Snapshot.Images.Count} 張"
         : "0 張，共 0 張";
-
-    public string ZoomLabel => $"{Zoom * 100:0}%";
-
-    public string FullScreenLabel => IsFullScreen ? "結束全螢幕" : "全螢幕";
 
     public string UnsupportedMessage => CurrentImage is null
         ? "尚未選取圖片"
@@ -190,17 +181,10 @@ public partial class ImageViewerWindowViewModel : ObservableObject
 
     partial void OnZoomChanged(double value)
     {
-        OnPropertyChanged(nameof(ZoomLabel));
         OnPropertyChanged(nameof(CanZoomIn));
         OnPropertyChanged(nameof(CanZoomOut));
         ZoomInCommand.NotifyCanExecuteChanged();
         ZoomOutCommand.NotifyCanExecuteChanged();
-    }
-
-    partial void OnIsFullScreenChanged(bool value)
-    {
-        OnPropertyChanged(nameof(FullScreenLabel));
-        OnPropertyChanged(nameof(IsChromeVisible));
     }
 
     private static ImageSequenceSnapshot CreateEmptySnapshot() =>

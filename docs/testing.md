@@ -33,7 +33,7 @@ dotnet test .\tests\PicLens.ViewModels.Tests\PicLens.ViewModels.Tests.csproj --n
 
 - `PicLens.Core`：pure product rules 與 deterministic rename planning。
 - `PicLens.Infrastructure`：JSON settings、direct/recursive scanning、canonical directory de-duplication、disk thumbnail cache generation and pruning、trash、rename operations 與 file app logger。
-- `PicLens.Presentation`：startup folder selection flow、sort-without-rescan behavior、contextual selection state、library reload stale-selection clearing、drop-target rename preview confirmation、drag pointer cleanup math、drag preview/autoscroll math、per-item batch failure diagnostic logging、async thumbnail path updates、thumbnail cancellation、stalled-thumbnail timeout recovery、thumbnail-size persistence、failure paths diagnostic error logging，以及繁體中文 runtime copy。
+- `PicLens.Presentation`：startup folder selection flow、sort-without-rescan behavior、contextual selection state、library reload stale-selection clearing、drop-target rename preview confirmation、large-batch confirmation/cancellation、10,000 item list reset behavior、drag pointer cleanup math、drag preview/autoscroll math、per-item batch failure diagnostic logging、async thumbnail path updates、thumbnail cancellation、stalled-thumbnail timeout recovery、thumbnail-size persistence、failure paths diagnostic error logging，以及繁體中文 runtime copy。
 
 ## Build
 

@@ -7,9 +7,11 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using PicLens.Converters;
 using PicLens.Core.Domain;
 using PicLens.Core.Models;
 using PicLens.Infrastructure.Services;
@@ -42,6 +44,8 @@ public partial class MainView : UserControl
     private bool initialized;
     private bool initialLoadCompleted;
     private bool visibleThumbnailLoadQueued;
+    private Bitmap? viewerBitmap;
+    private string? viewerBitmapPath;
     private IReadOnlyList<LibraryTileItem> pointerDragItems = [];
 
     public MainView()
@@ -75,6 +79,11 @@ public partial class MainView : UserControl
         thumbnailSizeCommitTimer.Tick += ThumbnailSizeCommitTimer_Tick;
         ThumbnailSizeSlider.PropertyChanged += ThumbnailSizeSlider_PropertyChanged;
         Loaded += OnLoaded;
+        DetachedFromVisualTree += (_, _) =>
+        {
+            ClearViewerImageSource();
+            ImagePathConverter.ClearCache();
+        };
     }
 
     public MainPageViewModel ViewModel { get; }
@@ -123,15 +132,6 @@ public partial class MainView : UserControl
         if (e.Source is TreeViewItem { DataContext: FolderTreeItem node })
         {
             await ViewModel.LoadFolderChildrenOnDemandAsync(node);
-        }
-    }
-
-    private async void RecentFolder_Click(object? sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: string folderPath }
-            && ViewModel.OpenRecentFolderCommand.CanExecute(folderPath))
-        {
-            await ViewModel.OpenRecentFolderCommand.ExecuteAsync(folderPath);
         }
     }
 
@@ -504,6 +504,11 @@ public partial class MainView : UserControl
     {
         if (sender is Control { DataContext: LibraryTileItem item })
         {
+            foreach (var image in ((Control)sender).GetVisualDescendants().OfType<Image>())
+            {
+                image.Source = null;
+            }
+
             ViewModel.CancelThumbnailLoad(item);
         }
     }
@@ -708,11 +713,13 @@ public partial class MainView : UserControl
     private void OpenImageViewer(ImageSequenceSnapshot snapshot)
     {
         UnsubscribePreviewViewModelEvents();
+        ClearViewerImageSource();
         previewViewModel = new ImageViewerWindowViewModel(snapshot);
         previewViewModel.PropertyChanged += PreviewViewModel_PropertyChanged;
         ViewerSurface.DataContext = previewViewModel;
         isPreviewOpen = true;
         App.Logger.Info($"Inline image viewer opened. {ViewerContext()}");
+        UpdateViewerImageSource();
         UpdateWindowTitleForViewer();
         ViewerSurface.IsVisible = true;
         previewViewModel.UpdateViewport(ViewerImageSurface.Bounds.Width, ViewerImageSurface.Bounds.Height);
@@ -732,6 +739,7 @@ public partial class MainView : UserControl
         isPreviewOpen = false;
         App.Logger.Info($"Inline image viewer closed. {ViewerContext()}");
         UnsubscribePreviewViewModelEvents();
+        ClearViewerImageSource();
         UpdateWindowTitleForViewer();
         ViewerSurface.IsVisible = false;
         LibraryGrid.Focus();
@@ -743,6 +751,12 @@ public partial class MainView : UserControl
             or nameof(ImageViewerWindowViewModel.WindowTitle))
         {
             UpdateWindowTitleForViewer();
+        }
+
+        if (e.PropertyName is nameof(ImageViewerWindowViewModel.CurrentImageSourcePath)
+            or nameof(ImageViewerWindowViewModel.IsImageVisible))
+        {
+            UpdateViewerImageSource();
         }
     }
 
@@ -757,6 +771,40 @@ public partial class MainView : UserControl
         {
             window.SetViewerTitle(isPreviewOpen ? previewViewModel.CurrentImageName : null);
         }
+    }
+
+    private void UpdateViewerImageSource()
+    {
+        var path = previewViewModel.CurrentImageSourcePath;
+        if (string.Equals(viewerBitmapPath, path, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        ClearViewerImageSource();
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return;
+        }
+
+        try
+        {
+            viewerBitmap = new Bitmap(path);
+            viewerBitmapPath = path;
+            ViewerImage.Source = viewerBitmap;
+        }
+        catch (Exception ex)
+        {
+            App.Logger.Error(ex, $"Load viewer image failed. Path={path}");
+        }
+    }
+
+    private void ClearViewerImageSource()
+    {
+        ViewerImage.Source = null;
+        viewerBitmap?.Dispose();
+        viewerBitmap = null;
+        viewerBitmapPath = null;
     }
 
     private void ViewerImageSurface_SizeChanged(object? sender, SizeChangedEventArgs e)

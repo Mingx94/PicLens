@@ -1,6 +1,7 @@
 using PicLens.Core.Services;
 using PicLens.Core.Domain;
 using PicLens.Core.Models;
+using PicLens.Services;
 using PicLens.ViewModels;
 
 namespace PicLens.ViewModels.Tests;
@@ -45,6 +46,66 @@ public sealed class MainPageDesignStateTests
         await viewModel.ConvertVisibleCommand.ExecuteAsync(null);
 
         Assert.Equal([bravo.Path], fileOperations.ConvertedPaths);
+    }
+
+    [Fact]
+    public async Task ConvertVisibleCommand_confirms_large_batches()
+    {
+        using var workspace = new TempDirectory();
+        var images = Enumerable.Range(1, 50)
+            .Select(index => new ImageListItem(
+                $"image:{index}",
+                Path.Combine(workspace.Path, $"Image-{index:000}.png"),
+                $"Image-{index:000}.png",
+                "png",
+                index,
+                1024))
+            .Cast<ListItem>()
+            .ToList();
+        var fileOperations = new RecordingFileOperationService();
+        var confirmations = new List<string>();
+        var viewModel = CreateViewModel(
+            workspace.Path,
+            new CountingFolderScanner(images),
+            fileOperations,
+            new TestDialogService(confirmAsync: (message, title, confirmButtonText) =>
+            {
+                confirmations.Add($"{title}|{confirmButtonText}|{message}");
+                return Task.FromResult(true);
+            }));
+
+        await viewModel.InitializeAsync();
+        await viewModel.ConvertVisibleCommand.ExecuteAsync(null);
+
+        Assert.Single(confirmations);
+        Assert.Contains("50 張圖片", confirmations[0], StringComparison.Ordinal);
+        Assert.Equal(50, fileOperations.ConvertedPaths.Count);
+    }
+
+    [Fact]
+    public async Task CancelFileOperationCommand_cancels_running_convert()
+    {
+        using var workspace = new TempDirectory();
+        var image = new ImageListItem("image:alpha", Path.Combine(workspace.Path, "Alpha.png"), "Alpha.png", "png", 20, 1024);
+        var fileOperations = new BlockingConvertOperationService();
+        var viewModel = CreateViewModel(
+            workspace.Path,
+            new CountingFolderScanner([image]),
+            fileOperations);
+
+        await viewModel.InitializeAsync();
+        var commandTask = viewModel.ConvertVisibleCommand.ExecuteAsync(null);
+        await fileOperations.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.True(viewModel.IsFileOperationActive);
+        Assert.True(viewModel.CancelFileOperationCommand.CanExecute(null));
+
+        viewModel.CancelFileOperationCommand.Execute(null);
+        await commandTask.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.True(fileOperations.WasCanceled);
+        Assert.False(viewModel.IsFileOperationActive);
+        Assert.Equal("已取消轉換為 JPG。", viewModel.StatusMessage);
     }
 
     [Fact]
@@ -131,13 +192,14 @@ public sealed class MainPageDesignStateTests
     private static MainPageViewModel CreateViewModel(
         string lastFolderPath,
         IFolderScanner folderScanner,
-        IFileOperationService? fileOperationService = null) =>
+        IFileOperationService? fileOperationService = null,
+        IDialogService? dialogService = null) =>
         new(
             new FakeSettingsStore(AppSettings.CreateDefault() with { LastFolderPath = lastFolderPath }),
             folderScanner,
             fileOperationService ?? new ThrowingFileOperationService(),
             new NullThumbnailService(),
-            new NullDialogService());
+            dialogService ?? new NullDialogService());
 
     private static StringComparer SettingsRulesPathComparer() =>
         OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
@@ -157,6 +219,51 @@ public sealed class MainPageDesignStateTests
                 Skipped: 0,
                 Failed: 0,
                 Items: ConvertedPaths.Select(path => new FileOperationResult(path, FileOperationStatus.Converted)).ToArray()));
+        }
+
+        public Task<FileOperationBatchResult> TrashSameBasenameNonJpgAsync(
+            IEnumerable<ImageListItem> visibleImages,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<FileOperationResult> TrashAsync(string path, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<FileOperationResult> RenameAsync(
+            string sourcePath,
+            string newFileName,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<FileOperationBatchResult> RenameByDropTargetAsync(
+            IEnumerable<string> sourcePaths,
+            string targetPath,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class BlockingConvertOperationService : IFileOperationService
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public bool WasCanceled { get; private set; }
+
+        public async Task<FileOperationBatchResult> ConvertVisibleToJpgAsync(
+            IEnumerable<ImageListItem> visibleImages,
+            CancellationToken cancellationToken = default)
+        {
+            Started.SetResult();
+            try
+            {
+                await Task.Delay(TimeSpan.FromMinutes(1), cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                WasCanceled = true;
+                throw;
+            }
+
+            throw new InvalidOperationException("The test should cancel before conversion completes.");
         }
 
         public Task<FileOperationBatchResult> TrashSameBasenameNonJpgAsync(

@@ -13,6 +13,8 @@ namespace PicLens.ViewModels;
 
 public sealed partial class MainPageViewModel : ObservableObject
 {
+    private const int LargeBatchConfirmationThreshold = 50;
+
     private readonly ISettingsStore settingsStore;
     private readonly IFolderScanner folderScanner;
     private readonly IFileOperationService fileOperationService;
@@ -31,6 +33,7 @@ public sealed partial class MainPageViewModel : ObservableObject
     private IReadOnlyList<ListItem> currentItems = [];
     private bool suppressIncludeSubfoldersReload;
     private CancellationTokenSource? libraryLoadCancellationSource;
+    private CancellationTokenSource? fileOperationCancellationSource;
 
     public MainPageViewModel(
         ISettingsStore settingsStore,
@@ -151,6 +154,8 @@ public sealed partial class MainPageViewModel : ObservableObject
     public bool CanRevealSelectedImage => HasSingleSelectedImage;
 
     public bool IsListViewMode => !IsGridViewMode;
+
+    public bool IsFileOperationActive => fileOperationCancellationSource is not null;
 
     public int LibraryLayoutMinItemWidth => IsGridViewMode ? ThumbnailSize + 8 : 640;
 
@@ -508,17 +513,6 @@ public sealed partial class MainPageViewModel : ObservableObject
     private void ClearSearch() => SearchQuery = string.Empty;
 
     [RelayCommand]
-    private async Task OpenRecentFolder(string? folderPath)
-    {
-        if (string.IsNullOrWhiteSpace(folderPath))
-        {
-            return;
-        }
-
-        await NavigateToFolderAsync(folderPath, persist: true, resetFolderTreeRoot: true);
-    }
-
-    [RelayCommand]
     private void ToggleSidebar() => IsSidebarOpen = !IsSidebarOpen;
 
     [RelayCommand]
@@ -527,25 +521,95 @@ public sealed partial class MainPageViewModel : ObservableObject
         IsGridViewMode = !string.Equals(mode, "list", StringComparison.OrdinalIgnoreCase);
     }
 
+    [RelayCommand(CanExecute = nameof(IsFileOperationActive))]
+    private void CancelFileOperation()
+    {
+        fileOperationCancellationSource?.Cancel();
+        SetStatus("正在取消目前檔案操作。");
+    }
+
     [RelayCommand]
     private async Task ConvertVisible()
     {
-        var result = await fileOperationService.ConvertVisibleToJpgAsync(VisibleImages());
-        SetBatchStatus("轉換為 JPG", result);
-        await LoadLibraryAsync();
+        if (IsFileOperationActive)
+        {
+            return;
+        }
+
+        var images = VisibleImages();
+        if (images.Count == 0)
+        {
+            SetStatus("沒有可轉換的圖片。");
+            return;
+        }
+
+        if (!await ConfirmLargeBatchAsync(images.Count, "要將目前顯示的 {0} 張圖片轉為 JPG 嗎？", "轉換為 JPG", "開始轉換"))
+        {
+            return;
+        }
+
+        var operation = BeginFileOperation();
+        try
+        {
+            var result = await fileOperationService.ConvertVisibleToJpgAsync(images, operation.Token);
+            SetBatchStatus("轉換為 JPG", result);
+            await LoadLibraryAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            SetStatus("已取消轉換為 JPG。");
+        }
+        catch (Exception ex)
+        {
+            appLogger.Error(ex, "Convert visible images failed.");
+            SetStatus("轉換為 JPG 時發生錯誤，已寫入診斷記錄。");
+        }
+        finally
+        {
+            EndFileOperation(operation);
+        }
     }
 
     [RelayCommand]
     private async Task ClearSameBasename()
     {
-        if (!await dialogService.ConfirmAsync("要將同名的非 JPG 檔案移至回收筒嗎？", "清除同名檔案", "移至回收筒"))
+        if (IsFileOperationActive)
         {
             return;
         }
 
-        var result = await fileOperationService.TrashSameBasenameNonJpgAsync(VisibleImages());
-        SetBatchStatus("清除同名檔案", result);
-        await LoadLibraryAsync();
+        var images = VisibleImages();
+        if (images.Count == 0)
+        {
+            SetStatus("沒有可清除的圖片。");
+            return;
+        }
+
+        if (!await dialogService.ConfirmAsync($"要將目前顯示的 {images.Count} 張圖片中，同名的非 JPG 檔案移至回收筒嗎？", "清除同名檔案", "移至回收筒"))
+        {
+            return;
+        }
+
+        var operation = BeginFileOperation();
+        try
+        {
+            var result = await fileOperationService.TrashSameBasenameNonJpgAsync(images, operation.Token);
+            SetBatchStatus("清除同名檔案", result);
+            await LoadLibraryAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            SetStatus("已取消清除同名檔案。");
+        }
+        catch (Exception ex)
+        {
+            appLogger.Error(ex, "Clear same basename images failed.");
+            SetStatus("清除同名檔案時發生錯誤，已寫入診斷記錄。");
+        }
+        finally
+        {
+            EndFileOperation(operation);
+        }
     }
 
     [RelayCommand(CanExecute = nameof(HasSingleSelectedImage))]
@@ -584,6 +648,11 @@ public sealed partial class MainPageViewModel : ObservableObject
     {
         try
         {
+            if (IsFileOperationActive)
+            {
+                return;
+            }
+
             var selected = SelectedImages();
             if (selected.Count == 0)
             {
@@ -598,27 +667,70 @@ public sealed partial class MainPageViewModel : ObservableObject
                 return;
             }
 
+            var operation = BeginFileOperation();
             var results = new List<FileOperationResult>(selected.Count);
-            foreach (var image in selected)
+            try
             {
-                results.Add(await fileOperationService.TrashAsync(image.Path));
-            }
+                foreach (var image in selected)
+                {
+                    operation.Token.ThrowIfCancellationRequested();
+                    results.Add(await fileOperationService.TrashAsync(image.Path, operation.Token));
+                }
 
-            var batch = new FileOperationBatchResult(
-                Total: results.Count,
-                Succeeded: results.Count(result => result.Status == FileOperationStatus.Trashed),
-                Skipped: results.Count(result => result.Status is not FileOperationStatus.Trashed and not FileOperationStatus.Failed),
-                Failed: results.Count(result => result.Status == FileOperationStatus.Failed),
-                Items: results);
-            SetBatchStatus("移至回收筒", batch);
-            ClearSelection();
-            await LoadLibraryAsync();
+                var batch = new FileOperationBatchResult(
+                    Total: results.Count,
+                    Succeeded: results.Count(result => result.Status == FileOperationStatus.Trashed),
+                    Skipped: results.Count(result => result.Status is not FileOperationStatus.Trashed and not FileOperationStatus.Failed),
+                    Failed: results.Count(result => result.Status == FileOperationStatus.Failed),
+                    Items: results);
+                SetBatchStatus("移至回收筒", batch);
+                ClearSelection();
+                await LoadLibraryAsync();
+            }
+            catch (OperationCanceledException)
+            {
+                SetStatus("已取消移至回收筒。");
+            }
+            finally
+            {
+                EndFileOperation(operation);
+            }
         }
         catch (Exception ex)
         {
             appLogger.Error(ex, "Trash selected images failed.");
             SetStatus("移至回收筒時發生錯誤，已寫入診斷記錄。");
         }
+    }
+
+    private Task<bool> ConfirmLargeBatchAsync(int count, string messageFormat, string title, string confirmButtonText) =>
+        count < LargeBatchConfirmationThreshold
+            ? Task.FromResult(true)
+            : dialogService.ConfirmAsync(string.Format(messageFormat, count), title, confirmButtonText);
+
+    private CancellationTokenSource BeginFileOperation()
+    {
+        fileOperationCancellationSource?.Cancel();
+        fileOperationCancellationSource?.Dispose();
+        fileOperationCancellationSource = new CancellationTokenSource();
+        IsBusy = true;
+        OnPropertyChanged(nameof(IsFileOperationActive));
+        CancelFileOperationCommand.NotifyCanExecuteChanged();
+        return fileOperationCancellationSource;
+    }
+
+    private void EndFileOperation(CancellationTokenSource operation)
+    {
+        if (!ReferenceEquals(fileOperationCancellationSource, operation))
+        {
+            return;
+        }
+
+        fileOperationCancellationSource = null;
+        operation.Dispose();
+        IsBusy = false;
+        OnPropertyChanged(nameof(IsFileOperationActive));
+        CancelFileOperationCommand.NotifyCanExecuteChanged();
     }
 
     private async Task PersistIncludeSubfoldersAndReloadAsync(bool includeSubfolders)
