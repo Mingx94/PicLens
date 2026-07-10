@@ -8,27 +8,18 @@ public sealed class LibraryTileItem : ObservableObject
 {
     private string? thumbnailPath;
     private int? thumbnailSize;
-    private int tileWidth = SettingsRules.DefaultThumbnailSize;
-    private int tileHeight = SettingsRules.DefaultThumbnailSize - 4;
     private bool isSelected;
     private bool isDropRenameTarget;
-    private bool isGridViewMode = true;
 
-    public LibraryTileItem(
-        string Name,
-        string Path,
-        string Detail,
-        ListItem SourceItem)
-    {
-        this.Name = Name;
-        this.Path = Path;
-        this.Detail = Detail;
-        this.SourceItem = SourceItem;
-    }
+    public LibraryTileItem(ListItem sourceItem) => SourceItem = sourceItem;
 
-    public string Name { get; }
-    public string Path { get; }
-    public string Detail { get; }
+    public string Name => SourceItem.Name;
+    public string Path => SourceItem.Path;
+    public string Detail => SourceItem is FolderListItem
+        ? "開啟資料夾"
+        : SourceItem is ImageListItem image
+            ? $"{image.Extension.ToUpperInvariant()} - {image.SizeBytes / 1024} KB"
+            : string.Empty;
     public bool IsFolder => SourceItem is FolderListItem;
     public bool IsAnimated => SourceItem is ImageListItem { IsAnimated: true };
     public bool IsStillImage => SourceItem is ImageListItem { IsAnimated: false };
@@ -73,52 +64,14 @@ public sealed class LibraryTileItem : ObservableObject
         set => SetProperty(ref isDropRenameTarget, value);
     }
 
-    public int TileWidth
-    {
-        get => tileWidth;
-        private set => SetProperty(ref tileWidth, value);
-    }
-
-    public int TileHeight
-    {
-        get => tileHeight;
-        private set => SetProperty(ref tileHeight, value);
-    }
-
-    public int TileDisplayHeight => IsGridViewMode ? TileHeight + 44 : 88;
-
-    public int ListThumbnailWidth => 96;
-
-    public int ListThumbnailHeight => 68;
-
-    public bool IsGridViewMode
-    {
-        get => isGridViewMode;
-        private set
-        {
-            if (SetProperty(ref isGridViewMode, value))
-            {
-                OnPropertyChanged(nameof(IsListViewMode));
-                OnPropertyChanged(nameof(TileDisplayHeight));
-            }
-        }
-    }
-
-    public bool IsListViewMode => !IsGridViewMode;
-
     public void ApplyThumbnailSize(int thumbnailSize)
     {
         var normalizedSize = SettingsRules.NormalizeThumbnailSize(thumbnailSize);
-        TileWidth = normalizedSize;
-        TileHeight = normalizedSize - 4;
-        OnPropertyChanged(nameof(TileDisplayHeight));
         if (this.thumbnailSize.HasValue && this.thumbnailSize.Value != normalizedSize)
         {
             ClearThumbnail();
         }
     }
-
-    public void ApplyViewMode(bool isGridViewMode) => IsGridViewMode = isGridViewMode;
 
     public bool HasThumbnailFor(int thumbnailSize)
     {

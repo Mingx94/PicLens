@@ -44,13 +44,13 @@ public sealed class FileRenamePlannerTests
         var plan = FileRenamePlanner.PlanDropTargetBatchRename(
             sources,
             target,
-            targetNameExists: TargetNameExists(
+            existingPaths:
             [
                 sources[0],
                 sources[2],
                 sources[3],
                 Path.Combine(root, "Album-03.webp")
-            ]));
+            ]);
 
         Assert.Equal(3, plan.Total);
         Assert.Collection(
@@ -95,7 +95,7 @@ public sealed class FileRenamePlannerTests
         var plan = FileRenamePlanner.PlanDropTargetBatchRename(
             sources,
             target,
-            targetNameExists: TargetNameExists(existingTargets));
+            existingTargets);
 
         Assert.Collection(
             plan.Items,
@@ -120,7 +120,7 @@ public sealed class FileRenamePlannerTests
         var target = Path.Combine(root, "Album.jpg");
         var source = Path.Combine(root, "Album-03.jpg");
 
-        var plan = FileRenamePlanner.PlanDropTargetBatchRename([source], target, TargetNameExists([source]));
+        var plan = FileRenamePlanner.PlanDropTargetBatchRename([source], target, [source]);
 
         var item = Assert.Single(plan.Items);
         Assert.Equal(source, item.SourcePath);
@@ -138,28 +138,15 @@ public sealed class FileRenamePlannerTests
         var plan = FileRenamePlanner.PlanDropTargetBatchRename(
             [source],
             target,
-            TargetNameExists(
             [
                 Path.Combine(root, "Album-01.png"),
                 Path.Combine(root, "Album-02.webp"),
                 source
-            ]));
+            ]);
 
         var item = Assert.Single(plan.Items);
         Assert.True(item.ShouldSkip);
         Assert.Equal("already_target_sequence", item.Reason);
     }
 
-    private static Func<string, string, bool> TargetNameExists(IEnumerable<string> existingPaths)
-    {
-        var paths = existingPaths.ToList();
-
-        return (candidatePath, sourcePath) => paths.Any(path =>
-            !PathRules.PathEquals(path, sourcePath)
-            && PathRules.PathEquals(Path.GetDirectoryName(path), Path.GetDirectoryName(candidatePath))
-            && string.Equals(
-                Path.GetFileNameWithoutExtension(path),
-                Path.GetFileNameWithoutExtension(candidatePath),
-                PathRules.PathComparison));
-    }
 }

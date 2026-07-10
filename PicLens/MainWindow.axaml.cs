@@ -8,11 +8,4 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
     }
-
-    public void SetViewerTitle(string? imageName)
-    {
-        Title = string.IsNullOrWhiteSpace(imageName)
-            ? "PicLens"
-            : $"PicLens - {imageName}";
-    }
 }

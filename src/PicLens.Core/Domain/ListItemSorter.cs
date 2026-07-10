@@ -13,16 +13,6 @@ public static class ListItemSorter
         var sorted = items.ToList();
         sorted.Sort((left, right) =>
         {
-            if (left is null)
-            {
-                return right is null ? 0 : -1;
-            }
-
-            if (right is null)
-            {
-                return 1;
-            }
-
             if (keepFoldersFirst && left.GetType() != right.GetType())
             {
                 return left is FolderListItem ? -1 : 1;

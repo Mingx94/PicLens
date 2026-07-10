@@ -22,8 +22,7 @@ public sealed partial class MainPageViewModel : ObservableObject
     private readonly IAppLogger appLogger;
     private readonly IDialogService dialogService;
     private readonly Action<ImageSequenceSnapshot> openImageViewer;
-    private readonly Func<bool> hasUiThreadAccess;
-    private readonly Func<Action, bool> tryEnqueueOnUiThread;
+    private readonly Func<Action, Task> runOnUiThread;
     private readonly FolderTreeModule folderTree;
     private readonly FolderNavigationHistory folderHistory = new();
     private readonly List<string> selectedImagePaths = [];
@@ -42,8 +41,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         IThumbnailService thumbnailService,
         IDialogService dialogService,
         Action<ImageSequenceSnapshot>? openImageViewer = null,
-        Func<bool>? hasUiThreadAccess = null,
-        Func<Action, bool>? tryEnqueueOnUiThread = null,
+        Func<Action, Task>? runOnUiThread = null,
         TimeSpan? thumbnailLoadTimeout = null,
         IAppLogger? appLogger = null)
     {
@@ -53,11 +51,10 @@ public sealed partial class MainPageViewModel : ObservableObject
         this.thumbnailService = thumbnailService;
         this.dialogService = dialogService;
         this.openImageViewer = openImageViewer ?? (_ => { });
-        this.hasUiThreadAccess = hasUiThreadAccess ?? (() => true);
-        this.tryEnqueueOnUiThread = tryEnqueueOnUiThread ?? (action =>
+        this.runOnUiThread = runOnUiThread ?? (action =>
         {
             action();
-            return true;
+            return Task.CompletedTask;
         });
         this.thumbnailLoadTimeout = thumbnailLoadTimeout is { } timeout && timeout > TimeSpan.Zero
             ? timeout
@@ -78,16 +75,25 @@ public sealed partial class MainPageViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ThumbnailSizeLabel))]
     [NotifyPropertyChangedFor(nameof(LibraryTileLayoutHeight))]
+    [NotifyPropertyChangedFor(nameof(LibraryThumbnailHeight))]
     public partial int ThumbnailSize { get; set; } = SettingsRules.DefaultThumbnailSize;
 
     [ObservableProperty]
     public partial SortState Sort { get; set; } = new(SortKey.Name, SortDirection.Asc);
 
     [ObservableProperty]
-    public partial bool IsBusy { get; set; }
+    public partial string SearchQuery { get; set; } = string.Empty;
 
     [ObservableProperty]
-    public partial string SearchQuery { get; set; } = string.Empty;
+    [NotifyPropertyChangedFor(nameof(HasEmptyFolder))]
+    [NotifyPropertyChangedFor(nameof(HasNoSearchResults))]
+    public partial bool IsLibraryLoading { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLibraryError))]
+    [NotifyPropertyChangedFor(nameof(HasEmptyFolder))]
+    [NotifyPropertyChangedFor(nameof(HasNoSearchResults))]
+    public partial string? LibraryErrorMessage { get; set; }
 
     [ObservableProperty]
     public partial bool IsSidebarOpen { get; set; } = true;
@@ -102,12 +108,6 @@ public sealed partial class MainPageViewModel : ObservableObject
     public ObservableRangeCollection<LibraryTileItem> FolderLibraryItems { get; } = [];
 
     public ObservableRangeCollection<LibraryTileItem> ImageLibraryItems { get; } = [];
-
-    public ObservableRangeCollection<string> RecentFolderPaths { get; } = [];
-
-    public bool HasRecentFolders => RecentFolderPaths.Count > 0;
-
-    public bool HasNoRecentFolders => !HasRecentFolders;
 
     public bool HasSearchQuery => !string.IsNullOrWhiteSpace(SearchQuery);
 
@@ -133,6 +133,8 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     public int LibraryTileLayoutHeight => IsGridViewMode ? ThumbnailSize + 56 : 100;
 
+    public int LibraryThumbnailHeight => ThumbnailSize - 4;
+
     public string LibraryItemCountText => $"{LibraryItems.Count} 個項目";
 
     public string FolderItemCountText => $"資料夾 ({FolderLibraryItems.Count})";
@@ -143,15 +145,19 @@ public sealed partial class MainPageViewModel : ObservableObject
 
     public bool HasImageLibraryItems => ImageLibraryItems.Count > 0;
 
-    public bool HasNoVisibleItems => HasCurrentFolder && LibraryItems.Count == 0;
+    public bool HasLibraryError => !string.IsNullOrWhiteSpace(LibraryErrorMessage);
+
+    public bool HasEmptyFolder =>
+        HasCurrentFolder && !IsLibraryLoading && !HasLibraryError && !HasSearchQuery && LibraryItems.Count == 0;
+
+    public bool HasNoSearchResults =>
+        HasCurrentFolder && !IsLibraryLoading && !HasLibraryError && HasSearchQuery && LibraryItems.Count == 0;
 
     public int SelectedImageCount => selectedImagePaths.Count;
 
     public bool HasSelectedImages => SelectedImageCount > 0;
 
     public bool HasSingleSelectedImage => SelectedImageCount == 1;
-
-    public bool CanRevealSelectedImage => HasSingleSelectedImage;
 
     public bool IsListViewMode => !IsGridViewMode;
 
@@ -166,62 +172,44 @@ public sealed partial class MainPageViewModel : ObservableObject
         _ => $"{SelectedImageCount} 張已選取"
     };
 
-    public string SelectedDetailText => SelectedImages() switch
-    {
-        [] => "選取圖片後可在這裡執行安全整理動作。",
-        [var image] => $"{image.Name} · {image.SizeBytes / 1024} KB",
-        var images => $"共 {images.Sum(image => image.SizeBytes) / 1024 / 1024.0:0.#} MB"
-    };
-
-    public string? SelectedImagePathForReveal => SelectedImages() is [var image] ? image.Path : null;
-
     public async Task InitializeAsync()
     {
-        IsBusy = true;
-        try
+        settings = SettingsRules.NormalizeSettings(await settingsStore.LoadAsync());
+        suppressIncludeSubfoldersReload = true;
+        Sort = settings.Sort;
+        IncludeSubfolders = settings.IncludeSubfolders;
+        ThumbnailSize = settings.ThumbnailSize;
+        suppressIncludeSubfoldersReload = false;
+
+        var initialFolder = string.IsNullOrWhiteSpace(settings.LastFolderPath) || !Directory.Exists(settings.LastFolderPath)
+            ? null
+            : settings.LastFolderPath;
+        var shouldPersistInitialFolder = false;
+        if (initialFolder is null)
         {
-            settings = SettingsRules.NormalizeSettings(await settingsStore.LoadAsync());
-            suppressIncludeSubfoldersReload = true;
-            Sort = settings.Sort;
-            IncludeSubfolders = settings.IncludeSubfolders;
-            ThumbnailSize = settings.ThumbnailSize;
-            suppressIncludeSubfoldersReload = false;
-            RefreshRecentFolderPaths(settings.RecentFolderPaths);
-
-            var initialFolder = string.IsNullOrWhiteSpace(settings.LastFolderPath) || !Directory.Exists(settings.LastFolderPath)
-                ? null
-                : settings.LastFolderPath;
-            var shouldPersistInitialFolder = false;
-            if (initialFolder is null)
-            {
-                initialFolder = await dialogService.ChooseFolderAsync();
-                shouldPersistInitialFolder = true;
-            }
-
-            if (string.IsNullOrWhiteSpace(initialFolder))
-            {
-                CurrentFolderPath = string.Empty;
-                currentItems = [];
-                LibraryItems.Clear();
-                NotifyLibraryItemCount();
-                folderTree.Clear();
-                SetStatus("請選擇資料夾以開始瀏覽。");
-                return;
-            }
-
-            await NavigateToFolderAsync(
-                initialFolder,
-                replaceHistory: true,
-                persist: shouldPersistInitialFolder,
-                resetFolderTreeRoot: true);
-            if (HasCurrentFolder)
-            {
-                SetStatus($"已從 {CurrentFolderPath} 載入 {LibraryItems.Count} 個項目。");
-            }
+            initialFolder = await dialogService.ChooseFolderAsync();
+            shouldPersistInitialFolder = true;
         }
-        finally
+
+        if (string.IsNullOrWhiteSpace(initialFolder))
         {
-            IsBusy = false;
+            CurrentFolderPath = string.Empty;
+            currentItems = [];
+            LibraryItems.Clear();
+            NotifyLibraryItemCount();
+            folderTree.Clear();
+            SetStatus("請選擇資料夾以開始瀏覽。");
+            return;
+        }
+
+        await NavigateToFolderAsync(
+            initialFolder,
+            replaceHistory: true,
+            persist: shouldPersistInitialFolder,
+            resetFolderTreeRoot: true);
+        if (HasCurrentFolder)
+        {
+            SetStatus($"已從 {CurrentFolderPath} 載入 {LibraryItems.Count} 個項目。");
         }
     }
 
@@ -259,14 +247,11 @@ public sealed partial class MainPageViewModel : ObservableObject
         NotifyNavigationCommands();
         if (persist)
         {
-            var recentFolders = MoveFolderToRecent(normalized, settings.RecentFolderPaths);
             settings = await settingsStore.UpdateAsync(new AppSettingsPatch
             {
                 LastFolderPath = normalized,
-                HasLastFolderPath = true,
-                RecentFolderPaths = recentFolders
+                HasLastFolderPath = true
             });
-            RefreshRecentFolderPaths(settings.RecentFolderPaths);
         }
 
         await LoadLibraryAsync();
@@ -308,12 +293,11 @@ public sealed partial class MainPageViewModel : ObservableObject
 
         try
         {
-            var preview = CreateDropRenamePreview(
-                FileRenamePlanner.PlanDropTargetBatchRename(
-                    dragSources.Select(image => image.Path),
-                    targetImage.Path,
-                    ExistingTargetDirectoryFiles(targetImage.Path)));
-            if (preview.Total == 0)
+            var plan = FileRenamePlanner.PlanDropTargetBatchRename(
+                dragSources.Select(image => image.Path),
+                targetImage.Path,
+                ExistingTargetDirectoryFiles(targetImage.Path));
+            if (plan.Total == 0)
             {
                 SetStatus("沒有可拖放重新命名的圖片。");
                 appLogger.Info(
@@ -321,11 +305,11 @@ public sealed partial class MainPageViewModel : ObservableObject
                 return;
             }
 
-            if (!await dialogService.ConfirmDropRenameAsync(preview))
+            if (!await dialogService.ConfirmDropRenameAsync(plan))
             {
                 SetStatus("已取消拖放重新命名。");
                 appLogger.Info(
-                    $"Drop dragged images canceled. Total={preview.Total}; RenameCount={preview.RenameCount}; SkippedCount={preview.SkippedCount}; Target={targetImage.Name}");
+                    $"Drop dragged images canceled. Total={plan.Total}; RenameCount={plan.Items.Count(item => !item.ShouldSkip)}; SkippedCount={plan.Items.Count(item => item.ShouldSkip)}; Target={targetImage.Name}");
                 return;
             }
 
@@ -346,25 +330,6 @@ public sealed partial class MainPageViewModel : ObservableObject
         {
             dragSources.Clear();
         }
-    }
-
-    private static DropRenamePreview CreateDropRenamePreview(DropTargetBatchRenamePlan plan)
-    {
-        var items = plan.Items
-            .Select(item => new DropRenamePreviewItem(
-                SourcePath: item.SourcePath,
-                SourceName: Path.GetFileName(item.SourcePath),
-                TargetPath: item.TargetPath,
-                TargetName: Path.GetFileName(item.TargetPath),
-                WillRename: !item.ShouldSkip,
-                Reason: item.Reason))
-            .ToList();
-
-        return new DropRenamePreview(
-            Total: plan.Total,
-            RenameCount: items.Count(item => item.WillRename),
-            SkippedCount: items.Count(item => !item.WillRename),
-            Items: items);
     }
 
     private void LogBatchItemFailures(string operationName, FileOperationBatchResult result)
@@ -391,7 +356,8 @@ public sealed partial class MainPageViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(HasCurrentFolder));
         OnPropertyChanged(nameof(HasNoCurrentFolder));
-        OnPropertyChanged(nameof(HasNoVisibleItems));
+        OnPropertyChanged(nameof(HasEmptyFolder));
+        OnPropertyChanged(nameof(HasNoSearchResults));
         OnPropertyChanged(nameof(CurrentFolderName));
         OnPropertyChanged(nameof(CurrentParentFolderName));
     }
@@ -404,6 +370,8 @@ public sealed partial class MainPageViewModel : ObservableObject
     partial void OnSearchQueryChanged(string value)
     {
         OnPropertyChanged(nameof(HasSearchQuery));
+        OnPropertyChanged(nameof(HasEmptyFolder));
+        OnPropertyChanged(nameof(HasNoSearchResults));
         ClearSelection();
         ApplyLibraryFilter();
     }
@@ -418,7 +386,6 @@ public sealed partial class MainPageViewModel : ObservableObject
         OnPropertyChanged(nameof(IsListViewMode));
         OnPropertyChanged(nameof(LibraryLayoutMinItemWidth));
         OnPropertyChanged(nameof(LibraryTileLayoutHeight));
-        ApplyViewModeToLibraryTiles();
     }
 
     [RelayCommand(CanExecute = nameof(CanNavigateBack))]
@@ -549,6 +516,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
 
         var operation = BeginFileOperation();
+        SetStatus($"正在轉換 {images.Count} 張圖片為 JPG…");
         try
         {
             var result = await fileOperationService.ConvertVisibleToJpgAsync(images, operation.Token);
@@ -591,6 +559,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         }
 
         var operation = BeginFileOperation();
+        SetStatus("正在清除同名的非 JPG 圖片…");
         try
         {
             var result = await fileOperationService.TrashSameBasenameNonJpgAsync(images, operation.Token);
@@ -668,6 +637,7 @@ public sealed partial class MainPageViewModel : ObservableObject
             }
 
             var operation = BeginFileOperation();
+            SetStatus($"正在將 {selected.Count} 張圖片移至回收筒…");
             var results = new List<FileOperationResult>(selected.Count);
             try
             {
@@ -677,12 +647,7 @@ public sealed partial class MainPageViewModel : ObservableObject
                     results.Add(await fileOperationService.TrashAsync(image.Path, operation.Token));
                 }
 
-                var batch = new FileOperationBatchResult(
-                    Total: results.Count,
-                    Succeeded: results.Count(result => result.Status == FileOperationStatus.Trashed),
-                    Skipped: results.Count(result => result.Status is not FileOperationStatus.Trashed and not FileOperationStatus.Failed),
-                    Failed: results.Count(result => result.Status == FileOperationStatus.Failed),
-                    Items: results);
+                var batch = new FileOperationBatchResult(results);
                 SetBatchStatus("移至回收筒", batch);
                 ClearSelection();
                 await LoadLibraryAsync();
@@ -713,7 +678,6 @@ public sealed partial class MainPageViewModel : ObservableObject
         fileOperationCancellationSource?.Cancel();
         fileOperationCancellationSource?.Dispose();
         fileOperationCancellationSource = new CancellationTokenSource();
-        IsBusy = true;
         OnPropertyChanged(nameof(IsFileOperationActive));
         CancelFileOperationCommand.NotifyCanExecuteChanged();
         return fileOperationCancellationSource;
@@ -728,7 +692,6 @@ public sealed partial class MainPageViewModel : ObservableObject
 
         fileOperationCancellationSource = null;
         operation.Dispose();
-        IsBusy = false;
         OnPropertyChanged(nameof(IsFileOperationActive));
         CancelFileOperationCommand.NotifyCanExecuteChanged();
     }
@@ -776,7 +739,8 @@ public sealed partial class MainPageViewModel : ObservableObject
         var sort = Sort;
         var folderTreeRoot = folderTree.EnsureRoot(folderPath);
         var load = BeginLibraryLoad();
-        IsBusy = true;
+        LibraryErrorMessage = null;
+        IsLibraryLoading = true;
         try
         {
             var isRootChanged = folderTree.IsDisplayedRootChanged(folderTreeRoot);
@@ -834,14 +798,15 @@ public sealed partial class MainPageViewModel : ObservableObject
             currentItems = [];
             LibraryItems.Clear();
             NotifyLibraryItemCount();
-            SetStatus($"無法載入資料夾：{ex.Message}");
+            LibraryErrorMessage = $"無法載入資料夾：{ex.Message}";
+            SetStatus(LibraryErrorMessage);
         }
         finally
         {
             if (ReferenceEquals(libraryLoadCancellationSource, load.CancellationSource))
             {
                 libraryLoadCancellationSource = null;
-                IsBusy = false;
+                IsLibraryLoading = false;
             }
 
             load.CancellationSource.Dispose();
@@ -871,7 +836,7 @@ public sealed partial class MainPageViewModel : ObservableObject
     {
         libraryLoadCancellationSource?.Cancel();
         libraryLoadCancellationSource = null;
-        IsBusy = false;
+        IsLibraryLoading = false;
     }
 
     private bool IsCurrentLibraryLoad(LibraryLoadState load) =>
@@ -897,9 +862,8 @@ public sealed partial class MainPageViewModel : ObservableObject
 
         var tiles = filteredItems.Select(item =>
         {
-            var tile = ToTile(item);
+            var tile = new LibraryTileItem(item);
             tile.ApplyThumbnailSize(ThumbnailSize);
-            tile.ApplyViewMode(IsGridViewMode);
             return tile;
         }).ToList();
 
@@ -907,16 +871,6 @@ public sealed partial class MainPageViewModel : ObservableObject
         FolderLibraryItems.ReplaceAll(tiles.Where(item => item.IsFolder));
         ImageLibraryItems.ReplaceAll(tiles.Where(item => !item.IsFolder));
         NotifyLibraryItemCount();
-    }
-
-    private static IReadOnlyList<string> MoveFolderToRecent(string folderPath, IEnumerable<string> existingFolders) =>
-        SettingsRules.NormalizeRecentFolderPaths([folderPath, .. existingFolders]);
-
-    private void RefreshRecentFolderPaths(IEnumerable<string> paths)
-    {
-        RecentFolderPaths.ReplaceAll(paths);
-        OnPropertyChanged(nameof(HasRecentFolders));
-        OnPropertyChanged(nameof(HasNoRecentFolders));
     }
 
     public Task LoadFolderChildrenOnDemandAsync(FolderTreeItem node) =>
@@ -976,16 +930,11 @@ public sealed partial class MainPageViewModel : ObservableObject
             throw new InvalidOperationException("Current image must exist in the image sequence.");
         }
 
-        var createdAtMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var rawId = $"{CurrentFolderPath}:{createdAtMs}:{currentImagePath}";
-
         return new ImageSequenceSnapshot(
-            Id: $"sequence:{Uri.EscapeDataString(rawId).Replace("%", "_", StringComparison.Ordinal)}",
-            CreatedAtMs: createdAtMs,
             SourceFolderPath: CurrentFolderPath,
             IncludeSubfolders: IncludeSubfolders,
             Sort: Sort,
-            Images: images.Select(candidate => candidate with { }).ToList(),
+            Images: images.ToList(),
             CurrentIndex: currentIndex);
     }
 
@@ -1005,10 +954,7 @@ public sealed partial class MainPageViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedImageCount));
         OnPropertyChanged(nameof(HasSelectedImages));
         OnPropertyChanged(nameof(HasSingleSelectedImage));
-        OnPropertyChanged(nameof(CanRevealSelectedImage));
         OnPropertyChanged(nameof(SelectedSummaryText));
-        OnPropertyChanged(nameof(SelectedDetailText));
-        OnPropertyChanged(nameof(SelectedImagePathForReveal));
         RenameSelectedCommand.NotifyCanExecuteChanged();
         TrashSelectedCommand.NotifyCanExecuteChanged();
     }
@@ -1020,15 +966,8 @@ public sealed partial class MainPageViewModel : ObservableObject
         OnPropertyChanged(nameof(ImageItemCountText));
         OnPropertyChanged(nameof(HasFolderLibraryItems));
         OnPropertyChanged(nameof(HasImageLibraryItems));
-        OnPropertyChanged(nameof(HasNoVisibleItems));
-    }
-
-    private void ApplyViewModeToLibraryTiles()
-    {
-        foreach (var item in LibraryItems)
-        {
-            item.ApplyViewMode(IsGridViewMode);
-        }
+        OnPropertyChanged(nameof(HasEmptyFolder));
+        OnPropertyChanged(nameof(HasNoSearchResults));
     }
 
     private void NotifyNavigationCommands()
@@ -1052,22 +991,6 @@ public sealed partial class MainPageViewModel : ObservableObject
             .OfType<ImageListItem>()
             .ToList();
     }
-
-    private static LibraryTileItem ToTile(ListItem item) =>
-        item switch
-        {
-            FolderListItem folder => new LibraryTileItem(
-                Name: folder.Name,
-                Path: folder.Path,
-                Detail: "開啟資料夾",
-                SourceItem: folder),
-            ImageListItem image => new LibraryTileItem(
-                Name: image.Name,
-                Path: image.Path,
-                Detail: $"{image.Extension.ToUpperInvariant()} - {image.SizeBytes / 1024} KB",
-                SourceItem: image),
-            _ => throw new ArgumentOutOfRangeException(nameof(item))
-        };
 
     private static string DescribeBatchResult(string label, FileOperationBatchResult result) =>
         $"{label}：成功 {result.Succeeded} 個，略過 {result.Skipped} 個，失敗 {result.Failed} 個。";

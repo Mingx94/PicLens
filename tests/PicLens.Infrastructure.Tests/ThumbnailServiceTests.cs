@@ -162,7 +162,7 @@ public sealed class ThumbnailServiceTests
     }
 
     private static byte[] AnimatedGifHeader() =>
-        [(byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a', 0, 0, 0, 0, 0, 0, 0, 0x2c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0x2c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0x3b];
+        Convert.FromBase64String("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAICRAEAIfkEAQAAAAAsAAAAAAEAAQAAAgJEADs=");
 
     private static void WriteInt16(byte[] bytes, int offset, short value)
     {

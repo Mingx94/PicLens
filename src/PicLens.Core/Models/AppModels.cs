@@ -24,21 +24,17 @@ public enum FileOperationStatus
 public sealed record SortState(SortKey Key, SortDirection Direction);
 
 public sealed record AppSettings(
-    int Version,
     string? LastFolderPath,
     SortState Sort,
     bool IncludeSubfolders,
-    int ThumbnailSize,
-    IReadOnlyList<string> RecentFolderPaths)
+    int ThumbnailSize)
 {
     public static AppSettings CreateDefault() =>
         new(
-            Version: 2,
             LastFolderPath: null,
             Sort: new SortState(SortKey.Name, SortDirection.Asc),
             IncludeSubfolders: false,
-            ThumbnailSize: 200,
-            RecentFolderPaths: []);
+            ThumbnailSize: 200);
 }
 
 public sealed record AppSettingsPatch
@@ -48,41 +44,24 @@ public sealed record AppSettingsPatch
     public SortState? Sort { get; init; }
     public bool? IncludeSubfolders { get; init; }
     public int? ThumbnailSize { get; init; }
-    public IReadOnlyList<string>? RecentFolderPaths { get; init; }
 }
 
-public abstract record ListItem
-{
-    protected ListItem(string id, string path, string name, long? modifiedAtMs)
-    {
-        Id = id;
-        Path = path;
-        Name = name;
-        ModifiedAtMs = modifiedAtMs;
-    }
-
-    public string Id { get; init; }
-    public string Path { get; init; }
-    public string Name { get; init; }
-    public long? ModifiedAtMs { get; init; }
-}
+public abstract record ListItem(string Path, string Name, long? ModifiedAtMs);
 
 public sealed record FolderListItem(
-    string Id,
     string Path,
     string Name,
     long? ModifiedAtMs)
-    : ListItem(Id, Path, Name, ModifiedAtMs);
+    : ListItem(Path, Name, ModifiedAtMs);
 
 public sealed record ImageListItem(
-    string Id,
     string Path,
     string Name,
     string Extension,
     long? ModifiedAtMs,
     long SizeBytes,
     bool IsAnimated = false)
-    : ListItem(Id, Path, Name, ModifiedAtMs);
+    : ListItem(Path, Name, ModifiedAtMs);
 
 public sealed record ListQuery(
     string FolderPath,
@@ -90,8 +69,6 @@ public sealed record ListQuery(
     SortState Sort);
 
 public sealed record ImageSequenceSnapshot(
-    string Id,
-    long CreatedAtMs,
     string SourceFolderPath,
     bool IncludeSubfolders,
     SortState Sort,
@@ -106,11 +83,13 @@ public sealed record FileOperationResult(
     string? Message = null);
 
 public sealed record FileOperationBatchResult(
-    int Total,
-    int Succeeded,
-    int Skipped,
-    int Failed,
-    IReadOnlyList<FileOperationResult> Items);
+    IReadOnlyList<FileOperationResult> Items)
+{
+    public int Total => Items.Count;
+    public int Succeeded => Items.Count(item => item.Status is FileOperationStatus.Converted or FileOperationStatus.Trashed or FileOperationStatus.Renamed);
+    public int Skipped => Items.Count(item => item.Status == FileOperationStatus.Skipped);
+    public int Failed => Items.Count(item => item.Status == FileOperationStatus.Failed);
+}
 
 public readonly record struct Point(double X, double Y);
 

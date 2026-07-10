@@ -34,13 +34,13 @@ Tasks.cs                             Repo-local build/test/release tasks
 需要可建置 `net10.0` 的 .NET SDK。
 
 ```shell
-dotnet run Tasks.cs run
+dotnet run --project PicLens/PicLens.csproj -p:Platform=x64
 ```
 
 只建置、不啟動 app：
 
 ```shell
-dotnet run Tasks.cs run --skip-run
+dotnet build PicLens/PicLens.csproj -p:Platform=x64
 ```
 
 單元與 ViewModel 測試：

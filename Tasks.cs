@@ -17,7 +17,6 @@ try
     return command switch
     {
         "test" => Test(root, rest),
-        "run" => BuildAndRun(root, rest),
         "release" => Release(root, rest),
         "installer" => Installer(root, rest),
         "ui-test" => UiTest(root, rest),
@@ -50,14 +49,8 @@ static int Test(string root, string[] args)
 
     foreach (var project in projects)
     {
-        Console.WriteLine($"==> Restoring test project: {project}");
-        RunOrThrow("dotnet", ["restore", project, "--configfile", nugetConfig, "-p:NuGetAudit=false"], root);
-    }
-
-    foreach (var project in projects)
-    {
         Console.WriteLine($"==> Running tests: {project}");
-        RunOrThrow("dotnet", ["test", project, "--no-restore", "-p:NuGetAudit=false"], root);
+        RunOrThrow("dotnet", ["test", project, $"-p:RestoreConfigFile={nugetConfig}", "-p:NuGetAudit=false"], root);
     }
 
     return 0;
@@ -87,128 +80,9 @@ static int UiTest(string root, string[] args)
     var nugetConfig = RequiredFile(root, "NuGet.Config");
     var project = RequiredFile(root, "tests", "PicLens.Ui.Tests", "PicLens.Ui.Tests.csproj");
 
-    Console.WriteLine("==> Restoring Avalonia headless UI test project");
-    RunOrThrow("dotnet", ["restore", project, "--configfile", nugetConfig, "-p:NuGetAudit=false"], root);
-
     Console.WriteLine("==> Running Avalonia headless UI smoke tests");
-    RunOrThrow("dotnet", ["test", project, "--no-restore", "-c", configuration, "-p:NuGetAudit=false"], root);
+    RunOrThrow("dotnet", ["test", project, "-c", configuration, $"-p:RestoreConfigFile={nugetConfig}", "-p:NuGetAudit=false"], root);
     return 0;
-}
-
-static int BuildAndRun(string root, string[] args)
-{
-    var project = "PicLens/PicLens.csproj";
-    var skipRun = false;
-    var detach = false;
-    var extraArgs = new List<string>();
-
-    for (var i = 0; i < args.Length; i++)
-    {
-        var arg = args[i];
-        switch (arg)
-        {
-            case "-h":
-            case "--help":
-                Console.WriteLine("""
-                Usage:
-                  dotnet run Tasks.cs -- run [project] [--skip-run] [--detach] [MSBuild args]
-                """);
-                return 0;
-            case "--skip-run":
-            case "-SkipRun":
-                skipRun = true;
-                break;
-            case "--detach":
-            case "-Detach":
-                detach = true;
-                break;
-            default:
-                if (project == "PicLens/PicLens.csproj" && (arg.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase) || !LooksLikeOption(arg)))
-                {
-                    project = arg;
-                }
-                else
-                {
-                    extraArgs.Add(arg);
-                }
-
-                break;
-        }
-    }
-
-    var projectPath = FullPath(root, project);
-    if (!File.Exists(projectPath))
-    {
-        throw new InvalidOperationException($"Project file not found: {projectPath}");
-    }
-
-    var projectDir = Path.GetDirectoryName(projectPath)!;
-    var projectName = Path.GetFileNameWithoutExtension(projectPath);
-    var nugetConfig = RequiredFile(root, "NuGet.Config");
-    var platform = RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "ARM64" : "x64";
-    var configuration = "Debug";
-
-    foreach (var arg in extraArgs)
-    {
-        if (TryReadProperty(arg, "Platform", out var value))
-        {
-            platform = value;
-        }
-        else if (TryReadProperty(arg, "Configuration", out value))
-        {
-            configuration = value;
-        }
-    }
-
-    Console.WriteLine($"==> Building {projectName} ({configuration}|{platform})");
-    RunOrThrow("dotnet",
-    [
-        "build",
-        projectPath,
-        "/restore",
-        $"-p:RestoreConfigFile={nugetConfig}",
-        $"-p:Platform={platform}",
-        $"-p:Configuration={configuration}",
-        "-p:NuGetAudit=false",
-        .. extraArgs
-    ], root);
-
-    Console.WriteLine("BUILD SUCCEEDED");
-
-    if (skipRun)
-    {
-        Console.WriteLine("==> Skipping run (--skip-run)");
-        return 0;
-    }
-
-    var binDir = Path.Combine(projectDir, "bin", platform, configuration);
-    if (!Directory.Exists(binDir))
-    {
-        throw new InvalidOperationException($"Build completed but output folder was not found: {binDir}");
-    }
-
-    var exe = Directory.EnumerateFiles(binDir, "*", SearchOption.AllDirectories)
-        .Where(path => Path.GetFileName(path) == projectName || Path.GetFileName(path) == $"{projectName}.exe")
-        .OrderByDescending(File.GetLastWriteTimeUtc)
-        .FirstOrDefault();
-
-    if (exe is not null)
-    {
-        Console.WriteLine($"==> Launching {exe}");
-        return detach ? StartDetached(exe, [], Path.GetDirectoryName(exe)!) : Run(exe, [], Path.GetDirectoryName(exe)!);
-    }
-
-    var dll = Directory.EnumerateFiles(binDir, $"{projectName}.dll", SearchOption.AllDirectories)
-        .OrderByDescending(File.GetLastWriteTimeUtc)
-        .FirstOrDefault();
-
-    if (dll is null)
-    {
-        throw new InvalidOperationException($"Build completed but {projectName} executable was not found under {binDir}.");
-    }
-
-    Console.WriteLine($"==> Launching {dll}");
-    return detach ? StartDetached("dotnet", [dll], Path.GetDirectoryName(dll)!) : Run("dotnet", [dll], Path.GetDirectoryName(dll)!);
 }
 
 static int Release(string root, string[] args)
@@ -269,27 +143,11 @@ static int Release(string root, string[] args)
         Directory.Delete(outputDir, recursive: true);
     }
 
-    Console.WriteLine($"==> Restoring app for {runtime}");
-    RunOrThrow("dotnet",
-    [
-        "restore",
-        project,
-        "--configfile",
-        nugetConfig,
-        "-r",
-        runtime,
-        $"/p:Configuration={configuration}",
-        $"/p:Platform={platform}",
-        $"/p:PublishReadyToRun={readyToRun}",
-        "/p:SelfContained=false"
-    ], root);
-
     Console.WriteLine("==> Publishing framework-dependent output");
     RunOrThrow("dotnet",
     [
         "publish",
         project,
-        "--no-restore",
         "-c",
         configuration,
         "-r",
@@ -304,6 +162,7 @@ static int Release(string root, string[] args)
         "/p:SelfContained=false",
         "/p:DebugType=None",
         "/p:DebugSymbols=false",
+        $"/p:RestoreConfigFile={nugetConfig}",
         "-o",
         outputDir
     ], root);
@@ -379,8 +238,6 @@ static int BuildWindowsInstaller(string root, InstallerOptions options)
     var platform = "x64";
     var portableDir = SafePath(root, "artifacts", "portable", $"PicLens-{runtime}");
     var installerRoot = SafePath(root, "artifacts", "installer");
-    var stageRoot = SafePath(root, "artifacts", "installer", "msi-stage");
-    var stageDir = SafePath(root, "artifacts", "installer", "msi-stage", $"PicLens-{runtime}");
     var outputName = $"PicLens-{runtime}";
     var msiPath = SafePath(root, "artifacts", "installer", $"{outputName}.msi");
     var cabinetPath = SafePath(root, "artifacts", "installer", "cab1.cab");
@@ -403,7 +260,7 @@ static int BuildWindowsInstaller(string root, InstallerOptions options)
         installerProject,
         "--configuration", "Release",
         $"/p:AppVersion={options.Version}",
-        $"/p:PayloadDir={stageDir}",
+        $"/p:PayloadDir={portableDir}",
         $"/p:OutputPath={installerRoot}{Path.DirectorySeparatorChar}",
         $"/p:OutputName={outputName}"
     };
@@ -427,15 +284,8 @@ static int BuildWindowsInstaller(string root, InstallerOptions options)
 
     if (!options.NoClean)
     {
-        DeleteIfExists(stageRoot);
         DeleteIfExists(msiPath);
         DeleteIfExists(cabinetPath);
-    }
-
-    CopyDirectory(portableDir, stageDir);
-    foreach (var pdb in Directory.EnumerateFiles(stageDir, "*.pdb", SearchOption.AllDirectories))
-    {
-        File.Delete(pdb);
     }
 
     Console.WriteLine("==> Building WiX MSI installer");
@@ -714,22 +564,6 @@ static string FullPath(string root, string path)
     return Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Combine(root, path));
 }
 
-static void CopyDirectory(string source, string destination)
-{
-    Directory.CreateDirectory(destination);
-    foreach (var directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories))
-    {
-        Directory.CreateDirectory(Path.Combine(destination, Path.GetRelativePath(source, directory)));
-    }
-
-    foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
-    {
-        var target = Path.Combine(destination, Path.GetRelativePath(source, file));
-        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-        File.Copy(file, target, overwrite: true);
-    }
-}
-
 static void DeleteIfExists(string path)
 {
     if (Directory.Exists(path))
@@ -757,13 +591,6 @@ static void RunOrThrow(string fileName, IReadOnlyList<string> arguments, string 
     {
         throw new InvalidOperationException($"{fileName} failed with exit code {exitCode}.");
     }
-}
-
-static int StartDetached(string fileName, IReadOnlyList<string> arguments, string workingDirectory)
-{
-    _ = Process.Start(StartInfo(fileName, arguments, workingDirectory))
-        ?? throw new InvalidOperationException($"Failed to start: {fileName}");
-    return 0;
 }
 
 static ProcessStartInfo StartInfo(string fileName, IReadOnlyList<string> arguments, string workingDirectory)
@@ -844,27 +671,6 @@ static string ReadValue(string[] args, ref int index, string option)
     return args[index];
 }
 
-static bool LooksLikeOption(string value)
-{
-    return value.StartsWith('-') || (value.StartsWith('/') && !value.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase));
-}
-
-static bool TryReadProperty(string arg, string name, out string value)
-{
-    var prefixes = new[] { $"-p:{name}=", $"/p:{name}=" };
-    foreach (var prefix in prefixes)
-    {
-        if (arg.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-        {
-            value = arg[prefix.Length..];
-            return true;
-        }
-    }
-
-    value = "";
-    return false;
-}
-
 static string Sha256(string path)
 {
     using var stream = File.OpenRead(path);
@@ -885,7 +691,6 @@ static void PrintUsage()
 
     Commands:
       test       Restore and run Core, Infrastructure, and ViewModel tests
-      run        Build and optionally launch the app
       release    Publish the portable release folder
       installer  Build the platform installer
       ui-test    Run Avalonia Headless UI smoke tests

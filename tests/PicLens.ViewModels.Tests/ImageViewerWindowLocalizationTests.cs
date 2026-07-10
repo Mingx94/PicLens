@@ -11,8 +11,6 @@ public sealed class ImageViewerWindowLocalizationTests
         var viewModel = new ImageViewerWindowViewModel();
 
         Assert.Equal("尚未選取圖片", viewModel.CurrentImageName);
-        Assert.Equal("PicLens", viewModel.WindowTitle);
-        Assert.Equal("0 張，共 0 張", viewModel.PositionLabel);
     }
 
     [Fact]
@@ -37,7 +35,6 @@ public sealed class ImageViewerWindowLocalizationTests
     public void SelectedAnimatedImageUsesTraditionalChinesePositionTitleAndUnsupportedMessage()
     {
         var image = new ImageListItem(
-            Id: "image:sample",
             Path: @"C:\Images\sample.webp",
             Name: "sample.webp",
             Extension: ".webp",
@@ -45,8 +42,6 @@ public sealed class ImageViewerWindowLocalizationTests
             SizeBytes: 456,
             IsAnimated: true);
         var snapshot = new ImageSequenceSnapshot(
-            Id: "sequence:sample",
-            CreatedAtMs: 123,
             SourceFolderPath: @"C:\Images",
             IncludeSubfolders: false,
             Sort: new SortState(SortKey.Name, SortDirection.Asc),
@@ -55,23 +50,18 @@ public sealed class ImageViewerWindowLocalizationTests
 
         var viewModel = new ImageViewerWindowViewModel(snapshot);
 
-        Assert.Equal("PicLens - sample.webp", viewModel.WindowTitle);
-        Assert.Equal("第 1 張，共 1 張", viewModel.PositionLabel);
         Assert.Equal("原生檢視器目前尚不支援播放動畫 WEBP。", viewModel.UnsupportedMessage);
     }
 
     private static ImageViewerWindowViewModel CreateSingleImageViewModel()
     {
         var image = new ImageListItem(
-            Id: "image:sample",
             Path: @"C:\Images\sample.jpg",
             Name: "sample.jpg",
             Extension: ".jpg",
             ModifiedAtMs: 123,
             SizeBytes: 456);
         var snapshot = new ImageSequenceSnapshot(
-            Id: "sequence:sample",
-            CreatedAtMs: 123,
             SourceFolderPath: @"C:\Images",
             IncludeSubfolders: false,
             Sort: new SortState(SortKey.Name, SortDirection.Asc),

@@ -13,7 +13,7 @@ public sealed class MainPageViewModelThumbnailSizeTests
         using var workspace = new TempDirectory();
         var scanner = new CountingFolderScanner(
         [
-            new ImageListItem("image:first", Path.Combine(workspace.Path, "first.jpg"), "first.jpg", "jpg", 100, 1024)
+            new ImageListItem(Path.Combine(workspace.Path, "first.jpg"), "first.jpg", "jpg", 100, 1024)
         ]);
         var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
         {
@@ -24,11 +24,9 @@ public sealed class MainPageViewModelThumbnailSizeTests
 
         await viewModel.InitializeAsync();
 
-        var tile = Assert.Single(viewModel.LibraryItems);
         Assert.Equal(240, viewModel.ThumbnailSize);
         Assert.Equal(296, viewModel.LibraryTileLayoutHeight);
-        Assert.Equal(240, tile.TileWidth);
-        Assert.Equal(236, tile.TileHeight);
+        Assert.Equal(236, viewModel.LibraryThumbnailHeight);
     }
 
     [Fact]
@@ -37,7 +35,7 @@ public sealed class MainPageViewModelThumbnailSizeTests
         using var workspace = new TempDirectory();
         var scanner = new CountingFolderScanner(
         [
-            new ImageListItem("image:first", Path.Combine(workspace.Path, "first.jpg"), "first.jpg", "jpg", 100, 1024)
+            new ImageListItem(Path.Combine(workspace.Path, "first.jpg"), "first.jpg", "jpg", 100, 1024)
         ]);
         var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
         {
@@ -53,18 +51,17 @@ public sealed class MainPageViewModelThumbnailSizeTests
         Assert.Equal(180, viewModel.ThumbnailSize);
         Assert.Equal(236, viewModel.LibraryTileLayoutHeight);
         Assert.Equal(180, settingsStore.Settings.ThumbnailSize);
-        Assert.Equal(180, tile.TileWidth);
-        Assert.Equal(176, tile.TileHeight);
+        Assert.Equal(176, viewModel.LibraryThumbnailHeight);
         Assert.Equal("縮圖大小已調整為 180。", viewModel.StatusMessage);
     }
 
     [Fact]
-    public async Task SetViewMode_updates_existing_tiles_to_compact_list_layout()
+    public async Task SetViewMode_updates_global_layout()
     {
         using var workspace = new TempDirectory();
         var scanner = new CountingFolderScanner(
         [
-            new ImageListItem("image:first", Path.Combine(workspace.Path, "first.jpg"), "first.jpg", "jpg", 100, 1024)
+            new ImageListItem(Path.Combine(workspace.Path, "first.jpg"), "first.jpg", "jpg", 100, 1024)
         ]);
         var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
         {
@@ -73,13 +70,10 @@ public sealed class MainPageViewModelThumbnailSizeTests
         var viewModel = CreateViewModel(settingsStore, scanner);
 
         await viewModel.InitializeAsync();
-        var tile = Assert.Single(viewModel.LibraryItems);
-
         viewModel.SetViewModeCommand.Execute("list");
 
-        Assert.False(tile.IsGridViewMode);
-        Assert.True(tile.IsListViewMode);
-        Assert.Equal(88, tile.TileDisplayHeight);
+        Assert.False(viewModel.IsGridViewMode);
+        Assert.True(viewModel.IsListViewMode);
         Assert.Equal(100, viewModel.LibraryTileLayoutHeight);
     }
 
@@ -91,7 +85,7 @@ public sealed class MainPageViewModelThumbnailSizeTests
         var cachedThumbnailPath = Path.Combine(workspace.Path, "thumbs", "first.png");
         var scanner = new CountingFolderScanner(
         [
-            new ImageListItem("image:first", imagePath, "first.jpg", "jpg", 100, 1024)
+            new ImageListItem(imagePath, "first.jpg", "jpg", 100, 1024)
         ]);
         var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
         {
@@ -115,56 +109,13 @@ public sealed class MainPageViewModelThumbnailSizeTests
     }
 
     [Fact]
-    public async Task LoadThumbnailAsync_dispatches_thumbnail_property_update_when_not_on_ui_thread()
-    {
-        using var workspace = new TempDirectory();
-        var imagePath = Path.Combine(workspace.Path, "first.jpg");
-        var cachedThumbnailPath = Path.Combine(workspace.Path, "thumbs", "first.png");
-        var scanner = new CountingFolderScanner(
-        [
-            new ImageListItem("image:first", imagePath, "first.jpg", "jpg", 100, 1024)
-        ]);
-        var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
-        {
-            LastFolderPath = workspace.Path
-        });
-        var thumbnailService = new TestThumbnailService((_, _, _) => Task.FromResult<string?>(cachedThumbnailPath));
-        var enqueuedActions = new Queue<Action>();
-        var viewModel = CreateViewModel(
-            settingsStore,
-            scanner,
-            thumbnailService,
-            hasUiThreadAccess: () => false,
-            tryEnqueueOnUiThread: action =>
-            {
-                enqueuedActions.Enqueue(action);
-                return true;
-            });
-
-        await viewModel.InitializeAsync();
-        var tile = Assert.Single(viewModel.LibraryItems);
-
-        var loadTask = viewModel.LoadThumbnailAsync(tile);
-
-        var enqueued = Assert.Single(enqueuedActions);
-        Assert.Null(tile.ThumbnailPath);
-
-        enqueued();
-        await loadTask;
-
-        Assert.Equal(cachedThumbnailPath, tile.ThumbnailPath);
-        Assert.True(tile.CanShowThumbnail);
-        Assert.False(tile.ShouldShowIcon);
-    }
-
-    [Fact]
     public async Task CancelThumbnailLoad_cancels_pending_request_without_applying_thumbnail_path()
     {
         using var workspace = new TempDirectory();
         var imagePath = Path.Combine(workspace.Path, "first.jpg");
         var scanner = new CountingFolderScanner(
         [
-            new ImageListItem("image:first", imagePath, "first.jpg", "jpg", 100, 1024)
+            new ImageListItem(imagePath, "first.jpg", "jpg", 100, 1024)
         ]);
         var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
         {
@@ -193,7 +144,7 @@ public sealed class MainPageViewModelThumbnailSizeTests
         var imagePath = Path.Combine(workspace.Path, "first.jpg");
         var scanner = new CountingFolderScanner(
         [
-            new ImageListItem("image:first", imagePath, "first.jpg", "jpg", 100, 1024)
+            new ImageListItem(imagePath, "first.jpg", "jpg", 100, 1024)
         ]);
         var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
         {
@@ -223,7 +174,7 @@ public sealed class MainPageViewModelThumbnailSizeTests
         var imagePath = Path.Combine(workspace.Path, "first.jpg");
         var scanner = new CountingFolderScanner(
         [
-            new ImageListItem("image:first", imagePath, "first.jpg", "jpg", 100, 1024)
+            new ImageListItem(imagePath, "first.jpg", "jpg", 100, 1024)
         ]);
         var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
         {
@@ -251,9 +202,7 @@ public sealed class MainPageViewModelThumbnailSizeTests
     {
         using var workspace = new TempDirectory();
         var images = Enumerable.Range(1, 5)
-            .Select(index => new ImageListItem(
-                $"image:{index}",
-                Path.Combine(workspace.Path, $"image-{index}.jpg"),
+            .Select(index => new ImageListItem(Path.Combine(workspace.Path, $"image-{index}.jpg"),
                 $"image-{index}.jpg",
                 "jpg",
                 index,
@@ -289,17 +238,13 @@ public sealed class MainPageViewModelThumbnailSizeTests
         ISettingsStore settingsStore,
         IFolderScanner scanner,
         IThumbnailService? thumbnailService = null,
-        TimeSpan? thumbnailLoadTimeout = null,
-        Func<bool>? hasUiThreadAccess = null,
-        Func<Action, bool>? tryEnqueueOnUiThread = null) =>
+        TimeSpan? thumbnailLoadTimeout = null) =>
         new(
             settingsStore,
             scanner,
             new ThrowingFileOperationService(),
             thumbnailService ?? new TestThumbnailService(),
-            new NullDialogService(),
-            hasUiThreadAccess: hasUiThreadAccess,
-            tryEnqueueOnUiThread: tryEnqueueOnUiThread,
+            new TestDialogService(),
             thumbnailLoadTimeout: thumbnailLoadTimeout);
 
     private sealed class BlockingThumbnailService(string thumbnailPath) : IThumbnailService

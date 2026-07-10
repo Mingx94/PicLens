@@ -14,7 +14,6 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\AppIcon.ico" />
-    <AvaloniaResource Include="Assets\*.png" />
     <AvaloniaResource Include="Assets\Fonts\*.otf" />
     <Content Include="Assets\AppIcon.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

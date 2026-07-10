@@ -14,14 +14,10 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
     public async Task DropDraggedImagesOnAsync_logs_result_context()
     {
         using var workspace = new TempDirectory();
-        var source = new ImageListItem("image:source", Path.Combine(workspace.Path, "source.jpg"), "source.jpg", ".jpg", 100, 1024);
-        var target = new ImageListItem("image:target", Path.Combine(workspace.Path, "target.jpg"), "target.jpg", ".jpg", 200, 1024);
+        var source = new ImageListItem(Path.Combine(workspace.Path, "source.jpg"), "source.jpg", ".jpg", 100, 1024);
+        var target = new ImageListItem(Path.Combine(workspace.Path, "target.jpg"), "target.jpg", ".jpg", 200, 1024);
         var logger = new RecordingAppLogger();
         var fileOperations = new RecordingFileOperationService(new FileOperationBatchResult(
-            Total: 1,
-            Succeeded: 1,
-            Skipped: 0,
-            Failed: 0,
             Items: [new FileOperationResult(source.Path, FileOperationStatus.Renamed, target.Path)]));
         var viewModel = CreateViewModel(
             AppSettings.CreateDefault() with { LastFolderPath = workspace.Path },
@@ -53,14 +49,10 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
     public async Task DropDraggedImagesOnAsync_confirms_preview_before_renaming()
     {
         using var workspace = new TempDirectory();
-        var source = new ImageListItem("image:source", Path.Combine(workspace.Path, "source.jpg"), "source.jpg", ".jpg", 100, 1024);
-        var target = new ImageListItem("image:target", Path.Combine(workspace.Path, "target.jpg"), "target.jpg", ".jpg", 200, 1024);
+        var source = new ImageListItem(Path.Combine(workspace.Path, "source.jpg"), "source.jpg", ".jpg", 100, 1024);
+        var target = new ImageListItem(Path.Combine(workspace.Path, "target.jpg"), "target.jpg", ".jpg", 200, 1024);
         var dialogService = new RecordingDropRenameDialogService(confirmDropRename: true);
         var fileOperations = new RecordingFileOperationService(new FileOperationBatchResult(
-            Total: 1,
-            Succeeded: 1,
-            Skipped: 0,
-            Failed: 0,
             Items: [new FileOperationResult(source.Path, FileOperationStatus.Renamed, Path.Combine(workspace.Path, "target-01.jpg"))]));
         var viewModel = CreateViewModel(
             AppSettings.CreateDefault() with { LastFolderPath = workspace.Path },
@@ -72,11 +64,10 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
         viewModel.BeginImageDrag([viewModel.LibraryItems.Single(item => item.Name == source.Name)]);
         await viewModel.DropDraggedImagesOnAsync(viewModel.LibraryItems.Single(item => item.Name == target.Name));
 
-        var preview = Assert.Single(dialogService.DropRenamePreviews);
-        Assert.Equal(1, preview.Total);
-        Assert.Equal(1, preview.RenameCount);
-        Assert.Equal(0, preview.SkippedCount);
-        Assert.Equal("target-01.jpg", Assert.Single(preview.Items).TargetName);
+        var plan = Assert.Single(dialogService.DropRenamePlans);
+        Assert.Equal(1, plan.Total);
+        Assert.False(Assert.Single(plan.Items).ShouldSkip);
+        Assert.Equal("target-01.jpg", Path.GetFileName(Assert.Single(plan.Items).TargetPath));
         Assert.Equal(1, fileOperations.RenameByDropTargetCallCount);
         Assert.Equal([source.Path], fileOperations.LastSourcePaths);
         Assert.Equal(target.Path, fileOperations.LastTargetPath);
@@ -86,14 +77,10 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
     public async Task DropDraggedImagesOnAsync_canceling_preview_skips_rename_service()
     {
         using var workspace = new TempDirectory();
-        var source = new ImageListItem("image:source", Path.Combine(workspace.Path, "source.jpg"), "source.jpg", ".jpg", 100, 1024);
-        var target = new ImageListItem("image:target", Path.Combine(workspace.Path, "target.jpg"), "target.jpg", ".jpg", 200, 1024);
+        var source = new ImageListItem(Path.Combine(workspace.Path, "source.jpg"), "source.jpg", ".jpg", 100, 1024);
+        var target = new ImageListItem(Path.Combine(workspace.Path, "target.jpg"), "target.jpg", ".jpg", 200, 1024);
         var dialogService = new RecordingDropRenameDialogService(confirmDropRename: false);
         var fileOperations = new RecordingFileOperationService(new FileOperationBatchResult(
-            Total: 1,
-            Succeeded: 1,
-            Skipped: 0,
-            Failed: 0,
             Items: [new FileOperationResult(source.Path, FileOperationStatus.Renamed, Path.Combine(workspace.Path, "target-01.jpg"))]));
         var viewModel = CreateViewModel(
             AppSettings.CreateDefault() with { LastFolderPath = workspace.Path },
@@ -105,7 +92,7 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
         viewModel.BeginImageDrag([viewModel.LibraryItems.Single(item => item.Name == source.Name)]);
         await viewModel.DropDraggedImagesOnAsync(viewModel.LibraryItems.Single(item => item.Name == target.Name));
 
-        Assert.Single(dialogService.DropRenamePreviews);
+        Assert.Single(dialogService.DropRenamePlans);
         Assert.Equal(0, fileOperations.RenameByDropTargetCallCount);
         Assert.Equal("已取消拖放重新命名。", viewModel.StatusMessage);
     }
@@ -114,14 +101,10 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
     public async Task DropDraggedImagesOnAsync_logs_per_item_batch_failures()
     {
         using var workspace = new TempDirectory();
-        var source = new ImageListItem("image:source", Path.Combine(workspace.Path, "source.jpg"), "source.jpg", ".jpg", 100, 1024);
-        var target = new ImageListItem("image:target", Path.Combine(workspace.Path, "target.jpg"), "target.jpg", ".jpg", 200, 1024);
+        var source = new ImageListItem(Path.Combine(workspace.Path, "source.jpg"), "source.jpg", ".jpg", 100, 1024);
+        var target = new ImageListItem(Path.Combine(workspace.Path, "target.jpg"), "target.jpg", ".jpg", 200, 1024);
         var logger = new RecordingAppLogger();
         var fileOperations = new RecordingFileOperationService(new FileOperationBatchResult(
-            Total: 1,
-            Succeeded: 0,
-            Skipped: 0,
-            Failed: 1,
             Items: [new FileOperationResult(source.Path, FileOperationStatus.Failed, Path.Combine(workspace.Path, "target-01.jpg"), "rename_failed", "locked")]));
         var viewModel = CreateViewModel(
             AppSettings.CreateDefault() with { LastFolderPath = workspace.Path },
@@ -143,14 +126,14 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
     public async Task DropDraggedImagesOnAsync_logs_unexpected_failures()
     {
         using var workspace = new TempDirectory();
-        var source = new ImageListItem("image:source", Path.Combine(workspace.Path, "source.jpg"), "source.jpg", ".jpg", 100, 1024);
-        var target = new ImageListItem("image:target", Path.Combine(workspace.Path, "target.jpg"), "target.jpg", ".jpg", 200, 1024);
+        var source = new ImageListItem(Path.Combine(workspace.Path, "source.jpg"), "source.jpg", ".jpg", 100, 1024);
+        var target = new ImageListItem(Path.Combine(workspace.Path, "target.jpg"), "target.jpg", ".jpg", 200, 1024);
         var expected = new IOException("rename failed");
         var logger = new RecordingAppLogger();
         var viewModel = CreateViewModel(
             AppSettings.CreateDefault() with { LastFolderPath = workspace.Path },
             [source, target],
-            fileOperationService: new ThrowingDropFileOperationService(expected),
+            fileOperationService: new ThrowingFileOperationService(expected),
             dialogService: new RecordingDropRenameDialogService(confirmDropRename: true),
             logger: logger);
 
@@ -170,9 +153,7 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
     public async Task LoadThumbnailAsync_logs_thumbnail_failures_without_throwing()
     {
         using var workspace = new TempDirectory();
-        var image = new ImageListItem(
-            "image:first",
-            Path.Combine(workspace.Path, "first.jpg"),
+        var image = new ImageListItem(Path.Combine(workspace.Path, "first.jpg"),
             "first.jpg",
             ".jpg",
             100,
@@ -206,8 +187,8 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
             new FakeSettingsStore(settings),
             new CountingFolderScanner(items),
             fileOperationService ?? new ThrowingFileOperationService(),
-            thumbnailService ?? new NullThumbnailService(),
-            dialogService ?? new NullDialogService(),
+            thumbnailService ?? new TestThumbnailService(),
+            dialogService ?? new TestDialogService(),
             openImageViewer: openImageViewer,
             appLogger: logger);
 
@@ -253,48 +234,20 @@ public sealed class MainPageViewModelDiagnosticLoggingTests
 
     private sealed class RecordingDropRenameDialogService(bool confirmDropRename) : IDialogService
     {
-        public List<DropRenamePreview> DropRenamePreviews { get; } = [];
+        public List<DropTargetBatchRenamePlan> DropRenamePlans { get; } = [];
 
         public Task<string?> ChooseFolderAsync() => Task.FromResult<string?>(null);
 
         public Task<bool> ConfirmAsync(string message, string title, string confirmButtonText) =>
             Task.FromResult(false);
 
-        public Task<bool> ConfirmDropRenameAsync(DropRenamePreview preview)
+        public Task<bool> ConfirmDropRenameAsync(DropTargetBatchRenamePlan plan)
         {
-            DropRenamePreviews.Add(preview);
+            DropRenamePlans.Add(plan);
             return Task.FromResult(confirmDropRename);
         }
 
         public Task<string?> RequestRenameAsync(ImageListItem item) => Task.FromResult<string?>(null);
-    }
-
-    private sealed class ThrowingDropFileOperationService(Exception exception) : IFileOperationService
-    {
-        public Task<FileOperationBatchResult> RenameByDropTargetAsync(
-            IEnumerable<string> sourcePaths,
-            string targetPath,
-            CancellationToken cancellationToken = default) =>
-            throw exception;
-
-        public Task<FileOperationBatchResult> ConvertVisibleToJpgAsync(
-            IEnumerable<ImageListItem> visibleImages,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<FileOperationBatchResult> TrashSameBasenameNonJpgAsync(
-            IEnumerable<ImageListItem> visibleImages,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<FileOperationResult> TrashAsync(string path, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<FileOperationResult> RenameAsync(
-            string sourcePath,
-            string newFileName,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
     }
 
 }

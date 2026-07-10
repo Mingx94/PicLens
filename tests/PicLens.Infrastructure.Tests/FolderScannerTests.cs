@@ -31,7 +31,7 @@ public sealed class FolderScannerTests
     {
         using var temp = TempWorkspace.Create();
         var nested = Directory.CreateDirectory(Path.Combine(temp.Root, "Nested")).FullName;
-        await File.WriteAllBytesAsync(Path.Combine(temp.Root, "cover.webp"), AnimatedWebpBytes());
+        await File.WriteAllBytesAsync(Path.Combine(temp.Root, "cover.gif"), AnimatedGifBytes());
         await File.WriteAllBytesAsync(Path.Combine(nested, "z.png"), [1, 2, 3]);
         await File.WriteAllBytesAsync(Path.Combine(nested, "ignored.txt"), [1, 2, 3]);
         var scanner = new FolderScanner();
@@ -41,9 +41,9 @@ public sealed class FolderScannerTests
             IncludeSubfolders: true,
             Sort: new SortState(SortKey.Name, SortDirection.Asc)));
 
-        Assert.Equal(["cover.webp", "z.png"], items.Select(item => item.Name));
+        Assert.Equal(["cover.gif", "z.png"], items.Select(item => item.Name));
         Assert.All(items, item => Assert.IsType<ImageListItem>(item));
-        Assert.Contains(items.OfType<ImageListItem>(), image => image.Name == "cover.webp" && image.IsAnimated);
+        Assert.Contains(items.OfType<ImageListItem>(), image => image.Name == "cover.gif" && image.IsAnimated);
     }
 
     [Fact]
@@ -158,8 +158,8 @@ public sealed class FolderScannerTests
     private static byte[] StaticGifBytes() =>
         [(byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a', 0, 0, 0, 0, 0x2c];
 
-    private static byte[] AnimatedWebpBytes() =>
-        [(byte)'R', (byte)'I', (byte)'F', (byte)'F', 0, 0, 0, 0, (byte)'W', (byte)'E', (byte)'B', (byte)'P', (byte)'V', (byte)'P', (byte)'8', (byte)'X', 10, 0, 0, 0, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    private static byte[] AnimatedGifBytes() =>
+        Convert.FromBase64String("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAICRAEAIfkEAQAAAAAsAAAAAAEAAQAAAgJEADs=");
 
     private static void CreateDirectoryAlias(string aliasPath, string targetPath)
     {

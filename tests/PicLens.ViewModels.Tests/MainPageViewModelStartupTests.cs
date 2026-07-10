@@ -151,16 +151,12 @@ public sealed class MainPageViewModelStartupTests
     {
         using var firstWorkspace = new TempDirectory();
         using var secondWorkspace = new TempDirectory();
-        var firstImage = new ImageListItem(
-            "image:first",
-            System.IO.Path.Combine(firstWorkspace.Path, "first.jpg"),
+        var firstImage = new ImageListItem(System.IO.Path.Combine(firstWorkspace.Path, "first.jpg"),
             "first.jpg",
             "jpg",
             100,
             1024);
-        var secondImage = new ImageListItem(
-            "image:second",
-            System.IO.Path.Combine(secondWorkspace.Path, "second.jpg"),
+        var secondImage = new ImageListItem(System.IO.Path.Combine(secondWorkspace.Path, "second.jpg"),
             "second.jpg",
             "jpg",
             200,
@@ -173,12 +169,14 @@ public sealed class MainPageViewModelStartupTests
 
         var firstNavigation = viewModel.NavigateToFolderAsync(firstWorkspace.Path);
         await scanner.WaitForScanAsync(firstWorkspace.Path);
+        Assert.True(viewModel.IsLibraryLoading);
 
         var secondNavigation = viewModel.NavigateToFolderAsync(secondWorkspace.Path);
         await scanner.WaitForScanAsync(secondWorkspace.Path);
         scanner.CompleteScan(secondWorkspace.Path, [secondImage]);
         await secondNavigation;
 
+        Assert.False(viewModel.IsLibraryLoading);
         Assert.Equal(secondWorkspace.Path, viewModel.CurrentFolderPath);
         Assert.Equal(["second.jpg"], viewModel.LibraryItems.Select(item => item.Name));
 
@@ -198,7 +196,7 @@ public sealed class MainPageViewModelStartupTests
             settingsStore,
             scanner,
             new ThrowingFileOperationService(),
-            new NullThumbnailService(),
+            new TestThumbnailService(),
             new TestDialogService(chooseFolderAsync: chooseFolderAsync),
             appLogger: appLogger);
 

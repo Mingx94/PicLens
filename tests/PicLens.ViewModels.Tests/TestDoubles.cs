@@ -19,28 +19,19 @@ internal sealed class ThrowingFileOperationService(Exception? exception = null) 
         throw exception ?? new NotSupportedException();
 
     public Task<FileOperationResult> TrashAsync(string path, CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException();
+        throw exception ?? new NotSupportedException();
 
     public Task<FileOperationResult> RenameAsync(
         string sourcePath,
         string newFileName,
         CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException();
+        throw exception ?? new NotSupportedException();
 
     public Task<FileOperationBatchResult> RenameByDropTargetAsync(
         IEnumerable<string> sourcePaths,
         string targetPath,
         CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException();
-}
-
-internal sealed class NullThumbnailService : IThumbnailService
-{
-    public Task<string?> GetOrCreateThumbnailAsync(
-        string imagePath,
-        int requestedSize,
-        CancellationToken cancellationToken = default) =>
-        Task.FromResult<string?>(null);
+        throw exception ?? new NotSupportedException();
 }
 
 internal sealed class TestThumbnailService(
@@ -97,21 +88,10 @@ internal sealed class RecordingAppLogger : IAppLogger
     public sealed record Entry(Exception Exception, string Message);
 }
 
-internal sealed class NullDialogService : IDialogService
-{
-    public Task<string?> ChooseFolderAsync() => Task.FromResult<string?>(null);
-
-    public Task<bool> ConfirmAsync(string message, string title, string confirmButtonText) => Task.FromResult(false);
-
-    public Task<bool> ConfirmDropRenameAsync(DropRenamePreview preview) => Task.FromResult(false);
-
-    public Task<string?> RequestRenameAsync(ImageListItem item) => Task.FromResult<string?>(null);
-}
-
 internal sealed class TestDialogService(
     Func<Task<string?>>? chooseFolderAsync = null,
     Func<string, string, string, Task<bool>>? confirmAsync = null,
-    Func<DropRenamePreview, Task<bool>>? confirmDropRenameAsync = null,
+    Func<DropTargetBatchRenamePlan, Task<bool>>? confirmDropRenameAsync = null,
     Func<ImageListItem, Task<string?>>? requestRenameAsync = null) : IDialogService
 {
     public Task<string?> ChooseFolderAsync() =>
@@ -120,8 +100,8 @@ internal sealed class TestDialogService(
     public Task<bool> ConfirmAsync(string message, string title, string confirmButtonText) =>
         confirmAsync?.Invoke(message, title, confirmButtonText) ?? Task.FromResult(false);
 
-    public Task<bool> ConfirmDropRenameAsync(DropRenamePreview preview) =>
-        confirmDropRenameAsync?.Invoke(preview) ?? Task.FromResult(false);
+    public Task<bool> ConfirmDropRenameAsync(DropTargetBatchRenamePlan plan) =>
+        confirmDropRenameAsync?.Invoke(plan) ?? Task.FromResult(false);
 
     public Task<string?> RequestRenameAsync(ImageListItem item) =>
         requestRenameAsync?.Invoke(item) ?? Task.FromResult<string?>(null);

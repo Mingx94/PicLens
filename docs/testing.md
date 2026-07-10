@@ -58,7 +58,7 @@ Visual Studio 開發時開啟 `PicLens.slnx`，solution platform 選 `x64`。Sol
 Build-only helper：
 
 ```bash
-dotnet run Tasks.cs run --skip-run
+dotnet build PicLens/PicLens.csproj -p:Platform=x64
 ```
 
 ## Avalonia Headless UI Smoke Tests
@@ -109,14 +109,14 @@ App 應可不安裝直接啟動。
 處理 desktop runtime 或 native/XAML crash 時，build 成功還不夠。App build 完後，執行短時間 launch 並檢查 app log：
 
 ```powershell
-dotnet run Tasks.cs run PicLens/PicLens.csproj
+dotnet run --project PicLens/PicLens.csproj -p:Platform=x64
 Get-Content "$env:LOCALAPPDATA\PicLens\Logs\PicLens.log" -Tail 100
 ```
 
 Linux：
 
 ```bash
-dotnet run Tasks.cs run
+dotnet run --project PicLens/PicLens.csproj -p:Platform=x64
 tail -n 100 "${XDG_DATA_HOME:-$HOME/.local/share}/PicLens/Logs/PicLens.log"
 ```
 

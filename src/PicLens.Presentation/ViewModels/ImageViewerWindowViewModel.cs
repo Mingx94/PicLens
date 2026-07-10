@@ -7,8 +7,6 @@ namespace PicLens.ViewModels;
 
 public partial class ImageViewerWindowViewModel : ObservableObject
 {
-    private const string AppDisplayName = "PicLens";
-
     private double _viewportHeight;
     private double _viewportWidth;
 
@@ -53,8 +51,6 @@ public partial class ImageViewerWindowViewModel : ObservableObject
         }
     }
 
-    public bool HasImages => Snapshot.Images.Count > 0;
-
     public bool IsImageVisible => CurrentImage is not null && !IsUnsupportedAnimatedImage;
 
     public bool IsUnsupportedAnimatedImage => CurrentImage?.IsAnimated == true;
@@ -68,14 +64,6 @@ public partial class ImageViewerWindowViewModel : ObservableObject
     public bool CanZoomOut => IsImageVisible && Zoom > ZoomMath.MinZoom;
 
     public string CurrentImageName => CurrentImage?.Name ?? "尚未選取圖片";
-
-    public string WindowTitle => CurrentImage is null
-        ? AppDisplayName
-        : $"{AppDisplayName} - {CurrentImage.Name}";
-
-    public string PositionLabel => HasImages && CurrentIndex >= 0
-        ? $"第 {CurrentIndex + 1} 張，共 {Snapshot.Images.Count} 張"
-        : "0 張，共 0 張";
 
     public string UnsupportedMessage => CurrentImage is null
         ? "尚未選取圖片"
@@ -170,8 +158,6 @@ public partial class ImageViewerWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(CanZoomIn));
         OnPropertyChanged(nameof(CanZoomOut));
         OnPropertyChanged(nameof(CurrentImageName));
-        OnPropertyChanged(nameof(WindowTitle));
-        OnPropertyChanged(nameof(PositionLabel));
         OnPropertyChanged(nameof(UnsupportedMessage));
         PreviousCommand.NotifyCanExecuteChanged();
         NextCommand.NotifyCanExecuteChanged();
@@ -189,8 +175,6 @@ public partial class ImageViewerWindowViewModel : ObservableObject
 
     private static ImageSequenceSnapshot CreateEmptySnapshot() =>
         new(
-            Id: "sequence:empty",
-            CreatedAtMs: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             SourceFolderPath: string.Empty,
             IncludeSubfolders: false,
             Sort: new SortState(SortKey.Name, SortDirection.Asc),

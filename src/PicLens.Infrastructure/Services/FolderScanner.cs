@@ -1,6 +1,7 @@
 using PicLens.Core.Services;
 using PicLens.Core.Domain;
 using PicLens.Core.Models;
+using SkiaSharp;
 
 namespace PicLens.Infrastructure.Services;
 
@@ -82,7 +83,6 @@ public sealed class FolderScanner : IFolderScanner
         {
             cancellationToken.ThrowIfCancellationRequested();
             yield return new FolderListItem(
-                Id: $"folder:{directory}",
                 Path: directory,
                 Name: Path.GetFileName(directory),
                 ModifiedAtMs: ToUnixMs(Directory.GetLastWriteTimeUtc(directory)));
@@ -134,10 +134,9 @@ public sealed class FolderScanner : IFolderScanner
         {
             var info = new FileInfo(file);
             var isAnimated = RequiresAnimationDetection(extension)
-                && IsKnownAnimatedImage(file, extension);
+                && IsKnownAnimatedImage(file);
 
             return new ImageListItem(
-                Id: $"image:{file}",
                 Path: file,
                 Name: info.Name,
                 Extension: extension,
@@ -155,35 +154,18 @@ public sealed class FolderScanner : IFolderScanner
         extension.Equals("gif", StringComparison.OrdinalIgnoreCase)
         || extension.Equals("webp", StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsKnownAnimatedImage(
-        string path,
-        string extension)
+    private static bool IsKnownAnimatedImage(string path)
     {
         try
         {
-            return extension.ToLowerInvariant() switch
-            {
-                "gif" => IsAnimatedGif(path),
-                "webp" => IsAnimatedWebp(path),
-                _ => false
-            };
+            using var stream = OpenProbeStream(path);
+            using var codec = SKCodec.Create(stream);
+            return codec?.FrameCount > 1;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return false;
         }
-    }
-
-    private static bool IsAnimatedGif(string path)
-    {
-        using var stream = OpenProbeStream(path);
-        return ImageFormatRules.IsAnimatedGif(stream);
-    }
-
-    private static bool IsAnimatedWebp(string path)
-    {
-        using var stream = OpenProbeStream(path);
-        return ImageFormatRules.IsAnimatedWebp(stream);
     }
 
     private static FileStream OpenProbeStream(string path) =>

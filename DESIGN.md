@@ -12,25 +12,28 @@ The app uses three visually distinct zones:
 
 ## 2. Color
 
+PicLens intentionally supports the light theme only. Keep `RequestedThemeVariant="Light"` until a complete dark palette and visual test coverage are added.
+
 ### Palette
 
 | Role | Token | Light | Dark | Usage |
 |------|-------|-------|------|-------|
-| Surface/app | `AppBackgroundBrush` | `#F4F5F7` | TBD | Main shell background |
-| Surface/command | `CommandBarBrush` | `#FBFBFC` | TBD | Global command and status bars |
-| Surface/sidebar | `SidebarBrush` | `#F8F9FB` | TBD | Folder pane |
-| Surface/content | `SurfaceBrush` | `#FFFFFF` | TBD | Main library surface |
-| Surface/tile | `TileFrameBrush` | `#ECEEF2` | TBD | Thumbnail tile frame |
-| Border/default | `LineBrush` | `#E2E5EA` | TBD | Dividers and tile borders |
-| Border/strong | `StrongLineBrush` | `#D5D9E1` | TBD | Interactive hover boundary |
-| Text/primary | `PrimaryTextBrush` | `#20242B` | TBD | Main labels and file names |
-| Text/secondary | `SecondaryTextBrush` | `#5F6672` | TBD | Paths, metadata, viewer filename |
-| Text/muted | `MutedTextBrush` | `#8A919D` | TBD | Lower emphasis icons/text |
-| State/hover | `HoverBrush` | `#ECEFF4` | TBD | Toolbar hover |
-| State/selected | `SelectedBrush` | `#E7EEFF` | TBD | Selected Library Item |
-| Accent/primary | `AccentBrush` | `#4968E8` | TBD | Primary action, selection, and status |
-| Accent/soft | `AccentSoftBrush` | `#EDF1FF` | TBD | Empty-state icon and active scope |
-| Surface/viewer | `ViewerCanvasBrush` | `#11141A` | TBD | Image Viewer canvas |
+| Surface/app | `AppBackgroundBrush` | `#F4F5F7` | N/A | Main shell background |
+| Surface/command | `CommandBarBrush` | `#FBFBFC` | N/A | Global command and status bars |
+| Surface/sidebar | `SidebarBrush` | `#F8F9FB` | N/A | Folder pane |
+| Surface/content | `SurfaceBrush` | `#FFFFFF` | N/A | Main library surface |
+| Surface/tile | `TileFrameBrush` | `#ECEEF2` | N/A | Thumbnail tile frame |
+| Border/default | `LineBrush` | `#E2E5EA` | N/A | Dividers and tile borders |
+| Border/strong | `StrongLineBrush` | `#D5D9E1` | N/A | Interactive hover boundary |
+| Text/primary | `PrimaryTextBrush` | `#20242B` | N/A | Main labels and file names |
+| Text/secondary | `SecondaryTextBrush` | `#5F6672` | N/A | Paths, metadata, viewer filename |
+| Text/muted | `MutedTextBrush` | `#626B78` | N/A | Lower emphasis icons/text |
+| State/hover | `HoverBrush` | `#ECEFF4` | N/A | Toolbar hover |
+| State/selected | `SelectedBrush` | `#E7EEFF` | N/A | Selected Library Item |
+| Accent/primary | `AccentBrush` | `#4968E8` | N/A | Primary action, selection, and status |
+| Accent/soft | `AccentSoftBrush` | `#EDF1FF` | N/A | Empty-state icon and active scope |
+| Accent/soft pressed | `AccentSoftPressedBrush` | `#DCE4FF` | N/A | Pressed active toggles |
+| Surface/viewer | `ViewerCanvasBrush` | `#11141A` | Stable dark surface | Image Viewer canvas |
 
 ### Rules
 

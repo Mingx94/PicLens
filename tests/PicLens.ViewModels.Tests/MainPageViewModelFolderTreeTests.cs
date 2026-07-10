@@ -129,12 +129,12 @@ public sealed class MainPageViewModelFolderTreeTests
             new FakeSettingsStore(settings),
             scanner,
             new ThrowingFileOperationService(),
-            new NullThumbnailService(),
+            new TestThumbnailService(),
             new TestDialogService(chooseFolderAsync: chooseFolderAsync),
             appLogger: appLogger);
 
     private static FolderListItem Folder(string path) =>
-        new($"folder:{path}", path, Path.GetFileName(path), 0);
+        new(path, Path.GetFileName(path), 0);
 
     private static StringComparer PathComparer => PathRules.PathComparer;
 

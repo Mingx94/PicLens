@@ -13,8 +13,8 @@ public sealed class MainPageViewModelSortTests
         using var workspace = new TempDirectory();
         var scanner = new CountingFolderScanner(
         [
-            new ImageListItem("image:older", System.IO.Path.Combine(workspace.Path, "older.jpg"), "older.jpg", ".jpg", 100, 1024),
-            new ImageListItem("image:newer", System.IO.Path.Combine(workspace.Path, "newer.jpg"), "newer.jpg", ".jpg", 200, 1024)
+            new ImageListItem(System.IO.Path.Combine(workspace.Path, "older.jpg"), "older.jpg", ".jpg", 100, 1024),
+            new ImageListItem(System.IO.Path.Combine(workspace.Path, "newer.jpg"), "newer.jpg", ".jpg", 200, 1024)
         ]);
         var settingsStore = new FakeSettingsStore(AppSettings.CreateDefault() with
         {
@@ -24,8 +24,8 @@ public sealed class MainPageViewModelSortTests
             settingsStore,
             scanner,
             new ThrowingFileOperationService(),
-            new NullThumbnailService(),
-            new NullDialogService());
+            new TestThumbnailService(),
+            new TestDialogService());
 
         await viewModel.InitializeAsync();
         var scansAfterInitialize = scanner.ScanCount;
@@ -54,8 +54,8 @@ public sealed class MainPageViewModelSortTests
         using var workspace = new TempDirectory();
         var scanner = new CountingFolderScanner(
         [
-            new ImageListItem("image:zulu", System.IO.Path.Combine(workspace.Path, "zulu.jpg"), "zulu.jpg", ".jpg", 100, 1024),
-            new ImageListItem("image:alpha", System.IO.Path.Combine(workspace.Path, "alpha.jpg"), "alpha.jpg", ".jpg", 200, 1024)
+            new ImageListItem(System.IO.Path.Combine(workspace.Path, "zulu.jpg"), "zulu.jpg", ".jpg", 100, 1024),
+            new ImageListItem(System.IO.Path.Combine(workspace.Path, "alpha.jpg"), "alpha.jpg", ".jpg", 200, 1024)
         ]);
         var viewModel = new MainPageViewModel(
             new FakeSettingsStore(AppSettings.CreateDefault() with
@@ -64,8 +64,8 @@ public sealed class MainPageViewModelSortTests
             }),
             scanner,
             new ThrowingFileOperationService(),
-            new NullThumbnailService(),
-            new NullDialogService());
+            new TestThumbnailService(),
+            new TestDialogService());
 
         await viewModel.InitializeAsync();
         var scansAfterInitialize = scanner.ScanCount;
@@ -89,8 +89,8 @@ public sealed class MainPageViewModelSortTests
             }),
             new CountingFolderScanner([]),
             new ThrowingFileOperationService(),
-            new NullThumbnailService(),
-            new NullDialogService(),
+            new TestThumbnailService(),
+            new TestDialogService(),
             appLogger: logger);
 
         await viewModel.InitializeAsync();
@@ -118,8 +118,8 @@ public sealed class MainPageViewModelSortTests
             settingsStore,
             scanner,
             new ThrowingFileOperationService(),
-            new NullThumbnailService(),
-            new NullDialogService());
+            new TestThumbnailService(),
+            new TestDialogService());
 
         await viewModel.InitializeAsync();
         var scansAfterInitialize = scanner.ScanCount;

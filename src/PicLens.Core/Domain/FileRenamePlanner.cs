@@ -29,20 +29,10 @@ public static class FileRenamePlanner
         string targetPath,
         IEnumerable<string> existingPaths)
     {
-        var paths = existingPaths.ToList();
-        return PlanDropTargetBatchRename(
-            sourcePaths,
-            targetPath,
-            (candidatePath, sourcePath) => PathRules.TargetNameExists(paths, candidatePath, sourcePath));
-    }
-
-    public static DropTargetBatchRenamePlan PlanDropTargetBatchRename(
-        IEnumerable<string> sourcePaths,
-        string targetPath,
-        Func<string, string, bool> targetNameExists)
-    {
         ArgumentNullException.ThrowIfNull(sourcePaths);
-        ArgumentNullException.ThrowIfNull(targetNameExists);
+        var paths = existingPaths.ToList();
+        bool TargetNameExists(string candidatePath, string sourcePath) =>
+            PathRules.TargetNameExists(paths, candidatePath, sourcePath);
 
         var targetDirectory = Path.GetDirectoryName(targetPath)
             ?? throw new ArgumentException("Target path must include a directory.", nameof(targetPath));
@@ -53,7 +43,7 @@ public static class FileRenamePlanner
 
         foreach (var source in sourcePaths.Where(source => !PathRules.PathEquals(source, targetPath)))
         {
-            var item = CreatePlanItem(source, targetDirectory, targetBaseName, sequenceNumber, targetNameExists);
+            var item = CreatePlanItem(source, targetDirectory, targetBaseName, sequenceNumber, TargetNameExists);
             items.Add(item);
             sequenceNumber = Math.Max(sequenceNumber, ExtractSequenceNumber(item.TargetPath, targetBaseName) + 1);
         }

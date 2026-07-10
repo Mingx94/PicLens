@@ -21,15 +21,25 @@
         <SolidColorBrush x:Key="StrongLineBrush" Color="#D5D9E1" />
         <SolidColorBrush x:Key="PrimaryTextBrush" Color="#20242B" />
         <SolidColorBrush x:Key="SecondaryTextBrush" Color="#5F6672" />
-        <SolidColorBrush x:Key="MutedTextBrush" Color="#8A919D" />
+        <SolidColorBrush x:Key="MutedTextBrush" Color="#626B78" />
         <SolidColorBrush x:Key="HoverBrush" Color="#ECEFF4" />
         <SolidColorBrush x:Key="SelectedBrush" Color="#E7EEFF" />
         <SolidColorBrush x:Key="AccentBrush" Color="#4968E8" />
         <SolidColorBrush x:Key="AccentHoverBrush" Color="#3F5DD3" />
+        <SolidColorBrush x:Key="AccentPressedBrush" Color="#344FC4" />
         <SolidColorBrush x:Key="AccentSoftBrush" Color="#EDF1FF" />
-        <SolidColorBrush x:Key="DangerBrush" Color="#D95B62" />
+        <SolidColorBrush x:Key="AccentSoftPressedBrush" Color="#DCE4FF" />
+        <SolidColorBrush x:Key="ScopeActiveBorderBrush" Color="#B9C7FF" />
+        <SolidColorBrush x:Key="SearchBackgroundBrush" Color="#F0F2F5" />
+        <SolidColorBrush x:Key="LibraryBackgroundBrush" Color="#FDFDFE" />
+        <SolidColorBrush x:Key="ViewerOverlayBrush" Color="#F2101217" />
         <SolidColorBrush x:Key="ViewerCanvasBrush" Color="#11141A" />
         <SolidColorBrush x:Key="ViewerChromeBrush" Color="#E61D2129" />
+        <SolidColorBrush x:Key="ViewerBorderBrush" Color="#33FFFFFF" />
+        <SolidColorBrush x:Key="ViewerSeparatorBrush" Color="#40FFFFFF" />
+        <SolidColorBrush x:Key="ViewerSecondaryTextBrush" Color="#AAB2C0" />
+        <SolidColorBrush x:Key="ViewerHoverBrush" Color="#33FFFFFF" />
+        <SolidColorBrush x:Key="ViewerPressedBrush" Color="#4DFFFFFF" />
         <converters:ImagePathConverter x:Key="ImagePathConverter" />
 
         <DataTemplate x:Key="LibraryTileTemplate" DataType="vm:LibraryTileItem" x:DataType="vm:LibraryTileItem">
@@ -38,12 +48,13 @@
                 Classes="tile"
                 Classes.selected="{Binding IsSelected}"
                 Classes.drop-target="{Binding IsDropRenameTarget}"
-                MinWidth="{Binding TileWidth}"
-                MinHeight="{Binding TileDisplayHeight}"
+                MinWidth="{ReflectionBinding DataContext.ThumbnailSize, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                MinHeight="{ReflectionBinding DataContext.LibraryTileLayoutHeight, RelativeSource={RelativeSource AncestorType=UserControl}}"
                 AutomationProperties.AutomationId="{Binding AutomationId}"
                 AutomationProperties.Name="{Binding AutomationName}"
-                Loaded="LibraryTile_Loaded"
-                Unloaded="LibraryTile_Unloaded"
+                AutomationProperties.ControlTypeOverride="ListItem"
+                Focusable="True"
+                KeyDown="LibraryTile_KeyDown"
                 Tapped="LibraryTile_Tapped"
                 DoubleTapped="LibraryTile_DoubleTapped"
                 RightTapped="LibraryTile_RightTapped"
@@ -60,7 +71,7 @@
                         MaxWidth="720" />
                 </ToolTip.Tip>
                 <Panel>
-                    <Grid RowDefinitions="Auto,Auto" IsVisible="{Binding IsGridViewMode}">
+                    <Grid RowDefinitions="Auto,Auto" IsVisible="{ReflectionBinding DataContext.IsGridViewMode, RelativeSource={RelativeSource AncestorType=UserControl}}">
                         <Border
                             Grid.Row="0"
                             Background="{StaticResource TileFrameBrush}"
@@ -68,7 +79,7 @@
                             BorderThickness="1"
                             ClipToBounds="True"
                             CornerRadius="10"
-                            Height="{Binding TileHeight}">
+                            Height="{ReflectionBinding DataContext.LibraryThumbnailHeight, RelativeSource={RelativeSource AncestorType=UserControl}}">
                             <Grid ClipToBounds="True">
                                 <Image Source="{Binding ThumbnailPath, Converter={StaticResource ImagePathConverter}, ConverterParameter=cache}" Stretch="UniformToFill" IsVisible="{Binding CanShowThumbnail}" />
                                 <Panel HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding ShouldShowIcon}">
@@ -92,15 +103,15 @@
                             Margin="3,9,3,0" />
                     </Grid>
 
-                    <Grid ColumnDefinitions="88,*" ColumnSpacing="14" MinHeight="{Binding TileDisplayHeight}" IsVisible="{Binding IsListViewMode}">
+                    <Grid ColumnDefinitions="88,*" ColumnSpacing="14" MinHeight="100" IsVisible="{ReflectionBinding DataContext.IsListViewMode, RelativeSource={RelativeSource AncestorType=UserControl}}">
                         <Border
                             Background="{StaticResource TileFrameBrush}"
                             BorderBrush="{StaticResource LineBrush}"
                             BorderThickness="1"
                             ClipToBounds="True"
                             CornerRadius="10"
-                            Width="{Binding ListThumbnailWidth}"
-                            Height="{Binding ListThumbnailHeight}"
+                            Width="96"
+                            Height="68"
                             VerticalAlignment="Center">
                             <Grid ClipToBounds="True">
                                 <Image Source="{Binding ThumbnailPath, Converter={StaticResource ImagePathConverter}, ConverterParameter=cache}" Stretch="UniformToFill" IsVisible="{Binding CanShowThumbnail}" />
@@ -169,6 +180,15 @@
         <Style Selector="Button.toolbar:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{StaticResource HoverBrush}" />
         </Style>
+        <Style Selector="Button.toolbar:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource SelectedBrush}" />
+        </Style>
+        <Style Selector="Button.viewer-toolbar:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource ViewerHoverBrush}" />
+        </Style>
+        <Style Selector="Button.viewer-toolbar:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource ViewerPressedBrush}" />
+        </Style>
         <Style Selector="Button.toolbar:disabled">
             <Setter Property="Opacity" Value="0.38" />
         </Style>
@@ -192,9 +212,13 @@
             <Setter Property="MinHeight" Value="38" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
-        <Style Selector="Button.primary:pointerover">
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{StaticResource AccentHoverBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource AccentHoverBrush}" />
+        </Style>
+        <Style Selector="Button.primary:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AccentPressedBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource AccentPressedBrush}" />
         </Style>
         <Style Selector="Button.pill">
             <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
@@ -204,15 +228,38 @@
             <Setter Property="Padding" Value="11,7" />
             <Setter Property="MinHeight" Value="36" />
         </Style>
-        <Style Selector="Button.pill:pointerover">
+        <Style Selector="Button.pill:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{StaticResource HoverBrush}" />
+        </Style>
+        <Style Selector="Button.pill:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource SelectedBrush}" />
         </Style>
         <Style Selector="Button.scope-toggle.active">
             <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
-            <Setter Property="BorderBrush" Value="#B9C7FF" />
+            <Setter Property="BorderBrush" Value="{StaticResource ScopeActiveBorderBrush}" />
+        </Style>
+        <Style Selector="Button.scope-toggle.active:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource SelectedBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource ScopeActiveBorderBrush}" />
+        </Style>
+        <Style Selector="Button.scope-toggle.active:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AccentSoftPressedBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource ScopeActiveBorderBrush}" />
+        </Style>
+        <Style Selector="Button.view-toggle:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        </Style>
+        <Style Selector="Button.view-toggle:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
         </Style>
         <Style Selector="Button.view-toggle.active /template/ ContentPresenter">
             <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        </Style>
+        <Style Selector="Button.view-toggle.active:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource SelectedBrush}" />
+        </Style>
+        <Style Selector="Button.view-toggle.active:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AccentSoftPressedBrush}" />
         </Style>
         <Style Selector="Border.segmented">
             <Setter Property="Background" Value="{StaticResource HoverBrush}" />
@@ -234,8 +281,12 @@
             <Setter Property="Background" Value="{StaticResource SelectedBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
         </Style>
+        <Style Selector="Border.tile:focus">
+            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
         <Style Selector="Border.tile.drop-target">
-            <Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="2" />
         </Style>
         <Style Selector="Border.check-dot">
@@ -259,7 +310,7 @@
             <Setter Property="Background" Value="Transparent" />
         </Style>
         <Style Selector="Border.search-shell">
-            <Setter Property="Background" Value="#F0F2F5" />
+            <Setter Property="Background" Value="{StaticResource SearchBackgroundBrush}" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="10" />
@@ -288,16 +339,16 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                    <Button Classes="toolbar icon" ToolTip.Tip="收合側欄" AutomationProperties.AutomationId="TitleBarSidebarToggleButton" Command="{Binding ToggleSidebarCommand}">
+                    <Button Classes="toolbar icon" ToolTip.Tip="收合側欄" AutomationProperties.Name="收合側欄" AutomationProperties.AutomationId="TitleBarSidebarToggleButton" Command="{Binding ToggleSidebarCommand}">
                         <ic:FluentIcon Classes="glyph" Icon="PanelLeft" IconVariant="Regular" IconSize="Size20" />
                     </Button>
-                    <Button Classes="toolbar icon" ToolTip.Tip="上一個資料夾" AutomationProperties.AutomationId="TitleBarBackButton" Command="{Binding BackCommand}">
+                    <Button Classes="toolbar icon" ToolTip.Tip="上一個資料夾" AutomationProperties.Name="上一個資料夾" AutomationProperties.AutomationId="TitleBarBackButton" Command="{Binding BackCommand}">
                         <ic:FluentIcon Classes="glyph" Icon="ArrowLeft" IconVariant="Regular" IconSize="Size20" />
                     </Button>
-                    <Button Classes="toolbar icon" ToolTip.Tip="下一個資料夾" AutomationProperties.AutomationId="TitleBarForwardButton" Command="{Binding ForwardCommand}">
+                    <Button Classes="toolbar icon" ToolTip.Tip="下一個資料夾" AutomationProperties.Name="下一個資料夾" AutomationProperties.AutomationId="TitleBarForwardButton" Command="{Binding ForwardCommand}">
                         <ic:FluentIcon Classes="glyph" Icon="ArrowRight" IconVariant="Regular" IconSize="Size20" />
                     </Button>
-                    <Button Classes="toolbar icon" ToolTip.Tip="重新整理" AutomationProperties.AutomationId="TitleBarRefreshLibraryButton" Command="{Binding RefreshLibraryCommand}">
+                    <Button Classes="toolbar icon" ToolTip.Tip="重新整理" AutomationProperties.Name="重新整理圖庫" AutomationProperties.AutomationId="TitleBarRefreshLibraryButton" Command="{Binding RefreshLibraryCommand}">
                         <ic:FluentIcon Classes="glyph" Icon="ArrowClockwise" IconVariant="Regular" IconSize="Size20" />
                     </Button>
                 </StackPanel>
@@ -309,9 +360,10 @@
                             Grid.Column="1"
                             Classes="search"
                             PlaceholderText="搜尋目前 Library"
+                            AutomationProperties.Name="搜尋目前 Library"
                             AutomationProperties.AutomationId="LibrarySearchBox"
                             Text="{Binding SearchQuery, Mode=TwoWay}" />
-                        <Button Grid.Column="2" Classes="toolbar icon" Width="32" Height="32" ToolTip.Tip="清除搜尋" AutomationProperties.AutomationId="LibrarySearchClearButton" IsVisible="{Binding HasSearchQuery}" Command="{Binding ClearSearchCommand}">
+                        <Button Grid.Column="2" Classes="toolbar icon" Width="32" Height="32" ToolTip.Tip="清除搜尋" AutomationProperties.Name="清除搜尋" AutomationProperties.AutomationId="LibrarySearchClearButton" IsVisible="{Binding HasSearchQuery}" Command="{Binding ClearSearchCommand}">
                             <ic:FluentIcon Classes="glyph" Icon="Dismiss" IconVariant="Regular" IconSize="Size16" />
                         </Button>
                     </Grid>
@@ -324,7 +376,7 @@
                             <TextBlock Text="開啟資料夾" Foreground="White" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <Button Classes="toolbar icon" ToolTip.Tip="更多操作" AutomationProperties.AutomationId="TitleBarMoreActionsButton">
+                    <Button Classes="toolbar icon" ToolTip.Tip="更多操作" AutomationProperties.Name="更多操作" AutomationProperties.AutomationId="TitleBarMoreActionsButton">
                         <ic:FluentIcon Classes="glyph" Icon="MoreVertical" IconVariant="Regular" IconSize="Size20" />
                         <Button.Flyout>
                             <MenuFlyout>
@@ -423,10 +475,10 @@
                                     </Button>
                                     <Border Classes="segmented">
                                         <StackPanel Orientation="Horizontal" Spacing="0">
-                                            <Button Classes="toolbar icon view-toggle" Classes.active="{Binding IsGridViewMode}" ToolTip.Tip="格狀檢視" AutomationProperties.AutomationId="TitleBarGridViewButton" Command="{Binding SetViewModeCommand}" CommandParameter="grid">
+                                            <Button Classes="toolbar icon view-toggle" Classes.active="{Binding IsGridViewMode}" ToolTip.Tip="格狀檢視" AutomationProperties.Name="格狀檢視" AutomationProperties.AutomationId="TitleBarGridViewButton" Command="{Binding SetViewModeCommand}" CommandParameter="grid">
                                                 <ic:FluentIcon Classes="glyph" Icon="LayoutColumnTwo" IconVariant="Regular" IconSize="Size20" />
                                             </Button>
-                                            <Button Classes="toolbar icon view-toggle" Classes.active="{Binding IsListViewMode}" ToolTip.Tip="列表檢視" AutomationProperties.AutomationId="TitleBarListViewButton" Command="{Binding SetViewModeCommand}" CommandParameter="list">
+                                            <Button Classes="toolbar icon view-toggle" Classes.active="{Binding IsListViewMode}" ToolTip.Tip="列表檢視" AutomationProperties.Name="列表檢視" AutomationProperties.AutomationId="TitleBarListViewButton" Command="{Binding SetViewModeCommand}" CommandParameter="list">
                                                 <ic:FluentIcon Classes="glyph" Icon="TextBulletListSquare" IconVariant="Regular" IconSize="Size20" />
                                             </Button>
                                         </StackPanel>
@@ -436,7 +488,7 @@
                         </Grid>
                     </Border>
 
-                    <Grid Grid.Row="1" Background="#FDFDFE">
+                    <Grid Grid.Row="1" Background="{StaticResource LibraryBackgroundBrush}">
                         <ScrollViewer
                             x:Name="LibraryGrid"
                             AutomationProperties.AutomationId="LibraryGrid"
@@ -457,7 +509,7 @@
                                             <TextBlock Text="{Binding FolderItemCountText}" Classes="caption" />
                                         </Border>
                                     </StackPanel>
-                                    <ir:ItemsRepeater ItemsSource="{Binding FolderLibraryItems}" ItemTemplate="{StaticResource LibraryTileTemplate}">
+                                    <ir:ItemsRepeater ItemsSource="{Binding FolderLibraryItems}" ItemTemplate="{StaticResource LibraryTileTemplate}" ElementPrepared="LibraryItemsRepeater_ElementPrepared" ElementClearing="LibraryItemsRepeater_ElementClearing">
                                         <ir:ItemsRepeater.Layout>
                                             <irlayout:UniformGridLayout MinItemWidth="{Binding LibraryLayoutMinItemWidth}" MinItemHeight="{Binding LibraryTileLayoutHeight}" MinRowSpacing="12" MinColumnSpacing="10" />
                                         </ir:ItemsRepeater.Layout>
@@ -471,7 +523,7 @@
                                             <TextBlock Text="{Binding ImageItemCountText}" Classes="caption" />
                                         </Border>
                                     </StackPanel>
-                                    <ir:ItemsRepeater ItemsSource="{Binding ImageLibraryItems}" ItemTemplate="{StaticResource LibraryTileTemplate}">
+                                    <ir:ItemsRepeater ItemsSource="{Binding ImageLibraryItems}" ItemTemplate="{StaticResource LibraryTileTemplate}" ElementPrepared="LibraryItemsRepeater_ElementPrepared" ElementClearing="LibraryItemsRepeater_ElementClearing">
                                         <ir:ItemsRepeater.Layout>
                                             <irlayout:UniformGridLayout MinItemWidth="{Binding LibraryLayoutMinItemWidth}" MinItemHeight="{Binding LibraryTileLayoutHeight}" MinRowSpacing="12" MinColumnSpacing="10" />
                                         </ir:ItemsRepeater.Layout>
@@ -494,13 +546,35 @@
                             </Button>
                         </StackPanel>
 
-                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" IsVisible="{Binding HasNoVisibleItems}">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" IsVisible="{Binding HasEmptyFolder}">
+                            <Border Width="52" Height="52" CornerRadius="18" Background="{StaticResource HoverBrush}" HorizontalAlignment="Center">
+                                <ic:FluentIcon Icon="ImageMultiple" IconVariant="Regular" IconSize="Size24" Foreground="{StaticResource MutedTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="這個資料夾沒有支援的圖片" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                            <TextBlock Text="選擇其他資料夾，或開啟含子資料夾模式。" Classes="secondary" HorizontalAlignment="Center" />
+                        </StackPanel>
+
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" IsVisible="{Binding HasNoSearchResults}">
                             <Border Width="52" Height="52" CornerRadius="18" Background="{StaticResource HoverBrush}" HorizontalAlignment="Center">
                                 <ic:FluentIcon Icon="Search" IconVariant="Regular" IconSize="Size24" Foreground="{StaticResource MutedTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
                             <TextBlock Text="沒有符合條件的項目" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
                             <TextBlock Text="清除搜尋，或換一個關鍵字。" Classes="secondary" HorizontalAlignment="Center" />
                         </StackPanel>
+
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" MaxWidth="460" IsVisible="{Binding HasLibraryError}">
+                            <ic:FluentIcon Icon="ErrorCircle" IconVariant="Regular" IconSize="Size28" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Center" />
+                            <TextBlock Text="無法載入資料夾" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding LibraryErrorMessage}" Classes="secondary" AutomationProperties.LiveSetting="Assertive" TextAlignment="Center" TextWrapping="Wrap" />
+                            <Button Classes="primary" Content="重試" HorizontalAlignment="Center" Command="{Binding RefreshLibraryCommand}" />
+                        </StackPanel>
+
+                        <Border Background="{StaticResource LibraryBackgroundBrush}" IsVisible="{Binding IsLibraryLoading}">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                                <ProgressBar Width="200" IsIndeterminate="True" />
+                                <TextBlock Text="正在載入圖庫…" Classes="secondary" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
                     </Grid>
                 </Grid>
             </Border>
@@ -522,9 +596,11 @@
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                 <StackPanel Orientation="Horizontal" Spacing="9" AutomationProperties.AutomationId="StatusBar" VerticalAlignment="Center">
                     <Border Width="8" Height="8" Background="{StaticResource AccentBrush}" CornerRadius="4" VerticalAlignment="Center" />
-                    <TextBlock AutomationProperties.AutomationId="StatusInfoBar" Text="{Binding StatusMessage}" Classes="secondary" FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <TextBlock AutomationProperties.AutomationId="StatusInfoBar" AutomationProperties.LiveSetting="Polite" Text="{Binding StatusMessage}" Classes="secondary" FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                     <TextBlock Text="•" Classes="muted" IsVisible="{Binding HasSelectedImages}" />
                     <TextBlock Text="{Binding SelectedSummaryText}" FontSize="12" FontWeight="SemiBold" IsVisible="{Binding HasSelectedImages}" />
+                    <ProgressBar Width="72" Height="3" IsIndeterminate="True" IsVisible="{Binding IsFileOperationActive}" />
+                    <Button Classes="toolbar" Content="取消" AutomationProperties.Name="取消目前檔案操作" IsVisible="{Binding IsFileOperationActive}" Command="{Binding CancelFileOperationCommand}" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
@@ -533,6 +609,7 @@
                     <Slider
                         x:Name="ThumbnailSizeSlider"
                         AutomationProperties.AutomationId="ThumbnailSizeSlider"
+                        AutomationProperties.Name="縮圖大小"
                         Minimum="{Binding ThumbnailSizeMinimum}"
                         Maximum="{Binding ThumbnailSizeMaximum}"
                         TickFrequency="{Binding ThumbnailSizeStep}"
@@ -557,22 +634,22 @@
             Grid.RowSpan="3"
             IsVisible="False"
             Focusable="True"
-            Background="#F2101217"
+            Background="{StaticResource ViewerOverlayBrush}"
             KeyDown="ViewerSurface_KeyDown"
             x:DataType="vm:ImageViewerWindowViewModel"
             AutomationProperties.AutomationId="ViewerSurface"
             ZIndex="50">
             <Grid RowDefinitions="64,*,Auto">
-                <Border Grid.Row="0" Background="{StaticResource ViewerChromeBrush}" BorderBrush="#33FFFFFF" BorderThickness="0,0,0,1" Padding="20,0">
+                <Border Grid.Row="0" Background="{StaticResource ViewerChromeBrush}" BorderBrush="{StaticResource ViewerBorderBrush}" BorderThickness="0,0,0,1" Padding="20,0">
                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                         <Border Width="34" Height="34" CornerRadius="10" Background="{StaticResource AccentBrush}" VerticalAlignment="Center">
                             <ic:FluentIcon Icon="Image" IconVariant="Regular" IconSize="Size20" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
                             <TextBlock Text="{Binding CurrentImageName}" Foreground="White" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Text="圖片檢視器" Foreground="#AAB2C0" FontSize="11" />
+                            <TextBlock Text="圖片檢視器" Foreground="{StaticResource ViewerSecondaryTextBrush}" FontSize="11" />
                         </StackPanel>
-                        <Button Grid.Column="2" Classes="toolbar icon" ToolTip.Tip="關閉" AutomationProperties.AutomationId="ViewerCloseButton" Click="CloseViewer_Click">
+                        <Button Grid.Column="2" Classes="toolbar viewer-toolbar icon" ToolTip.Tip="關閉" AutomationProperties.Name="關閉圖片檢視器" AutomationProperties.AutomationId="ViewerCloseButton" Click="CloseViewer_Click">
                             <ic:FluentIcon Classes="glyph" Icon="Dismiss" IconVariant="Regular" IconSize="Size20" Foreground="White" />
                         </Button>
                     </Grid>
@@ -608,30 +685,30 @@
                 </Grid>
 
                 <Border Grid.Row="2" Background="{StaticResource ViewerCanvasBrush}" Padding="0,0,0,18">
-                    <Border Background="{StaticResource ViewerChromeBrush}" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="12" Padding="8" HorizontalAlignment="Center">
+                    <Border Background="{StaticResource ViewerChromeBrush}" BorderBrush="{StaticResource ViewerBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="8" HorizontalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="4" AutomationProperties.AutomationId="ViewerTitleCommandBar">
-                            <Button Classes="toolbar icon" ToolTip.Tip="上一張" AutomationProperties.AutomationId="ViewerPreviousButton" Command="{Binding PreviousCommand}">
-                                <ic:FluentIcon Classes="glyph" Icon="ArrowLeft" IconVariant="Regular" IconSize="Size20" Foreground="White" />
+                            <Button Classes="toolbar viewer-toolbar" ToolTip.Tip="上一張" AutomationProperties.AutomationId="ViewerPreviousButton" Command="{Binding PreviousCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <ic:FluentIcon Classes="glyph" Icon="ArrowLeft" IconVariant="Regular" IconSize="Size20" Foreground="White" />
+                                    <TextBlock Text="上一張" Foreground="White" />
+                                </StackPanel>
                             </Button>
-                            <Button Classes="toolbar" ToolTip.Tip="上一張" Command="{Binding PreviousCommand}">
-                                <TextBlock Text="上一張" Foreground="White" />
-                            </Button>
-                            <Border Width="1" Height="20" Background="#40FFFFFF" Margin="5,0" />
-                            <Button Classes="toolbar icon" ToolTip.Tip="縮小" AutomationProperties.AutomationId="ViewerZoomOutButton" Command="{Binding ZoomOutCommand}">
+                            <Border Width="1" Height="20" Background="{StaticResource ViewerSeparatorBrush}" Margin="5,0" />
+                            <Button Classes="toolbar viewer-toolbar icon" ToolTip.Tip="縮小" AutomationProperties.Name="縮小圖片" AutomationProperties.AutomationId="ViewerZoomOutButton" Command="{Binding ZoomOutCommand}">
                                 <ic:FluentIcon Classes="glyph" Icon="ZoomOut" IconVariant="Regular" IconSize="Size20" Foreground="White" />
                             </Button>
-                            <Button Classes="toolbar icon" ToolTip.Tip="重設" AutomationProperties.AutomationId="ViewerResetZoomButton" Command="{Binding ResetZoomCommand}">
+                            <Button Classes="toolbar viewer-toolbar icon" ToolTip.Tip="重設" AutomationProperties.Name="重設圖片縮放" AutomationProperties.AutomationId="ViewerResetZoomButton" Command="{Binding ResetZoomCommand}">
                                 <ic:FluentIcon Classes="glyph" Icon="ArrowClockwise" IconVariant="Regular" IconSize="Size20" Foreground="White" />
                             </Button>
-                            <Button Classes="toolbar icon" ToolTip.Tip="放大" AutomationProperties.AutomationId="ViewerZoomInButton" Command="{Binding ZoomInCommand}">
+                            <Button Classes="toolbar viewer-toolbar icon" ToolTip.Tip="放大" AutomationProperties.Name="放大圖片" AutomationProperties.AutomationId="ViewerZoomInButton" Command="{Binding ZoomInCommand}">
                                 <ic:FluentIcon Classes="glyph" Icon="ZoomIn" IconVariant="Regular" IconSize="Size20" Foreground="White" />
                             </Button>
-                            <Border Width="1" Height="20" Background="#40FFFFFF" Margin="5,0" />
-                            <Button Classes="toolbar" ToolTip.Tip="下一張" Command="{Binding NextCommand}">
-                                <TextBlock Text="下一張" Foreground="White" />
-                            </Button>
-                            <Button Classes="toolbar icon" ToolTip.Tip="下一張" AutomationProperties.AutomationId="ViewerNextButton" Command="{Binding NextCommand}">
-                                <ic:FluentIcon Classes="glyph" Icon="ArrowRight" IconVariant="Regular" IconSize="Size20" Foreground="White" />
+                            <Border Width="1" Height="20" Background="{StaticResource ViewerSeparatorBrush}" Margin="5,0" />
+                            <Button Classes="toolbar viewer-toolbar" ToolTip.Tip="下一張" AutomationProperties.AutomationId="ViewerNextButton" Command="{Binding NextCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="下一張" Foreground="White" />
+                                    <ic:FluentIcon Classes="glyph" Icon="ArrowRight" IconVariant="Regular" IconSize="Size20" Foreground="White" />
+                                </StackPanel>
                             </Button>
                         </StackPanel>
                     </Border>

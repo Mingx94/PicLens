@@ -12,8 +12,8 @@ public sealed class MainPageSelectionActionTests
     public async Task TrashSelectedCommand_trashes_all_selected_images_and_clears_selection()
     {
         using var workspace = new TempDirectory();
-        var first = new ImageListItem("image:first", Path.Combine(workspace.Path, "first.png"), "first.png", ".png", 100, 1024);
-        var second = new ImageListItem("image:second", Path.Combine(workspace.Path, "second.webp"), "second.webp", ".webp", 200, 2048);
+        var first = new ImageListItem(Path.Combine(workspace.Path, "first.png"), "first.png", ".png", 100, 1024);
+        var second = new ImageListItem(Path.Combine(workspace.Path, "second.webp"), "second.webp", ".webp", 200, 2048);
         var fileOperations = new RecordingFileOperationService();
         var viewModel = CreateViewModel(
             workspace.Path,
@@ -37,7 +37,7 @@ public sealed class MainPageSelectionActionTests
     public async Task RenameSelectedCommand_logs_error_when_rename_throws()
     {
         using var workspace = new TempDirectory();
-        var image = new ImageListItem("image:first", Path.Combine(workspace.Path, "first.png"), "first.png", ".png", 100, 1024);
+        var image = new ImageListItem(Path.Combine(workspace.Path, "first.png"), "first.png", ".png", 100, 1024);
         var logger = new RecordingAppLogger();
         var viewModel = CreateViewModel(
             workspace.Path,
@@ -60,7 +60,7 @@ public sealed class MainPageSelectionActionTests
     public async Task TrashSelectedCommand_logs_error_when_trash_throws()
     {
         using var workspace = new TempDirectory();
-        var image = new ImageListItem("image:first", Path.Combine(workspace.Path, "first.png"), "first.png", ".png", 100, 1024);
+        var image = new ImageListItem(Path.Combine(workspace.Path, "first.png"), "first.png", ".png", 100, 1024);
         var logger = new RecordingAppLogger();
         var viewModel = CreateViewModel(
             workspace.Path,
@@ -90,7 +90,7 @@ public sealed class MainPageSelectionActionTests
             new FakeSettingsStore(AppSettings.CreateDefault() with { LastFolderPath = lastFolderPath }),
             folderScanner,
             fileOperationService,
-            new NullThumbnailService(),
+            new TestThumbnailService(),
             new TestDialogService(confirmAsync: confirmAsync, requestRenameAsync: requestRenameAsync),
             appLogger: appLogger);
 

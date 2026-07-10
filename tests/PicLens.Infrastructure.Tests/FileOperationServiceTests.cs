@@ -178,7 +178,6 @@ public sealed class FileOperationServiceTests
 
     private static ImageListItem Image(string path) =>
         new(
-            Id: $"image:{Path.GetFileName(path)}",
             Path: path,
             Name: Path.GetFileName(path),
             Extension: Path.GetExtension(path).TrimStart('.').ToLowerInvariant(),

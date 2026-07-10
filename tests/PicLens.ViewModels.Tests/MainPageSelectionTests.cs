@@ -1,4 +1,3 @@
-using PicLens.Core.Services;
 using PicLens.Core.Models;
 using PicLens.ViewModels;
 
@@ -85,46 +84,16 @@ public sealed class MainPageSelectionTests
 
     private static MainPageViewModel CreateViewModel() =>
         new(
-            new ThrowingSettingsStore(),
-            new ThrowingFolderScanner(),
+            new FakeSettingsStore(AppSettings.CreateDefault()),
+            new CountingFolderScanner([]),
             new ThrowingFileOperationService(),
-            new NullThumbnailService(),
-            new NullDialogService());
+            new TestThumbnailService(),
+            new TestDialogService());
 
     private static LibraryTileItem ImageTile(string name, string path) =>
-        new(
-            Name: name,
-            Path: path,
-            Detail: "JPG - 1 KB",
-            SourceItem: new ImageListItem($"image:{name}", path, name, Path.GetExtension(name), 1, 1024));
+        new(new ImageListItem(path, name, Path.GetExtension(name), 1, 1024));
 
     private static LibraryTileItem FolderTile(string name, string path) =>
-        new(
-            Name: name,
-            Path: path,
-            Detail: "開啟資料夾",
-            SourceItem: new FolderListItem($"folder:{name}", path, name, 1));
-
-    private sealed class ThrowingSettingsStore : ISettingsStore
-    {
-        public Task<AppSettings> LoadAsync(CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<AppSettings> UpdateAsync(AppSettingsPatch patch, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-    }
-
-    private sealed class ThrowingFolderScanner : IFolderScanner
-    {
-        public Task<IReadOnlyList<ListItem>> ScanAsync(
-            ListQuery query,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyList<FolderListItem>> ScanChildFoldersAsync(
-            string folderPath,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-    }
+        new(new FolderListItem(path, name, 1));
 
 }

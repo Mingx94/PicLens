@@ -101,7 +101,7 @@ public sealed partial class MainPageViewModel
         string? thumbnailPath,
         int requestedSize)
     {
-        void Apply()
+        return runOnUiThread(() =>
         {
             if (ThumbnailSize == requestedSize
                 && LibraryItems.Contains(tile)
@@ -109,35 +109,7 @@ public sealed partial class MainPageViewModel
             {
                 tile.ApplyThumbnailPath(thumbnailPath, requestedSize);
             }
-        }
-
-        if (hasUiThreadAccess())
-        {
-            Apply();
-            return Task.CompletedTask;
-        }
-
-        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (!tryEnqueueOnUiThread(() =>
-            {
-                try
-                {
-                    Apply();
-                    completion.SetResult();
-                }
-                catch (Exception ex)
-                {
-                    completion.SetException(ex);
-                }
-            }))
-        {
-            appLogger.Error(
-                new InvalidOperationException("Failed to enqueue thumbnail UI update."),
-                $"Queue thumbnail update failed. Image={image.Name}; Path={image.Path}; RequestedSize={requestedSize}");
-            return Task.CompletedTask;
-        }
-
-        return completion.Task;
+        });
     }
 
     public void CancelThumbnailLoad(LibraryTileItem tile)

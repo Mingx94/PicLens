@@ -263,38 +263,18 @@ public sealed class ThumbnailService : IThumbnailService
         string extension,
         CancellationToken cancellationToken)
     {
-        return extension.ToLowerInvariant() switch
+        if (extension.ToLowerInvariant() is not ("gif" or "webp"))
         {
-            "gif" => await IsAnimatedGifAsync(path, cancellationToken),
-            "webp" => await IsAnimatedWebpAsync(path, cancellationToken),
-            _ => false
-        };
-    }
+            return false;
+        }
 
-    private static async Task<bool> IsAnimatedGifAsync(string path, CancellationToken cancellationToken)
-    {
         return await Task.Run(() =>
         {
             try
             {
                 using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, BufferSize);
-                return ImageFormatRules.IsAnimatedGif(stream);
-            }
-            catch
-            {
-                return false;
-            }
-        }, cancellationToken);
-    }
-
-    private static async Task<bool> IsAnimatedWebpAsync(string path, CancellationToken cancellationToken)
-    {
-        return await Task.Run(() =>
-        {
-            try
-            {
-                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, BufferSize);
-                return ImageFormatRules.IsAnimatedWebp(stream);
+                using var codec = SKCodec.Create(stream);
+                return codec?.FrameCount > 1;
             }
             catch
             {

@@ -73,7 +73,6 @@ public sealed class JsonSettingsStoreTests
         var loaded = await store.LoadAsync();
 
         Assert.True(updated.IncludeSubfolders);
-        Assert.Equal(updated.Version, loaded.Version);
         Assert.Equal(updated.LastFolderPath, loaded.LastFolderPath);
         Assert.Equal(updated.Sort, loaded.Sort);
         Assert.Equal(updated.IncludeSubfolders, loaded.IncludeSubfolders);
@@ -179,11 +178,9 @@ public sealed class JsonSettingsStoreTests
 
     private static void AssertSettingsEqual(AppSettings expected, AppSettings actual)
     {
-        Assert.Equal(expected.Version, actual.Version);
         Assert.Equal(expected.LastFolderPath, actual.LastFolderPath);
         Assert.Equal(expected.Sort, actual.Sort);
         Assert.Equal(expected.IncludeSubfolders, actual.IncludeSubfolders);
         Assert.Equal(expected.ThumbnailSize, actual.ThumbnailSize);
-        Assert.Equal(expected.RecentFolderPaths, actual.RecentFolderPaths);
     }
 }

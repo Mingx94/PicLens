@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
+using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -10,9 +11,13 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using PicLens;
+using AppSettings = PicLens.Core.Models.AppSettings;
+using SortDirection = PicLens.Core.Models.SortDirection;
+using SortKey = PicLens.Core.Models.SortKey;
 using PicLens.Infrastructure.Services;
 using PicLens.ViewModels;
 using Xunit;
@@ -56,6 +61,7 @@ public sealed class MainWindowSmokeTests
         await fixture.WaitForConditionAsync(() => fixture.View.ViewModel.HasNoCurrentFolder, "empty state did not load");
 
         Assert.Equal("PicLens", fixture.Window.Title);
+        Assert.Equal(ThemeVariant.Light, fixture.Window.ActualThemeVariant);
         Assert.Equal("Noto Sans CJK TC", TextElement.GetFontFamily(fixture.Window).Name);
         foreach (var automationId in MainWindowAutomationIds)
         {
@@ -73,6 +79,22 @@ public sealed class MainWindowSmokeTests
         Assert.Equal(
             ["將目前顯示項目轉為 JPG", "清除同名非 JPG 檔案"],
             fixture.MenuHeaders("TitleBarMoreActionsButton"));
+
+        foreach (var automationId in new[]
+                 {
+                     "TitleBarSidebarToggleButton",
+                     "TitleBarBackButton",
+                     "TitleBarForwardButton",
+                     "TitleBarRefreshLibraryButton",
+                     "TitleBarGridViewButton",
+                     "TitleBarListViewButton",
+                     "TitleBarMoreActionsButton",
+                     "ThumbnailSizeSlider"
+                 })
+        {
+            Assert.False(string.IsNullOrWhiteSpace(
+                AutomationProperties.GetName(fixture.FindByAutomationId<Control>(automationId))));
+        }
     }
 
     [AvaloniaFact]
@@ -97,6 +119,26 @@ public sealed class MainWindowSmokeTests
             Math.Abs(thumbTopLeft.Value.Y + thumb.Bounds.Height / 2 - footer.Bounds.Height / 2),
             0,
             1);
+    }
+
+    [AvaloniaFact]
+    public async Task Button_hover_states_use_component_specific_colors()
+    {
+        using var fixture = PicLensHeadlessFixture.StartEmpty(nameof(Button_hover_states_use_component_specific_colors));
+        await fixture.WaitForConditionAsync(() => fixture.View.ViewModel.HasNoCurrentFolder, "empty state did not load");
+
+        Assert.Equal(Color.Parse("#3F5DD3"), fixture.HoverButtonBackground("TitleBarOpenFolderButton"));
+        Assert.Equal(Color.Parse("#ECEFF4"), fixture.HoverButtonBackground("TitleBarSortMenuButton"));
+        Assert.Equal(Color.Parse("#E7EEFF"), fixture.HoverButtonBackground("TitleBarGridViewButton"));
+        Assert.Equal(Color.Parse("#FFFFFF"), fixture.HoverButtonBackground("TitleBarListViewButton"));
+        Assert.Equal(Color.Parse("#344FC4"), fixture.PressedButtonBackground("TitleBarOpenFolderButton"));
+        Assert.Equal(Color.Parse("#E7EEFF"), fixture.PressedButtonBackground("TitleBarSortMenuButton"));
+        Assert.Equal(Color.Parse("#DCE4FF"), fixture.PressedButtonBackground("TitleBarGridViewButton"));
+
+        fixture.View.ViewModel.IncludeSubfolders = true;
+        await fixture.WaitForConditionAsync(() => fixture.View.ViewModel.IncludeSubfolders, "scope toggle did not activate");
+        Assert.Equal(Color.Parse("#E7EEFF"), fixture.HoverButtonBackground("TitleBarRecursiveModeToggle"));
+        Assert.Equal(Color.Parse("#DCE4FF"), fixture.PressedButtonBackground("TitleBarRecursiveModeToggle"));
     }
 
     [AvaloniaFact]
@@ -165,8 +207,8 @@ public sealed class MainWindowSmokeTests
             "recursive item did not load");
         await fixture.WaitForSettingsAsync(settings =>
             settings.IncludeSubfolders
-            && settings.Sort.Key == 0
-            && settings.Sort.Direction == 1);
+            && settings.Sort.Key == SortKey.Name
+            && settings.Sort.Direction == SortDirection.Desc);
     }
 
     [AvaloniaFact]
@@ -216,6 +258,43 @@ public sealed class MainWindowSmokeTests
         Assert.NotNull(fixture.FindByAutomationId<Button>("ViewerNextButton"));
         Assert.NotNull(fixture.FindByAutomationId<Button>("ViewerZoomInButton"));
         Assert.NotNull(fixture.FindByAutomationId<Button>("ViewerZoomOutButton"));
+        Assert.Equal(Color.Parse("#33FFFFFF"), fixture.HoverButtonBackground("ViewerZoomInButton"));
+        Assert.Equal(Color.Parse("#4DFFFFFF"), fixture.PressedButtonBackground("ViewerZoomInButton"));
+    }
+
+    [AvaloniaFact]
+    public async Task Minimum_window_width_keeps_primary_commands_reachable()
+    {
+        using var fixture = PicLensHeadlessFixture.StartEmpty(nameof(Minimum_window_width_keeps_primary_commands_reachable));
+        await fixture.WaitForConditionAsync(() => fixture.View.ViewModel.HasNoCurrentFolder, "empty state did not load");
+
+        fixture.Resize(760, 520);
+
+        foreach (var automationId in new[] { "TitleBarSidebarToggleButton", "LibrarySearchBox", "TitleBarOpenFolderButton", "TitleBarMoreActionsButton" })
+        {
+            var control = fixture.FindByAutomationId<Control>(automationId);
+            var position = control.TranslatePoint(new Point(), fixture.Window);
+            Assert.NotNull(position);
+            Assert.InRange(position.Value.X, 0, fixture.Window.ClientSize.Width - control.Bounds.Width);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Library_items_support_keyboard_focus_selection_and_open()
+    {
+        using var fixture = PicLensHeadlessFixture.StartSeeded(nameof(Library_items_support_keyboard_focus_selection_and_open));
+        await fixture.WaitForLibraryCountAsync(3);
+        var tile = fixture.FindTile("Alpha-01.png");
+
+        Assert.True(tile.Focus());
+        fixture.PressKey(Key.Space);
+        Assert.True(tile.IsFocused);
+        Assert.Equal(1, fixture.View.ViewModel.SelectedImageCount);
+
+        fixture.PressKey(Key.Enter);
+        await fixture.WaitForConditionAsync(
+            () => fixture.Window.Title == "PicLens - Alpha-01.png",
+            "keyboard activation did not open the viewer");
     }
 }
 
@@ -237,7 +316,7 @@ internal sealed class PicLensHeadlessFixture : IDisposable
 
     private PicLensHeadlessFixture(string testName, bool seedLibrary, bool useThumbnailableImages = false)
     {
-        Root = Path.Combine(Path.GetTempPath(), "PicLens.Ui.Tests", SanitizeFileName(testName), Guid.NewGuid().ToString("N"));
+        Root = Path.Combine(Path.GetTempPath(), "PicLens.Ui.Tests", testName, Guid.NewGuid().ToString("N"));
         DataRoot = Path.Combine(Root, "data");
         LibraryRoot = Path.Combine(Root, "library");
         Directory.CreateDirectory(DataRoot);
@@ -282,7 +361,7 @@ internal sealed class PicLensHeadlessFixture : IDisposable
             () => View.ViewModel.LibraryItems.Count == count,
             $"library count did not become {count}");
 
-    public async Task WaitForSettingsAsync(Func<UiTestSettings, bool> predicate) =>
+    public async Task WaitForSettingsAsync(Func<AppSettings, bool> predicate) =>
         await WaitForConditionAsync(
             () =>
             {
@@ -292,7 +371,7 @@ internal sealed class PicLensHeadlessFixture : IDisposable
                     return false;
                 }
 
-                var settings = JsonSerializer.Deserialize<UiTestSettings>(File.ReadAllText(path), JsonOptions);
+                var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path), JsonOptions);
                 return settings is not null && predicate(settings);
             },
             "settings predicate was not satisfied");
@@ -412,6 +491,51 @@ internal sealed class PicLensHeadlessFixture : IDisposable
         FlushUi();
     }
 
+    public void PressKey(Key key, RawInputModifiers modifiers = RawInputModifiers.None)
+    {
+        var physicalKey = key switch
+        {
+            Key.Space => PhysicalKey.Space,
+            Key.Enter => PhysicalKey.Enter,
+            _ => PhysicalKey.None
+        };
+        Window.KeyPress(key, modifiers, physicalKey, null);
+        Window.KeyRelease(key, modifiers, physicalKey, null);
+        FlushUi();
+    }
+
+    public void Resize(double width, double height)
+    {
+        Window.Width = width;
+        Window.Height = height;
+        FlushUi();
+    }
+
+    public Color HoverButtonBackground(string automationId)
+    {
+        var button = FindByAutomationId<Button>(automationId);
+        Window.MouseMove(CenterOf(button), RawInputModifiers.None);
+        FlushUi();
+        var presenter = button.GetVisualDescendants().OfType<ContentPresenter>().Single();
+        return Assert.IsAssignableFrom<ISolidColorBrush>(presenter.Background).Color;
+    }
+
+    public Color PressedButtonBackground(string automationId)
+    {
+        var button = FindByAutomationId<Button>(automationId);
+        var point = CenterOf(button);
+        Window.MouseMove(point, RawInputModifiers.None);
+        Window.MouseDown(point, MouseButton.Left, RawInputModifiers.None);
+        FlushUi();
+        var presenter = button.GetVisualDescendants().OfType<ContentPresenter>().Single();
+        var color = Assert.IsAssignableFrom<ISolidColorBrush>(presenter.Background).Color;
+        var releasePoint = new Point(0, Window.ClientSize.Height - 1);
+        Window.MouseMove(releasePoint, RawInputModifiers.None);
+        Window.MouseUp(releasePoint, MouseButton.Left, RawInputModifiers.None);
+        FlushUi();
+        return color;
+    }
+
     public void Dispose()
     {
         Window.Close();
@@ -474,7 +598,6 @@ internal sealed class PicLensHeadlessFixture : IDisposable
 
         var settings = new
         {
-            version = 1,
             lastFolderPath = LibraryRoot,
             sort = new { key = 0, direction = 0 },
             includeSubfolders = false,
@@ -496,18 +619,4 @@ internal sealed class PicLensHeadlessFixture : IDisposable
         Dispatcher.UIThread.RunJobs();
     }
 
-    private static string SanitizeFileName(string value)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        return string.Concat(value.Select(character => invalid.Contains(character) ? '_' : character));
-    }
 }
-
-public sealed record UiTestSettings(
-    int Version,
-    string? LastFolderPath,
-    UiTestSortState Sort,
-    bool IncludeSubfolders,
-    int ThumbnailSize);
-
-public sealed record UiTestSortState(int Key, int Direction);

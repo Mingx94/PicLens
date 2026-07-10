@@ -24,7 +24,9 @@
     </Feature>
 
     <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
-      <Files Include="$(var.PayloadDir)\**" />
+      <Files Include="$(var.PayloadDir)\**">
+        <Exclude Files="$(var.PayloadDir)\**\*.pdb" />
+      </Files>
     </ComponentGroup>
 
     <Component Id="StartMenuShortcut" Directory="ApplicationProgramsFolder" Guid="*">

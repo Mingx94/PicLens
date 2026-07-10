@@ -25,7 +25,6 @@ public partial class MainView : UserControl
 {
     private const double PointerDragThreshold = 8;
     private const double KeyboardPanStep = 48;
-    private const double ThumbnailPreloadMargin = 240;
 
     private readonly List<LibraryTileItem> librarySelectionOrder = [];
     private readonly TranslateTransform libraryDragPreviewTransform = new();
@@ -43,7 +42,6 @@ public partial class MainView : UserControl
     private bool isPreviewOpen;
     private bool initialized;
     private bool initialLoadCompleted;
-    private bool visibleThumbnailLoadQueued;
     private Bitmap? viewerBitmap;
     private string? viewerBitmapPath;
     private IReadOnlyList<LibraryTileItem> pointerDragItems = [];
@@ -57,21 +55,13 @@ public partial class MainView : UserControl
             new ThumbnailService(),
             new AvaloniaDialogService(this),
             openImageViewer: OpenImageViewer,
-            hasUiThreadAccess: () => Dispatcher.UIThread.CheckAccess(),
-            tryEnqueueOnUiThread: action =>
-            {
-                Dispatcher.UIThread.Post(action);
-                return true;
-            },
+            runOnUiThread: async action => await Dispatcher.UIThread.InvokeAsync(action),
             appLogger: App.Logger);
 
         InitializeComponent();
         DataContext = ViewModel;
         ViewerSurface.DataContext = previewViewModel;
         LibraryDragPreviewOverlay.RenderTransform = libraryDragPreviewTransform;
-        LibraryGrid.ScrollChanged += LibraryGridScrollViewer_ScrollChanged;
-        ViewModel.LibraryItems.CollectionChanged += (_, _) =>
-            ScheduleVisibleThumbnailLoads();
         AddHandler(KeyDownEvent, Root_KeyDown, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
         libraryDragAutoScrollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
         libraryDragAutoScrollTimer.Tick += LibraryDragAutoScrollTimer_Tick;
@@ -159,6 +149,30 @@ public partial class MainView : UserControl
         }
     }
 
+    private async void LibraryTile_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (sender is not Control { DataContext: LibraryTileItem item } control)
+        {
+            return;
+        }
+
+        if (e.Key == Key.Enter)
+        {
+            await OpenTileAsync(item);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Space && !item.IsFolder)
+        {
+            SelectLibraryTile(item, e.KeyModifiers);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.F10 && e.KeyModifiers.HasFlag(KeyModifiers.Shift) && !item.IsFolder)
+        {
+            OpenLibraryItemContextMenu(control, item);
+            e.Handled = true;
+        }
+    }
+
     private void LibraryTile_RightTapped(object? sender, TappedEventArgs e)
     {
         if (sender is not Control { DataContext: LibraryTileItem item } control || item.IsFolder)
@@ -166,6 +180,12 @@ public partial class MainView : UserControl
             return;
         }
 
+        OpenLibraryItemContextMenu(control, item);
+        e.Handled = true;
+    }
+
+    private void OpenLibraryItemContextMenu(Control control, LibraryTileItem item)
+    {
         contextMenuItem = item;
         if (SelectedLibraryTiles().All(selected => !PathEquals(selected.Path, item.Path)))
         {
@@ -183,8 +203,8 @@ public partial class MainView : UserControl
         var trash = new MenuItem { Header = "移至回收筒", Command = ViewModel.TrashSelectedCommand };
         AutomationProperties.SetAutomationId(trash, "ImageContextTrashButton");
         menu.Items.Add(trash);
+        control.Focus();
         menu.Open(control);
-        e.Handled = true;
     }
 
     private async void LibraryGrid_KeyDown(object? sender, KeyEventArgs e)
@@ -258,17 +278,6 @@ public partial class MainView : UserControl
         }
 
         RevealPathInFileExplorer(item.Path);
-    }
-
-    private void RevealSelected_Click(object? sender, RoutedEventArgs e)
-    {
-        var path = ViewModel.SelectedImagePathForReveal;
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-        {
-            return;
-        }
-
-        RevealPathInFileExplorer(path);
     }
 
     private void RevealPathInFileExplorer(string path)
@@ -377,7 +386,7 @@ public partial class MainView : UserControl
         if (target is not null)
         {
             await ViewModel.DropDraggedImagesOnAsync(target);
-            QueueVisibleThumbnailLoads();
+            QueueRealizedThumbnailLoads();
         }
     }
 
@@ -492,19 +501,19 @@ public partial class MainView : UserControl
         LibraryGrid.Offset = LibraryGrid.Offset.WithY(Math.Max(0, LibraryGrid.Offset.Y + delta));
     }
 
-    private void LibraryTile_Loaded(object? sender, RoutedEventArgs e)
+    private void LibraryItemsRepeater_ElementPrepared(object? sender, ItemsRepeaterElementPreparedEventArgs e)
     {
-        if (sender is Control { DataContext: LibraryTileItem })
+        if (e.Element.DataContext is LibraryTileItem item)
         {
-            ScheduleVisibleThumbnailLoads();
+            _ = ViewModel.LoadThumbnailAsync(item);
         }
     }
 
-    private void LibraryTile_Unloaded(object? sender, RoutedEventArgs e)
+    private void LibraryItemsRepeater_ElementClearing(object? sender, ItemsRepeaterElementClearingEventArgs e)
     {
-        if (sender is Control { DataContext: LibraryTileItem item })
+        if (e.Element is Control { DataContext: LibraryTileItem item } element)
         {
-            foreach (var image in ((Control)sender).GetVisualDescendants().OfType<Image>())
+            foreach (var image in element.GetVisualDescendants().OfType<Image>())
             {
                 image.Source = null;
             }
@@ -513,62 +522,15 @@ public partial class MainView : UserControl
         }
     }
 
-    private void QueueVisibleThumbnailLoads()
+    private void QueueRealizedThumbnailLoads()
     {
         foreach (var tile in LibraryGrid.GetVisualDescendants().OfType<Border>())
         {
             if (tile.Classes.Contains("tile") && tile.DataContext is LibraryTileItem item)
             {
-                QueueThumbnailLoadIfVisible(tile, item);
+                _ = ViewModel.LoadThumbnailAsync(item);
             }
         }
-    }
-
-    private void QueueThumbnailLoadIfVisible(Control tile, LibraryTileItem item)
-    {
-        if (!IsInLibraryGridViewport(tile))
-        {
-            return;
-        }
-
-        Dispatcher.UIThread.Post(() => _ = ViewModel.LoadThumbnailAsync(item));
-    }
-
-    private void ScheduleVisibleThumbnailLoads()
-    {
-        if (visibleThumbnailLoadQueued)
-        {
-            return;
-        }
-
-        visibleThumbnailLoadQueued = true;
-        Dispatcher.UIThread.Post(
-            () =>
-            {
-                visibleThumbnailLoadQueued = false;
-                QueueVisibleThumbnailLoads();
-            },
-            DispatcherPriority.Background);
-    }
-
-    private void LibraryGridScrollViewer_ScrollChanged(object? sender, ScrollChangedEventArgs e) =>
-        ScheduleVisibleThumbnailLoads();
-
-    private bool IsInLibraryGridViewport(Control tile)
-    {
-        var topLeft = tile.TranslatePoint(new Avalonia.Point(), LibraryGrid);
-        if (topLeft is null)
-        {
-            return false;
-        }
-
-        var viewport = new Rect(
-            -ThumbnailPreloadMargin,
-            -ThumbnailPreloadMargin,
-            LibraryGrid.Bounds.Width + ThumbnailPreloadMargin * 2,
-            LibraryGrid.Bounds.Height + ThumbnailPreloadMargin * 2);
-        var bounds = new Rect(topLeft.Value, tile.Bounds.Size);
-        return viewport.Intersects(bounds);
     }
 
     private async void ThumbnailSizeSlider_CommitValue(object? sender, RoutedEventArgs e)
@@ -605,7 +567,7 @@ public partial class MainView : UserControl
     private async Task CommitThumbnailSizeSliderValueAsync()
     {
         await ViewModel.ChangeThumbnailSizeAsync(ThumbnailSizeSlider.Value);
-        ScheduleVisibleThumbnailLoads();
+        QueueRealizedThumbnailLoads();
     }
 
     private void SelectLibraryTile(LibraryTileItem item, KeyModifiers modifiers)
@@ -747,8 +709,7 @@ public partial class MainView : UserControl
 
     private void PreviewViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(ImageViewerWindowViewModel.CurrentImageName)
-            or nameof(ImageViewerWindowViewModel.WindowTitle))
+        if (e.PropertyName is nameof(ImageViewerWindowViewModel.CurrentImageName))
         {
             UpdateWindowTitleForViewer();
         }
@@ -769,7 +730,9 @@ public partial class MainView : UserControl
     {
         if (TopLevel.GetTopLevel(this) is MainWindow window)
         {
-            window.SetViewerTitle(isPreviewOpen ? previewViewModel.CurrentImageName : null);
+            window.Title = isPreviewOpen && !string.IsNullOrWhiteSpace(previewViewModel.CurrentImageName)
+                ? $"PicLens - {previewViewModel.CurrentImageName}"
+                : "PicLens";
         }
     }
 
@@ -924,7 +887,7 @@ public partial class MainView : UserControl
             return await SimpleDialogWindow.ConfirmAsync(owner, title, message, confirmButtonText);
         }
 
-        public async Task<bool> ConfirmDropRenameAsync(DropRenamePreview preview)
+        public async Task<bool> ConfirmDropRenameAsync(DropTargetBatchRenamePlan plan)
         {
             var owner = TopLevel.GetTopLevel(view) as Window;
             if (owner is null)
@@ -932,13 +895,15 @@ public partial class MainView : UserControl
                 return false;
             }
 
-            var lines = preview.Items
+            var lines = plan.Items
                 .Take(12)
-                .Select(item => item.WillRename
-                    ? $"{item.SourceName} → {item.TargetName}"
-                    : $"{item.SourceName}：{ReasonText(item.Reason)}");
-            var suffix = preview.Items.Count > 12 ? $"{Environment.NewLine}另有 {preview.Items.Count - 12} 個項目..." : string.Empty;
-            var message = $"將重新命名 {preview.RenameCount} 個，略過 {preview.SkippedCount} 個。{Environment.NewLine}{Environment.NewLine}{string.Join(Environment.NewLine, lines)}{suffix}";
+                .Select(item => item.ShouldSkip
+                    ? $"{Path.GetFileName(item.SourcePath)}：{ReasonText(item.Reason)}"
+                    : $"{Path.GetFileName(item.SourcePath)} → {Path.GetFileName(item.TargetPath)}");
+            var renameCount = plan.Items.Count(item => !item.ShouldSkip);
+            var skippedCount = plan.Items.Count(item => item.ShouldSkip);
+            var suffix = plan.Items.Count > 12 ? $"{Environment.NewLine}另有 {plan.Items.Count - 12} 個項目..." : string.Empty;
+            var message = $"將重新命名 {renameCount} 個，略過 {skippedCount} 個。{Environment.NewLine}{Environment.NewLine}{string.Join(Environment.NewLine, lines)}{suffix}";
             return await SimpleDialogWindow.ConfirmAsync(owner, "確認拖放重新命名", message, "套用重新命名");
         }
 
@@ -1002,6 +967,14 @@ public partial class MainView : UserControl
                     buttons
                 }
             };
+            Opened += (_, _) => cancel.Focus();
+            KeyDown += (_, e) =>
+            {
+                if (e.Key == Key.Escape)
+                {
+                    Close(false);
+                }
+            };
         }
 
         public static Task<bool> ConfirmAsync(Window owner, string title, string message, string confirmButtonText) =>
@@ -1014,7 +987,7 @@ public partial class MainView : UserControl
         {
             Title = "重新命名選取的圖片";
             Width = 420;
-            Height = 160;
+            Height = 210;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             CanResize = false;
 
@@ -1024,13 +997,59 @@ public partial class MainView : UserControl
                 PlaceholderText = "輸入新的檔案名稱",
                 MinWidth = 320
             };
+            AutomationProperties.SetName(input, "新檔名");
             input.SelectionStart = 0;
             input.SelectionEnd = Path.GetFileNameWithoutExtension(fileName).Length;
+
+            var error = new TextBlock
+            {
+                IsVisible = false,
+                FontWeight = Avalonia.Media.FontWeight.SemiBold,
+                TextWrapping = Avalonia.Media.TextWrapping.Wrap
+            };
 
             var cancel = new Button { Content = "取消" };
             var confirm = new Button { Content = "重新命名" };
             cancel.Click += (_, _) => Close(null);
-            confirm.Click += (_, _) => Close(input.Text);
+            void Submit()
+            {
+                var validation = FileRenamePlanner.ValidateImageFileName(input.Text ?? string.Empty);
+                if (!validation.IsValid)
+                {
+                    error.Text = validation.Reason switch
+                    {
+                        "empty_name" => "錯誤：請輸入檔名。",
+                        "unsupported_extension" => "錯誤：請使用支援的圖片格式。",
+                        _ => "錯誤：檔名包含無效字元。"
+                    };
+                    error.IsVisible = true;
+                    AutomationProperties.SetHelpText(input, error.Text);
+                    input.Focus();
+                    return;
+                }
+
+                Close(input.Text);
+            }
+
+            confirm.Click += (_, _) => Submit();
+            input.KeyDown += (_, e) =>
+            {
+                if (e.Key == Key.Enter)
+                {
+                    Submit();
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.Escape)
+                {
+                    Close(null);
+                    e.Handled = true;
+                }
+            };
+            input.TextChanged += (_, _) =>
+            {
+                error.IsVisible = false;
+                AutomationProperties.SetHelpText(input, null);
+            };
 
             Content = new StackPanel
             {
@@ -1040,6 +1059,7 @@ public partial class MainView : UserControl
                 {
                     new TextBlock { Text = "新檔名" },
                     input,
+                    error,
                     new StackPanel
                     {
                         Orientation = Avalonia.Layout.Orientation.Horizontal,

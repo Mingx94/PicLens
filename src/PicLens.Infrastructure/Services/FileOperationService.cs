@@ -44,7 +44,7 @@ public sealed class FileOperationService : IFileOperationService
             results.Add(await ConvertOneToJpgAsync(image, cancellationToken));
         }
 
-        return ToBatchResult(results);
+        return new FileOperationBatchResult(results);
     }
 
     public async Task<FileOperationBatchResult> TrashSameBasenameNonJpgAsync(
@@ -77,7 +77,7 @@ public sealed class FileOperationService : IFileOperationService
             results.Add(await TrashAsync(image.Path, cancellationToken));
         }
 
-        return ToBatchResult(results);
+        return new FileOperationBatchResult(results);
     }
 
     public async Task<FileOperationResult> TrashAsync(string path, CancellationToken cancellationToken = default)
@@ -194,7 +194,7 @@ public sealed class FileOperationService : IFileOperationService
             }
         }
 
-        return ToBatchResult(results);
+        return new FileOperationBatchResult(results);
     }
 
     private async Task<FileOperationResult> ConvertOneToJpgAsync(ImageListItem image, CancellationToken cancellationToken)
@@ -238,14 +238,6 @@ public sealed class FileOperationService : IFileOperationService
             return new FileOperationResult(image.Path, FileOperationStatus.Failed, targetPath, "conversion_failed", ex.Message);
         }
     }
-
-    private static FileOperationBatchResult ToBatchResult(IReadOnlyList<FileOperationResult> results) =>
-        new(
-            Total: results.Count,
-            Succeeded: results.Count(item => item.Status is FileOperationStatus.Converted or FileOperationStatus.Trashed or FileOperationStatus.Renamed),
-            Skipped: results.Count(item => item.Status == FileOperationStatus.Skipped),
-            Failed: results.Count(item => item.Status == FileOperationStatus.Failed),
-            Items: results);
 
     private static FileOperationResult ToInvalidRenameRequest(string sourcePath, string? validationReason) =>
         new(

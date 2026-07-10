@@ -20,26 +20,6 @@ public sealed class DomainParityTests
     }
 
     [Fact]
-    public void Animated_gif_detection_counts_multiple_image_descriptors()
-    {
-        var staticGif = new byte[] { (byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a', 0, 0, 0, 0, 0, 0, 0, 0x2c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0x3b };
-        var animatedGif = new byte[] { (byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a', 0, 0, 0, 0, 0, 0, 0, 0x2c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0x2c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0x3b };
-
-        Assert.False(IsAnimatedGif(staticGif));
-        Assert.True(IsAnimatedGif(animatedGif));
-    }
-
-    [Fact]
-    public void Animated_webp_detection_uses_riff_webp_header_and_anim_marker()
-    {
-        var staticWebp = new byte[] { (byte)'R', (byte)'I', (byte)'F', (byte)'F', 0, 0, 0, 0, (byte)'W', (byte)'E', (byte)'B', (byte)'P', (byte)'V', (byte)'P', (byte)'8', (byte)'X', 0, 0, 0, 0, 0 };
-        var animatedWebp = new byte[] { (byte)'R', (byte)'I', (byte)'F', (byte)'F', 0, 0, 0, 0, (byte)'W', (byte)'E', (byte)'B', (byte)'P', (byte)'V', (byte)'P', (byte)'8', (byte)'X', 0, 0, 0, 0, 0x02 };
-
-        Assert.False(IsAnimatedWebp(staticWebp));
-        Assert.True(IsAnimatedWebp(animatedWebp));
-    }
-
-    [Fact]
     public void Sort_keeps_folders_first_and_uses_numeric_name_order()
     {
         List<ListItem> items =
@@ -120,32 +100,10 @@ public sealed class DomainParityTests
                 IncludeSubfolders = true
             });
 
-        Assert.Equal(2, merged.Version);
         Assert.Equal(@"D:\Manual", merged.LastFolderPath);
         Assert.Equal(new SortState(SortKey.ModifiedAt, SortDirection.Desc), merged.Sort);
         Assert.True(merged.IncludeSubfolders);
         Assert.Equal(SettingsRules.DefaultThumbnailSize, merged.ThumbnailSize);
-    }
-
-    [Fact]
-    public void Settings_patch_normalizes_recent_folders()
-    {
-        var first = Path.Combine(Path.GetTempPath(), "PicLens-A");
-        var duplicate = first.ToUpperInvariant();
-        var paths = Enumerable.Range(0, 8)
-            .Select(index => Path.Combine(Path.GetTempPath(), $"PicLens-{index}"))
-            .Prepend(duplicate)
-            .Prepend(first)
-            .ToArray();
-
-        var merged = SettingsRules.MergeSettingsPatch(
-            AppSettings.CreateDefault(),
-            new AppSettingsPatch { RecentFolderPaths = paths });
-
-        Assert.Equal(2, merged.Version);
-        Assert.True(merged.RecentFolderPaths.Count <= SettingsRules.MaxRecentFolderCount);
-        Assert.Equal(Path.GetFullPath(first), merged.RecentFolderPaths[0]);
-        Assert.Equal(merged.RecentFolderPaths.Count, merged.RecentFolderPaths.Distinct(PathRules.PathComparer).Count());
     }
 
     [Theory]
@@ -184,15 +142,10 @@ public sealed class DomainParityTests
     }
 
     private static FolderListItem Folder(string name, long modifiedAtMs) =>
-        new($"folder:{name}", $@"C:\Images\{name}", name, modifiedAtMs);
-
-    private static bool IsAnimatedGif(byte[] bytes) => ImageFormatRules.IsAnimatedGif(new MemoryStream(bytes));
-
-    private static bool IsAnimatedWebp(byte[] bytes) => ImageFormatRules.IsAnimatedWebp(new MemoryStream(bytes));
+        new($@"C:\Images\{name}", name, modifiedAtMs);
 
     private static ImageListItem Image(string name, long modifiedAtMs) =>
         new(
-            Id: $"image:{name}",
             Path: $@"C:\Images\{name}",
             Name: name,
             Extension: name[(name.LastIndexOf('.') + 1)..],
