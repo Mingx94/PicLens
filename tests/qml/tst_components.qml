@@ -39,6 +39,11 @@ TestCase {
         }
     }
 
+    Component {
+        id: lensMarkComponent
+        LensMark { }
+    }
+
     SignalSpy {
         id: clickedSpy
         signalName: "clicked"
@@ -60,6 +65,15 @@ TestCase {
         compare(Theme.commandHeight, 64)
         compare(Theme.controlHeight, 38)
         compare(Theme.statusHeight, 48)
+        compare(Theme.brandMountain.toString(), "#155dbb")
+    }
+
+    function test_lensMarkUsesCompactBrandGeometry() {
+        const mark = createTemporaryObject(lensMarkComponent, testCase)
+        verify(mark !== null)
+        compare(mark.implicitWidth, 34)
+        compare(mark.implicitHeight, 34)
+        verify(findChild(mark, "brandCanvas") !== null)
     }
 
     function test_toolbarButtonActivates() {

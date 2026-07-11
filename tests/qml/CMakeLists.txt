@@ -28,6 +28,11 @@ configure_file(
     COPYONLY
 )
 configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/LensMark.qml"
+    "${PICLENS_TEST_IMPORT_DIR}/LensMark.qml"
+    COPYONLY
+)
+configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/CompactComboBox.qml"
     "${PICLENS_TEST_IMPORT_DIR}/CompactComboBox.qml"
     COPYONLY
@@ -38,7 +43,7 @@ configure_file(
     COPYONLY
 )
 file(WRITE "${PICLENS_TEST_IMPORT_DIR}/qmldir"
-    "module PicLens\nsingleton Theme 1.0 Theme.qml\nAppIcon 1.0 AppIcon.qml\nCompactComboBox 1.0 CompactComboBox.qml\nToolbarButton 1.0 ToolbarButton.qml\nHistoryMouseHandler 1.0 HistoryMouseHandler.qml\n"
+    "module PicLens\nsingleton Theme 1.0 Theme.qml\nAppIcon 1.0 AppIcon.qml\nLensMark 1.0 LensMark.qml\nCompactComboBox 1.0 CompactComboBox.qml\nToolbarButton 1.0 ToolbarButton.qml\nHistoryMouseHandler 1.0 HistoryMouseHandler.qml\n"
 )
 
 add_test(

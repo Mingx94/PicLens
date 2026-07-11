@@ -5,39 +5,58 @@ Item {
     implicitWidth: 34
     implicitHeight: 34
 
-    Canvas {
-        id: canvas
+    Rectangle {
         anchors.fill: parent
-        antialiasing: true
+        radius: 9
+        color: Theme.brandShell
+        border.width: 1
+        border.color: Theme.brandOutline
 
-        onPaint: {
-            const context = getContext("2d")
-            const centerX = width / 2
-            const centerY = height / 2
-            const radius = Math.min(width, height) / 2 - 1
-            const innerRadius = radius * 0.34
-            context.clearRect(0, 0, width, height)
-            context.beginPath()
-            context.arc(centerX, centerY, radius, 0, Math.PI * 2)
-            context.fillStyle = Theme.accent
-            context.fill()
-            context.strokeStyle = "#FFFFFF"
-            context.lineWidth = 1.15
-            context.lineCap = "round"
-            for (let index = 0; index < 6; ++index) {
-                const angle = -Math.PI / 2 + index * Math.PI / 3
-                context.beginPath()
-                context.moveTo(
-                    centerX + Math.cos(angle) * innerRadius,
-                    centerY + Math.sin(angle) * innerRadius)
-                context.lineTo(
-                    centerX + Math.cos(angle + 0.42) * radius,
-                    centerY + Math.sin(angle + 0.42) * radius)
-                context.stroke()
+        Rectangle {
+            id: picture
+            anchors.fill: parent
+            anchors.margins: 4
+            radius: 6
+            color: Theme.brandSky
+            border.width: 1
+            border.color: Theme.surface
+            clip: true
+
+            Canvas {
+                id: canvas
+                objectName: "brandCanvas"
+                anchors.fill: parent
+                anchors.margins: 1
+                antialiasing: true
+
+                onPaint: {
+                    const context = getContext("2d")
+                    context.clearRect(0, 0, width, height)
+
+                    context.beginPath()
+                    context.arc(width * 0.31, height * 0.31,
+                                Math.min(width, height) * 0.115,
+                                0, Math.PI * 2)
+                    context.fillStyle = Theme.brandSun
+                    context.fill()
+
+                    context.beginPath()
+                    context.moveTo(-1, height)
+                    context.lineTo(width * 0.36, height * 0.53)
+                    context.lineTo(width * 0.72, height)
+                    context.closePath()
+                    context.fillStyle = Theme.brandHill
+                    context.fill()
+
+                    context.beginPath()
+                    context.moveTo(width * 0.24, height)
+                    context.lineTo(width * 0.70, height * 0.39)
+                    context.lineTo(width + 1, height)
+                    context.closePath()
+                    context.fillStyle = Theme.brandMountain
+                    context.fill()
+                }
             }
-            context.beginPath()
-            context.arc(centerX, centerY, innerRadius, 0, Math.PI * 2)
-            context.stroke()
         }
     }
 }

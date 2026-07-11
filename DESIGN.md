@@ -33,6 +33,12 @@ PicLens intentionally supports the light theme only. Keep `RequestedThemeVariant
 | Accent/primary | `AccentBrush` | `#4968E8` | N/A | Primary action, selection, and status |
 | Accent/soft | `AccentSoftBrush` | `#EEF2FF` | N/A | Empty-state icon and active scope |
 | Accent/soft pressed | `AccentSoftPressedBrush` | `#DBE4FF` | N/A | Pressed active toggles |
+| Brand/shell | `brandShell` | `#EAF7FA` | N/A | In-app brand mark shell |
+| Brand/outline | `brandOutline` | `#B9DDE5` | N/A | In-app brand mark boundary |
+| Brand/sky | `brandSky` | `#45A9D4` | N/A | In-app brand mark image field |
+| Brand/sun | `brandSun` | `#FFCA52` | N/A | In-app brand mark sun |
+| Brand/hill | `brandHill` | `#2CB49D` | N/A | In-app brand mark foreground hill |
+| Brand/mountain | `brandMountain` | `#155DBB` | N/A | In-app brand mark primary mountain |
 | Surface/viewer | `ViewerCanvasBrush` | `#11141A` | Stable dark surface | Image Viewer canvas |
 
 ### Rules
@@ -109,7 +115,7 @@ All spacing derives from a base of 4px.
 
 - Use the shared `AppIcon.qml` 24×24 vector coordinate system for command, navigation, view, search, and folder-tree disclosure icons.
 - Keep icon strokes round, optically centered, and consistent across Windows and Linux; do not substitute platform-dependent symbol fonts or Unicode glyphs for toolbar icons.
-- Use `LensMark.qml` for the in-app brand mark. The packaged application icon remains the authority for operating-system surfaces.
+- Use `LensMark.qml` for the compact in-app brand mark. Its simplified sun-and-mountain composition derives from the packaged application icon, which remains the authority for operating-system surfaces.
 
 ### Library Tile
 

@@ -83,6 +83,20 @@ qt_add_executable(piclens
     src/main.cpp
 )
 
+if(WIN32)
+    get_filename_component(
+        PICLENS_WINDOWS_ICON
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../assets/AppIcon.ico"
+        ABSOLUTE
+    )
+    configure_file(
+        resources/windows/PicLens.rc.in
+        "${CMAKE_CURRENT_BINARY_DIR}/PicLens.rc"
+        @ONLY
+    )
+    target_sources(piclens PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/PicLens.rc")
+endif()
+
 qt_add_qml_module(piclens
     URI PicLens
     VERSION 1.0

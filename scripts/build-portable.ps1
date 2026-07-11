@@ -28,6 +28,48 @@ $sourceExecutable = Join-Path $buildDirectoryPath "bin\PicLens.exe"
 if (-not (Test-Path -LiteralPath $sourceExecutable -PathType Leaf)) {
     throw "Release executable was not found: $sourceExecutable"
 }
+
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+
+public static class PicLensWindowsResourceAudit
+{
+    private const uint LoadLibraryAsDataFile = 0x00000002;
+    private static readonly IntPtr AppIconId = new IntPtr(101);
+    private static readonly IntPtr GroupIconType = new IntPtr(14);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr LoadLibraryExW(string fileName, IntPtr file, uint flags);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr FindResourceW(IntPtr module, IntPtr name, IntPtr type);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool FreeLibrary(IntPtr module);
+
+    public static bool HasApplicationIcon(string executablePath)
+    {
+        IntPtr module = LoadLibraryExW(executablePath, IntPtr.Zero, LoadLibraryAsDataFile);
+        if (module == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        try
+        {
+            return FindResourceW(module, AppIconId, GroupIconType) != IntPtr.Zero;
+        }
+        finally
+        {
+            FreeLibrary(module);
+        }
+    }
+}
+"@
+if (-not [PicLensWindowsResourceAudit]::HasApplicationIcon($sourceExecutable)) {
+    throw "Release executable does not contain the expected native Windows app icon: $sourceExecutable"
+}
 $deployTool = (Get-Command windeployqt -ErrorAction Stop).Source
 
 if (Test-Path -LiteralPath $outputDirectoryPath) {
