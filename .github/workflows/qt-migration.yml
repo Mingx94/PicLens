@@ -115,14 +115,10 @@ jobs:
       - name: Exercise gio trash and xdg-open adapters
         run: xvfb-run -a dbus-run-session -- qt/build/release/bin/piclens_platform_file_manager_smoke
       - name: Build Debian candidate
-        working-directory: qt/build/release
         run: |
-          cmake -S ../.. -B . -DPICLENS_SYSTEM_PACKAGE=ON
-          cpack -G DEB
-          mkdir -p ../../../artifacts/installer
-          cp -- *.deb ../../../artifacts/installer/
-          dpkg-deb --contents ./*.deb
-          dpkg-deb --fsys-tarfile ./*.deb | tar -tf - | grep -Fx './opt/piclens/bin/PicLens'
+          cmake -S qt -B qt/build/release -DPICLENS_SYSTEM_PACKAGE=ON
+          dotnet run Tasks.cs installer --no-release --no-clean
+          dpkg-deb --fsys-tarfile artifacts/installer/*.deb | tar -tf - | grep -Fx './opt/piclens/bin/PicLens'
       - name: Install, launch, and remove Debian package
         run: >-
           xvfb-run -a bash qt/scripts/test-linux-package-lifecycle.sh

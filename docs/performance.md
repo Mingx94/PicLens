@@ -17,7 +17,7 @@ The script launches the real Qt Quick executable with isolated settings/cache, r
 - peak working set: at most 512 MiB;
 - non-empty row/image counts are mandatory.
 
-The cross-platform workflow creates 10,000 hard-linked PNG paths on a clean Windows runner and runs the same gate. Hard links exercise path enumeration/model scale without inflating the CI workspace; they do not represent heterogeneous decoder cost, so the real-library run remains separately required.
+The cross-platform workflow creates 10,000 copied PNG paths on a clean Windows runner and runs the same gate. Repeated small valid PNG files exercise path enumeration/model scale without representing heterogeneous decoder cost, so the real-library run remains separately required.
 
 ## Current local evidence
 
@@ -32,11 +32,23 @@ The cross-platform workflow creates 10,000 hard-linked PNG paths on a clean Wind
 | Peak working set | 232,275,968 bytes |
 | Active thumbnail requests at sample | 0 |
 
-Raw output is generated at `artifacts/performance/windows-release.json` and intentionally ignored by git. This result proves the current machine/run only; clean-runner output and Linux evidence remain required before final cutover.
+Raw output is generated at `artifacts/performance/windows-release.json` and intentionally ignored by git.
+
+## Hosted Windows evidence
+
+2026-07-11 Windows 2025 / Qt 6.8.3 MSVC run 29146770536：
+
+| Metric | Result |
+|---|---:|
+| Dataset | 10,000 copied valid PNG paths |
+| Elapsed through settle window | 2,024 ms |
+| Working set | 223,281,152 bytes |
+| Peak working set | 223,281,152 bytes |
+
+The same run built the 1,407-file MSVC portable bundle and passed MSI install/upgrade/launch/uninstall. Both local and hosted Windows results remain below the 5,000 ms / 512 MiB thresholds.
 
 ## Remaining performance gates
 
-- First Windows MSVC clean-runner 10,000-image result.
 - Linux Release scan/RSS result on the deployed artifact.
 - Interaction check while thumbnails are decoding on a heterogeneous large library.
 - Installer build installed-app measurement to rule out deployment-path regressions.

@@ -65,7 +65,7 @@ ctest --test-dir qt/build/debug --output-on-failure
 qt/build/debug/bin/PicLens.exe
 ```
 
-Qt production app 已完成 search/grid/list、gallery selection/file operations、inline viewer、drag/drop rename、Windows input parity、portable 與 MSI candidate；PicLens 採 MIT License，本機 MSI fresh/upgrade/uninstall lifecycle、授權後 real-profile 副本驗證與跨平台 workflow actionlint 均已通過。主 `release` 命令已切換為 Qt candidate，但遠端 Linux/clean-Windows evidence 與 destructive release cutover 尚未完成，因此尚不可宣告正式切換完成。
+Qt production app 已完成 search/grid/list、gallery selection/file operations、inline viewer、drag/drop rename、Windows input parity、portable 與 MSI candidate；PicLens 採 MIT License，本機 MSI lifecycle、授權後 real-profile 副本驗證，以及 Windows 2025、Ubuntu 24.04、Fedora 44 clean-runner release workflow 均已通過。主 `release` 命令已切換為 Qt candidate；剩餘 release gates 是簽章／最終授權檔案審查、Linux 數值效能證據與 destructive legacy removal 明確授權，因此尚未刪除 Avalonia rollback baseline。
 
 Visual Studio 開發時開啟 `PicLens.slnx`，solution platform 選 `x64`。
 
@@ -98,10 +98,11 @@ Package 版號讀取 repository root 的 `VERSION`；一般發版請先更新該
 
 ```text
 artifacts/installer/PicLens-win-x64.msi
-artifacts/installer/PicLens-1.0.0-fedora-x86_64.rpm
+artifacts/installer/PicLens-1.2.0-ubuntu-amd64.deb
+artifacts/installer/PicLens-1.2.0-fedora-x86_64.rpm
 ```
 
-Windows installer 使用 WiX Toolset 建置 MSI；Linux installer 目前已實作 Fedora RPM，但產品支援範圍是主流 Linux 桌面發行版，不以 Fedora/RPM 作為最終完整範圍。Release 與 installer tasks 不會自動跑測試，打包前請先執行 `dotnet run Tasks.cs test`。
+Windows installer 使用 WiX Toolset 建置 Qt MSI；Linux installer 依 host 以 Qt CPack 產生 Debian/Ubuntu DEB 或 Fedora/RHEL RPM。Release 與 installer tasks 不會自動跑測試，打包前請先執行 `dotnet run Tasks.cs test`。
 
 ## 文件
 

@@ -37,18 +37,16 @@
 |---|---|---|
 | Shared settings/log/cache paths and bidirectional JSON schema | infrastructure tests、legacy xUnit、packaged copied-profile smoke | Windows synthetic/profile lifecycle passed |
 | Bounded async logger、scanner/file-operation failure context | infrastructure/controller tests and file log | Implemented |
-| Accessible names/roles/actions for custom toolbar、gallery、tree; keyboard actions | QML `Accessible` metadata、QML test、QML cache compile | Implemented; final Windows UIA tree read was user-stopped |
-| Windows portable/MSI deployment and upgrade identity | sanitized smoke、MSI DB audit、fresh and 1.1.9→1.2.0 lifecycle | Windows local complete |
+| Accessible names/roles/actions for custom toolbar、gallery、tree; keyboard actions | QML `Accessible` metadata、QML test、QML cache compile、authorized UIA tree | Implemented and Windows UIA verified |
+| Windows portable/MSI deployment and upgrade identity | sanitized smoke、MSI DB audit、local 1.1.9→1.2.0 and hosted same-version lifecycle | Local and Windows 2025 hosted complete |
 | Reproducible Windows local cutover evidence | `run-windows-cutover-gate.ps1` emits tests/performance/artifact hashes to JSON | Implemented |
-| Ubuntu portable/DEB and Fedora 44 RPM | checked-in clean-runner build/lifecycle jobs | First remote runs pending |
-| Representative performance/memory | Windows Release 2,017-image evidence and CI 10,000-path gate | Windows local passed; remote/Linux pending |
+| Ubuntu portable/DEB and Fedora 44 RPM | checked-in clean-runner build/lifecycle jobs | Ubuntu 24.04 and Fedora 44 passed |
+| Representative performance/memory | Windows Release 2,017-image evidence and CI 10,000-path gate | Windows local/MSVC hosted passed; Linux numeric pending |
 
 ## Remaining cutover evidence
 
-- Run the checked-in workflow on Windows MSVC、Ubuntu 24.04 and Fedora 44 and retain results/artifacts.
-- Read the Windows UIA tree again only after Computer Use is explicitly resumed.
-- Run copied-profile verification against an authorized real `%LOCALAPPDATA%/PicLens` profile.
-- Choose and add the project-level license, then review the final redistribution inventory.
+- Capture numeric Linux deployed-artifact performance and heterogeneous thumbnail interaction evidence.
+- Review the final redistribution inventory and sign public release artifacts.
 - Obtain explicit approval before deleting Avalonia/.NET projects and legacy packaging paths.
 
 Until those gates pass, this matrix must not be used to claim destructive cutover is complete.

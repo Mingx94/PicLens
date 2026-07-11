@@ -20,6 +20,7 @@ try
         "release" => Release(root, rest),
         "legacy-release" => LegacyRelease(root, rest),
         "installer" => Installer(root, rest),
+        "legacy-installer" => LegacyInstaller(root, rest),
         "ui-test" => UiTest(root, rest),
         _ => Fail($"Unknown command: {args[0]}")
     };
@@ -287,10 +288,26 @@ static int Installer(string root, string[] args)
 
     if (OperatingSystem.IsLinux())
     {
-        return BuildFedoraInstaller(root, options);
+        return BuildQtLinuxInstaller(root, options);
     }
 
-    throw new PlatformNotSupportedException("No installer exists for this platform. Supported hosts: Windows and Fedora Linux.");
+    throw new PlatformNotSupportedException("No installer exists for this platform. Supported hosts: Windows and Linux.");
+}
+
+static int LegacyInstaller(string root, string[] args)
+{
+    if (!OperatingSystem.IsLinux())
+    {
+        throw new PlatformNotSupportedException("The temporary legacy installer fallback only supports Fedora Linux.");
+    }
+    var options = InstallerOptions.Parse(args);
+    if (options.ShowHelp)
+    {
+        InstallerOptions.PrintUsage();
+        return 0;
+    }
+    options = options with { Version = ResolvePackageVersion(root, options.Version) };
+    return BuildFedoraInstaller(root, options);
 }
 
 static string ResolvePackageVersion(string root, string versionOverride)
@@ -399,6 +416,141 @@ static int BuildWindowsInstaller(string root, InstallerOptions options)
     Console.WriteLine($"  MSI:    {msiPath}");
     Console.WriteLine($"  Bytes:  {new FileInfo(msiPath).Length}");
     Console.WriteLine($"  SHA256: {Sha256(msiPath)}");
+    return 0;
+}
+
+static int BuildQtLinuxInstaller(string root, InstallerOptions options)
+{
+    if (!Regex.IsMatch(options.Version, @"^[0-9A-Za-z._+~]+$"))
+    {
+        throw new ArgumentException($"Linux package version contains unsupported characters: {options.Version}");
+    }
+
+    var isDebianFamily = File.Exists("/etc/debian_version");
+    var isFedoraFamily = File.Exists("/etc/fedora-release") || File.Exists("/etc/redhat-release");
+    if (!isDebianFamily && !isFedoraFamily)
+    {
+        throw new PlatformNotSupportedException(
+            "Qt Linux installer packaging currently supports Debian/Ubuntu DEB and Fedora/RHEL RPM hosts.");
+    }
+
+    var generator = isDebianFamily ? "DEB" : "RPM";
+    var extension = isDebianFamily ? ".deb" : ".rpm";
+    var distroLabel = isDebianFamily ? "ubuntu-amd64" : "fedora-x86_64";
+    var useSystemQt = isFedoraFamily ? "ON" : "OFF";
+    var requiredTool = isDebianFamily ? "dpkg-deb" : "rpmbuild";
+    if (FindCommand(requiredTool) is null)
+    {
+        var installHint = isDebianFamily
+            ? "sudo apt-get install dpkg-dev"
+            : "sudo dnf install rpm-build";
+        Console.Error.WriteLine($"{requiredTool} not found. Install: {installHint}");
+        return 1;
+    }
+    foreach (var command in new[] { "cmake", "cpack", "ninja" })
+    {
+        if (FindCommand(command) is null)
+        {
+            Console.Error.WriteLine($"{command} not found. Install CMake and Ninja before packaging Qt PicLens.");
+            return 1;
+        }
+    }
+
+    var qtRoot = SafePath(root, "qt");
+    var buildDir = SafePath(root, "qt", "build", "release");
+    var installerRoot = SafePath(root, "artifacts", "installer");
+    var outputPath = SafePath(root, "artifacts", "installer", $"PicLens-{options.Version}-{distroLabel}{extension}");
+    var configureArgs = new List<string>
+    {
+        "-S", qtRoot,
+        "-B", buildDir,
+        "-G", "Ninja",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DPICLENS_SYSTEM_PACKAGE=ON",
+        $"-DPICLENS_USE_SYSTEM_QT={useSystemQt}"
+    };
+    var qtRuntimeRoot = Environment.GetEnvironmentVariable("QT_ROOT_DIR");
+    if (!string.IsNullOrWhiteSpace(qtRuntimeRoot))
+    {
+        var sourceRoot = Path.GetFullPath(Path.Combine(qtRuntimeRoot, "..", "Src"));
+        if (Directory.Exists(sourceRoot))
+        {
+            configureArgs.Add($"-DPICLENS_QT_SOURCE_ROOT={sourceRoot}");
+        }
+    }
+    var buildArgs = new[] { "--build", buildDir, "--target", "piclens" };
+    var packageArgs = new[]
+    {
+        "-G", generator,
+        "-D", $"CPACK_PACKAGE_VERSION={options.Version}"
+    };
+
+    Console.WriteLine($"Installer: Qt Linux {generator} ({extension})");
+    Console.WriteLine($"Qt mode: {(isFedoraFamily ? "distribution system Qt" : "deployed official Qt")}");
+    if (options.DryRun)
+    {
+        if (!options.NoRelease)
+        {
+            PrintCommand("cmake", configureArgs);
+            PrintCommand("cmake", buildArgs);
+        }
+        PrintCommand("cpack", packageArgs);
+        return 0;
+    }
+
+    if (!options.NoRelease)
+    {
+        if (!options.NoClean)
+        {
+            DeleteIfExists(buildDir);
+        }
+        Console.WriteLine("==> Configuring Qt Linux package build");
+        RunOrThrow("cmake", configureArgs, root);
+        Console.WriteLine("==> Building Qt PicLens");
+        RunOrThrow("cmake", buildArgs, root);
+    }
+    else if (!File.Exists(Path.Combine(buildDir, "CMakeCache.txt")))
+    {
+        throw new InvalidOperationException($"--no-release requested, but no configured Qt package build exists: {buildDir}");
+    }
+
+    Directory.CreateDirectory(installerRoot);
+    if (!options.NoClean)
+    {
+        foreach (var stalePackage in Directory.EnumerateFiles(buildDir, $"*{extension}", SearchOption.TopDirectoryOnly))
+        {
+            File.Delete(stalePackage);
+        }
+        DeleteIfExists(outputPath);
+    }
+
+    Console.WriteLine($"==> Building Qt {generator} package");
+    RunOrThrow("cpack", packageArgs, buildDir);
+    var package = Directory.EnumerateFiles(buildDir, $"*{extension}", SearchOption.TopDirectoryOnly)
+        .OrderBy(path => path, StringComparer.Ordinal)
+        .LastOrDefault();
+    if (package is null)
+    {
+        throw new InvalidOperationException($"CPack {generator} completed but no {extension} package was found in {buildDir}.");
+    }
+    File.Copy(package, outputPath, overwrite: true);
+
+    Console.WriteLine($"==> Inspecting Qt {generator} package");
+    if (isDebianFamily)
+    {
+        RunOrThrow("dpkg-deb", ["--contents", outputPath], root);
+    }
+    else
+    {
+        RunOrThrow("rpm", ["--query", "--package", "--requires", outputPath], root);
+        RunOrThrow("rpm", ["--query", "--package", "--list", outputPath], root);
+    }
+
+    Console.WriteLine();
+    Console.WriteLine($"Qt {generator} installer ready:");
+    Console.WriteLine($"  File:   {outputPath}");
+    Console.WriteLine($"  Bytes:  {new FileInfo(outputPath).Length}");
+    Console.WriteLine($"  SHA256: {Sha256(outputPath)}");
     return 0;
 }
 
@@ -792,6 +944,7 @@ static void PrintUsage()
       release    Build the primary Qt portable release folder
       legacy-release  Publish the temporary Avalonia portable folder
       installer  Build the platform installer
+      legacy-installer  Build the temporary legacy Fedora RPM fallback
       ui-test    Run Avalonia Headless UI smoke tests
     """);
 }
@@ -833,9 +986,9 @@ sealed record InstallerOptions
 
         Options:
           --version VERSION             Override package version from VERSION
-          --no-clean                    Keep existing legacy Linux portable output where possible
-          --no-release                  Reuse an existing portable output
-          --runtime-requires PACKAGE    RPM runtime dependency. Default: dotnet-runtime-10.0
+          --no-clean                    Reuse the existing package build directory where possible
+          --no-release                  Reuse an existing configured Qt/package build
+          --runtime-requires PACKAGE    Legacy RPM fallback option; ignored by primary Qt packaging
           --dry-run                     Print commands without running them
         """);
     }

@@ -24,7 +24,7 @@ artifacts/qt-portable/PicLens-win-x64/
 
 Script 會呼叫與目前 Qt toolchain 同一套的 `windeployqt`，部署 Qt DLL、Qt Quick imports、platform/image plugins、MinGW runtime，再以 PE dependency closure 補齊 MSYS2 共用的 ICU、HarfBuzz、compression 等 runtime DLL；同時加入 relative `qt.conf`、PicLens MIT、Qt 與 Noto font license texts。最後會把 PATH 收斂到 Windows system directories，從完成的資料夾執行 isolated `qoffscreen` process並驗證真實 exit code。整個 `PicLens-win-x64` 資料夾才是可散佈單位；不可只複製 `PicLens.exe`。
 
-Windows MSI candidate 與本機 fresh/upgrade/uninstall lifecycle 已存在；目前仍缺 hosted clean-Windows launch evidence 與簽章，因此 portable artifact 在 clean-machine workflow 成功前仍屬 migration candidate。
+Windows MSI candidate、本機 lifecycle 與 Windows 2025 hosted same-version install/upgrade/launch/uninstall 已通過。MSVC portable evidence 為 1,407 files / 169,910,166 bytes，`PicLens.exe` SHA-256 `8DBB2B8DF82F6B174CD5425E373526A0C750A957CF9AC6144F3EEAE12FA5C9E0`；公開 release 前仍需簽章與最終 redistribution review。
 
 Linux Qt portable 由 Linux host 執行：
 
@@ -32,7 +32,7 @@ Linux Qt portable 由 Linux host 執行：
 bash qt/scripts/build-linux-portable.sh
 ```
 
-Script 會明確關閉 system-package/system-Qt modes，跑 Release CTest、CMake install/generated Qt QML deployment script、Qt license copy，以及清空環境後的 offscreen smoke，預設輸出到 `artifacts/qt-portable/PicLens-linux-x64/`。因此即使同一 build tree 曾用於 CPack，也不會把 portable desktop files 寫到 `/usr/share`。此流程也由 cross-platform CI 執行。
+Script 會明確關閉 system-package/system-Qt modes，跑 Release CTest、CMake install/generated Qt QML deployment script、Qt source license copy，以及清空環境後的 platform smoke（優先 offscreen；官方 archive 只有 xcb 時在 Xvfb 下使用 xcb），預設輸出到 `artifacts/qt-portable/PicLens-linux-x64/`。因此即使同一 build tree 曾用於 CPack，也不會把 portable desktop files 寫到 `/usr/share`。Ubuntu 24.04 hosted evidence 為 175 files / 153,114,407 bytes，並通過 DEB lifecycle。
 
 Qt 的 Linux deployment 使用 Qt 6.5+ 官方 CMake deployment API；CMake install rule 會部署 executable、QML imports、Qt runtime/plugins、relative RPATH、desktop entry、icon 與 notices，再由 CPack 重用同一 install tree。
 

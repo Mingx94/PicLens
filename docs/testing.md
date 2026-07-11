@@ -87,7 +87,7 @@ Windows Recycle Bin/Explorer 已接上 Qt gallery commands 並通過真實 deskt
 
 在 Avalonia 與 Qt coexistence 期間，Qt tests 不取代相關 legacy characterization tests；宣告 slice 完成前需同時執行適用的 .NET 與 Qt suites。
 
-`.github/workflows/qt-migration.yml` 是 clean-runner release gate 定義：Windows 2025 runner 使用 MSVC Qt 6.8.3 跑 Release CTest、sanitized portable smoke、forced WiX rebuild、MSI database audit，以及同版 replacement install/upgrade/launch/uninstall/profile-preservation lifecycle；Ubuntu 24.04 runner跑 Release CTest、Qt CMake deploy、清空環境的 offscreen portable smoke，以及 Xvfb/DBus 下的真實 `gio trash` / `xdg-open` adapter smoke。Workflow checked in 不等於 gate 已通過；必須以遠端 run 結果作為 Windows/Linux clean-runner evidence。
+`.github/workflows/qt-migration.yml` 是 clean-runner release gate 定義：Windows 2025 runner 使用 MSVC Qt 6.8.3 跑 Release CTest、10,000-image performance、sanitized portable smoke、forced WiX rebuild、MSI database audit，以及同版 replacement install/upgrade/launch/uninstall/profile-preservation lifecycle；Ubuntu 24.04 runner 跑 Release CTest、Qt CMake deploy、Xvfb/xcb sanitized portable smoke，以及 Xvfb/DBus 下的真實 `gio trash` / `xdg-open` adapter smoke；Fedora 44 跑 system Qt/RPM lifecycle。2026-07-11 run 29146770536 三條 job 全部通過；後續發行仍應要求目前 commit 的 workflow success。
 
 本機已使用官方 `actionlint` 1.7.12 驗證 workflow 的 YAML、expressions、runner labels 與 action schema；這只證明 workflow 定義有效，不取代 hosted runner 執行。
 

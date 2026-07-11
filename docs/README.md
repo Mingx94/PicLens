@@ -20,4 +20,4 @@ PicLens 是 Windows / 主流 Linux Avalonia / MVVM 圖片整理與檢視 app。
 
 ## 目前狀態
 
-主 `release` 命令目前產生 Qt migration candidate；`qt/` production tree 已具備 Qt Quick search/grid/list shell、native folder picker、typed library/folder-tree state、bounded thumbnails、selection/file operations、inline viewer、drag/drop rename 與 Windows installer lifecycle，MIT license 與授權後 real-profile 副本 smoke 也已通過。Avalonia Core、Presentation、Infrastructure 與 UI tests 仍作為 rollback baseline，直到 Qt 的遠端 Linux/Windows 與其餘 cutover gates 通過。
+主 `release` 命令目前產生 Qt migration candidate；`qt/` production tree 已具備 Qt Quick search/grid/list shell、native folder picker、typed library/folder-tree state、bounded thumbnails、selection/file operations、inline viewer、drag/drop rename 與 Windows installer lifecycle，MIT license、授權後 real-profile 副本 smoke，以及 Windows/Ubuntu/Fedora clean-runner release workflow 也已通過。Avalonia Core、Presentation、Infrastructure 與 UI tests 仍作為 rollback baseline，直到簽章／最終授權審查、Linux 數值效能證據與明確 destructive cutover approval 完成。
