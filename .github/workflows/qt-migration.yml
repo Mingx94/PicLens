@@ -27,12 +27,18 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Configure MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
       - name: Install Qt
         uses: jurplel/install-qt-action@v4.3.1
         with:
           version: "6.8.3"
           arch: win64_msvc2022_64
           cache: true
+          source: true
+          src-archives: qtbase qtdeclarative
       - name: Configure and test Release
         shell: pwsh
         working-directory: qt
@@ -93,6 +99,8 @@ jobs:
         with:
           version: "6.8.3"
           cache: true
+          source: true
+          src-archives: qtbase qtdeclarative
       - name: Build, test, deploy, and run sanitized smoke
         run: bash qt/scripts/build-linux-portable.sh
       - name: Exercise gio trash and xdg-open adapters
@@ -105,6 +113,7 @@ jobs:
           mkdir -p ../../../artifacts/installer
           cp -- *.deb ../../../artifacts/installer/
           dpkg-deb --contents ./*.deb
+          dpkg-deb --fsys-tarfile ./*.deb | tar -tf - | grep -Fx './opt/piclens/bin/PicLens'
       - name: Install, launch, and remove Debian package
         run: >-
           bash qt/scripts/test-linux-package-lifecycle.sh
@@ -145,6 +154,7 @@ jobs:
           cpack -G RPM
           rpm --query --package --requires ./*.rpm
           rpm --query --package --list ./*.rpm
+          rpm --query --package --list ./*.rpm | grep -Fx '/opt/piclens/bin/PicLens'
       - name: Install, launch, and remove RPM
         run: >-
           bash qt/scripts/test-linux-package-lifecycle.sh

@@ -12,6 +12,10 @@ repo_root="$(cd -- "$qt_root/.." && pwd)"
 build_dir="${PICLENS_QT_BUILD_DIR:-$qt_root/build/release}"
 artifact_root="$repo_root/artifacts/qt-portable"
 output_dir="${PICLENS_QT_OUTPUT_DIR:-$artifact_root/PicLens-linux-x64}"
+qt_source_root=""
+if [[ -n "${QT_ROOT_DIR:-}" ]]; then
+    qt_source_root="$(dirname -- "$QT_ROOT_DIR")/Src"
+fi
 
 case "$(realpath -m -- "$output_dir")" in
     "$(realpath -m -- "$artifact_root")"/*) ;;
@@ -23,26 +27,21 @@ esac
 
 (cd -- "$qt_root" && cmake --preset release \
     -DPICLENS_SYSTEM_PACKAGE=OFF \
-    -DPICLENS_USE_SYSTEM_QT=OFF)
+    -DPICLENS_USE_SYSTEM_QT=OFF \
+    -DPICLENS_QT_SOURCE_ROOT="$qt_source_root")
 cmake --build "$build_dir"
 ctest --test-dir "$build_dir" --output-on-failure
 
 rm -rf -- "$output_dir"
 cmake --install "$build_dir" --prefix "$output_dir"
 
-license_source=""
-for candidate in "${QT_ROOT_DIR:-}/LICENSES" "${QT_ROOT_DIR:-}/../LICENSES"; do
-    if [[ -n "$candidate" && -d "$candidate" ]]; then
-        license_source="$candidate"
-        break
+for qt_module in qtbase qtdeclarative; do
+    license_dir="$output_dir/share/licenses/Qt/$qt_module"
+    if [[ ! -d "$license_dir" ]] || ! find "$license_dir" -type f -print -quit | grep -q .; then
+        echo "Qt $qt_module license texts were not installed from $qt_source_root" >&2
+        exit 4
     fi
 done
-if [[ -z "$license_source" ]]; then
-    echo "Qt license texts were not found below QT_ROOT_DIR=${QT_ROOT_DIR:-<unset>}" >&2
-    exit 4
-fi
-mkdir -p -- "$output_dir/share/licenses/Qt"
-cp -a -- "$license_source/." "$output_dir/share/licenses/Qt/"
 
 executable="$output_dir/bin/PicLens"
 if [[ ! -x "$executable" ]]; then

@@ -155,7 +155,28 @@ elseif (Test-Path -LiteralPath (Join-Path $qtPrefix "LICENSES") -PathType Contai
         -Recurse
 }
 else {
-    throw "Qt license texts were not found below the selected Qt toolchain: $qtPrefix"
+    $qtInstallRoot = [IO.Path]::GetFullPath((Join-Path $qtPrefix "..\.."))
+    $sourceLicenseDirectories = @(Get-ChildItem `
+        -LiteralPath $qtInstallRoot `
+        -Directory `
+        -Filter LICENSES `
+        -Recurse `
+        -ErrorAction SilentlyContinue | Where-Object {
+            $_.Parent.Name -in @("qtbase", "qtdeclarative") -and
+            $_.Parent.Parent.Name -eq "Src"
+        })
+    $sourceModules = @($sourceLicenseDirectories | ForEach-Object { $_.Parent.Name } | Sort-Object -Unique)
+    if ($sourceModules.Count -ne 2) {
+        throw "Qt base/declarative license texts were not found below the selected Qt installation: $qtInstallRoot"
+    }
+    $qtLicenseRoot = Join-Path $licenseRoot "Qt"
+    New-Item -ItemType Directory -Path $qtLicenseRoot -Force | Out-Null
+    foreach ($sourceLicenseDirectory in $sourceLicenseDirectories) {
+        Copy-Item `
+            -LiteralPath $sourceLicenseDirectory.FullName `
+            -Destination (Join-Path $qtLicenseRoot $sourceLicenseDirectory.Parent.Name) `
+            -Recurse
+    }
 }
 Copy-Item `
     -LiteralPath (Join-Path $repoRoot "LICENSE") `

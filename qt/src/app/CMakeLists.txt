@@ -153,6 +153,16 @@ if(EXISTS "${PICLENS_QT_INSTALL_PREFIX}/LICENSES")
         DIRECTORY "${PICLENS_QT_INSTALL_PREFIX}/LICENSES/"
         DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/Qt
     )
+elseif(EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtbase/LICENSES" AND
+       EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtdeclarative/LICENSES")
+    install(
+        DIRECTORY "${PICLENS_QT_SOURCE_ROOT}/qtbase/LICENSES/"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/Qt/qtbase
+    )
+    install(
+        DIRECTORY "${PICLENS_QT_SOURCE_ROOT}/qtdeclarative/LICENSES/"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/Qt/qtdeclarative
+    )
 endif()
 
 if(BUILD_TESTING)
