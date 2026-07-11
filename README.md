@@ -24,7 +24,6 @@ VERSION             package version authority
 需要 CMake 3.21+、Ninja、C++20 compiler 與 Qt 6.5+（Core、Gui、Qml、Quick、QuickControls2、Concurrent、Test、QuickTest）。
 
 ```powershell
-cd qt
 cmake --preset debug
 cmake --build --preset debug
 ctest --preset debug --output-on-failure
@@ -33,7 +32,6 @@ ctest --preset debug --output-on-failure
 Release：
 
 ```powershell
-cd qt
 cmake --preset release
 cmake --build --preset release
 ctest --preset release --output-on-failure
