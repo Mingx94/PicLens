@@ -52,7 +52,9 @@ $existingProducts = @(
         "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*"
         "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
     ) -ErrorAction SilentlyContinue |
-        Where-Object DisplayName -eq "PicLens" |
+        Where-Object {
+            $_.PSObject.Properties["DisplayName"] -and $_.DisplayName -eq "PicLens"
+        } |
         Select-Object DisplayName, DisplayVersion, PSChildName
 )
 if ($existingProducts.Count -gt 0 -and -not $AllowReplacingExistingInstallation) {
