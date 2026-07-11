@@ -102,7 +102,7 @@ jobs:
           source: true
           src-archives: qtbase qtdeclarative
       - name: Build, test, deploy, and run sanitized smoke
-        run: bash qt/scripts/build-linux-portable.sh
+        run: xvfb-run -a bash qt/scripts/build-linux-portable.sh
       - name: Exercise gio trash and xdg-open adapters
         run: xvfb-run -a dbus-run-session -- qt/build/release/bin/piclens_platform_file_manager_smoke
       - name: Build Debian candidate
@@ -116,7 +116,7 @@ jobs:
           dpkg-deb --fsys-tarfile ./*.deb | tar -tf - | grep -Fx './opt/piclens/bin/PicLens'
       - name: Install, launch, and remove Debian package
         run: >-
-          bash qt/scripts/test-linux-package-lifecycle.sh
+          xvfb-run -a bash qt/scripts/test-linux-package-lifecycle.sh
           --deb qt/build/release/*.deb
           --expected-executable artifacts/qt-portable/PicLens-linux-x64/bin/PicLens
       - name: Upload Linux portable candidate

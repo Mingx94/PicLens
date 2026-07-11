@@ -43,10 +43,24 @@ for qt_module in qtbase qtdeclarative; do
     fi
 done
 
+platform_plugin=""
+if [[ -f "$output_dir/plugins/platforms/libqoffscreen.so" ]]; then
+    platform_plugin="offscreen"
+elif [[ -f "$output_dir/plugins/platforms/libqxcb.so" ]]; then
+    platform_plugin="xcb"
+    if [[ -z "${DISPLAY:-}" ]]; then
+        echo "The packaged Qt runtime only provides xcb; run this verifier under Xvfb." >&2
+        exit 5
+    fi
+else
+    echo "No supported Qt platform plugin was deployed." >&2
+    exit 5
+fi
+
 executable="$output_dir/bin/PicLens"
 if [[ ! -x "$executable" ]]; then
     echo "Installed PicLens executable was not found: $executable" >&2
-    exit 5
+    exit 6
 fi
 
 smoke_root="$artifact_root/.linux-smoke"
@@ -56,7 +70,8 @@ chmod 700 "$smoke_root/runtime"
 env -i \
     HOME="$smoke_root/home" \
     PATH="/usr/bin:/bin" \
-    QT_QPA_PLATFORM=offscreen \
+    DISPLAY="${DISPLAY:-}" \
+    QT_QPA_PLATFORM="$platform_plugin" \
     XDG_RUNTIME_DIR="$smoke_root/runtime" \
     "$executable" \
         --smoke-ms 750 \

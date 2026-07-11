@@ -98,9 +98,33 @@ if [[ -n "$expected_executable" ]]; then
     fi
 fi
 
+platform_plugin=""
+platform_plugin_roots=(
+    "/opt/piclens/plugins/platforms"
+    "/usr/lib64/qt6/plugins/platforms"
+    "/usr/lib/x86_64-linux-gnu/qt6/plugins/platforms"
+)
+for plugin_root in "${platform_plugin_roots[@]}"; do
+    if [[ -f "$plugin_root/libqoffscreen.so" ]]; then
+        platform_plugin="offscreen"
+        break
+    fi
+    if [[ -z "$platform_plugin" && -f "$plugin_root/libqxcb.so" ]]; then
+        platform_plugin="xcb"
+    fi
+done
+if [[ -z "$platform_plugin" ]]; then
+    echo "No supported installed Qt platform plugin was found." >&2
+    exit 5
+fi
+if [[ "$platform_plugin" == "xcb" && -z "${DISPLAY:-}" ]]; then
+    echo "The installed Qt runtime only provides xcb; run this verifier under Xvfb." >&2
+    exit 5
+fi
+
 env \
     PICLENS_DATA_ROOT="$profile_root" \
-    QT_QPA_PLATFORM=offscreen \
+    QT_QPA_PLATFORM="$platform_plugin" \
     XDG_RUNTIME_DIR="$runtime_root" \
     "$installed_executable" \
         --smoke-ms 1500 \
