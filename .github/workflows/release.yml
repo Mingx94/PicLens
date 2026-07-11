@@ -2,6 +2,8 @@ name: Qt release gates
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "CMakeLists.txt"
       - "CMakePresets.json"
@@ -32,6 +34,10 @@ on:
       - "VERSION"
       - ".github/workflows/release.yml"
   workflow_dispatch:
+
+concurrency:
+  group: qt-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
