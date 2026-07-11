@@ -121,7 +121,7 @@ private:
     };
 
     void requestScan();
-    void applySearchFilter();
+    void applySearchFilter(bool preserveThumbnails = true);
     void recordHistory(HistoryEntry entry, bool replaceHistory);
     void setCurrentFolderPath(QString folderPath);
     void setNavigationRootPath(QString rootPath);

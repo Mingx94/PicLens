@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Window
 import PicLens
 
 Rectangle {
@@ -14,6 +15,14 @@ Rectangle {
 
     function closeViewer() {
         appController.viewer.close()
+    }
+
+    function decodeTier(zoom) {
+        if (zoom <= 1)
+            return 1
+        if (zoom <= 2)
+            return 2
+        return 4
     }
 
     Keys.onEscapePressed: function(event) {
@@ -104,6 +113,15 @@ Rectangle {
             visible: overlay.appController.viewer.imageVisible
             asynchronous: true
             cache: false
+            // Decode close to the pixels that can be displayed. The tier changes only at
+            // meaningful zoom boundaries, avoiding a full-size texture for large photos.
+            sourceSize: {
+                const pixelRatio = Math.max(1, Screen.devicePixelRatio)
+                const tier = overlay.decodeTier(overlay.appController.viewer.zoom)
+                return Qt.size(
+                    Math.min(8192, Math.max(1, Math.ceil(canvas.width * pixelRatio * tier))),
+                    Math.min(8192, Math.max(1, Math.ceil(canvas.height * pixelRatio * tier))))
+            }
             fillMode: Image.PreserveAspectFit
             scale: overlay.appController.viewer.zoom
             transformOrigin: Item.Center

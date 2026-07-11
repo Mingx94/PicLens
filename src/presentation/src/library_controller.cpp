@@ -313,7 +313,7 @@ void LibraryController::changeSort(core::SortState sort)
         m_currentItems,
         m_sort,
         !m_includeSubfolders);
-    applySearchFilter();
+    applySearchFilter(true);
 }
 
 void LibraryController::setIncludeSubfolders(bool includeSubfolders)
@@ -334,7 +334,7 @@ void LibraryController::setSearchQuery(const QString &searchQuery)
     }
     m_searchQuery = searchQuery;
     clearSelection();
-    applySearchFilter();
+    applySearchFilter(true);
     emit searchQueryChanged();
     setStatusText(hasSearchQuery()
         ? QStringLiteral("搜尋「%1」：%2 個項目。")
@@ -510,7 +510,7 @@ void LibraryController::requestScan()
         }
 
         m_currentItems = std::move(result.items);
-        applySearchFilter();
+        applySearchFilter(false);
         setStatusText(hasSearchQuery()
             ? QStringLiteral("搜尋「%1」：%2 個項目。")
                   .arg(m_searchQuery.trimmed())
@@ -542,7 +542,7 @@ void LibraryController::requestScan()
     }));
 }
 
-void LibraryController::applySearchFilter()
+void LibraryController::applySearchFilter(bool preserveThumbnails)
 {
     const QString query = m_searchQuery.trimmed();
     if (query.isEmpty()) {
@@ -559,7 +559,7 @@ void LibraryController::applySearchFilter()
             }
         }
     }
-    m_items.replaceItems(m_visibleItems);
+    m_items.replaceItems(m_visibleItems, preserveThumbnails);
 }
 
 void LibraryController::recordHistory(HistoryEntry entry, bool replaceHistory)

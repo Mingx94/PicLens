@@ -43,7 +43,7 @@ Item {
     }
 
     function requestVisibleThumbnail() {
-        if (!isFolder && visible)
+        if (appController && !isFolder && visible)
             appController.requestThumbnail(path, animated)
     }
     function cancelThumbnail() {
@@ -401,6 +401,7 @@ Item {
     }
 
     Component.onCompleted: requestVisibleThumbnail()
+    onThumbnailSizeChanged: requestVisibleThumbnail()
     Component.onDestruction: cancelThumbnail()
     GridView.onPooled: cancelThumbnail()
     GridView.onReused: requestVisibleThumbnail()

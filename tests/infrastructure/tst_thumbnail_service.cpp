@@ -127,6 +127,9 @@ void ThumbnailServiceTests::generatesBoundedPngAndPreservesSource()
     const QSize dimensions = reader.size();
     QVERIFY(dimensions.width() >= 1 && dimensions.width() <= 5);
     QVERIFY(dimensions.height() >= 1 && dimensions.height() <= 5);
+    const QImage memoryImage = service.cachedImage(QFileInfo(*generated.cachePath).fileName());
+    QCOMPARE(memoryImage.size(), dimensions);
+    QVERIFY(service.cachedImage(QStringLiteral("../outside.png")).isNull());
 }
 
 void ThumbnailServiceTests::cacheKeyTracksMetadataAndRequestedSize()

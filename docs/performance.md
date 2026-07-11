@@ -11,11 +11,13 @@ cmake --build --preset release --target piclens
 pwsh -File scripts/measure-performance.ps1 -FolderPath <representative-folder>
 ```
 
-The script launches the real Qt Quick executable with isolated settings/cache, recursive scanning and offscreen rendering. The app writes JSON after the library model is applied and visible thumbnail requests have had a 1.5-second settle window. Current conservative thresholds are:
+The script launches the real Qt Quick executable with isolated settings/cache, recursive scanning and offscreen rendering. It performs a cold-cache run followed by a warm-cache run against the same isolated profile, and exercises a down/up virtualized-gallery scroll when the dataset exceeds one viewport. The app writes JSON after the library model is applied and visible thumbnail requests have had a 1.5-second settle window. Current conservative thresholds are:
 
 - scan/model/settle elapsed: at most 5,000 ms;
 - peak working set: at most 512 MiB;
 - non-empty row/image counts are mandatory.
+
+The JSON also records library-ready and first-thumbnail latency, completed thumbnail requests, cache hits, Qt Quick graphics API, frame-swap interval p95/p99 and process memory. `windows-release.json` is the cold run and `windows-release-warm.json` is the warm run. Frame intervals are diagnostic until representative interactive baselines justify a numeric release threshold; they are not CPU/GPU render-duration measurements.
 
 The cross-platform workflow creates 10,000 copied PNG paths on a clean Windows runner and runs the same gate. Repeated small valid PNG files exercise path enumeration/model scale without representing heterogeneous decoder cost, so the real-library run remains separately required.
 
@@ -34,6 +36,19 @@ The cross-platform workflow creates 10,000 copied PNG paths on a clean Windows r
 
 Raw output is generated at `artifacts/performance/windows-release.json` and intentionally ignored by git.
 
+## Optimization implementation
+
+The current runtime avoids the largest known application-level hot paths:
+
+- `LibraryItemModel` maintains a path-to-row index for O(1) thumbnail delivery and emits selection changes only for affected rows.
+- Search input is debounced and search/sort model resets retain valid thumbnail mappings.
+- Thumbnail cache size is tracked incrementally; a full directory sort occurs only when the configured bound is exceeded.
+- A forced-asynchronous Qt Quick image provider serves generated thumbnails from a 128 MiB bounded decoded-image cache, avoiding the cold-path PNG read/decode round trip while retaining the persistent disk cache.
+- The inline viewer requests viewport/DPI-sized images at quantized zoom tiers and caps either decoded dimension at 8,192 pixels, avoiding an unconditional original-size scene-graph texture.
+- Release builds enable interprocedural optimization when supported by the active non-MinGW toolchain. MinGW is excluded because Qt-generated QML COFF objects cannot be merged reliably by its LTO linker.
+
+2026-07-11 post-change mechanism smoke on the two image assets in this repository produced cold/warm elapsed times of 1,612/1,624 ms, first thumbnail at 117 ms, two warm-cache hits, Direct3D 11 rendering, 5.99 ms frame-swap interval p95 and a 210,612,224-byte peak working set. This validates the new metrics and warm-cache path only; two images are not representative performance evidence and do not replace the larger results below.
+
 ## Hosted Windows evidence
 
 2026-07-11 Windows 2025 / Qt 6.8.3 MSVC run 29147384340：
@@ -51,4 +66,6 @@ The same run built the 1,407-file MSVC portable bundle and passed MSI install/up
 
 - Linux Release scan/RSS result on the deployed artifact.
 - Interaction check while thumbnails are decoding on a heterogeneous large library.
+- A representative scroll frame-interval baseline with enough rows to exercise virtualization.
+- Tiled or region-decoded viewing for images whose useful zoom resolution exceeds the bounded 8,192-pixel viewer tier.
 - Installer build installed-app measurement to rule out deployment-path regressions.

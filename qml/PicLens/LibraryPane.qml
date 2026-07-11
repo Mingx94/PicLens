@@ -23,6 +23,16 @@ Rectangle {
         gallery.forceActiveFocus()
     }
 
+    function runPerformanceExercise() {
+        const maximum = Math.max(0, gallery.contentHeight - gallery.height)
+        if (maximum <= 0)
+            return false
+        performanceScrollDown.to = maximum
+        performanceScrollUp.from = maximum
+        performanceScroll.restart()
+        return true
+    }
+
     ListModel {
         id: sortOptions
         ListElement { label: "名稱（由小到大）"; sortKey: 0; sortDirection: 0 }
@@ -294,6 +304,26 @@ Rectangle {
                 property real dragPointerX: 0
                 property real dragPointerY: 0
                 property string dropTargetPath: ""
+
+                SequentialAnimation {
+                    id: performanceScroll
+                    NumberAnimation {
+                        id: performanceScrollDown
+                        target: gallery
+                        property: "contentY"
+                        from: 0
+                        duration: 600
+                        easing.type: Easing.InOutQuad
+                    }
+                    NumberAnimation {
+                        id: performanceScrollUp
+                        target: gallery
+                        property: "contentY"
+                        to: 0
+                        duration: 600
+                        easing.type: Easing.InOutQuad
+                    }
+                }
 
                 function targetPathAt(x, y) {
                     if (x < 0 || x > width || y < 0 || y > height)

@@ -18,6 +18,10 @@ ApplicationWindow {
            : appController.library.currentFolderName + " — PicLens"
     color: Theme.appBackground
 
+    function runPerformanceExercise() {
+        return libraryPane.runPerformanceExercise()
+    }
+
     HistoryMouseHandler {
         anchors.fill: parent
         enabled: !window.appController.viewer.open
@@ -160,11 +164,19 @@ ApplicationWindow {
                 text: window.appController.library.searchQuery
                 Accessible.name: "搜尋目前資料夾"
                 Accessible.searchEdit: true
-                onTextEdited: window.appController.library.setSearchQuery(text)
+                onTextEdited: searchCommit.restart()
                 Keys.onEscapePressed: function(event) {
+                    searchCommit.stop()
                     clear()
                     window.appController.library.setSearchQuery("")
                     event.accepted = true
+                }
+
+                Timer {
+                    id: searchCommit
+                    interval: 160
+                    repeat: false
+                    onTriggered: window.appController.library.setSearchQuery(librarySearch.text)
                 }
 
                 background: Rectangle {
@@ -189,12 +201,13 @@ ApplicationWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 32
                     height: 32
-                    visible: window.appController.library.hasSearchQuery
+                    visible: librarySearch.text.length > 0
                     iconName: "close"
                     accessibleName: "清除搜尋"
                     ToolTip.text: "清除搜尋"
                     ToolTip.visible: hovered
                     onClicked: {
+                        searchCommit.stop()
                         librarySearch.clear()
                         window.appController.library.setSearchQuery("")
                         librarySearch.forceActiveFocus()

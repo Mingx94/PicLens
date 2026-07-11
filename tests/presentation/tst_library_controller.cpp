@@ -1,4 +1,5 @@
 #include <piclens/presentation/library_controller.h>
+#include <piclens/core/path_rules.h>
 
 #include <QAbstractItemModel>
 #include <QSignalSpy>
@@ -72,6 +73,8 @@ private slots:
     void scanFailureUsesTraditionalChineseErrorState();
     void invalidFolderDoesNotMutateHistory();
     void modelExposesStableRoles();
+    void modelUpdatesOnlyChangedSelectionRows();
+    void searchAndSortPreserveLoadedThumbnails();
     void selectionGesturesUseOneOrderedImageOwner();
     void viewerSnapshotUsesImageOrderAndPreferredSelection();
     void searchFiltersNameAndPathWithoutRescanning();
@@ -378,6 +381,61 @@ void LibraryControllerTests::modelExposesStableRoles()
     QCOMPARE(roles.value(LibraryItemModel::SelectedRole), QByteArrayLiteral("selected"));
     QCOMPARE(roles.value(LibraryItemModel::ThumbnailPathRole), QByteArrayLiteral("thumbnailPath"));
     QCOMPARE(roles.value(LibraryItemModel::ThumbnailUrlRole), QByteArrayLiteral("thumbnailUrl"));
+}
+
+void LibraryControllerTests::modelUpdatesOnlyChangedSelectionRows()
+{
+    LibraryItemModel model;
+    model.replaceItems({
+        imageItem(QStringLiteral("gallery"), QStringLiteral("one.jpg")),
+        imageItem(QStringLiteral("gallery"), QStringLiteral("two.jpg")),
+        imageItem(QStringLiteral("gallery"), QStringLiteral("three.jpg")),
+    });
+    QSignalSpy changed(&model, &QAbstractItemModel::dataChanged);
+
+    model.setSelectedPathKeys({piclens::core::path_rules::pathKey(
+        QStringLiteral("gallery/two.jpg"))});
+
+    QCOMPARE(changed.count(), 1);
+    QCOMPARE(changed.first().at(0).value<QModelIndex>().row(), 1);
+    QCOMPARE(changed.first().at(1).value<QModelIndex>().row(), 1);
+}
+
+void LibraryControllerTests::searchAndSortPreserveLoadedThumbnails()
+{
+    LibraryController controller(
+        [](const ListQuery &query, std::stop_token) {
+            return QVector<ListItem>{
+                imageItem(query.folderPath, QStringLiteral("one.jpg"), 100),
+                imageItem(query.folderPath, QStringLiteral("two.jpg"), 200),
+            };
+        },
+        resolver());
+    controller.navigateToFolder(QStringLiteral("gallery"), true);
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.busy(), 5000);
+    controller.items()->setThumbnailPath(
+        QStringLiteral("gallery/two.jpg"),
+        QStringLiteral("C:/cache/two.png"),
+        160);
+
+    controller.setSearchQuery(QStringLiteral("two"));
+    QCOMPARE(controller.items()->rowCount(), 1);
+    QCOMPARE(
+        controller.items()->data(
+            controller.items()->index(0), LibraryItemModel::ThumbnailPathRole).toString(),
+        QStringLiteral("C:/cache/two.png"));
+    QCOMPARE(
+        controller.items()->data(
+            controller.items()->index(0), LibraryItemModel::ThumbnailUrlRole).toUrl().toString(),
+        QStringLiteral("image://piclens-thumbnails/two.png"));
+
+    controller.setSearchQuery({});
+    controller.changeSort({.key = SortKey::ModifiedAt, .direction = SortDirection::Desc});
+    QCOMPARE(modelName(controller.items(), 0), QStringLiteral("two.jpg"));
+    QCOMPARE(
+        controller.items()->data(
+            controller.items()->index(0), LibraryItemModel::ThumbnailPathRole).toString(),
+        QStringLiteral("C:/cache/two.png"));
 }
 
 void LibraryControllerTests::selectionGesturesUseOneOrderedImageOwner()

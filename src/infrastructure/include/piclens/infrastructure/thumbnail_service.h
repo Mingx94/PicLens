@@ -2,8 +2,10 @@
 
 #include <QString>
 #include <QFileInfo>
+#include <QHash>
+#include <QCache>
+#include <QImage>
 
-#include <atomic>
 #include <mutex>
 #include <optional>
 #include <stop_token>
@@ -37,6 +39,7 @@ public:
         qint64 maxCacheBytes = DefaultMaxCacheBytes);
 
     [[nodiscard]] const QString &cacheRoot() const;
+    [[nodiscard]] QImage cachedImage(const QString &cacheFileName);
     [[nodiscard]] ThumbnailResult getOrCreate(
         const QString &imagePath,
         int requestedSize,
@@ -51,12 +54,15 @@ private:
         std::stop_token stopToken);
     void triggerPrune(const QString &pathToKeep);
     void pruneCache(const QString &pathToKeep);
+    void rememberImage(const QString &cachePath, const QImage &image);
 
     QString m_cacheRoot;
     qint64 m_maxCacheBytes;
-    std::atomic_int m_generatedSinceLastPrune = 0;
-    std::atomic_bool m_pruning = false;
+    qint64 m_knownCacheBytes = -1;
+    QHash<QString, qint64> m_knownCacheFileSizes;
     std::mutex m_pruneMutex;
+    QCache<QString, QImage> m_imageCache{128 * 1024};
+    std::mutex m_imageCacheMutex;
 };
 
 } // namespace piclens::infrastructure

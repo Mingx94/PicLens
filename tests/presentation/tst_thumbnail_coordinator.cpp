@@ -40,6 +40,7 @@ class ThumbnailCoordinatorTests final : public QObject
 
 private slots:
     void readyResultIsDeliveredWithRequestedSize();
+    void completedAndCacheHitStatisticsAreTracked();
     void animatedAndDuplicateRequestsDoNotScheduleExtraWork();
     void cancellationSuppressesLateResultAndReleasesSlot();
     void sizeChangeSuppressesOldGeneration();
@@ -68,6 +69,26 @@ void ThumbnailCoordinatorTests::readyResultIsDeliveredWithRequestedSize()
         QStringLiteral("photo.jpg-%1.png").arg(defaultSize));
     QCOMPARE(ready.first().at(2).toInt(), defaultSize);
     QCOMPARE(coordinator.activeRequestCount(), 0);
+}
+
+void ThumbnailCoordinatorTests::completedAndCacheHitStatisticsAreTracked()
+{
+    ThumbnailCoordinator coordinator(
+        [](const QString &path, int, std::stop_token) {
+            return ThumbnailLoadResult{
+                .cachePath = path + QStringLiteral(".png"),
+                .errorDetails = std::nullopt,
+                .canceled = false,
+                .cacheHit = true,
+            };
+        });
+    QSignalSpy statistics(&coordinator, &ThumbnailCoordinator::statisticsChanged);
+
+    coordinator.requestThumbnail(QStringLiteral("cached.jpg"), false);
+    QTRY_COMPARE_WITH_TIMEOUT(coordinator.completedRequestCount(), 1, 5000);
+
+    QCOMPARE(coordinator.cacheHitCount(), 1);
+    QCOMPARE(statistics.count(), 1);
 }
 
 void ThumbnailCoordinatorTests::animatedAndDuplicateRequestsDoNotScheduleExtraWork()

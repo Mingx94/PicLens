@@ -13,6 +13,7 @@
 #include <QSaveFile>
 
 #include <algorithm>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -67,6 +68,27 @@ ThumbnailService::ThumbnailService(QString cacheRoot, qint64 maxCacheBytes)
 const QString &ThumbnailService::cacheRoot() const
 {
     return m_cacheRoot;
+}
+
+QImage ThumbnailService::cachedImage(const QString &cacheFileName)
+{
+    const QString safeName = QFileInfo(cacheFileName).fileName();
+    if (safeName != cacheFileName || !safeName.endsWith(QStringLiteral(".png"))) {
+        return {};
+    }
+    const QString cachePath = QDir(m_cacheRoot).filePath(safeName);
+    {
+        const std::scoped_lock lock(m_imageCacheMutex);
+        if (const QImage *cached = m_imageCache.object(cachePath)) {
+            return *cached;
+        }
+    }
+    QImageReader reader(cachePath, QByteArrayLiteral("png"));
+    QImage image = reader.read();
+    if (!image.isNull()) {
+        rememberImage(cachePath, image);
+    }
+    return image;
 }
 
 ThumbnailResult ThumbnailService::getOrCreate(
@@ -181,23 +203,26 @@ ThumbnailResult ThumbnailService::createThumbnail(
     if (!output.commit()) {
         return result(ThumbnailStatus::Failed, std::nullopt, output.errorString());
     }
+    rememberImage(cachePath, image);
     return result(ThumbnailStatus::Ready, cachePath);
+}
+
+void ThumbnailService::rememberImage(const QString &cachePath, const QImage &image)
+{
+    if (image.isNull()) {
+        return;
+    }
+    const qint64 costKiB = std::max<qint64>(1, (image.sizeInBytes() + 1023) / 1024);
+    const int cost = static_cast<int>(std::min<qint64>(
+        costKiB,
+        std::numeric_limits<int>::max()));
+    const std::scoped_lock lock(m_imageCacheMutex);
+    m_imageCache.insert(cachePath, new QImage(image), cost);
 }
 
 void ThumbnailService::triggerPrune(const QString &pathToKeep)
 {
-    const bool shouldPrune = m_maxCacheBytes <= 1024 * 1024
-        || ++m_generatedSinceLastPrune >= 50;
-    if (!shouldPrune) {
-        return;
-    }
-    bool expected = false;
-    if (!m_pruning.compare_exchange_strong(expected, true)) {
-        return;
-    }
-    m_generatedSinceLastPrune = 0;
     pruneCache(pathToKeep);
-    m_pruning = false;
 }
 
 void ThumbnailService::pruneCache(const QString &pathToKeep)
@@ -207,27 +232,46 @@ void ThumbnailService::pruneCache(const QString &pathToKeep)
         return;
     }
 
-    const QFileInfoList cacheFiles = QDir(m_cacheRoot).entryInfoList(
-        {QStringLiteral("*.png")},
-        QDir::Files,
-        QDir::Time);
-    std::vector<QFileInfo> files(cacheFiles.cbegin(), cacheFiles.cend());
-    qint64 totalBytes = 0;
-    for (const QFileInfo &file : files) {
-        totalBytes += file.size();
+    QFileInfoList cacheFiles;
+    if (m_knownCacheBytes < 0) {
+        cacheFiles = QDir(m_cacheRoot).entryInfoList(
+            {QStringLiteral("*.png")},
+            QDir::Files,
+            QDir::Time);
+        m_knownCacheBytes = 0;
+        for (const QFileInfo &file : cacheFiles) {
+            m_knownCacheBytes += file.size();
+            m_knownCacheFileSizes.insert(file.absoluteFilePath(), file.size());
+        }
+    } else {
+        const qint64 currentSize = QFileInfo(pathToKeep).size();
+        const qint64 previousSize = m_knownCacheFileSizes.value(pathToKeep, 0);
+        m_knownCacheBytes += currentSize - previousSize;
+        m_knownCacheFileSizes.insert(pathToKeep, currentSize);
     }
+    if (m_knownCacheBytes <= m_maxCacheBytes) {
+        return;
+    }
+    if (cacheFiles.isEmpty()) {
+        cacheFiles = QDir(m_cacheRoot).entryInfoList(
+            {QStringLiteral("*.png")},
+            QDir::Files,
+            QDir::Time);
+    }
+    std::vector<QFileInfo> files(cacheFiles.cbegin(), cacheFiles.cend());
     std::sort(files.begin(), files.end(), [](const QFileInfo &left, const QFileInfo &right) {
         return left.lastModified() > right.lastModified();
     });
     for (auto iterator = files.rbegin();
-         iterator != files.rend() && totalBytes > m_maxCacheBytes;
+         iterator != files.rend() && m_knownCacheBytes > m_maxCacheBytes;
          ++iterator) {
         if (core::path_rules::pathEquals(iterator->absoluteFilePath(), pathToKeep)) {
             continue;
         }
         const qint64 bytes = iterator->size();
         if (QFile::remove(iterator->absoluteFilePath())) {
-            totalBytes -= bytes;
+            m_knownCacheBytes -= bytes;
+            m_knownCacheFileSizes.remove(iterator->absoluteFilePath());
         }
     }
 }

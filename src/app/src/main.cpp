@@ -12,11 +12,15 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QQmlApplicationEngine>
+#include <QQuickImageProvider>
 #include <QQuickWindow>
 #include <QQuickStyle>
 #include <QSaveFile>
+#include <QSGRendererInterface>
 #include <QTimer>
 
+#include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <memory>
 
@@ -49,6 +53,85 @@ struct ProcessMemorySample {
     qint64 workingSetBytes = -1;
     qint64 peakWorkingSetBytes = -1;
 };
+
+struct PerformanceMetricsState {
+    qint64 libraryReadyMilliseconds = -1;
+    qint64 firstThumbnailMilliseconds = -1;
+    QElapsedTimer frameTimer;
+    bool receivedFirstFrame = false;
+    QVector<double> frameIntervalsMilliseconds;
+};
+
+class ThumbnailImageProvider final : public QQuickImageProvider
+{
+public:
+    explicit ThumbnailImageProvider(piclens::infrastructure::ThumbnailService *service)
+        : QQuickImageProvider(
+              QQuickImageProvider::Image,
+              QQuickImageProvider::ForceAsynchronousImageLoading)
+        , m_service(service)
+    {
+    }
+
+    QImage requestImage(
+        const QString &id,
+        QSize *size,
+        const QSize &requestedSize) override
+    {
+        QImage image = m_service ? m_service->cachedImage(id) : QImage{};
+        if (size) {
+            *size = image.size();
+        }
+        if (!image.isNull() && requestedSize.isValid()
+            && (image.width() > requestedSize.width() || image.height() > requestedSize.height())) {
+            image = image.scaled(
+                requestedSize,
+                Qt::KeepAspectRatio,
+                Qt::SmoothTransformation);
+        }
+        return image;
+    }
+
+private:
+    piclens::infrastructure::ThumbnailService *m_service;
+};
+
+QString graphicsApiName()
+{
+    switch (QQuickWindow::graphicsApi()) {
+    case QSGRendererInterface::Unknown:
+        return QStringLiteral("unknown");
+    case QSGRendererInterface::Software:
+        return QStringLiteral("software");
+    case QSGRendererInterface::OpenVG:
+        return QStringLiteral("openvg");
+    case QSGRendererInterface::OpenGL:
+        return QStringLiteral("opengl");
+    case QSGRendererInterface::Direct3D11:
+        return QStringLiteral("direct3d11");
+    case QSGRendererInterface::Vulkan:
+        return QStringLiteral("vulkan");
+    case QSGRendererInterface::Metal:
+        return QStringLiteral("metal");
+    case QSGRendererInterface::Null:
+        return QStringLiteral("null");
+    default:
+        return QStringLiteral("api-%1").arg(static_cast<int>(QQuickWindow::graphicsApi()));
+    }
+}
+
+double percentile(QVector<double> values, double fraction)
+{
+    if (values.isEmpty()) {
+        return -1;
+    }
+    std::sort(values.begin(), values.end());
+    const int index = std::clamp(
+        static_cast<int>(std::ceil(fraction * values.size())) - 1,
+        0,
+        static_cast<int>(values.size()) - 1);
+    return values.at(index);
+}
 
 ProcessMemorySample processMemorySample()
 {
@@ -84,7 +167,8 @@ ProcessMemorySample processMemorySample()
 bool writePerformanceMetrics(
     const QString &path,
     qint64 elapsedMilliseconds,
-    piclens::app::AppController *controller)
+    piclens::app::AppController *controller,
+    const PerformanceMetricsState &timing)
 {
     const QFileInfo destination(path);
     if (!QDir().mkpath(destination.absolutePath())) {
@@ -93,9 +177,20 @@ bool writePerformanceMetrics(
     const ProcessMemorySample memory = processMemorySample();
     const QJsonObject metrics{
         {QStringLiteral("elapsedMilliseconds"), elapsedMilliseconds},
+        {QStringLiteral("libraryReadyMilliseconds"), timing.libraryReadyMilliseconds},
+        {QStringLiteral("firstThumbnailMilliseconds"), timing.firstThumbnailMilliseconds},
+        {QStringLiteral("renderFrameSampleCount"), timing.frameIntervalsMilliseconds.size()},
+        {QStringLiteral("renderFrameIntervalP95Milliseconds"),
+         percentile(timing.frameIntervalsMilliseconds, 0.95)},
+        {QStringLiteral("renderFrameIntervalP99Milliseconds"),
+         percentile(timing.frameIntervalsMilliseconds, 0.99)},
+        {QStringLiteral("graphicsApi"), graphicsApiName()},
         {QStringLiteral("rowCount"), controller->library()->items()->rowCount()},
         {QStringLiteral("imageCount"), controller->library()->visibleImages().size()},
         {QStringLiteral("activeThumbnailRequests"), controller->thumbnails()->activeRequestCount()},
+        {QStringLiteral("completedThumbnailRequests"),
+         controller->thumbnails()->completedRequestCount()},
+        {QStringLiteral("thumbnailCacheHits"), controller->thumbnails()->cacheHitCount()},
         {QStringLiteral("includeSubfolders"), controller->library()->includeSubfolders()},
         {QStringLiteral("sortKey"), controller->library()->sortKey()},
         {QStringLiteral("sortDirection"), controller->library()->sortDirection()},
@@ -152,6 +247,9 @@ int main(int argc, char *argv[])
         QStringLiteral("metrics"),
         QStringLiteral("Write startup/library performance metrics to a JSON file."),
         QStringLiteral("path"));
+    QCommandLineOption performanceScrollOption(
+        QStringLiteral("performance-scroll"),
+        QStringLiteral("Exercise virtualized gallery scrolling while collecting metrics."));
     QCommandLineOption recursiveOption(
         QStringLiteral("include-subfolders"),
         QStringLiteral("Include descendant folders in the initial library scan."));
@@ -171,6 +269,7 @@ int main(int argc, char *argv[])
     parser.addOption(screenshotOption);
     parser.addOption(viewerOption);
     parser.addOption(metricsOption);
+    parser.addOption(performanceScrollOption);
     parser.addOption(recursiveOption);
     parser.addOption(searchOption);
     parser.addOption(listViewOption);
@@ -217,13 +316,24 @@ int main(int argc, char *argv[])
             Qt::SingleShotConnection);
     }
     const QString metricsPath = parser.value(metricsOption);
+    auto performanceState = std::make_shared<PerformanceMetricsState>();
     if (!metricsPath.isEmpty()) {
         auto metricsScheduled = std::make_shared<bool>(false);
+        QObject::connect(
+            appController->thumbnails(),
+            &piclens::presentation::ThumbnailCoordinator::thumbnailReady,
+            appController.get(),
+            [performanceState, &performanceTimer](const QString &, const QString &, int) {
+                if (performanceState->firstThumbnailMilliseconds < 0) {
+                    performanceState->firstThumbnailMilliseconds = performanceTimer.elapsed();
+                }
+            });
         const auto scheduleMetrics = [
             controller = appController.get(),
             metricsPath,
             requestedFolder,
             metricsScheduled,
+            performanceState,
             &performanceTimer,
             &application] {
             if (*metricsScheduled || !controller->initialized() || controller->library()->busy()
@@ -234,12 +344,14 @@ int main(int argc, char *argv[])
                 return;
             }
             *metricsScheduled = true;
+            performanceState->libraryReadyMilliseconds = performanceTimer.elapsed();
             QTimer::singleShot(1'500, &application, [
-                controller, metricsPath, &performanceTimer] {
+                controller, metricsPath, performanceState, &performanceTimer] {
                 if (!writePerformanceMetrics(
                         metricsPath,
                         performanceTimer.elapsed(),
-                        controller)) {
+                        controller,
+                        *performanceState)) {
                     qWarning("Could not write performance metrics.");
                 }
             });
@@ -278,6 +390,9 @@ int main(int argc, char *argv[])
     }
 
     QQmlApplicationEngine engine;
+    engine.addImageProvider(
+        QStringLiteral("piclens-thumbnails"),
+        new ThumbnailImageProvider(appController->thumbnailService()));
     engine.setInitialProperties({
         {QStringLiteral("appController"), QVariant::fromValue(appController.get())},
     });
@@ -288,6 +403,52 @@ int main(int argc, char *argv[])
         [] { QCoreApplication::exit(EXIT_FAILURE); },
         Qt::QueuedConnection);
     engine.loadFromModule(QStringLiteral("PicLens"), QStringLiteral("Main"));
+
+    if (parser.isSet(performanceScrollOption) && !engine.rootObjects().isEmpty()) {
+        QObject *rootObject = engine.rootObjects().constFirst();
+        auto exerciseStarted = std::make_shared<bool>(false);
+        const auto exerciseGallery = [
+            controller = appController.get(), rootObject, exerciseStarted, &application] {
+            if (*exerciseStarted || !controller->initialized() || controller->library()->busy()
+                || controller->library()->items()->rowCount() == 0) {
+                return;
+            }
+            *exerciseStarted = true;
+            QTimer::singleShot(100, &application, [rootObject] {
+                QMetaObject::invokeMethod(rootObject, "runPerformanceExercise");
+            });
+        };
+        QObject::connect(
+            appController.get(),
+            &piclens::app::AppController::initializedChanged,
+            appController.get(),
+            exerciseGallery);
+        QObject::connect(
+            appController->library(),
+            &piclens::presentation::LibraryController::busyChanged,
+            appController.get(),
+            exerciseGallery);
+        exerciseGallery();
+    }
+
+    if (!metricsPath.isEmpty() && !engine.rootObjects().isEmpty()) {
+        if (auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().constFirst())) {
+            performanceState->frameTimer.start();
+            QObject::connect(
+                window,
+                &QQuickWindow::frameSwapped,
+                appController.get(),
+                [performanceState] {
+                    const double interval = performanceState->frameTimer.nsecsElapsed() / 1'000'000.0;
+                    performanceState->frameTimer.restart();
+                    if (performanceState->receivedFirstFrame) {
+                        performanceState->frameIntervalsMilliseconds.append(interval);
+                    } else {
+                        performanceState->receivedFirstFrame = true;
+                    }
+                });
+        }
+    }
 
     const QString screenshotPath = parser.value(screenshotOption);
     if (!screenshotPath.isEmpty()) {

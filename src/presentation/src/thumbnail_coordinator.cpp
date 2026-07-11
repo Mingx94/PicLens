@@ -59,6 +59,16 @@ int ThumbnailCoordinator::activeRequestCount() const
     return m_activeRequests;
 }
 
+int ThumbnailCoordinator::completedRequestCount() const
+{
+    return m_completedRequests;
+}
+
+int ThumbnailCoordinator::cacheHitCount() const
+{
+    return m_cacheHits;
+}
+
 void ThumbnailCoordinator::setRequestedSize(int requestedSize)
 {
     const int normalized = core::settings_rules::normalizeThumbnailSize(requestedSize);
@@ -187,6 +197,11 @@ void ThumbnailCoordinator::startRequest(const std::shared_ptr<Request> &request)
             && request->generation == m_generation
             && !result.canceled) {
             if (result.cachePath.has_value()) {
+                ++m_completedRequests;
+                if (result.cacheHit) {
+                    ++m_cacheHits;
+                }
+                emit statisticsChanged();
                 emit thumbnailReady(
                     request->sourcePath,
                     *result.cachePath,

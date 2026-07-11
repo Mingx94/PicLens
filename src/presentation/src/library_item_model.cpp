@@ -5,6 +5,9 @@
 
 #include <QVariant>
 #include <QUrl>
+#include <QFileInfo>
+
+#include <algorithm>
 
 namespace piclens::presentation {
 
@@ -58,7 +61,8 @@ QVariant LibraryItemModel::data(const QModelIndex &index, int role) const
             const auto thumbnail = m_thumbnails.constFind(core::path_rules::pathKey(image->path));
             return thumbnail == m_thumbnails.cend()
                 ? QVariant{}
-                : QVariant{QUrl::fromLocalFile(thumbnail->path)};
+                : QVariant{QUrl(QStringLiteral("image://piclens-thumbnails/")
+                    + QFileInfo(thumbnail->path).fileName())};
         }
         return {};
     default:
@@ -82,11 +86,20 @@ QHash<int, QByteArray> LibraryItemModel::roleNames() const
     };
 }
 
-void LibraryItemModel::replaceItems(QVector<core::ListItem> items)
+void LibraryItemModel::replaceItems(QVector<core::ListItem> items, bool preserveThumbnails)
 {
     beginResetModel();
     m_items = std::move(items);
-    m_thumbnails.clear();
+    m_rowByPathKey.clear();
+    m_rowByPathKey.reserve(m_items.size());
+    for (int row = 0; row < m_items.size(); ++row) {
+        const QString key = core::path_rules::pathKey(
+            core::list_item_sorter::itemPath(m_items.at(row)));
+        m_rowByPathKey.insert(key, row);
+    }
+    if (!preserveThumbnails) {
+        m_thumbnails.clear();
+    }
     endResetModel();
 }
 
@@ -97,13 +110,11 @@ void LibraryItemModel::setThumbnailPath(
 {
     const QString key = core::path_rules::pathKey(sourcePath);
     m_thumbnails.insert(key, {.path = thumbnailPath, .requestedSize = requestedSize});
-    for (int row = 0; row < m_items.size(); ++row) {
-        const auto *image = std::get_if<core::ImageListItem>(&m_items.at(row));
-        if (image && core::path_rules::pathEquals(image->path, sourcePath)) {
-            const QModelIndex modelIndex = index(row);
-            emit dataChanged(modelIndex, modelIndex, {ThumbnailPathRole, ThumbnailUrlRole});
-            return;
-        }
+    const auto row = m_rowByPathKey.constFind(key);
+    if (row != m_rowByPathKey.cend()
+        && std::holds_alternative<core::ImageListItem>(m_items.at(*row))) {
+        const QModelIndex modelIndex = index(*row);
+        emit dataChanged(modelIndex, modelIndex, {ThumbnailPathRole, ThumbnailUrlRole});
     }
 }
 
@@ -123,9 +134,31 @@ void LibraryItemModel::setSelectedPathKeys(QSet<QString> selectedPathKeys)
     if (m_selectedPathKeys == selectedPathKeys) {
         return;
     }
+    QSet<QString> changedKeys = m_selectedPathKeys;
+    for (const QString &key : selectedPathKeys) {
+        if (!changedKeys.remove(key)) {
+            changedKeys.insert(key);
+        }
+    }
+    QVector<int> changedRows;
+    changedRows.reserve(changedKeys.size());
+    for (const QString &key : changedKeys) {
+        const auto row = m_rowByPathKey.constFind(key);
+        if (row != m_rowByPathKey.cend()
+            && std::holds_alternative<core::ImageListItem>(m_items.at(*row))) {
+            changedRows.append(*row);
+        }
+    }
     m_selectedPathKeys = std::move(selectedPathKeys);
-    if (!m_items.isEmpty()) {
-        emit dataChanged(index(0), index(m_items.size() - 1), {SelectedRole});
+    std::sort(changedRows.begin(), changedRows.end());
+    for (int offset = 0; offset < changedRows.size();) {
+        int end = offset;
+        while (end + 1 < changedRows.size()
+               && changedRows.at(end + 1) == changedRows.at(end) + 1) {
+            ++end;
+        }
+        emit dataChanged(index(changedRows.at(offset)), index(changedRows.at(end)), {SelectedRole});
+        offset = end + 1;
     }
 }
 

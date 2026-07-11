@@ -33,7 +33,7 @@ public:
     [[nodiscard]] QVariant data(const QModelIndex &index, int role) const override;
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
 
-    void replaceItems(QVector<core::ListItem> items);
+    void replaceItems(QVector<core::ListItem> items, bool preserveThumbnails = false);
     void setSelectedPathKeys(QSet<QString> selectedPathKeys);
     void setThumbnailPath(const QString &sourcePath, const QString &thumbnailPath, int requestedSize);
     void clearThumbnails();
@@ -43,6 +43,7 @@ public:
 
 private:
     QVector<core::ListItem> m_items;
+    QHash<QString, int> m_rowByPathKey;
     QSet<QString> m_selectedPathKeys;
     struct ThumbnailEntry {
         QString path;

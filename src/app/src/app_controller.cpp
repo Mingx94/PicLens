@@ -100,6 +100,7 @@ AppController::AppController(
             stopToken);
         presentation::ThumbnailLoadResult result;
         result.canceled = loaded.status == infrastructure::ThumbnailStatus::Canceled;
+        result.cacheHit = loaded.cacheHit;
         if (loaded.status == infrastructure::ThumbnailStatus::Ready) {
             result.cachePath = loaded.cachePath;
         } else if (loaded.status == infrastructure::ThumbnailStatus::Failed
@@ -288,6 +289,11 @@ presentation::FileOperationController *AppController::fileOperations()
 presentation::ViewerController *AppController::viewer()
 {
     return &m_viewer;
+}
+
+infrastructure::ThumbnailService *AppController::thumbnailService()
+{
+    return &m_thumbnailService;
 }
 
 void AppController::initialize()

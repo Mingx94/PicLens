@@ -54,6 +54,7 @@ public:
     [[nodiscard]] presentation::ThumbnailCoordinator *thumbnails();
     [[nodiscard]] presentation::FileOperationController *fileOperations();
     [[nodiscard]] presentation::ViewerController *viewer();
+    [[nodiscard]] infrastructure::ThumbnailService *thumbnailService();
 
     Q_INVOKABLE void initialize();
     void openFolderFromPicker(const QString &folderPath);

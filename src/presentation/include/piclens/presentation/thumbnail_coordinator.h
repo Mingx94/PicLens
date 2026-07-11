@@ -17,6 +17,7 @@ struct ThumbnailLoadResult {
     std::optional<QString> cachePath;
     std::optional<QString> errorDetails;
     bool canceled = false;
+    bool cacheHit = false;
 };
 
 class ThumbnailCoordinator final : public QObject
@@ -24,6 +25,8 @@ class ThumbnailCoordinator final : public QObject
     Q_OBJECT
     Q_PROPERTY(int requestedSize READ requestedSize NOTIFY requestedSizeChanged)
     Q_PROPERTY(int activeRequestCount READ activeRequestCount NOTIFY activeRequestCountChanged)
+    Q_PROPERTY(int completedRequestCount READ completedRequestCount NOTIFY statisticsChanged)
+    Q_PROPERTY(int cacheHitCount READ cacheHitCount NOTIFY statisticsChanged)
 
 public:
     using LoadFunction = std::function<ThumbnailLoadResult(const QString &, int, std::stop_token)>;
@@ -37,6 +40,8 @@ public:
 
     [[nodiscard]] int requestedSize() const;
     [[nodiscard]] int activeRequestCount() const;
+    [[nodiscard]] int completedRequestCount() const;
+    [[nodiscard]] int cacheHitCount() const;
 
     void setRequestedSize(int requestedSize);
     void requestThumbnail(const QString &sourcePath, bool animated);
@@ -46,6 +51,7 @@ public:
 signals:
     void requestedSizeChanged();
     void activeRequestCountChanged();
+    void statisticsChanged();
     void thumbnailReady(const QString &sourcePath, const QString &cachePath, int requestedSize);
     void thumbnailFailed(const QString &sourcePath, const QString &details, int requestedSize);
 
@@ -61,6 +67,8 @@ private:
     int m_requestedSize = 160;
     int m_maxConcurrent;
     int m_activeRequests = 0;
+    int m_completedRequests = 0;
+    int m_cacheHits = 0;
     std::chrono::milliseconds m_timeout;
     quint64 m_generation = 0;
     QHash<QString, std::shared_ptr<Request>> m_requests;
