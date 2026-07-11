@@ -12,26 +12,21 @@
 
 Do not test QML by reading source text. Assert observable behavior or rendered/runtime state.
 
-## Coexistence gate
+## Cutover state
 
-While legacy code exists, run the relevant existing checks before removing or changing its behavior:
-
-```powershell
-dotnet run Tasks.cs test
-dotnet run Tasks.cs ui-test
-```
-
-Use the smallest applicable subset during iteration, then the complete relevant suite before declaring a slice migrated.
+The authorized cutover is complete. No legacy runtime or test suite remains; validate all behavior through the root CMake project and its packaged runtime gates.
 
 ## Qt build gate
 
-Prefer checked-in CMake presets once the production `qt/` tree exists. Until then, the expected shape is:
+Use the checked-in root-level CMake presets:
 
 ```powershell
-cmake -S qt -B qt/build -G Ninja -DCMAKE_BUILD_TYPE=Debug
-cmake --build qt/build
-ctest --test-dir qt/build --output-on-failure
-cmake --build qt/build --target <qml-lint-target>
+cmake --preset debug
+cmake --build --preset debug
+ctest --preset debug --output-on-failure
+cmake --preset release
+cmake --build --preset release
+ctest --preset release --output-on-failure
 ```
 
 Also configure and build Release before performance conclusions or packaging work. Build on Windows and Linux rather than assuming cross-platform compilation proves runtime support.
@@ -58,7 +53,7 @@ For an affected slice, verify applicable items from:
 - Measure scan completion, first visible thumbnails, interaction stalls, peak/steady memory, and cache growth.
 - Exercise rapid navigation, repeated thumbnail resizing, long scrolling, and viewer open/close cycles.
 - Confirm obsolete work does not continue producing visible updates.
-- Compare with the existing Avalonia build when claiming a regression or improvement.
+- Compare with recorded pre-cutover evidence when claiming a regression or improvement.
 
 The current product specification does not define numeric FPS or load-time acceptance thresholds. Establish and document a baseline before introducing a hard gate; do not invent one inside an implementation change.
 
@@ -72,4 +67,4 @@ A slice is complete only when:
 - QML lint is clean for affected modules.
 - A short real runtime launch has no relevant warnings or ERROR log entries.
 - Windows/Linux differences are verified or called out.
-- Legacy dependencies and their deletion gate are known.
+- No deleted legacy dependency or path has been reintroduced.

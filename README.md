@@ -1,115 +1,69 @@
 # PicLens
 
-PicLens 是 Windows / 主流 Linux 桌面圖片整理與檢視工具。它以本機資料夾為工作區，讓使用者快速瀏覽大量圖片、調整排序與顯示範圍、選取圖片、執行保守的檔案操作，並在主視窗內直接檢視單張圖片。
+PicLens 是使用 Qt 6、C++20 與 Qt Quick 建置的跨平台圖片整理與檢視應用程式，支援 Windows 與主流 Linux。
 
-詳細文件從 [docs/README.md](docs/README.md) 開始。
-
-## 功能重點
-
-- 明確選取資料夾；啟動時可還原上次透過資料夾選擇器選取且仍可用的資料夾。
-- 資料夾樹加縮圖圖庫，支援 `jpg`、`jpeg`、`png`、`bmp`、`webp`、`gif`。
-- 支援排序、包含子資料夾、縮圖大小保存、資料夾歷史導覽與滑鼠側鍵導覽。
-- 圖片選取後可重新命名、移至作業系統回收筒、轉換 JPG，批次操作會回報成功、略過與失敗結果。
-- 內嵌圖片檢視器支援上一張/下一張、縮放、平移、鍵盤操作與 Escape 返回。
-- 動畫 GIF / WebP 會被辨識，但目前不播放；檢視時會顯示不支援預覽的提示。
-
-## 專案結構
+## Repository layout
 
 ```text
-PicLens.slnx                         Visual Studio solution
-PicLens/                             Avalonia desktop app、AXAML views、assets、window setup
-qt/                                  正式 Qt 6 / C++20 migration production tree
-src/PicLens.Core/                    Pure models、service contracts、domain rules
-src/PicLens.Presentation/            UI-agnostic ViewModels、presentation contracts
-src/PicLens.Infrastructure/          Settings、filesystem、thumbnail、trash、logging services
-tests/PicLens.Core.Tests/            Core xUnit tests
-tests/PicLens.Infrastructure.Tests/  Infrastructure xUnit tests
-tests/PicLens.ViewModels.Tests/      ViewModel xUnit tests
-tests/PicLens.Ui.Tests/              Avalonia Headless smoke tests
-docs/                                Product、architecture、testing、release docs
-Tasks.cs                             Repo-local build/test/release tasks
+src/                production C++ libraries and application composition
+qml/                Qt Quick shell and reusable controls
+tests/              Qt Test and Qt Quick Test suites
+scripts/            release, lifecycle and performance automation
+packaging/          Linux desktop integration
+assets/             framework-neutral icons、logos 與 embedded fonts
+installer/          Windows WiX MSI definition
+docs/               product、architecture、testing、release 與 migration evidence
+LICENSE             MIT license
+VERSION             package version authority
 ```
 
-## 開發
+文件入口：[docs/README.md](docs/README.md)。
 
-需要可建置 `net10.0` 的 .NET SDK。
+## Build and test
 
-```shell
-dotnet run --project PicLens/PicLens.csproj -p:Platform=x64
+需要 CMake 3.21+、Ninja、C++20 compiler 與 Qt 6.5+（Core、Gui、Qml、Quick、QuickControls2、Concurrent、Test、QuickTest）。
+
+```powershell
+cd qt
+cmake --preset debug
+cmake --build --preset debug
+ctest --preset debug --output-on-failure
 ```
 
-只建置、不啟動 app：
+Release：
 
-```shell
-dotnet build PicLens/PicLens.csproj -p:Platform=x64
+```powershell
+cd qt
+cmake --preset release
+cmake --build --preset release
+ctest --preset release --output-on-failure
 ```
 
-單元與 ViewModel 測試：
+## Run
 
-```shell
-dotnet run Tasks.cs test
-```
+Windows：`build\debug\bin\PicLens.exe`
 
-Avalonia Headless UI smoke tests：
+Linux：`./build/debug/bin/PicLens`
 
-```shell
-dotnet run Tasks.cs ui-test
-```
-
-Qt migration production app 與 tests：
-
-```shell
-cmake --preset debug -S qt
-cmake --build qt/build/debug
-ctest --test-dir qt/build/debug --output-on-failure
-qt/build/debug/bin/PicLens.exe
-```
-
-Qt production app 已完成 search/grid/list、gallery selection/file operations、inline viewer、drag/drop rename、Windows input parity、portable 與 MSI candidate；PicLens 採 MIT License，本機 MSI lifecycle、授權後 real-profile 副本驗證，以及 Windows 2025、Ubuntu 24.04、Fedora 44 clean-runner release workflow 均已通過。主 `release` 命令已切換為 Qt candidate；剩餘 release gates 是簽章／最終授權檔案審查、Linux 數值效能證據與 destructive legacy removal 明確授權，因此尚未刪除 Avalonia rollback baseline。
-
-Visual Studio 開發時開啟 `PicLens.slnx`，solution platform 選 `x64`。
+可用 `--folder <path>` 直接開啟圖片資料夾；測試或診斷時可用 `PICLENS_DATA_ROOT` 隔離 profile。
 
 ## Release
 
-免安裝資料夾：
+```powershell
+# Windows portable
+pwsh -NoProfile -File scripts/build-portable.ps1
 
-```shell
-dotnet run Tasks.cs release
+# Windows MSI（.NET SDK 僅供 WiX Toolset）
+pwsh -NoProfile -File scripts/build-msi.ps1
 ```
 
-輸出：
-
-```text
-artifacts/qt-portable/PicLens-win-x64/PicLens.exe
-artifacts/qt-portable/PicLens-linux-x64/PicLens
+```bash
+# Linux portable
+bash scripts/build-linux-portable.sh
 ```
 
-這是 self-contained Qt runtime bundle，不是 single-file executable；散佈時請保留完整資料夾。暫時需要 Avalonia rollback artifact 時使用 `dotnet run Tasks.cs legacy-release`。
+DEB/RPM 使用 CPack，詳細命令見 [installer release](docs/installer-release.md)。Windows、Ubuntu 與 Fedora clean-runner gates 位於 `.github/workflows/release.yml`。
 
-安裝檔：
+## Status
 
-```shell
-dotnet run Tasks.cs installer
-```
-
-Package 版號讀取 repository root 的 `VERSION`；一般發版請先更新該檔。
-
-輸出：
-
-```text
-artifacts/installer/PicLens-win-x64.msi
-artifacts/installer/PicLens-1.2.0-ubuntu-amd64.deb
-artifacts/installer/PicLens-1.2.0-fedora-x86_64.rpm
-```
-
-Windows installer 使用 WiX Toolset 建置 Qt MSI；Linux installer 依 host 以 Qt CPack 產生 Debian/Ubuntu DEB 或 Fedora/RHEL RPM。Release 與 installer tasks 不會自動跑測試，打包前請先執行 `dotnet run Tasks.cs test`。
-
-## 文件
-
-- [產品規格](docs/product-spec.md)
-- [Architecture](docs/architecture.md)
-- [Runtime contract](docs/runtime-contract.md)
-- [Testing](docs/testing.md)
-- [Portable release](docs/portable-release.md)
-- [Installer release](docs/installer-release.md)
-- [Qt migration](docs/qt-migration.md)
+Production runtime 已完成 Qt cutover；舊 UI/runtime projects、tests、rollback commands 與 legacy packaging builders 已移除。MIT license、portable bundles、MSI/DEB/RPM lifecycle、profile-copy continuity 與 Windows 10,000-image performance gate 均已有驗證證據。

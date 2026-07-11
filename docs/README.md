@@ -1,23 +1,17 @@
-# PicLens 文件
+# PicLens documentation
 
-PicLens 是 Windows / 主流 Linux Avalonia / MVVM 圖片整理與檢視 app。
+PicLens 是 Windows / 主流 Linux 的 Qt 6、C++20、Qt Quick 圖片整理與檢視應用程式。
 
-## 文件
+- [Product specification](product-spec.md)：使用者功能與驗收準則。
+- [Architecture](architecture.md)：C++/QML layers、ownership 與依賴方向。
+- [Runtime contract](runtime-contract.md)：產品行為與資料契約。
+- [Testing](testing.md)：CMake/CTest、QML 與 release gates。
+- [Performance](performance.md)：大型 library 的量測方法與門檻。
+- [Portable release](portable-release.md)：Windows/Linux portable bundle。
+- [Installer release](installer-release.md)：Windows MSI、Debian DEB、Fedora RPM。
+- [Data continuity](data-migration.md)：舊 profile schema、settings/log/cache 與 package lifecycle preservation。
+- [Qt licensing](qt-licensing.md)：Qt 與第三方授權交付。
+- [Qt migration record](qt-migration.md)：cutover scope、證據與後續 release work。
+- [Parity audit](qt-parity-audit.md)：runtime contract owner 與 gate 結果。
 
-- [產品規格](product-spec.md) 定義不含使用框架與工程實作細節的產品行為、使用者流程與品質要求。
-- [Architecture](architecture.md) 說明 solution layout、責任邊界，以及目前的 Avalonia shell。
-- [Design system](../DESIGN.md) 記錄 PicLens 的視覺 token、字型與 UI 規則。
-- [Runtime contract](runtime-contract.md) 記錄 desktop runtime 必須保留的行為契約。
-- [Testing](testing.md) 列出驗證命令與目前的 test coverage。
-- [Portable release](portable-release.md) 說明如何建置免安裝輸出資料夾。
-- [Installer release](installer-release.md) 說明如何建置 Windows MSI 與目前已實作的 Fedora RPM 安裝檔；主流 Linux 支援不以 Fedora/RPM 作為最終完整範圍。
-- [Qt Quick PoC](../poc/qtquick/README.md) 說明用於遷移評估的獨立 Qt 6 / Qt Quick 圖片瀏覽器原型、建置方式與通過條件。
-- [Qt migration](qt-migration.md) 追蹤正式 Qt 6 production tree、功能切片 parity 與 legacy removal gates。
-- [Qt parity audit](qt-parity-audit.md) 從 legacy product surface 反向對照 Qt owner、tests 與剩餘 evidence。
-- [Qt redistribution inventory](qt-licensing.md) 記錄 Qt modules、dynamic linking、第三方 runtime/font notices 與 distribution blockers。
-- [Avalonia to Qt data continuity](data-migration.md) 定義 settings/log/cache 路徑、雙向 schema compatibility、rollback 與 installer preservation gates。
-- [Qt Release performance evidence](performance.md) 定義 machine-readable regression gate、10,000-image CI fixture 與目前本機量測結果。
-
-## 目前狀態
-
-主 `release` 命令目前產生 Qt migration candidate；`qt/` production tree 已具備 Qt Quick search/grid/list shell、native folder picker、typed library/folder-tree state、bounded thumbnails、selection/file operations、inline viewer、drag/drop rename 與 Windows installer lifecycle，MIT license、授權後 real-profile 副本 smoke，以及 Windows/Ubuntu/Fedora clean-runner release workflow 也已通過。Avalonia Core、Presentation、Infrastructure 與 UI tests 仍作為 rollback baseline，直到簽章／最終授權審查、Linux 數值效能證據與明確 destructive cutover approval 完成。
+Repo root 是可直接由 Qt Creator 開啟的 CMake project；production code 位於 `src/` 與 `qml/`，共用圖示與字型位於 `assets/`。舊 Avalonia/.NET runtime、tests、PoC 與 rollback packaging paths 已在取得明確授權後移除。

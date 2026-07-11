@@ -12,26 +12,25 @@ Use these sources in descending order when code and prose disagree:
 
 Do not infer new product behavior from framework defaults.
 
-## Coexistence layout
+## Final cutover layout
 
-During migration, keep a production Qt tree separate from both legacy .NET code and `poc/qtquick`:
+The repository root is the Qt/CMake project root:
 
 ```text
-qt/
-  CMakeLists.txt
-  src/core/
-  src/infrastructure/
-  src/presentation/
-  src/app/
-  qml/PicLens/
-  tests/
-poc/qtquick/                 performance and API experiment only
-PicLens/                     legacy Avalonia shell until cutover
-src/PicLens.*                legacy .NET layers until their parity gates pass
-tests/PicLens.*              legacy characterization tests until replacement
+CMakeLists.txt
+CMakePresets.json
+src/core/
+src/infrastructure/
+src/presentation/
+src/app/
+qml/PicLens/
+tests/
+scripts/
+packaging/
+assets/
 ```
 
-Keep root entry points and release scripts capable of distinguishing legacy and Qt builds while both exist. Collapse or rename the temporary `qt/` layout only during an explicit cutover change.
+Legacy Avalonia/.NET trees, the early PoC and rollback packaging entry points were removed after explicit authorization. Do not recreate a nested temporary `qt/` project root.
 
 ## Slice order
 
@@ -51,12 +50,12 @@ Prefer this dependency order, but take a smaller user-requested slice when it is
 
 | Existing area | Qt target | Removal gate |
 |---|---|---|
-| `PicLens.Core` | `qt/src/core` | Equivalent deterministic Qt tests pass |
-| `PicLens.Infrastructure` | `qt/src/infrastructure` | Filesystem side effects and diagnostics match on Windows/Linux |
-| `PicLens.Presentation` | `qt/src/presentation` | State transitions and 10,000-item behavior are covered |
-| AXAML and view code-behind | `qt/qml/PicLens` plus `qt/src/app` adapters | Qt UI tests and real smoke cover the runtime contract |
+| `PicLens.Core` | `src/core` | Equivalent deterministic Qt tests pass |
+| `PicLens.Infrastructure` | `src/infrastructure` | Filesystem side effects and diagnostics match on Windows/Linux |
+| `PicLens.Presentation` | `src/presentation` | State transitions and 10,000-item behavior are covered |
+| AXAML and view code-behind | `qml/PicLens` plus `src/app` adapters | Qt UI tests and real smoke cover the runtime contract |
 | Avalonia headless tests | Qt Test and Qt Quick Test | Applicable behaviors have replacements; platform-only gaps are documented |
-| `Tasks.cs` release paths | CMake install/deploy plus packaging tasks | Portable and installer outputs pass platform smoke |
+| `Tasks.cs` release paths | root CMake, `scripts/` and CPack | Portable and installer outputs pass platform smoke |
 
 ## Per-slice parity record
 

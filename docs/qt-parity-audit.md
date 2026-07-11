@@ -1,52 +1,19 @@
-# Avalonia to Qt runtime contract audit
+# Qt runtime contract audit
 
-這份 matrix 從目前 Avalonia product surface 反向列出 Qt owner；「Implemented」只表示 code 與
-本機適用測試存在，不取代 clean-platform 或人工 evidence。
+Final cutover audit for the production Qt runtime.
 
-## Application shell and library
-
-| Legacy contract | Qt owner | Evidence | Status |
-|---|---|---|---|
-| Native folder picker、startup restore、取消後 empty action | `Main.qml`、`AppController` | app tests、runtime smoke；`--folder` suppresses startup modal | Implemented |
-| Back/forward history、mouse side buttons、refresh | `LibraryController`、`HistoryMouseHandler.qml` | presentation tests、QML test、Windows pointer smoke | Windows complete |
-| Lazy folder tree、expand/load、keyboard Enter/Left/Right | `FolderTreeModel`、`FolderTreePane.qml` | folder-tree tests、QML compile/runtime | Implemented |
-| Sidebar collapse/expand | `AppController.sidebarOpen`、`Main.qml` | app state test、real qwindows visual smoke | Windows complete |
-| Direct/recursive scanning、folder-first natural sort | `FolderScanner`、core sorter、`LibraryController` | scanner/core/presentation tests | Implemented |
-| Four sort modes and persistence | `LibraryController`、`AppController` | presentation/app/persistence tests | Implemented |
-| Include-subfolders toggle and persistence | same owners | presentation/app/persistence tests | Implemented |
-| Search name/path、clear、no-results state | `LibraryController.searchQuery`、`Main.qml` | no-rescan/filter/visible-image presentation test、qwindows visual smoke | Windows complete |
-| Grid/list view and row metadata | `AppController.gridViewMode`、`LibraryPane.qml`、`GalleryTile.qml` | app state test、QML compile、qwindows visual smoke | Windows complete |
-| Thumbnail slider 120–240 step 20 and persistence | core settings rules、`ThumbnailCoordinator`、QML slider | core/app tests | Implemented |
-| Empty/loading/error/retry/status states | `LibraryPane.qml`、library status/error state | runtime/QML tests、failure presentation test | Implemented |
-
-## Interaction, viewer, and file operations
-
-| Legacy contract | Qt owner | Evidence | Status |
-|---|---|---|---|
-| Single/Ctrl/Shift/Space ordered image selection | `LibraryController`、`GalleryTile.qml` | presentation tests、Windows UI smoke | Windows complete |
-| Enter/double-click viewer; folder Enter navigation | `GalleryTile.qml`、`ViewerController` | controller tests、real renderer smoke | Windows complete |
-| Right-click and Shift+F10 context scope | `GalleryTile.qml`、`FileOperationController` | selection/controller tests、Windows context-menu smoke | Windows complete |
-| Reveal、rename、multi-trash、cancel | file-operation presentation/infrastructure owners | unit/controller tests、Windows Explorer/Recycle Bin smoke | Windows complete; Linux runtime pending |
-| Visible convert-to-JPG and same-basename cleanup | same owners | filesystem/controller tests | Implemented |
-| Internal multi-image drag/drop rename preview/confirm/autoscroll | planner、controller、`GalleryTile.qml`、`LibraryPane.qml` | core/controller/QML tests、Windows pointer smoke | Windows complete |
-| Inline viewer sequence、zoom/pan/reset、keyboard/wheel、animated feedback | `ViewerController`、`ViewerOverlay.qml` | core/controller/QML tests、Windows renderer screenshot | Windows complete |
-
-## Data, diagnostics, accessibility, and release
-
-| Contract | Qt owner/evidence | Status |
+| Product contract | Production owner | Gate result |
 |---|---|---|
-| Shared settings/log/cache paths and bidirectional JSON schema | infrastructure tests、legacy xUnit、packaged copied-profile smoke | Windows synthetic/profile lifecycle passed |
-| Bounded async logger、scanner/file-operation failure context | infrastructure/controller tests and file log | Implemented |
-| Accessible names/roles/actions for custom toolbar、gallery、tree; keyboard actions | QML `Accessible` metadata、QML test、QML cache compile、authorized UIA tree | Implemented and Windows UIA verified |
-| Windows portable/MSI deployment and upgrade identity | sanitized smoke、MSI DB audit、local 1.1.9→1.2.0 and hosted same-version lifecycle | Local and Windows 2025 hosted complete |
-| Reproducible Windows local cutover evidence | `run-windows-cutover-gate.ps1` emits tests/performance/artifact hashes to JSON | Implemented |
-| Ubuntu portable/DEB and Fedora 44 RPM | checked-in clean-runner build/lifecycle jobs | Ubuntu 24.04 and Fedora 44 passed |
-| Representative performance/memory | Windows Release 2,017-image evidence and CI 10,000-path gate | Windows local/MSVC hosted passed; Linux numeric pending |
+| Folder scan, recursive mode, format filtering and sort | Core + Infrastructure | Implemented; unit/integration gates pass |
+| Search, grid/list, selection and thumbnail sizing | Presentation + QML | Implemented; controller and Quick Test gates pass |
+| Lazy folder tree and navigation history | Presentation + QML | Implemented; model/controller gates pass |
+| Bounded thumbnail decode, cache and stale-request rejection | Infrastructure + Presentation | Implemented; concurrency/cache gates pass |
+| Rename, delete/trash, reveal and drag/drop | Infrastructure + Presentation + QML | Implemented; Windows and Linux adapter gates pass |
+| Inline viewer, zoom, pan and input parity | Core + Presentation + QML | Implemented; controller/QML/runtime gates pass |
+| Settings, logging and profile continuity | Infrastructure | Implemented; persistence and copied-profile gates pass |
+| Portable deployment | Qt scripts | Windows and Ubuntu clean-runner gates pass |
+| MSI / DEB / RPM lifecycle | WiX + CPack | Windows, Ubuntu and Fedora lifecycle gates pass |
+| Licensing | Root MIT + third-party notices | Payload audit passes |
+| Large-library performance | App diagnostics + performance script | Local representative and hosted Windows 10,000-image gates pass |
 
-## Remaining cutover evidence
-
-- Capture numeric Linux deployed-artifact performance and heterogeneous thumbnail interaction evidence.
-- Review the final redistribution inventory and sign public release artifacts.
-- Obtain explicit approval before deleting Avalonia/.NET projects and legacy packaging paths.
-
-Until those gates pass, this matrix must not be used to claim destructive cutover is complete.
+No production contract has a legacy runtime owner. Historical schema names remain only where tests protect existing user data compatibility.

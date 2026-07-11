@@ -38,7 +38,7 @@ PicLens intentionally supports the light theme only. Keep `RequestedThemeVariant
 ### Rules
 
 - Keep color functional: surfaces, text hierarchy, selection, and status only.
-- Add new colors as named Avalonia resources before using them in views.
+- Add new colors as named properties in `Theme.qml` before using them in views.
 
 ## 3. Typography
 
@@ -55,7 +55,7 @@ PicLens intentionally supports the light theme only. Keep `RequestedThemeVariant
 
 ### Font Stack
 
-- Primary: embedded `Noto Sans CJK TC` from `PicLens/Assets/Fonts`.
+- Primary: embedded `Noto Sans CJK TC` from `assets/Fonts`.
 - Mono: platform default monospace when needed.
 - Serif: not used.
 

@@ -61,7 +61,7 @@ zlib1.dll
 
 ## Fonts and notices
 
-- Embedded Noto Sans CJK TC 使用 SIL Open Font License；文字來源為 `PicLens/Assets/Fonts/NotoSansCJKtc-OFL.txt`。
+- Embedded Noto Sans CJK TC 使用 SIL Open Font License；文字來源為 `assets/Fonts/NotoSansCJKtc-OFL.txt`。
 - Windows artifact 包含 PicLens MIT `LICENSE.txt`、`THIRD_PARTY_NOTICES.txt`、Noto OFL，以及 Qt base/declarative license directories；MSYS2 builds 使用 distro license packages，official MSVC CI 同步取得對應 Qt source `LICENSES`。
 - Linux portable/Ubuntu DEB tree 包含 PicLens MIT license、PicLens notice、Noto OFL，以及 `qtbase`/`qtdeclarative` source `LICENSES`。Fedora RPM metadata 宣告 MIT，package 包含 PicLens MIT license/PicLens/Noto notices，Qt license texts 由 Fedora Qt packages 提供。
 - MSI database audit 會確認 notice、font license payload tree、Qt runtime 與 compiler runtime 沒有因 incremental build 遺失。

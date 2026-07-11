@@ -8,7 +8,7 @@ Windows：
 
 ```powershell
 cmake --build --preset release --target piclens
-pwsh -File qt/scripts/measure-performance.ps1 -FolderPath <representative-folder>
+pwsh -File scripts/measure-performance.ps1 -FolderPath <representative-folder>
 ```
 
 The script launches the real Qt Quick executable with isolated settings/cache, recursive scanning and offscreen rendering. The app writes JSON after the library model is applied and visible thumbnail requests have had a 1.5-second settle window. Current conservative thresholds are:

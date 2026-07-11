@@ -54,9 +54,6 @@ _ReSharper*/
 Generated\ Files/
 *_wpftmp.csproj
 
-# Qt / CMake PoCs
-poc/qtquick/build/
-
 # Production Qt build outputs and local presets
-qt/build/
-qt/CMakeUserPresets.json
+build/
+CMakeUserPresets.json
