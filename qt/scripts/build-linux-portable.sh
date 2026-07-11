@@ -71,6 +71,7 @@ env -i \
     HOME="$smoke_root/home" \
     PATH="/usr/bin:/bin" \
     DISPLAY="${DISPLAY:-}" \
+    XAUTHORITY="${XAUTHORITY:-}" \
     QT_QPA_PLATFORM="$platform_plugin" \
     XDG_RUNTIME_DIR="$smoke_root/runtime" \
     "$executable" \

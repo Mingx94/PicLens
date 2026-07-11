@@ -93,7 +93,8 @@ jobs:
       - name: Install desktop smoke dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes ninja-build xvfb dbus-x11 xdg-utils libglib2.0-bin pcmanfm
+          sudo apt-get install --yes \
+            ninja-build xvfb dbus-x11 xdg-utils libglib2.0-bin pcmanfm libxcb-cursor0
       - name: Install Qt
         uses: jurplel/install-qt-action@v4.3.1
         with:
