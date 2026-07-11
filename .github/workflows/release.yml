@@ -161,16 +161,11 @@ jobs:
       - name: Exercise gio trash and xdg-open adapters
         run: xvfb-run -a dbus-run-session -- build/release/bin/piclens_platform_file_manager_smoke
       - name: Build Debian candidate
-        run: |
-          cmake -S . -B build/release -DPICLENS_SYSTEM_PACKAGE=ON
-          cpack -G DEB --config build/release/CPackConfig.cmake -B build/release
-          mkdir -p artifacts/installer
-          cp build/release/*.deb artifacts/installer/
-          dpkg-deb --fsys-tarfile artifacts/installer/*.deb | tar -tf - | grep -Fx './opt/piclens/bin/PicLens'
+        run: bash scripts/build-deb.sh
       - name: Install, launch, and remove Debian package
         run: >-
           xvfb-run -a bash scripts/test-linux-package-lifecycle.sh
-          --deb build/release/*.deb
+          --deb artifacts/installer/*.deb
           --expected-executable artifacts/qt-portable/PicLens-linux-x64/bin/PicLens
       - name: Upload Linux portable candidate
         uses: actions/upload-artifact@v4
@@ -196,30 +191,19 @@ jobs:
         with:
           ref: ${{ inputs.release_tag || github.sha }}
       - name: Configure, build, and test against Fedora system Qt
-        run: |
-          cmake -S . -B build/fedora -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DPICLENS_SYSTEM_PACKAGE=ON \
-            -DPICLENS_USE_SYSTEM_QT=ON
-          cmake --build build/fedora
-          ctest --test-dir build/fedora --output-on-failure
-      - name: Build and inspect RPM
-        working-directory: build/fedora
-        run: |
-          cpack -G RPM
-          rpm --query --package --requires ./*.rpm
-          rpm --query --package --list ./*.rpm
-          rpm --query --package --list ./*.rpm | grep -Fx '/opt/piclens/bin/PicLens'
+        run: bash scripts/build-rpm.sh
+      - name: Inspect RPM dependencies
+        run: rpm --query --package --requires artifacts/installer/*.rpm
       - name: Install, launch, and remove RPM
         run: >-
           bash scripts/test-linux-package-lifecycle.sh
-          --rpm build/fedora/*.rpm
+          --rpm artifacts/installer/*.rpm
       - name: Upload Fedora RPM candidate
         uses: actions/upload-artifact@v4
         with:
           name: PicLens-Qt-Fedora-44
           if-no-files-found: error
-          path: build/fedora/*.rpm
+          path: artifacts/installer/*.rpm
 
   publish-release:
     name: Publish GitHub Release assets

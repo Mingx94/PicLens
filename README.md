@@ -57,12 +57,19 @@ pwsh -NoProfile -File scripts/build-portable.ps1
 pwsh -NoProfile -File scripts/build-msi.ps1
 ```
 
+Linux installers：
+
+```bash
+bash scripts/build-deb.sh
+bash scripts/build-rpm.sh
+```
+
 ```bash
 # Linux portable
 bash scripts/build-linux-portable.sh
 ```
 
-DEB/RPM 使用 CPack，詳細命令見 [installer release](docs/installer-release.md)。Windows、Ubuntu 與 Fedora clean-runner gates 位於 `.github/workflows/release.yml`。
+DEB/RPM 使用 CPack，詳細命令與選項見 [installer release](docs/installer-release.md)。Windows、Ubuntu 與 Fedora clean-runner gates 位於 `.github/workflows/release.yml`。
 
 ## Status
 

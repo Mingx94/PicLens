@@ -24,22 +24,29 @@ The script logs and times three independent stages: Qt portable payload, WiX bui
 ## Debian / Ubuntu DEB
 
 ```bash
-cmake -S . -B build/release -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release -DPICLENS_SYSTEM_PACKAGE=ON
-cmake --build build/release
-cpack -G DEB --config build/release/CPackConfig.cmake -B build/release
+bash scripts/build-deb.sh
 ```
+
+Output: `artifacts/installer/piclens_<version>_<architecture>.deb`.
 
 ## Fedora / RHEL RPM
 
 ```bash
-cmake -S . -B build/fedora -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DPICLENS_SYSTEM_PACKAGE=ON \
-  -DPICLENS_USE_SYSTEM_QT=ON
-cmake --build build/fedora
-cd build/fedora && cpack -G RPM
+bash scripts/build-rpm.sh
 ```
+
+Output: `artifacts/installer/piclens-<version>-<release>.<architecture>.rpm`.
+
+Both Linux builders configure a Release build, compile it, run CTest, generate the package, verify its version and installed executable path, copy it into `artifacts/installer`, and print its SHA-256. Common options:
+
+```bash
+bash scripts/build-deb.sh --dry-run
+bash scripts/build-deb.sh --no-test
+bash scripts/build-rpm.sh --no-build
+bash scripts/build-rpm.sh --build-dir /tmp/piclens-build --output-dir /tmp/piclens-artifacts
+```
+
+`--no-build` requires an already configured and built directory. DEB packages bundle the deployed Qt runtime; RPM packages use Fedora/RHEL system Qt dependencies.
 
 DEB/RPM are generated from the Qt CMake install graph. The old standalone Fedora builder and rollback package path have been removed. Signing remains a release-operations responsibility and requires the appropriate certificate/key outside this repository.
 
