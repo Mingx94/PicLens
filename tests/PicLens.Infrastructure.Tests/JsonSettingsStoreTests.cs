@@ -165,6 +165,31 @@ public sealed class JsonSettingsStoreTests
         Assert.False(loaded.IncludeSubfolders);
     }
 
+    [Fact]
+    public async Task LoadAsync_reads_Qt_settings_schema_without_migration()
+    {
+        using var temp = TempWorkspace.Create();
+        var settingsPath = Path.Combine(temp.Root, "settings.json");
+        await File.WriteAllTextAsync(
+            settingsPath,
+            """
+            {
+              "sort": { "key": 1, "direction": 1 },
+              "includeSubfolders": true,
+              "thumbnailSize": 240,
+              "lastFolderPath": "C:\\Images"
+            }
+            """, TestContext.Current.CancellationToken);
+
+        var loaded = await new JsonSettingsStore(settingsPath)
+            .LoadAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(@"C:\Images", loaded.LastFolderPath);
+        Assert.Equal(new SortState(SortKey.ModifiedAt, SortDirection.Desc), loaded.Sort);
+        Assert.True(loaded.IncludeSubfolders);
+        Assert.Equal(240, loaded.ThumbnailSize);
+    }
+
     private static async Task AssertUpdateSkippedAsync(JsonSettingsStore store, string root)
     {
         var exception = await Assert.ThrowsAsync<IOException>(() => store.UpdateAsync(new AppSettingsPatch

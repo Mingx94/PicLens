@@ -1,0 +1,62 @@
+#pragma once
+
+#include <QString>
+#include <QFileInfo>
+
+#include <atomic>
+#include <mutex>
+#include <optional>
+#include <stop_token>
+
+namespace piclens::infrastructure {
+
+enum class ThumbnailStatus {
+    Ready,
+    Unsupported,
+    SourceMissing,
+    Animated,
+    Canceled,
+    Failed,
+};
+
+struct ThumbnailResult {
+    ThumbnailStatus status = ThumbnailStatus::Failed;
+    std::optional<QString> cachePath;
+    std::optional<QString> message;
+    bool cacheHit = false;
+};
+
+class ThumbnailService final
+{
+public:
+    static constexpr qint64 DefaultMaxCacheBytes = 512LL * 1024LL * 1024LL;
+
+    ThumbnailService();
+    explicit ThumbnailService(
+        QString cacheRoot,
+        qint64 maxCacheBytes = DefaultMaxCacheBytes);
+
+    [[nodiscard]] const QString &cacheRoot() const;
+    [[nodiscard]] ThumbnailResult getOrCreate(
+        const QString &imagePath,
+        int requestedSize,
+        std::stop_token stopToken = {});
+
+private:
+    [[nodiscard]] QString cachePathFor(const QFileInfo &source, int requestedSize) const;
+    [[nodiscard]] ThumbnailResult createThumbnail(
+        const QFileInfo &source,
+        const QString &cachePath,
+        int requestedSize,
+        std::stop_token stopToken);
+    void triggerPrune(const QString &pathToKeep);
+    void pruneCache(const QString &pathToKeep);
+
+    QString m_cacheRoot;
+    qint64 m_maxCacheBytes;
+    std::atomic_int m_generatedSinceLastPrune = 0;
+    std::atomic_bool m_pruning = false;
+    std::mutex m_pruneMutex;
+};
+
+} // namespace piclens::infrastructure

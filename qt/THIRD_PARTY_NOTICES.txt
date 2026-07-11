@@ -1,0 +1,21 @@
+PicLens Qt portable distribution - third-party notices
+
+Qt 6
+----
+This distribution contains dynamically linked Qt 6 libraries and plugins.
+Qt is available under commercial and open-source license options. The license
+texts supplied by the Qt packages used to build this artifact are included in
+one of these toolchain-specific layouts:
+
+  licenses/qt6-base/
+  licenses/qt6-declarative/
+  licenses/Qt/
+  share/licenses/Qt/
+  share/licenses/PicLens/
+
+The Qt libraries remain separate dynamically linked files beside PicLens.exe.
+
+Noto Sans CJK TC
+----------------
+PicLens embeds Noto Sans CJK TC font files. Their SIL Open Font License text is
+included as licenses/NotoSansCJKtc-OFL.txt.

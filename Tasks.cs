@@ -18,6 +18,7 @@ try
     {
         "test" => Test(root, rest),
         "release" => Release(root, rest),
+        "legacy-release" => LegacyRelease(root, rest),
         "installer" => Installer(root, rest),
         "ui-test" => UiTest(root, rest),
         _ => Fail($"Unknown command: {args[0]}")
@@ -104,10 +105,91 @@ static int Release(string root, string[] args)
                   dotnet run Tasks.cs -- release [options]
 
                 Options:
+                  --configuration Release
+                  --runtime win-x64|linux-x64
+                  --platform x64
+
+                Builds the primary Qt portable release. Use legacy-release only
+                for temporary Avalonia coexistence verification.
+                """);
+                return 0;
+            case "--configuration":
+                configuration = ReadValue(args, ref i, args[i]);
+                break;
+            case "--runtime":
+                runtime = ReadValue(args, ref i, args[i]);
+                break;
+            case "--platform":
+                platform = ReadValue(args, ref i, args[i]);
+                break;
+            case "--no-clean":
+                noClean = true;
+                break;
+            default:
+                throw new ArgumentException($"Unknown option: {args[i]}");
+        }
+    }
+
+    if (!configuration.Equals("Release", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new ArgumentException("The primary Qt release command only accepts --configuration Release.");
+    }
+    if (noClean)
+    {
+        throw new ArgumentException("The primary Qt release is always clean; --no-clean is not supported.");
+    }
+
+    if (OperatingSystem.IsWindows())
+    {
+        if (runtime != "win-x64" || !platform.Equals("x64", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new PlatformNotSupportedException("Qt Windows release currently supports win-x64 / x64.");
+        }
+        var script = RequiredFile(root, "qt", "scripts", "build-portable.ps1");
+        RunOrThrow("pwsh", ["-NoProfile", "-File", script], root);
+        return 0;
+    }
+
+    if (OperatingSystem.IsLinux())
+    {
+        if (runtime != "linux-x64" || !platform.Equals("x64", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new PlatformNotSupportedException("Qt Linux release currently supports linux-x64 / x64.");
+        }
+        var script = RequiredFile(root, "qt", "scripts", "build-linux-portable.sh");
+        RunOrThrow("bash", [script], root);
+        return 0;
+    }
+
+    throw new PlatformNotSupportedException("Qt portable release supports Windows x64 and Linux x64 hosts.");
+}
+
+static int LegacyRelease(string root, string[] args)
+{
+    var target = DefaultReleaseTarget();
+    var configuration = "Release";
+    var runtime = target.RuntimeIdentifier;
+    var platform = target.Platform;
+    var noClean = false;
+
+    for (var i = 0; i < args.Length; i++)
+    {
+        switch (args[i])
+        {
+            case "-h":
+            case "--help":
+                Console.WriteLine("""
+                Usage:
+                  dotnet run Tasks.cs -- legacy-release [options]
+
+                Options:
                   --configuration Debug|Release
                   --runtime win-x64|win-arm64|win-x86|linux-x64
                   --platform x64|ARM64|x86
                   --no-clean
+
+                Builds the temporary Avalonia portable release for coexistence
+                and rollback verification.
                 """);
                 return 0;
             case "--configuration":
@@ -232,11 +314,11 @@ static int BuildWindowsInstaller(string root, InstallerOptions options)
         throw new ArgumentException($"Installer version must be three or four dot-separated numbers: {options.Version}");
     }
 
-    var tasks = RequiredFile(root, "Tasks.cs");
     var installerProject = RequiredFile(root, "installer", "PicLens.wixproj");
+    var portableScript = RequiredFile(root, "qt", "scripts", "build-portable.ps1");
+    var auditScript = RequiredFile(root, "qt", "scripts", "audit-msi.ps1");
     var runtime = "win-x64";
-    var platform = "x64";
-    var portableDir = SafePath(root, "artifacts", "portable", $"PicLens-{runtime}");
+    var portableDir = SafePath(root, "artifacts", "qt-portable", $"PicLens-{runtime}");
     var installerRoot = SafePath(root, "artifacts", "installer");
     var outputName = $"PicLens-{runtime}";
     var msiPath = SafePath(root, "artifacts", "installer", $"{outputName}.msi");
@@ -246,34 +328,47 @@ static int BuildWindowsInstaller(string root, InstallerOptions options)
 
     var releaseArgs = new List<string>
     {
-        "run", "--file", tasks, "--",
-        "release",
-        "--configuration", "Release",
-        "--runtime", runtime,
-        "--platform", platform
+        "-NoProfile",
+        "-File", portableScript
     };
-    if (options.NoClean) releaseArgs.Add("--no-clean");
 
     var wixArgs = new List<string>
     {
         "build",
         installerProject,
+        "--no-incremental",
         "--configuration", "Release",
         $"/p:AppVersion={options.Version}",
         $"/p:PayloadDir={portableDir}",
+        "/p:SuppressValidation=true",
         $"/p:OutputPath={installerRoot}{Path.DirectorySeparatorChar}",
         $"/p:OutputName={outputName}"
+    };
+    var auditArgs = new List<string>
+    {
+        "-NoProfile",
+        "-File", auditScript,
+        "-MsiPath", msiPath,
+        "-PayloadDirectory", portableDir,
+        "-ExpectedVersion", options.Version
     };
 
     if (options.DryRun)
     {
-        PrintCommand("dotnet", releaseArgs);
+        if (!options.NoRelease)
+        {
+            PrintCommand("pwsh", releaseArgs);
+        }
         PrintCommand("dotnet", wixArgs);
+        PrintCommand("pwsh", auditArgs);
         return 0;
     }
 
-    Console.WriteLine("==> Building portable release");
-    RunOrThrow("dotnet", releaseArgs, root);
+    if (!options.NoRelease)
+    {
+        Console.WriteLine("==> Building Qt portable release");
+        RunOrThrow("pwsh", releaseArgs, root);
+    }
 
     if (!File.Exists(Path.Combine(portableDir, "PicLens.exe")))
     {
@@ -295,6 +390,9 @@ static int BuildWindowsInstaller(string root, InstallerOptions options)
     {
         throw new InvalidOperationException($"Installer build completed but MSI file was not found: {msiPath}");
     }
+
+    Console.WriteLine("==> Auditing MSI database and Qt payload");
+    RunOrThrow("pwsh", auditArgs, root);
 
     Console.WriteLine();
     Console.WriteLine("Installer output ready:");
@@ -333,7 +431,7 @@ static int BuildFedoraInstaller(string root, InstallerOptions options)
     var releaseArgs = new List<string>
     {
         "run", "--file", tasks, "--",
-        "release",
+        "legacy-release",
         "--configuration", "Release",
         "--runtime", runtime,
         "--platform", platform
@@ -691,7 +789,8 @@ static void PrintUsage()
 
     Commands:
       test       Restore and run Core, Infrastructure, and ViewModel tests
-      release    Publish the portable release folder
+      release    Build the primary Qt portable release folder
+      legacy-release  Publish the temporary Avalonia portable folder
       installer  Build the platform installer
       ui-test    Run Avalonia Headless UI smoke tests
     """);
@@ -734,8 +833,8 @@ sealed record InstallerOptions
 
         Options:
           --version VERSION             Override package version from VERSION
-          --no-clean                    Keep existing portable output where possible
-          --no-release                  Reuse existing portable output for RPM builds
+          --no-clean                    Keep existing legacy Linux portable output where possible
+          --no-release                  Reuse an existing portable output
           --runtime-requires PACKAGE    RPM runtime dependency. Default: dotnet-runtime-10.0
           --dry-run                     Print commands without running them
         """);

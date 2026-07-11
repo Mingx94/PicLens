@@ -1,0 +1,157 @@
+name: Qt migration gates
+
+on:
+  push:
+    paths:
+      - "qt/**"
+      - "installer/**"
+      - "Tasks.cs"
+      - "VERSION"
+      - ".github/workflows/qt-migration.yml"
+  pull_request:
+    paths:
+      - "qt/**"
+      - "installer/**"
+      - "Tasks.cs"
+      - "VERSION"
+      - ".github/workflows/qt-migration.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-release:
+    name: Windows build, portable, and MSI
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4.3.1
+        with:
+          version: "6.8.3"
+          arch: win64_msvc2022_64
+          cache: true
+      - name: Configure and test Release
+        shell: pwsh
+        working-directory: qt
+        run: |
+          cmake --preset release
+          cmake --build --preset release
+          ctest --preset release --output-on-failure
+      - name: Measure 10,000-image Release fixture
+        shell: pwsh
+        run: |
+          $fixture = Join-Path $env:RUNNER_TEMP "piclens-10000"
+          New-Item -ItemType Directory -Path $fixture -Force | Out-Null
+          $source = Resolve-Path "PicLens/Assets/Square150x150Logo.scale-200.png"
+          1..10000 | ForEach-Object {
+            New-Item -ItemType HardLink -Path (Join-Path $fixture ("image-{0:D5}.png" -f $_)) -Target $source | Out-Null
+          }
+          pwsh -NoProfile -File qt/scripts/measure-performance.ps1 -FolderPath $fixture
+      - name: Build sanitized portable bundle
+        shell: pwsh
+        run: pwsh -NoProfile -File qt/scripts/build-portable.ps1
+      - name: Build and audit MSI
+        shell: pwsh
+        run: dotnet run Tasks.cs installer --no-release
+      - name: Prepare same-version migration replacement fixture
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path artifacts/installer-lifecycle -Force | Out-Null
+          Copy-Item artifacts/installer/PicLens-win-x64.msi artifacts/installer-lifecycle/PicLens-previous-build.msi
+          dotnet run Tasks.cs installer --no-release
+      - name: Install, upgrade, launch, and uninstall MSI
+        shell: pwsh
+        run: >-
+          pwsh -NoProfile -File qt/scripts/test-msi-lifecycle.ps1
+          -PreviousMsiPath artifacts/installer-lifecycle/PicLens-previous-build.msi
+          -ConfirmSystemChanges
+      - name: Upload Windows release candidates
+        uses: actions/upload-artifact@v4
+        with:
+          name: PicLens-Qt-Windows
+          if-no-files-found: error
+          path: |
+            artifacts/qt-portable/PicLens-win-x64/**
+            artifacts/installer/PicLens-win-x64.msi
+            artifacts/performance/windows-release.json
+
+  linux-release:
+    name: Linux build, desktop adapters, and portable
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install desktop smoke dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ninja-build xvfb dbus-x11 xdg-utils libglib2.0-bin pcmanfm
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4.3.1
+        with:
+          version: "6.8.3"
+          cache: true
+      - name: Build, test, deploy, and run sanitized smoke
+        run: bash qt/scripts/build-linux-portable.sh
+      - name: Exercise gio trash and xdg-open adapters
+        run: xvfb-run -a dbus-run-session -- qt/build/release/bin/piclens_platform_file_manager_smoke
+      - name: Build Debian candidate
+        working-directory: qt/build/release
+        run: |
+          cmake -S ../.. -B . -DPICLENS_SYSTEM_PACKAGE=ON
+          cpack -G DEB
+          mkdir -p ../../../artifacts/installer
+          cp -- *.deb ../../../artifacts/installer/
+          dpkg-deb --contents ./*.deb
+      - name: Install, launch, and remove Debian package
+        run: >-
+          bash qt/scripts/test-linux-package-lifecycle.sh
+          --deb qt/build/release/*.deb
+          --expected-executable artifacts/qt-portable/PicLens-linux-x64/bin/PicLens
+      - name: Upload Linux portable candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: PicLens-Qt-Linux
+          if-no-files-found: error
+          path: |
+            artifacts/qt-portable/PicLens-linux-x64/**
+            artifacts/installer/*.deb
+
+  fedora-release:
+    name: Fedora RPM build and lifecycle
+    runs-on: ubuntu-24.04
+    container: fedora:44
+    timeout-minutes: 45
+    steps:
+      - name: Install Fedora Qt and build dependencies
+        run: >-
+          dnf install --assumeyes
+          git gcc-c++ cmake ninja-build rpm-build
+          qt6-qtbase-devel qt6-qtdeclarative-devel
+      - uses: actions/checkout@v4
+      - name: Configure, build, and test against Fedora system Qt
+        run: |
+          cmake -S qt -B qt/build/fedora -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPICLENS_SYSTEM_PACKAGE=ON \
+            -DPICLENS_USE_SYSTEM_QT=ON
+          cmake --build qt/build/fedora
+          ctest --test-dir qt/build/fedora --output-on-failure
+      - name: Build and inspect RPM
+        working-directory: qt/build/fedora
+        run: |
+          cpack -G RPM
+          rpm --query --package --requires ./*.rpm
+          rpm --query --package --list ./*.rpm
+      - name: Install, launch, and remove RPM
+        run: >-
+          bash qt/scripts/test-linux-package-lifecycle.sh
+          --rpm qt/build/fedora/*.rpm
+      - name: Upload Fedora RPM candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: PicLens-Qt-Fedora-44
+          if-no-files-found: error
+          path: qt/build/fedora/*.rpm

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=PicLens
+Comment=圖片整理與檢視器
+Exec=/opt/piclens/bin/PicLens
+Icon=piclens
+Terminal=false
+Categories=Graphics;Viewer;
