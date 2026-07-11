@@ -53,7 +53,7 @@ jobs:
           New-Item -ItemType Directory -Path $fixture -Force | Out-Null
           $source = Resolve-Path "PicLens/Assets/Square150x150Logo.scale-200.png"
           1..10000 | ForEach-Object {
-            New-Item -ItemType HardLink -Path (Join-Path $fixture ("image-{0:D5}.png" -f $_)) -Target $source | Out-Null
+            Copy-Item -LiteralPath $source -Destination (Join-Path $fixture ("image-{0:D5}.png" -f $_))
           }
           pwsh -NoProfile -File qt/scripts/measure-performance.ps1 -FolderPath $fixture
       - name: Build sanitized portable bundle
