@@ -1,4 +1,0 @@
-interface:
-  display_name: "PicLens Qt Migration"
-  short_description: "Migrate PicLens feature slices from Avalonia to Qt 6"
-  default_prompt: "Use $piclens-qt-migration to migrate the next PicLens feature slice to Qt 6 while preserving behavior."
