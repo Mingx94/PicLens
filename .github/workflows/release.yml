@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*"
     paths:
       - "CMakeLists.txt"
       - "CMakePresets.json"
@@ -34,6 +36,11 @@ on:
       - "VERSION"
       - ".github/workflows/release.yml"
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing v-prefixed tag to rebuild and attach to its GitHub Release.
+        required: false
+        type: string
 
 concurrency:
   group: qt-release-${{ github.event.pull_request.number || github.ref }}
@@ -49,6 +56,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.sha }}
       - name: Configure MSVC environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -133,6 +142,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.sha }}
       - name: Install desktop smoke dependencies
         run: |
           sudo apt-get update
@@ -182,6 +193,8 @@ jobs:
           git gcc-c++ cmake ninja-build rpm-build
           qt6-qtbase-devel qt6-qtdeclarative-devel
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.sha }}
       - name: Configure, build, and test against Fedora system Qt
         run: |
           cmake -S . -B build/fedora -G Ninja \
@@ -207,3 +220,56 @@ jobs:
           name: PicLens-Qt-Fedora-44
           if-no-files-found: error
           path: build/fedora/*.rpm
+
+  publish-release:
+    name: Publish GitHub Release assets
+    needs:
+      - windows-release
+      - linux-release
+      - fedora-release
+    if: >-
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.sha }}
+      - name: Verify the release tag matches VERSION
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          version="$(tr -d '\r\n' < VERSION)"
+          test "$RELEASE_TAG" = "v$version"
+      - name: Download release candidates
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+      - name: Package release downloads and checksums
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets/publish
+          (
+            cd release-assets/PicLens-Qt-Windows/qt-portable
+            zip -qr ../../publish/PicLens-win-x64-portable.zip PicLens-win-x64
+          )
+          tar -C release-assets/PicLens-Qt-Linux/qt-portable \
+            -czf release-assets/publish/PicLens-linux-x64-portable.tar.gz \
+            PicLens-linux-x64
+          cp release-assets/PicLens-Qt-Windows/installer/PicLens-win-x64.msi \
+            release-assets/publish/
+          cp release-assets/PicLens-Qt-Linux/installer/*.deb release-assets/publish/
+          cp release-assets/PicLens-Qt-Fedora-44/*.rpm release-assets/publish/
+          (
+            cd release-assets/publish
+            sha256sum * > SHA256SUMS.txt
+          )
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          generate_release_notes: true
+          files: release-assets/publish/*
