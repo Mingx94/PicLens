@@ -69,11 +69,19 @@ jobs:
           Copy-Item artifacts/installer/PicLens-win-x64.msi artifacts/installer-lifecycle/PicLens-previous-build.msi
           dotnet run Tasks.cs installer --no-release
       - name: Install, upgrade, launch, and uninstall MSI
+        timeout-minutes: 25
         shell: pwsh
         run: >-
           pwsh -NoProfile -File qt/scripts/test-msi-lifecycle.ps1
           -PreviousMsiPath artifacts/installer-lifecycle/PicLens-previous-build.msi
           -ConfirmSystemChanges
+      - name: Upload Windows lifecycle diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PicLens-Windows-lifecycle-diagnostics
+          if-no-files-found: warn
+          path: artifacts/installer-lifecycle/**
       - name: Upload Windows release candidates
         uses: actions/upload-artifact@v4
         with:

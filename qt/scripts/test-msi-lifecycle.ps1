@@ -64,7 +64,24 @@ if ($existingProducts.Count -gt 0 -and -not $AllowReplacingExistingInstallation)
     throw "Existing PicLens installation detected. Lifecycle test refused to replace: $($descriptions -join ', '). Use -AllowReplacingExistingInstallation only with explicit approval."
 }
 
-function Invoke-Msi([string]$Mode, [string]$PackagePath, [string]$LogName, [switch]$Cleanup) {
+function Write-MsiLogTail([string]$LogPath) {
+    if (-not (Test-Path -LiteralPath $LogPath -PathType Leaf)) {
+        Write-Host "MSI log was not created: $LogPath"
+        return
+    }
+    Write-Host "--- MSI log tail: $LogPath ---"
+    Get-Content -LiteralPath $LogPath -Tail 80 -ErrorAction SilentlyContinue |
+        ForEach-Object { Write-Host $_ }
+    Write-Host "--- end MSI log tail ---"
+}
+
+function Invoke-Msi(
+    [string]$Mode,
+    [string]$PackagePath,
+    [string]$LogName,
+    [switch]$Cleanup,
+    [int]$TimeoutSeconds = 600
+) {
     $logPath = Join-Path $artifactRoot $LogName
     $arguments = @(
         "/$Mode",
@@ -74,10 +91,33 @@ function Invoke-Msi([string]$Mode, [string]$PackagePath, [string]$LogName, [swit
         "/l*v",
         ('"{0}"' -f $logPath)
     )
+    $startedAt = Get-Date
+    Write-Host "==> [$($startedAt.ToString('o'))] msiexec /$Mode start: $PackagePath"
+    Write-Host "    Log: $logPath"
     $process = Start-Process -FilePath "msiexec.exe" -ArgumentList $arguments `
-        -Wait -PassThru -WindowStyle Hidden
+        -PassThru -WindowStyle Hidden
+    Write-Host "    PID: $($process.Id); timeout: $TimeoutSeconds seconds"
+    $stopwatch = [Diagnostics.Stopwatch]::StartNew()
+    $nextHeartbeatSeconds = 15
+    while (-not $process.WaitForExit(1000)) {
+        if ($stopwatch.Elapsed.TotalSeconds -ge $nextHeartbeatSeconds) {
+            Write-Host "    msiexec /$Mode PID $($process.Id) still running; elapsed $([Math]::Round($stopwatch.Elapsed.TotalSeconds)) seconds"
+            $nextHeartbeatSeconds += 15
+        }
+        if ($stopwatch.Elapsed.TotalSeconds -ge $TimeoutSeconds) {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            $process.WaitForExit(10000) | Out-Null
+            $stopwatch.Stop()
+            Write-MsiLogTail $logPath
+            throw "msiexec /$Mode timed out after $TimeoutSeconds seconds. Log: $logPath"
+        }
+    }
+    $process.WaitForExit()
+    $stopwatch.Stop()
+    Write-Host "<== [$((Get-Date).ToString('o'))] msiexec /$Mode exit $($process.ExitCode); elapsed $([Math]::Round($stopwatch.Elapsed.TotalSeconds, 1)) seconds"
     $accepted = if ($Cleanup) { @(0, 1605, 1614, 3010) } else { @(0, 3010) }
     if ($process.ExitCode -notin $accepted) {
+        Write-MsiLogTail $logPath
         throw "msiexec /$Mode failed with exit code $($process.ExitCode). Log: $logPath"
     }
 }
@@ -86,6 +126,7 @@ function Invoke-InstalledSmoke([string]$Label) {
     if (-not (Test-Path -LiteralPath $installedExecutable -PathType Leaf)) {
         throw "$Label executable was not installed: $installedExecutable"
     }
+    Write-Host "==> [$((Get-Date).ToString('o'))] $Label packaged launch start"
     $processInfo = [Diagnostics.ProcessStartInfo]::new()
     $processInfo.FileName = $installedExecutable
     $processInfo.Arguments = '--smoke-ms 1500 --data-root "{0}" --folder "{1}"' -f `
@@ -101,6 +142,7 @@ function Invoke-InstalledSmoke([string]$Label) {
     if ($process.ExitCode -ne 0) {
         throw "$Label installed-app smoke failed with exit code $($process.ExitCode)"
     }
+    Write-Host "<== [$((Get-Date).ToString('o'))] $Label packaged launch passed"
 }
 
 function Get-ProfileManifest {
