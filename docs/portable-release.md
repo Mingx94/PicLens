@@ -24,7 +24,7 @@ artifacts/qt-portable/PicLens-win-x64/
 
 Script 會呼叫與目前 Qt toolchain 同一套的 `windeployqt`，部署 Qt DLL、Qt Quick imports、platform/image plugins、MinGW runtime，再以 PE dependency closure 補齊 MSYS2 共用的 ICU、HarfBuzz、compression 等 runtime DLL；同時加入 relative `qt.conf`、PicLens MIT、Qt 與 Noto font license texts。最後會把 PATH 收斂到 Windows system directories，從完成的資料夾執行 isolated `qoffscreen` process並驗證真實 exit code。整個 `PicLens-win-x64` 資料夾才是可散佈單位；不可只複製 `PicLens.exe`。
 
-Windows MSI candidate、本機 lifecycle 與 Windows 2025 hosted same-version install/upgrade/launch/uninstall 已通過。MSVC portable evidence 為 1,407 files / 169,910,166 bytes，`PicLens.exe` SHA-256 `8DBB2B8DF82F6B174CD5425E373526A0C750A957CF9AC6144F3EEAE12FA5C9E0`；公開 release 前仍需簽章與最終 redistribution review。
+Windows MSI candidate、本機 lifecycle 與 Windows 2025 hosted same-version install/upgrade/launch/uninstall 已通過。MSVC portable evidence 為 1,407 files / 169,910,166 bytes，`PicLens.exe` SHA-256 `7BEAE53986FA665FA8CFAF66262B403879A4E159B852234AD383DA4B140F8601`；公開 release 前仍需簽章與最終 redistribution review。
 
 Linux Qt portable 由 Linux host 執行：
 

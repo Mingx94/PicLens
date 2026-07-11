@@ -36,14 +36,14 @@ Raw output is generated at `artifacts/performance/windows-release.json` and inte
 
 ## Hosted Windows evidence
 
-2026-07-11 Windows 2025 / Qt 6.8.3 MSVC run 29146770536：
+2026-07-11 Windows 2025 / Qt 6.8.3 MSVC run 29147384340：
 
 | Metric | Result |
 |---|---:|
 | Dataset | 10,000 copied valid PNG paths |
-| Elapsed through settle window | 2,024 ms |
-| Working set | 223,281,152 bytes |
-| Peak working set | 223,281,152 bytes |
+| Elapsed through settle window | 1,899 ms |
+| Working set | 226,701,312 bytes |
+| Peak working set | 226,701,312 bytes |
 
 The same run built the 1,407-file MSVC portable bundle and passed MSI install/upgrade/launch/uninstall. Both local and hosted Windows results remain below the 5,000 ms / 512 MiB thresholds.
 
