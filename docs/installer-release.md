@@ -27,7 +27,7 @@ The script logs and times three independent stages: Qt portable payload, WiX bui
 cmake -S . -B build/release -G Ninja \
   -DCMAKE_BUILD_TYPE=Release -DPICLENS_SYSTEM_PACKAGE=ON
 cmake --build build/release
-cpack -G DEB --config build/release/CPackConfig.cmake
+cpack -G DEB --config build/release/CPackConfig.cmake -B build/release
 ```
 
 ## Fedora / RHEL RPM

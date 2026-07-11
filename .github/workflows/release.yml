@@ -146,7 +146,7 @@ jobs:
       - name: Build Debian candidate
         run: |
           cmake -S . -B build/release -DPICLENS_SYSTEM_PACKAGE=ON
-          cpack -G DEB --config build/release/CPackConfig.cmake
+          cpack -G DEB --config build/release/CPackConfig.cmake -B build/release
           mkdir -p artifacts/installer
           cp build/release/*.deb artifacts/installer/
           dpkg-deb --fsys-tarfile artifacts/installer/*.deb | tar -tf - | grep -Fx './opt/piclens/bin/PicLens'
