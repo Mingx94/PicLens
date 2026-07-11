@@ -447,6 +447,7 @@ void FolderTreeModel::rebuildRoot(const QString &rootPath, const QString &select
     m_root->path = rootPath;
     m_root->expanded = true;
     m_root->selected = core::path_rules::pathEquals(rootPath, selectedPath);
+    m_root->loading = true;
     endResetModel();
     emit rootPathChanged();
     setBusy(true);

@@ -18,21 +18,21 @@ PicLens intentionally supports the light theme only. Keep `RequestedThemeVariant
 
 | Role | Token | Light | Dark | Usage |
 |------|-------|-------|------|-------|
-| Surface/app | `AppBackgroundBrush` | `#F4F5F7` | N/A | Main shell background |
-| Surface/command | `CommandBarBrush` | `#FBFBFC` | N/A | Global command and status bars |
+| Surface/app | `AppBackgroundBrush` | `#F5F6F8` | N/A | Main shell background |
+| Surface/command | `CommandBarBrush` | `#FCFCFD` | N/A | Global command and status bars |
 | Surface/sidebar | `SidebarBrush` | `#F8F9FB` | N/A | Folder pane |
 | Surface/content | `SurfaceBrush` | `#FFFFFF` | N/A | Main library surface |
-| Surface/tile | `TileFrameBrush` | `#ECEEF2` | N/A | Thumbnail tile frame |
-| Border/default | `LineBrush` | `#E2E5EA` | N/A | Dividers and tile borders |
-| Border/strong | `StrongLineBrush` | `#D5D9E1` | N/A | Interactive hover boundary |
-| Text/primary | `PrimaryTextBrush` | `#20242B` | N/A | Main labels and file names |
-| Text/secondary | `SecondaryTextBrush` | `#5F6672` | N/A | Paths, metadata, viewer filename |
-| Text/muted | `MutedTextBrush` | `#626B78` | N/A | Lower emphasis icons/text |
-| State/hover | `HoverBrush` | `#ECEFF4` | N/A | Toolbar hover |
-| State/selected | `SelectedBrush` | `#E7EEFF` | N/A | Selected Library Item |
+| Surface/tile | `TileFrameBrush` | `#F2F3F5` | N/A | Thumbnail tile frame |
+| Border/default | `LineBrush` | `#E1E4E9` | N/A | Dividers and tile borders |
+| Border/strong | `StrongLineBrush` | `#CBD0D8` | N/A | Interactive hover boundary |
+| Text/primary | `PrimaryTextBrush` | `#1D2026` | N/A | Main labels and file names |
+| Text/secondary | `SecondaryTextBrush` | `#626975` | N/A | Paths, metadata, viewer filename |
+| Text/muted | `MutedTextBrush` | `#7A828F` | N/A | Lower emphasis icons/text |
+| State/hover | `HoverBrush` | `#EEF1F5` | N/A | Toolbar hover |
+| State/selected | `SelectedBrush` | `#E8EEFF` | N/A | Selected Library Item |
 | Accent/primary | `AccentBrush` | `#4968E8` | N/A | Primary action, selection, and status |
-| Accent/soft | `AccentSoftBrush` | `#EDF1FF` | N/A | Empty-state icon and active scope |
-| Accent/soft pressed | `AccentSoftPressedBrush` | `#DCE4FF` | N/A | Pressed active toggles |
+| Accent/soft | `AccentSoftBrush` | `#EEF2FF` | N/A | Empty-state icon and active scope |
+| Accent/soft pressed | `AccentSoftPressedBrush` | `#DBE4FF` | N/A | Pressed active toggles |
 | Surface/viewer | `ViewerCanvasBrush` | `#11141A` | Stable dark surface | Image Viewer canvas |
 
 ### Rules
@@ -79,17 +79,21 @@ All spacing derives from a base of 4px.
 | space-4 | 16 | Sidebar padding, grid margin |
 | space-5 | 20 | Main content padding |
 | space-6 | 24 | Status/footer horizontal padding |
+| space-7 | 28 | Gallery outer margin |
 
 ### Grid
 
-- Main shell: global command bar, Folder Tree, resizable splitter, Library workspace, status bar.
-- Thumbnail grid: `ItemsRepeater` with `UniformGridLayout`.
+- Main shell: 64px global command bar, Folder Tree, resizable splitter, Library workspace, 48px status bar.
+- Thumbnail grid: virtualized, reusable `GridView` delegates; new profiles default to 160px thumbnails.
 
 ### Rules
 
 - Keep layout values compact and multiples of 4px where practical.
 - Preserve the resizable sidebar and virtualized thumbnail grid.
 - Keep global commands in the top bar and Library-specific sort, scope, and view controls in the Library header.
+- Align both Library header edges to `space-7`, matching the gallery content inset.
+- Keep the top search field geometrically centered at the default window size; at narrow widths it occupies the safe gap between command groups.
+- Keep thumbnail sizing in the status-bar slider; do not duplicate it with a Library-header menu.
 
 ## 5. Components
 
@@ -99,12 +103,20 @@ All spacing derives from a base of 4px.
 - **Spacing**: 7px icon/text spacing, compact 36-38px minimum height.
 - **States**: default transparent, hover uses `HoverBrush`, disabled uses opacity.
 - **Accessibility**: tooltip plus automation IDs for primary controls.
+- **Primary action**: only `開啟資料夾` uses a filled cobalt treatment in the main command bar.
+
+### Icons
+
+- Use the shared `AppIcon.qml` 24×24 vector coordinate system for command, navigation, view, search, and folder-tree disclosure icons.
+- Keep icon strokes round, optically centered, and consistent across Windows and Linux; do not substitute platform-dependent symbol fonts or Unicode glyphs for toolbar icons.
+- Use `LensMark.qml` for the in-app brand mark. The packaged application icon remains the authority for operating-system surfaces.
 
 ### Library Tile
 
 - **Structure**: thumbnail/icon frame plus wrapped file name.
 - **States**: hover, selected, drop target.
 - **Accessibility**: automation ID and automation name from tile view model.
+- **Selection**: use a 2px cobalt outline, pale cobalt fill, stronger filename color, and a visible check badge so selection is not color-only.
 
 ## 6. Motion & Interaction
 
@@ -132,3 +144,7 @@ PicLens uses borders plus tonal shifts. Surfaces are separated with `LineBrush` 
 | Default border | 1px `LineBrush` | Pane dividers, Library workspace, tile frame, status bar |
 | Selected fill | `SelectedBrush` | Active library selection |
 | Drop target border | 2px `AccentBrush` | Drag rename target |
+
+## 8. Interface Reference
+
+The generated high-fidelity direction is stored at `docs/design/piclens-ui-concept.png`. It is a visual reference rather than a pixel-perfect contract: runtime behavior, responsive constraints, accessibility, and the tokens in `Theme.qml` remain authoritative.

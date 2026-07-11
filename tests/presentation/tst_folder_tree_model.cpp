@@ -4,6 +4,7 @@
 #include <QSignalSpy>
 #include <QTest>
 
+#include <atomic>
 #include <condition_variable>
 #include <mutex>
 #include <stdexcept>
@@ -42,6 +43,7 @@ private slots:
     void rootBuildPreservesRootAndSelectsCurrentChild();
     void pickerRootReplacementChangesDisplayedRoot();
     void lazyLoadRunsOnceAndAddsChildren();
+    void rootSnapshotDoesNotStartDuplicateChildScan();
     void selectingUnloadedDescendantBuildsAncestorPath();
     void childScanFailureKeepsReadableRoot();
     void staleRootBuildCannotReplaceNewRoot();
@@ -126,6 +128,34 @@ void FolderTreeModelTests::lazyLoadRunsOnceAndAddsChildren()
     model.loadChildren(child);
     QTest::qWait(50);
     QCOMPARE(childScans, 1);
+}
+
+void FolderTreeModelTests::rootSnapshotDoesNotStartDuplicateChildScan()
+{
+    const QString rootPath = QStringLiteral("workspace");
+    const QString childPath = QStringLiteral("workspace/Child");
+    std::atomic_int rootScans = 0;
+    FolderTreeModel model(
+        [&](const QString &path, std::stop_token) {
+            if (path == rootPath) {
+                ++rootScans;
+                QTest::qSleep(25);
+                return QVector<FolderListItem>{folder(childPath)};
+            }
+            return QVector<FolderListItem>{};
+        });
+
+    model.setRoot(rootPath, rootPath);
+    const QModelIndex placeholderRoot = model.index(0, 0);
+    QVERIFY(roleBool(model, placeholderRoot, FolderTreeModel::LoadingRole));
+    model.loadChildren(placeholderRoot);
+
+    QTRY_VERIFY_WITH_TIMEOUT(!model.busy(), 5000);
+    QTest::qWait(50);
+    QCOMPARE(rootScans.load(), 1);
+    const QModelIndex root = model.index(0, 0);
+    QCOMPARE(model.rowCount(root), 1);
+    QCOMPARE(roleString(model, model.index(0, 0, root), FolderTreeModel::PathRole), childPath);
 }
 
 void FolderTreeModelTests::selectingUnloadedDescendantBuildsAncestorPath()

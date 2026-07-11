@@ -25,10 +25,10 @@ Rectangle {
 
     ListModel {
         id: sortOptions
-        ListElement { label: "名稱 ↑"; sortKey: 0; sortDirection: 0 }
-        ListElement { label: "名稱 ↓"; sortKey: 0; sortDirection: 1 }
-        ListElement { label: "修改時間 ↑"; sortKey: 1; sortDirection: 0 }
-        ListElement { label: "修改時間 ↓"; sortKey: 1; sortDirection: 1 }
+        ListElement { label: "名稱（由小到大）"; sortKey: 0; sortDirection: 0 }
+        ListElement { label: "名稱（由大到小）"; sortKey: 0; sortDirection: 1 }
+        ListElement { label: "修改時間（最舊優先）"; sortKey: 1; sortDirection: 0 }
+        ListElement { label: "修改時間（最新優先）"; sortKey: 1; sortDirection: 1 }
     }
 
     function synchronizeSort() {
@@ -57,27 +57,51 @@ Rectangle {
 
         Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: 146
+            Layout.preferredHeight: 104
 
-            Column {
+            ColumnLayout {
                 anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.leftMargin: Theme.space5
-                anchors.rightMargin: Theme.space5
+                anchors.leftMargin: Theme.space7
                 anchors.top: parent.top
-                anchors.topMargin: Theme.space4
-                spacing: Theme.space1
+                anchors.topMargin: Theme.space3
+                width: Math.max(180, parent.width - controls.width - Theme.space7 * 2)
+                spacing: 2
 
-                Text {
-                    width: parent.width
-                    text: pane.appController.library.currentFolderName
-                    color: Theme.primaryText
-                    font.pixelSize: 24
-                    font.weight: Font.DemiBold
-                    elide: Text.ElideRight
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.space3
+
+                    Text {
+                        id: folderTitle
+                        Layout.preferredWidth: Math.min(implicitWidth, 280)
+                        Layout.alignment: Qt.AlignVCenter
+                        text: pane.appController.library.currentFolderName
+                        color: Theme.primaryText
+                        font.pixelSize: 24
+                        font.weight: Font.Bold
+                        elide: Text.ElideRight
+                    }
+                    Rectangle {
+                        Layout.preferredWidth: itemCountLabel.implicitWidth + 18
+                        Layout.preferredHeight: 28
+                        Layout.alignment: Qt.AlignVCenter
+                        radius: 14
+                        color: Theme.appBackground
+                        border.width: 1
+                        border.color: Theme.line
+
+                        Text {
+                            id: itemCountLabel
+                            anchors.centerIn: parent
+                            text: "共 " + gallery.count + " 個項目"
+                            color: Theme.secondaryText
+                            font.pixelSize: 12
+                            font.weight: Font.Medium
+                        }
+                    }
                 }
                 Text {
-                    width: parent.width
+                    Layout.fillWidth: true
                     text: pane.appController.library.currentFolderPath || "選擇資料夾後開始瀏覽"
                     color: Theme.secondaryText
                     font.pixelSize: 12
@@ -88,70 +112,119 @@ Rectangle {
             Row {
                 id: controls
                 anchors.right: parent.right
-                anchors.rightMargin: Theme.space5
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: Theme.space3
+                anchors.rightMargin: Theme.space7
+                anchors.verticalCenter: parent.verticalCenter
                 spacing: Theme.space2
 
-                Switch {
+                CheckBox {
                     id: recursiveSwitch
                     text: "含子資料夾"
                     checked: pane.appController.library.includeSubfolders
                     onToggled: pane.appController.setIncludeSubfolders(checked)
+                    implicitWidth: recursiveLabel.contentWidth + 18 + spacing
+                                   + leftPadding + rightPadding
+                    implicitHeight: Theme.controlHeight
+                    leftPadding: Theme.space3
+                    rightPadding: Theme.space3
+                    topPadding: 0
+                    bottomPadding: 0
+                    spacing: Theme.space2
+
+                    indicator: Rectangle {
+                        x: recursiveSwitch.leftPadding
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 18
+                        height: 18
+                        radius: 4
+                        color: recursiveSwitch.checked ? Theme.accent : Theme.surface
+                        border.width: 1
+                        border.color: recursiveSwitch.checked ? Theme.accent : Theme.strongLine
+
+                        Text {
+                            anchors.centerIn: parent
+                            visible: recursiveSwitch.checked
+                            text: "✓"
+                            color: "white"
+                            font.pixelSize: 12
+                            font.weight: Font.Bold
+                        }
+                    }
+                    contentItem: Text {
+                        id: recursiveLabel
+                        leftPadding: 18 + recursiveSwitch.spacing
+                        text: recursiveSwitch.text
+                        color: Theme.primaryText
+                        font.pixelSize: 13
+                        font.weight: Font.Medium
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    background: Rectangle {
+                        radius: Theme.cornerRadius
+                        color: recursiveSwitch.down ? Theme.hover : Theme.surface
+                        border.width: 1
+                        border.color: recursiveSwitch.activeFocus ? Theme.accent
+                                    : recursiveSwitch.hovered ? Theme.strongLine : Theme.line
+                    }
                 }
-                ComboBox {
+                CompactComboBox {
                     id: sortCombo
-                    width: 136
+                    width: 126
                     model: sortOptions
                     textRole: "label"
+                    labelText: pane.appController.library.sortKey === 0 ? "名稱" : "修改時間"
                     onActivated: {
                         const option = sortOptions.get(currentIndex)
                         pane.appController.changeSort(option.sortKey, option.sortDirection)
                     }
                     Component.onCompleted: pane.synchronizeSort()
                 }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "縮圖"
-                    color: Theme.secondaryText
-                    font.pixelSize: 13
-                }
-                Slider {
-                    id: sizeSlider
-                    width: 104
-                    from: 120
-                    to: 240
-                    stepSize: 20
-                    value: pane.appController.thumbnails.requestedSize
-                    onMoved: sizeCommit.restart()
-                    ToolTip.visible: hovered || pressed
-                    ToolTip.text: Math.round(value).toString()
-                }
-                Timer {
-                    id: sizeCommit
-                    interval: 250
-                    onTriggered: pane.appController.setThumbnailSize(sizeSlider.value)
+                Item {
+                    width: 77
+                    height: Theme.controlHeight
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: Theme.cornerRadius
+                        color: Theme.surface
+                        border.width: 1
+                        border.color: Theme.line
+                    }
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 1
+                        height: parent.height
+                        color: Theme.line
+                    }
+                    Row {
+                        anchors.fill: parent
+
+                        ToolbarButton {
+                            width: 38
+                            height: Theme.controlHeight
+                            iconName: pane.appController.gridViewMode ? "grid-filled" : "grid"
+                            accessibleName: "格狀檢視"
+                            checked: pane.appController.gridViewMode
+                            checkable: true
+                            ToolTip.visible: hovered
+                            ToolTip.text: "格狀檢視"
+                            onClicked: pane.appController.setGridViewMode(true)
+                        }
+                        ToolbarButton {
+                            width: 38
+                            height: Theme.controlHeight
+                            iconName: "list"
+                            accessibleName: "列表檢視"
+                            checked: !pane.appController.gridViewMode
+                            checkable: true
+                            ToolTip.visible: hovered
+                            ToolTip.text: "列表檢視"
+                            onClicked: pane.appController.setGridViewMode(false)
+                        }
+                    }
                 }
                 ToolbarButton {
-                    symbol: "▦"
-                    accessibleName: "格狀檢視"
-                    checked: pane.appController.gridViewMode
-                    checkable: true
-                    ToolTip.visible: hovered
-                    ToolTip.text: "格狀檢視"
-                    onClicked: pane.appController.setGridViewMode(true)
-                }
-                ToolbarButton {
-                    symbol: "☷"
-                    accessibleName: "列表檢視"
-                    checked: !pane.appController.gridViewMode
-                    checkable: true
-                    ToolTip.visible: hovered
-                    ToolTip.text: "列表檢視"
-                    onClicked: pane.appController.setGridViewMode(false)
-                }
-                ToolbarButton {
-                    symbol: "⋯"
+                    iconName: "more"
+                    outlined: true
                     accessibleName: "更多圖庫動作"
                     enabled: pane.appController.fileOperations.canProcessVisible
                              || pane.appController.fileOperations.busy
@@ -198,10 +271,18 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
+            Rectangle {
+                anchors.fill: parent
+                color: Theme.surface
+            }
+
             GridView {
                 id: gallery
                 anchors.fill: parent
-                anchors.margins: Theme.space4
+                anchors.leftMargin: Theme.space7
+                anchors.rightMargin: Theme.space7
+                anchors.topMargin: Theme.space4
+                anchors.bottomMargin: Theme.space4
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
                 model: pane.appController.library.items
@@ -218,9 +299,7 @@ Rectangle {
                     if (x < 0 || x > width || y < 0 || y > height)
                         return ""
                     const target = itemAt(x + contentX, y + contentY)
-                    if (!target || target.isFolder)
-                        return ""
-                    return target.path
+                    return target ? target.objectName : ""
                 }
 
                 function beginInternalDrag(sourcePath, x, y) {
@@ -286,6 +365,18 @@ Rectangle {
                     listMode: !pane.appController.gridViewMode
                     dropRenameTarget: gallery.internalDragActive
                                       && gallery.dropTargetPath === path
+                    onInternalDragStarted: function(sourcePath, x, y) {
+                        gallery.beginInternalDrag(sourcePath, x, y)
+                    }
+                    onInternalDragUpdated: function(x, y) {
+                        gallery.updateInternalDrag(x, y)
+                    }
+                    onInternalDragFinished: function(x, y, canceled) {
+                        if (canceled)
+                            gallery.cancelInternalDrag()
+                        else
+                            gallery.endInternalDrag(x, y, false)
+                    }
                 }
 
                 ScrollBar.vertical: ScrollBar { }
@@ -367,9 +458,9 @@ Rectangle {
                 anchors.margins: Theme.space4
                 height: Math.max(errorText.implicitHeight, 38) + 20
                 radius: Theme.cornerRadius
-                color: "#FFF1F0"
+                color: Theme.dangerSoft
                 border.width: 1
-                border.color: "#FDA29B"
+                border.color: Theme.dangerLine
                 visible: pane.appController.library.errorMessage.length > 0
 
                 RowLayout {

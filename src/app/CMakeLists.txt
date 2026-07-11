@@ -27,6 +27,9 @@ endif()
 
 set(PICLENS_QML_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/Theme.qml
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/AppIcon.qml
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/LensMark.qml
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/CompactComboBox.qml
     ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/ToolbarButton.qml
     ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/GalleryTile.qml
     ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/HistoryMouseHandler.qml
@@ -49,6 +52,7 @@ endforeach()
 
 set(PICLENS_RESOURCE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/AppIcon.ico
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/Square150x150Logo.scale-200.png
     ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/Fonts/NotoSansCJKtc-Regular.otf
     ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/Fonts/NotoSansCJKtc-Medium.otf
     ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/Fonts/NotoSansCJKtc-Bold.otf
@@ -56,6 +60,10 @@ set(PICLENS_RESOURCE_FILES
 set_source_files_properties(
     ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/AppIcon.ico
     PROPERTIES QT_RESOURCE_ALIAS assets/AppIcon.ico
+)
+set_source_files_properties(
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/Square150x150Logo.scale-200.png
+    PROPERTIES QT_RESOURCE_ALIAS assets/AppLogo.png
 )
 set_source_files_properties(
     ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/Fonts/NotoSansCJKtc-Regular.otf

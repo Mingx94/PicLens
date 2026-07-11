@@ -5,6 +5,9 @@ import PicLens
 
 Item {
     id: tile
+    signal internalDragStarted(string sourcePath, real x, real y)
+    signal internalDragUpdated(real x, real y)
+    signal internalDragFinished(real x, real y, bool canceled)
     required property AppController appController
     required property int index
     required property string itemType
@@ -21,6 +24,7 @@ Item {
     property bool dropRenameTarget: false
     readonly property bool isFolder: itemType === "folder"
     readonly property int visualThumbnailSize: listMode ? 76 : thumbnailSize
+    objectName: isFolder ? "" : path
     activeFocusOnTab: true
     Accessible.role: Accessible.ListItem
     Accessible.name: name
@@ -67,8 +71,8 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: Theme.cornerRadius
-        color: tile.selected ? Theme.selected : tileMouse.containsMouse ? Theme.hover : "transparent"
-        border.width: tile.dropRenameTarget ? 3 : tile.activeFocus ? 2 : tile.selected ? 1 : 0
+        color: tile.selected ? Theme.accentSoft : tileMouse.containsMouse ? Theme.hover : "transparent"
+        border.width: tile.dropRenameTarget ? 3 : tile.activeFocus || tile.selected ? 2 : 0
         border.color: tile.dropRenameTarget ? Theme.accent : Theme.accent
     }
 
@@ -78,7 +82,7 @@ Item {
         y: tile.listMode ? Math.round((tile.height - height) / 2) : Theme.space1
         width: tile.listMode ? tile.visualThumbnailSize : tile.width - Theme.space2
         height: tile.visualThumbnailSize
-        radius: Theme.cornerRadius
+        radius: Theme.cornerRadius - 1
         color: Theme.tileFrame
         border.width: 1
         border.color: tileMouse.containsMouse ? Theme.strongLine : Theme.line
@@ -87,7 +91,7 @@ Item {
         Image {
             id: thumbnail
             anchors.fill: parent
-            anchors.margins: Theme.space1
+            anchors.margins: 1
             visible: !tile.isFolder && status === Image.Ready
             source: tile.thumbnailUrl ?? ""
             asynchronous: true
@@ -98,7 +102,7 @@ Item {
         Item {
             anchors.centerIn: parent
             visible: tile.isFolder
-            width: Math.max(42, tile.visualThumbnailSize * 0.3)
+            width: Math.max(42, tile.visualThumbnailSize * 0.42)
             height: width * 0.72
 
             Rectangle {
@@ -107,7 +111,7 @@ Item {
                 width: parent.width * 0.42
                 height: parent.height * 0.3
                 radius: Theme.cornerRadius
-                color: Theme.accent
+                color: Theme.folder
             }
             Rectangle {
                 anchors.left: parent.left
@@ -115,7 +119,31 @@ Item {
                 anchors.bottom: parent.bottom
                 height: parent.height * 0.78
                 radius: Theme.cornerRadius
-                color: Theme.accent
+                color: Theme.folderLight
+                border.width: 1
+                border.color: Theme.folder
+            }
+        }
+
+        Rectangle {
+            visible: tile.selected && !tile.isFolder
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.margins: Theme.space2
+            width: 26
+            height: 26
+            radius: 13
+            color: Theme.accent
+            border.width: 2
+            border.color: "white"
+            z: 4
+
+            Text {
+                anchors.centerIn: parent
+                text: "✓"
+                color: "white"
+                font.pixelSize: 14
+                font.weight: Font.Bold
             }
         }
 
@@ -166,12 +194,12 @@ Item {
            ? Math.round((tile.height - height - listDetail.implicitHeight - Theme.space1) / 2)
            : frame.y + frame.height + Theme.space2
         width: tile.listMode
-               ? tile.width - x - Theme.space3
+               ? tile.width - x - 190
                : tile.width - Theme.space4
         text: tile.name
-        color: Theme.primaryText
+        color: tile.selected ? Theme.accent : Theme.primaryText
         font.pixelSize: 14
-        font.weight: Font.Medium
+        font.weight: tile.selected ? Font.DemiBold : Font.Medium
         horizontalAlignment: tile.listMode ? Text.AlignLeft : Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         wrapMode: Text.Wrap
@@ -188,10 +216,31 @@ Item {
         text: tile.isFolder
               ? "資料夾"
               : tile.extension.toUpperCase() + " · " + tile.sizeLabel()
-                + (tile.modifiedLabel().length > 0 ? " · " + tile.modifiedLabel() : "")
         color: Theme.secondaryText
         font.pixelSize: 12
         elide: Text.ElideRight
+    }
+
+    Text {
+        visible: tile.listMode && !tile.isFolder
+        anchors.right: parent.right
+        anchors.rightMargin: Theme.space4
+        anchors.verticalCenter: parent.verticalCenter
+        width: 150
+        text: tile.modifiedLabel()
+        color: Theme.secondaryText
+        font.pixelSize: 12
+        horizontalAlignment: Text.AlignRight
+        elide: Text.ElideRight
+    }
+
+    Rectangle {
+        visible: tile.listMode
+        anchors.left: nameLabel.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: 1
+        color: Theme.line
     }
 
     MouseArea {
@@ -232,21 +281,20 @@ Item {
         }
 
         onActiveChanged: {
-            const view = tile.GridView.view
             const point = galleryPosition()
             if (active) {
-                view.beginInternalDrag(tile.path, point.x, point.y)
+                tile.internalDragStarted(tile.path, point.x, point.y)
             } else {
-                view.endInternalDrag(point.x, point.y, false)
+                tile.internalDragFinished(point.x, point.y, false)
             }
         }
         onTranslationChanged: {
             if (active) {
                 const point = galleryPosition()
-                tile.GridView.view.updateInternalDrag(point.x, point.y)
+                tile.internalDragUpdated(point.x, point.y)
             }
         }
-        onCanceled: tile.GridView.view.cancelInternalDrag()
+        onCanceled: tile.internalDragFinished(0, 0, true)
     }
 
     Keys.onSpacePressed: function(event) {

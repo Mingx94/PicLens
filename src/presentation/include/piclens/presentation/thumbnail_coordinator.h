@@ -58,7 +58,7 @@ private:
     void removeIfCurrent(const std::shared_ptr<Request> &request);
 
     LoadFunction m_load;
-    int m_requestedSize = 200;
+    int m_requestedSize = 160;
     int m_maxConcurrent;
     int m_activeRequests = 0;
     std::chrono::milliseconds m_timeout;

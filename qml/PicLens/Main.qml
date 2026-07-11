@@ -48,71 +48,149 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.commandHeight
             color: Theme.commandBar
-            border.width: 1
-            border.color: Theme.line
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: 1
+                color: Theme.line
+            }
 
             RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Theme.space4
-                anchors.rightMargin: Theme.space4
-                spacing: Theme.space2
+                id: leftCommands
+                anchors.left: parent.left
+                anchors.leftMargin: Theme.space5
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Theme.space3
 
-                Text {
-                    text: "PicLens"
-                    color: Theme.primaryText
-                    font.pixelSize: 18
-                    font.weight: Font.DemiBold
-                    Layout.rightMargin: Theme.space3
+                RowLayout {
+                    spacing: Theme.space2
+                    Layout.rightMargin: Theme.space2
+
+                    LensMark {
+                        Layout.preferredWidth: 34
+                        Layout.preferredHeight: 34
+                    }
+                    Text {
+                        text: "PicLens"
+                        color: Theme.primaryText
+                        font.pixelSize: 21
+                        font.weight: Font.Bold
+                    }
                 }
                 ToolbarButton {
-                    symbol: "☰"
+                    iconName: "menu"
+                    outlined: true
                     accessibleName: window.appController.sidebarOpen ? "收合側欄" : "展開側欄"
                     ToolTip.text: window.appController.sidebarOpen ? "收合側欄" : "展開側欄"
                     ToolTip.visible: hovered
                     onClicked: window.appController.toggleSidebar()
                 }
-                ToolbarButton {
-                    symbol: "‹"
-                    accessibleName: "上一個資料夾"
-                    enabled: window.appController.library.canGoBack
-                    ToolTip.text: "上一個資料夾"
-                    ToolTip.visible: hovered
-                    onClicked: window.appController.goBack()
+                Item {
+                    Layout.preferredWidth: 77
+                    Layout.preferredHeight: Theme.controlHeight
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: Theme.cornerRadius
+                        color: Theme.surface
+                        border.width: 1
+                        border.color: Theme.line
+                    }
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 1
+                        height: parent.height
+                        color: Theme.line
+                    }
+                    Row {
+                        anchors.fill: parent
+
+                        ToolbarButton {
+                            width: 38
+                            height: Theme.controlHeight
+                            iconName: "chevron-left"
+                            accessibleName: "上一個資料夾"
+                            enabled: window.appController.library.canGoBack
+                            ToolTip.text: "上一個資料夾"
+                            ToolTip.visible: hovered
+                            onClicked: window.appController.goBack()
+                        }
+                        ToolbarButton {
+                            width: 38
+                            height: Theme.controlHeight
+                            iconName: "chevron-right"
+                            accessibleName: "下一個資料夾"
+                            enabled: window.appController.library.canGoForward
+                            ToolTip.text: "下一個資料夾"
+                            ToolTip.visible: hovered
+                            onClicked: window.appController.goForward()
+                        }
+                    }
                 }
                 ToolbarButton {
-                    symbol: "›"
-                    accessibleName: "下一個資料夾"
-                    enabled: window.appController.library.canGoForward
-                    ToolTip.text: "下一個資料夾"
-                    ToolTip.visible: hovered
-                    onClicked: window.appController.goForward()
-                }
-                ToolbarButton {
-                    symbol: "↻"
+                    iconName: "refresh"
                     accessibleName: "重新整理圖庫"
                     enabled: window.appController.library.currentFolderPath.length > 0
                     ToolTip.text: "重新整理"
                     ToolTip.visible: hovered
                     onClicked: window.appController.reload()
                 }
-                TextField {
-                    id: librarySearch
-                    Layout.preferredWidth: 250
-                    placeholderText: "搜尋目前 Library"
-                    selectByMouse: true
-                    text: window.appController.library.searchQuery
-                    Accessible.name: "搜尋目前 Library"
-                    Accessible.searchEdit: true
-                    onTextEdited: window.appController.library.setSearchQuery(text)
-                    Keys.onEscapePressed: function(event) {
-                        clear()
-                        window.appController.library.setSearchQuery("")
-                        event.accepted = true
-                    }
+            }
+
+            TextField {
+                id: librarySearch
+                x: window.width >= 1040
+                   ? Math.round((parent.width - width) / 2)
+                   : leftCommands.x + leftCommands.width + Theme.space4
+                anchors.verticalCenter: parent.verticalCenter
+                width: window.width >= 1040
+                       ? 420
+                       : Math.max(180, rightCommands.x
+                                  - (leftCommands.x + leftCommands.width) - Theme.space6)
+                height: Theme.controlHeight
+                leftPadding: 40
+                rightPadding: 38
+                placeholderText: "搜尋目前資料夾"
+                placeholderTextColor: Theme.mutedText
+                color: Theme.primaryText
+                hoverEnabled: true
+                selectByMouse: true
+                text: window.appController.library.searchQuery
+                Accessible.name: "搜尋目前資料夾"
+                Accessible.searchEdit: true
+                onTextEdited: window.appController.library.setSearchQuery(text)
+                Keys.onEscapePressed: function(event) {
+                    clear()
+                    window.appController.library.setSearchQuery("")
+                    event.accepted = true
+                }
+
+                background: Rectangle {
+                    radius: Theme.cornerRadius
+                    color: Theme.surface
+                    border.width: 1
+                    border.color: librarySearch.activeFocus ? Theme.accent
+                                : librarySearch.hovered ? Theme.strongLine : Theme.line
+                }
+                AppIcon {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 14
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 18
+                    height: 18
+                    name: "search"
+                    color: Theme.secondaryText
                 }
                 ToolbarButton {
+                    anchors.right: parent.right
+                    anchors.rightMargin: 3
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 32
+                    height: 32
                     visible: window.appController.library.hasSearchQuery
-                    symbol: "×"
+                    iconName: "close"
                     accessibleName: "清除搜尋"
                     ToolTip.text: "清除搜尋"
                     ToolTip.visible: hovered
@@ -122,7 +200,15 @@ ApplicationWindow {
                         librarySearch.forceActiveFocus()
                     }
                 }
-                Item { Layout.fillWidth: true }
+            }
+
+            RowLayout {
+                id: rightCommands
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.space5
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Theme.space3
+
                 Text {
                     visible: window.appController.settingsBusy
                     text: "正在儲存設定…"
@@ -130,8 +216,9 @@ ApplicationWindow {
                     font.pixelSize: 12
                 }
                 ToolbarButton {
-                    symbol: "+"
+                    iconName: "plus"
                     text: "開啟資料夾"
+                    primary: true
                     onClicked: folderDialog.open()
                 }
             }
@@ -146,7 +233,7 @@ ApplicationWindow {
                 appController: window.appController
                 visible: window.appController.sidebarOpen
                 SplitView.minimumWidth: 190
-                SplitView.preferredWidth: window.appController.sidebarOpen ? 260 : 0
+                SplitView.preferredWidth: window.appController.sidebarOpen ? 228 : 0
                 SplitView.maximumWidth: 420
             }
             LibraryPane {
@@ -162,8 +249,14 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.statusHeight
             color: Theme.commandBar
-            border.width: 1
-            border.color: Theme.line
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: 1
+                color: Theme.line
+            }
 
             RowLayout {
                 anchors.fill: parent
@@ -171,11 +264,11 @@ ApplicationWindow {
                 anchors.rightMargin: Theme.space6
 
                 Rectangle {
-                    Layout.preferredWidth: 7
-                    Layout.preferredHeight: 7
+                    Layout.preferredWidth: 8
+                    Layout.preferredHeight: 8
                     radius: 4
                     color: window.appController.library.busy || window.appController.fileOperations.busy
-                           ? Theme.accent : "#12B76A"
+                           ? Theme.accent : Theme.success
                 }
                 Text {
                     visible: window.appController.library.hasSelectedImages
@@ -191,12 +284,66 @@ ApplicationWindow {
                     elide: Text.ElideRight
                     Layout.fillWidth: true
                 }
-                Text {
-                    text: window.appController.thumbnails.activeRequestCount > 0
-                          ? "縮圖 " + window.appController.thumbnails.activeRequestCount
-                          : window.appController.library.recursiveModeLabel
-                    color: Theme.mutedText
-                    font.pixelSize: 12
+                AppIcon {
+                    Layout.preferredWidth: 18
+                    Layout.preferredHeight: 18
+                    Layout.leftMargin: Theme.space4
+                    name: "image"
+                    color: Theme.secondaryText
+                }
+                Slider {
+                    id: statusSizeSlider
+                    Layout.preferredWidth: 148
+                    Layout.preferredHeight: 28
+                    from: 120
+                    to: 240
+                    stepSize: 20
+                    value: window.appController.thumbnails.requestedSize
+                    onMoved: statusSizeCommit.restart()
+                    ToolTip.visible: hovered || pressed
+                    ToolTip.text: "縮圖 " + Math.round(value)
+
+                    background: Rectangle {
+                        x: statusSizeSlider.leftPadding
+                        y: statusSizeSlider.topPadding
+                           + statusSizeSlider.availableHeight / 2 - height / 2
+                        width: statusSizeSlider.availableWidth
+                        height: 4
+                        radius: 2
+                        color: Theme.line
+
+                        Rectangle {
+                            width: statusSizeSlider.visualPosition * parent.width
+                            height: parent.height
+                            radius: parent.radius
+                            color: Theme.accent
+                        }
+                    }
+                    handle: Rectangle {
+                        x: statusSizeSlider.leftPadding
+                           + statusSizeSlider.visualPosition
+                             * (statusSizeSlider.availableWidth - width)
+                        y: statusSizeSlider.topPadding
+                           + statusSizeSlider.availableHeight / 2 - height / 2
+                        width: 18
+                        height: 18
+                        radius: 9
+                        color: statusSizeSlider.pressed ? Theme.accentPressed : Theme.accent
+                        border.width: 2
+                        border.color: Theme.surface
+                    }
+                }
+                Timer {
+                    id: statusSizeCommit
+                    interval: 250
+                    onTriggered: window.appController.setThumbnailSize(statusSizeSlider.value)
+                }
+                AppIcon {
+                    Layout.preferredWidth: 18
+                    Layout.preferredHeight: 18
+                    Layout.leftMargin: Theme.space3
+                    name: "sidebar"
+                    color: Theme.secondaryText
                 }
             }
         }

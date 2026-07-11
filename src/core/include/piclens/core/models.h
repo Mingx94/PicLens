@@ -38,7 +38,7 @@ struct AppSettings {
     std::optional<QString> lastFolderPath;
     SortState sort;
     bool includeSubfolders = false;
-    int thumbnailSize = 200;
+    int thumbnailSize = 160;
 
     static AppSettings createDefault();
     bool operator==(const AppSettings &) const = default;

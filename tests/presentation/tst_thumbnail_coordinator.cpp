@@ -1,4 +1,5 @@
 #include <piclens/presentation/thumbnail_coordinator.h>
+#include <piclens/core/settings_rules.h>
 
 #include <QSignalSpy>
 #include <QTest>
@@ -61,8 +62,11 @@ void ThumbnailCoordinatorTests::readyResultIsDeliveredWithRequestedSize()
     QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 5000);
 
     QCOMPARE(ready.first().at(0).toString(), QStringLiteral("photo.jpg"));
-    QCOMPARE(ready.first().at(1).toString(), QStringLiteral("photo.jpg-200.png"));
-    QCOMPARE(ready.first().at(2).toInt(), 200);
+    const int defaultSize = piclens::core::settings_rules::DefaultThumbnailSize;
+    QCOMPARE(
+        ready.first().at(1).toString(),
+        QStringLiteral("photo.jpg-%1.png").arg(defaultSize));
+    QCOMPARE(ready.first().at(2).toInt(), defaultSize);
     QCOMPARE(coordinator.activeRequestCount(), 0);
 }
 

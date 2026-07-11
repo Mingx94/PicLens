@@ -8,9 +8,20 @@ Rectangle {
     required property AppController appController
     color: Theme.sidebar
 
+    Rectangle {
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: 1
+        color: Theme.line
+    }
+
     Column {
         anchors.fill: parent
-        anchors.margins: Theme.space4
+        anchors.leftMargin: Theme.space3
+        anchors.rightMargin: Theme.space3
+        anchors.topMargin: Theme.space5
+        anchors.bottomMargin: Theme.space4
         spacing: Theme.space3
 
         Row {
@@ -20,8 +31,8 @@ Rectangle {
             Text {
                 text: "資料夾"
                 color: Theme.primaryText
-                font.pixelSize: 20
-                font.weight: Font.DemiBold
+                font.pixelSize: 15
+                font.weight: Font.Bold
             }
             BusyIndicator {
                 width: 22
@@ -37,6 +48,7 @@ Rectangle {
             color: Theme.secondaryText
             font.pixelSize: 12
             elide: Text.ElideMiddle
+            leftPadding: Theme.space1
         }
 
         TreeView {
@@ -80,24 +92,34 @@ Rectangle {
                 }
 
                 width: treeView.width
-                implicitHeight: 38
+                implicitHeight: 36
                 radius: Theme.cornerRadius
                 color: currentFolder ? Theme.selected
                                      : hoverHandler.hovered ? Theme.hover : "transparent"
 
-                Text {
+                Rectangle {
+                    visible: treeDelegate.currentFolder
+                    anchors.left: parent.left
+                    anchors.leftMargin: 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 3
+                    height: 20
+                    radius: 2
+                    color: Theme.accent
+                }
+
+                AppIcon {
                     id: disclosure
-                    x: Theme.space2 + treeDelegate.depth * 16
+                    x: Theme.space3 + treeDelegate.depth * 16
                     anchors.verticalCenter: parent.verticalCenter
                     width: 22
-                    text: treeDelegate.isTreeNode && treeDelegate.hasChildren
-                          ? (treeDelegate.expanded ? "⌄" : "›") : ""
-                    color: Theme.mutedText
-                    font.pixelSize: 18
-                    horizontalAlignment: Text.AlignHCenter
+                    height: 22
+                    visible: treeDelegate.isTreeNode && treeDelegate.hasChildren
+                    name: treeDelegate.expanded ? "chevron-down" : "chevron-right"
+                    color: treeDelegate.currentFolder ? Theme.accent : Theme.mutedText
 
                     TapHandler {
-                        enabled: disclosure.text.length > 0
+                        enabled: disclosure.visible
                         onTapped: treeDelegate.treeView.toggleExpanded(treeDelegate.row)
                     }
                 }
@@ -108,8 +130,9 @@ Rectangle {
                     anchors.rightMargin: Theme.space2
                     anchors.verticalCenter: parent.verticalCenter
                     text: treeDelegate.treeLabel
-                    color: Theme.primaryText
+                    color: treeDelegate.currentFolder ? Theme.accent : Theme.primaryText
                     font.pixelSize: 13
+                    font.weight: treeDelegate.currentFolder ? Font.Medium : Font.Normal
                     elide: Text.ElideRight
                 }
                 BusyIndicator {
