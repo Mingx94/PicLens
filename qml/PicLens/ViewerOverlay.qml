@@ -377,34 +377,19 @@ Rectangle {
             }
         }
 
-        WheelHandler {
-            onWheel: function(event) {
+        ViewerPointerSurface {
+            anchors.fill: parent
+            panEnabled: overlay.appController.viewer.zoom > 1
+            onPanRequested: function(deltaX, deltaY) {
+                overlay.appController.viewer.panBy(deltaX, deltaY)
+            }
+            onZoomRequested: function(pointerX, pointerY, angleDeltaY) {
                 overlay.appController.viewer.zoomAt(
-                    event.x,
-                    event.y,
-                    event.angleDelta.y,
+                    pointerX,
+                    pointerY,
+                    angleDeltaY,
                     canvas.width,
                     canvas.height)
-                event.accepted = true
-            }
-        }
-
-        DragHandler {
-            id: panHandler
-            target: null
-            enabled: overlay.appController.viewer.zoom > 1
-            property real previousX: 0
-            property real previousY: 0
-            onActiveChanged: {
-                previousX = 0
-                previousY = 0
-            }
-            onActiveTranslationChanged: {
-                overlay.appController.viewer.panBy(
-                    activeTranslation.x - previousX,
-                    activeTranslation.y - previousY)
-                previousX = activeTranslation.x
-                previousY = activeTranslation.y
             }
         }
     }

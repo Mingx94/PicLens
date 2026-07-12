@@ -252,6 +252,7 @@ ApplicationWindow {
             LibraryPane {
                 id: libraryPane
                 appController: window.appController
+                enabled: !window.appController.viewer.open
                 SplitView.minimumWidth: 600
                 SplitView.fillWidth: true
                 onOpenFolderRequested: folderDialog.open()

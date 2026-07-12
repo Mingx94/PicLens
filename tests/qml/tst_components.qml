@@ -44,6 +44,14 @@ TestCase {
         LensMark { }
     }
 
+    Component {
+        id: viewerPointerSurfaceComponent
+        ViewerPointerSurface {
+            width: 240
+            height: 160
+        }
+    }
+
     SignalSpy {
         id: clickedSpy
         signalName: "clicked"
@@ -57,6 +65,11 @@ TestCase {
     SignalSpy {
         id: forwardSpy
         signalName: "forwardRequested"
+    }
+
+    SignalSpy {
+        id: panRequestedSpy
+        signalName: "panRequested"
     }
 
     function test_designTokens() {
@@ -119,5 +132,19 @@ TestCase {
         handler.handleButton(Qt.ForwardButton)
         compare(backSpy.count, 1)
         compare(forwardSpy.count, 1)
+    }
+
+    function test_viewerPointerSurfaceBlocksGalleryAndStillPans() {
+        const surface = createTemporaryObject(viewerPointerSurfaceComponent, testCase)
+        verify(surface !== null)
+        verify(surface.blockedButtons & Qt.LeftButton)
+        verify(surface.blockedButtons & Qt.RightButton)
+        compare(surface.preventsStealing, true)
+        panRequestedSpy.target = surface
+
+        surface.panEnabled = true
+        surface.beginPointer(80, 80)
+        surface.updatePointer(112, 96, Qt.LeftButton)
+        verify(panRequestedSpy.count > 0)
     }
 }
