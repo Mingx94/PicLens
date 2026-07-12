@@ -8,6 +8,7 @@ Item {
     signal internalDragStarted(string sourcePath, real x, real y)
     signal internalDragUpdated(real x, real y)
     signal internalDragFinished(real x, real y, bool canceled)
+    signal contextMenuRequested(string sourcePath, real x, real y)
     required property AppController appController
     required property int index
     required property string itemType
@@ -254,8 +255,9 @@ Item {
             tile.GridView.view.currentIndex = tile.index
             if (mouse.button === Qt.RightButton) {
                 if (!tile.isFolder) {
-                    tile.appController.prepareContextSelection(tile.path)
-                    contextMenu.popup()
+                    const point = tile.mapToItem(
+                        tile.GridView.view, mouse.x, mouse.y)
+                    tile.contextMenuRequested(tile.path, point.x, point.y)
                 }
             } else if (tile.isFolder) {
                 tile.appController.navigateFromTree(tile.path)
@@ -321,82 +323,10 @@ Item {
         if (event.key === Qt.Key_F10
                 && (event.modifiers & Qt.ShiftModifier)
                 && !tile.isFolder) {
-            tile.appController.prepareContextSelection(tile.path)
-            contextMenu.popup()
+            const point = tile.mapToItem(
+                tile.GridView.view, tile.width / 2, tile.height / 2)
+            tile.contextMenuRequested(tile.path, point.x, point.y)
             event.accepted = true
-        }
-    }
-
-    Menu {
-        id: contextMenu
-
-        MenuItem {
-            text: "在檔案管理器中顯示"
-            enabled: !tile.appController.fileOperations.busy
-            onTriggered: tile.appController.fileOperations.reveal(tile.path)
-        }
-        MenuSeparator { }
-        MenuItem {
-            text: "重新命名"
-            enabled: tile.appController.fileOperations.canRename
-            onTriggered: renameDialog.open()
-        }
-        MenuItem {
-            text: "移至回收筒"
-            enabled: tile.appController.fileOperations.canTrash
-            onTriggered: trashDialog.open()
-        }
-    }
-
-    Dialog {
-        id: renameDialog
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        width: 420
-        title: "重新命名圖片"
-        modal: true
-        standardButtons: Dialog.Ok | Dialog.Cancel
-        closePolicy: Popup.CloseOnEscape
-        onOpened: {
-            renameField.text = tile.appController.fileOperations.selectedBaseName
-            renameField.forceActiveFocus()
-            renameField.selectAll()
-        }
-        onAccepted: tile.appController.fileOperations.renameSelected(renameField.text)
-
-        contentItem: Column {
-            spacing: Theme.space3
-            Text {
-                text: "輸入新的檔名（副檔名會保留）"
-                color: Theme.primaryText
-            }
-            TextField {
-                id: renameField
-                width: 340
-                selectByMouse: true
-                onAccepted: renameDialog.accept()
-            }
-        }
-    }
-
-    Dialog {
-        id: trashDialog
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        width: 420
-        title: "將選取的圖片移至回收筒"
-        modal: true
-        standardButtons: Dialog.Yes | Dialog.Cancel
-        closePolicy: Popup.CloseOnEscape
-        onAccepted: tile.appController.fileOperations.trashSelected()
-
-        contentItem: Text {
-            width: trashDialog.availableWidth
-            text: tile.appController.library.selectedCount === 1
-                  ? "要將這張圖片移至回收筒嗎？"
-                  : "要將選取的 " + tile.appController.library.selectedCount + " 張圖片移至回收筒嗎？"
-            color: Theme.primaryText
-            wrapMode: Text.Wrap
         }
     }
 

@@ -17,9 +17,28 @@ pwsh -NoProfile -File scripts/build-msi.ps1 -NoClean
 pwsh -NoProfile -File scripts/build-msi.ps1 -Version 2.0.0
 ```
 
+To Authenticode-sign the application executable first and the MSI last, pass a
+certificate thumbprint available to SignTool. Both signatures use SHA-256 and
+an RFC 3161 timestamp, and the final audit requires both signatures to verify:
+
+```powershell
+pwsh -NoProfile -File scripts/build-msi.ps1 -Sign `
+  -CertificateThumbprint <thumbprint> `
+  -TimestampUrl https://timestamp.digicert.com
+```
+
+Lifecycle testing is opt-in because it installs and uninstalls PicLens and
+requires an elevated PowerShell process:
+
+```powershell
+pwsh -NoProfile -File scripts/build-msi.ps1 `
+  -RunLifecycleTest -ConfirmSystemChanges `
+  -PreviousMsiPath <previous.msi>
+```
+
 Output: `artifacts/installer/PicLens-win-x64.msi`.
 
-The script logs and times three independent stages: Qt portable payload, WiX build, and MSI database/payload audit. `-NoRelease` requires an existing portable bundle. WiX Toolset currently requires the .NET SDK, but no application runtime or test project uses .NET.
+The script logs and times the portable, WiX, signing, audit and optional lifecycle stages that are enabled. The MSI audit expands an administrative image and requires every relative path, byte length and SHA-256 to exactly match the portable payload. `-NoRelease` requires an existing portable bundle. WiX Toolset currently requires the .NET SDK, but no application runtime or test project uses .NET.
 
 ## Debian / Ubuntu DEB
 

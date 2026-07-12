@@ -370,9 +370,15 @@ ApplicationWindow {
         }
     }
 
-    ViewerOverlay {
+    Loader {
+        id: viewerLoader
         anchors.fill: parent
-        appController: window.appController
+        active: window.appController.viewer.open
+        sourceComponent: Component {
+            ViewerOverlay {
+                appController: window.appController
+            }
+        }
     }
 
     Component.onCompleted: appController.initialize()

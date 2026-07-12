@@ -5,7 +5,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$PayloadDirectory,
     [Parameter(Mandatory = $true)]
-    [string]$ExpectedVersion
+    [string]$ExpectedVersion,
+    [switch]$RequireSigned
 )
 
 Set-StrictMode -Version Latest
@@ -89,10 +90,8 @@ $requiredFiles = @(
     "qt.conf",
     "Qt6Core.dll",
     "qwindows.dll",
-    "qoffscreen.dll",
     "LICENSE.txt",
     "THIRD_PARTY_NOTICES.txt",
-    "NotoSansCJKtc-OFL.txt",
     "AppIcon.ico"
 )
 foreach ($requiredFile in $requiredFiles) {
@@ -125,9 +124,77 @@ if ($machineRegistration.Count -ne 1) {
     throw "The per-machine shortcut component must use the HKLM PicLens key path"
 }
 
+
+# Expand an administrative image and compare the actual MSI contents against
+# the portable payload. This catches misplaced and duplicated same-name files,
+# which a file-count/total-byte comparison cannot detect.
+$auditRoot = Join-Path ([IO.Path]::GetTempPath()) ("PicLens-msi-audit-" + [Guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Path $auditRoot -Force | Out-Null
+try {
+    $process = Start-Process -FilePath "msiexec.exe" -ArgumentList @(
+        "/a",
+        ('"{0}"' -f $resolvedMsi),
+        "/qn",
+        "/norestart",
+        ('TARGETDIR="{0}"' -f $auditRoot)
+    ) -PassThru -Wait -WindowStyle Hidden
+    if ($process.ExitCode -notin @(0, 3010)) {
+        throw "MSI administrative extraction failed with exit code $($process.ExitCode)"
+    }
+
+    $executableCandidates = @(Get-ChildItem -LiteralPath $auditRoot -Filter "PicLens.exe" -File -Recurse |
+        Where-Object { Test-Path -LiteralPath (Join-Path $_.DirectoryName "qt.conf") -PathType Leaf })
+    if ($executableCandidates.Count -ne 1) {
+        throw "Expected one extracted PicLens payload root, found $($executableCandidates.Count)"
+    }
+    $extractedPayload = $executableCandidates[0].Directory.FullName
+
+    function Get-ContentManifest([string]$Root) {
+        $rootPrefix = $Root.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+        $manifest = @{}
+        foreach ($file in Get-ChildItem -LiteralPath $Root -File -Recurse | Where-Object Extension -ne ".pdb") {
+            $relativePath = $file.FullName.Substring($rootPrefix.Length).Replace('\', '/')
+            $manifest[$relativePath] = [pscustomobject]@{
+                Length = $file.Length
+                SHA256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
+            }
+        }
+        return $manifest
+    }
+
+    $portableManifest = Get-ContentManifest $resolvedPayload
+    $msiManifest = Get-ContentManifest $extractedPayload
+    $missing = @($portableManifest.Keys | Where-Object { -not $msiManifest.ContainsKey($_) } | Sort-Object)
+    $unexpected = @($msiManifest.Keys | Where-Object { -not $portableManifest.ContainsKey($_) } | Sort-Object)
+    if ($missing.Count -gt 0 -or $unexpected.Count -gt 0) {
+        throw "MSI relative-path mismatch. Missing=[$($missing -join ', ')]; Unexpected=[$($unexpected -join ', ')]"
+    }
+    foreach ($relativePath in $portableManifest.Keys) {
+        $portableEntry = $portableManifest[$relativePath]
+        $msiEntry = $msiManifest[$relativePath]
+        if ($portableEntry.Length -ne $msiEntry.Length -or $portableEntry.SHA256 -ne $msiEntry.SHA256) {
+            throw "MSI content mismatch: $relativePath"
+        }
+    }
+
+    if ($RequireSigned) {
+        foreach ($signedFile in @($resolvedMsi, $executableCandidates[0].FullName)) {
+            $signature = Get-AuthenticodeSignature -LiteralPath $signedFile
+            if ($signature.Status -ne [Management.Automation.SignatureStatus]::Valid) {
+                throw "Required Authenticode signature is not valid: $signedFile ($($signature.Status))"
+            }
+        }
+    }
+}
+finally {
+    Remove-Item -LiteralPath $auditRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 Write-Host "MSI database audit passed"
 Write-Host "  Version: $ExpectedVersion"
 Write-Host "  Files:   $($fileRows.Count)"
 Write-Host "  Bytes:   $msiBytes"
 Write-Host "  Upgrade: $($properties['UpgradeCode'])"
 Write-Host "  Major upgrade rule: present"
+Write-Host "  Relative paths, sizes, SHA256: exact match"
+Write-Host "  Authenticode required: $RequireSigned"

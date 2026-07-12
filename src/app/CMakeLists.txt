@@ -53,9 +53,6 @@ endforeach()
 set(PICLENS_RESOURCE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/AppIcon.ico
     ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/Square150x150Logo.scale-200.png
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/Fonts/NotoSansCJKtc-Regular.otf
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/Fonts/NotoSansCJKtc-Medium.otf
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/Fonts/NotoSansCJKtc-Bold.otf
 )
 set_source_files_properties(
     ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/AppIcon.ico
@@ -64,18 +61,6 @@ set_source_files_properties(
 set_source_files_properties(
     ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/Square150x150Logo.scale-200.png
     PROPERTIES QT_RESOURCE_ALIAS assets/AppLogo.png
-)
-set_source_files_properties(
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/Fonts/NotoSansCJKtc-Regular.otf
-    PROPERTIES QT_RESOURCE_ALIAS fonts/NotoSansCJKtc-Regular.otf
-)
-set_source_files_properties(
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/Fonts/NotoSansCJKtc-Medium.otf
-    PROPERTIES QT_RESOURCE_ALIAS fonts/NotoSansCJKtc-Medium.otf
-)
-set_source_files_properties(
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/Fonts/NotoSansCJKtc-Bold.otf
-    PROPERTIES QT_RESOURCE_ALIAS fonts/NotoSansCJKtc-Bold.otf
 )
 
 qt_add_executable(piclens
@@ -150,7 +135,6 @@ install(
     FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/../../LICENSE
         ${CMAKE_CURRENT_SOURCE_DIR}/../../THIRD_PARTY_NOTICES.txt
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../assets/Fonts/NotoSansCJKtc-OFL.txt
     DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/PicLens
 )
 if(PICLENS_SYSTEM_PACKAGE)

@@ -20,7 +20,7 @@ installer/                WiX definition for the Qt Windows payload
 
 ## Runtime composition
 
-`src/app/src/main.cpp` creates the Qt application, registers C++ types, loads embedded fonts and QML, and provides diagnostic launch switches. `AppController` composes settings, logging, scanner, thumbnail, file-operation, viewer and folder-tree services. `Main.qml` is the production shell.
+`src/app/src/main.cpp` creates the Qt application, registers C++ types, selects an installed platform UI font with Qt's system font as fallback, loads QML, and provides diagnostic launch switches. `AppController` composes settings, logging, scanner, thumbnail, file-operation, viewer and folder-tree services. `Main.qml` is the production shell.
 
 The gallery and folder tree use lazy/virtualized models. The library model indexes path identity for constant-time thumbnail delivery, preserves thumbnail state across search/sort projections and limits role notifications to affected rows. Thumbnail work is bounded and coordinated asynchronously; stale requests are discarded when search, folder or navigation generation changes. Cache capacity is maintained incrementally and pruned only after exceeding its bound. A bounded decoded-image cache and forced-asynchronous Qt Quick image provider deliver generated thumbnails without a cold-path PNG reload. The viewer requests viewport-sized decode tiers instead of unconditional original-size textures. Settings writes are normalized and atomic. OS-specific trash and reveal behavior are isolated behind `PlatformFileManager`.
 

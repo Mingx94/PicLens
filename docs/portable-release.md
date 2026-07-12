@@ -6,7 +6,7 @@
 pwsh -NoProfile -File scripts/build-portable.ps1
 ```
 
-Output: `artifacts/qt-portable/PicLens-win-x64/`. The script builds and tests Release, verifies the executable's native Windows app icon, runs `windeployqt`, copies licenses/assets, rejects build-machine path leaks and launches an isolated offscreen smoke.
+Output: `artifacts/qt-portable/PicLens-win-x64/`. The script requires an existing Release build, verifies the executable's native Windows app icon, runs `windeployqt`, retains only the Basic controls style, copies licenses/assets, rejects build-machine path leaks and launches an isolated offscreen smoke. The test-only `qoffscreen` plugin is removed after that smoke and is not distributed.
 
 ## Linux
 

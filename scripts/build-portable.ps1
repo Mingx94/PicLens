@@ -107,6 +107,17 @@ try {
         --dir $outputDirectoryPath `
         --compiler-runtime `
         --no-translations `
+        --no-system-dxc-compiler `
+        --no-quickcontrols2fluentwinui3styleimpl `
+        --no-quickcontrols2fusion `
+        --no-quickcontrols2fusionstyleimpl `
+        --no-quickcontrols2imagine `
+        --no-quickcontrols2imaginestyleimpl `
+        --no-quickcontrols2material `
+        --no-quickcontrols2materialstyleimpl `
+        --no-quickcontrols2universal `
+        --no-quickcontrols2universalstyleimpl `
+        --no-quickcontrols2windowsstyleimpl `
         --verbose 0 `
         --include-plugins "qoffscreen" `
         --skip-plugin-types "qmltooling,generic" `
@@ -117,6 +128,30 @@ try {
 }
 finally {
     $env:PATH = $previousPath
+}
+
+# qmlimportscanner deploys every style referenced by the generic Controls
+# module even when the application pins Qt Quick Controls to Basic. Remove the
+# unused style modules before resolving the native dependency closure; the
+# packaged smoke below verifies that the retained Basic style is self-contained.
+$qtQuickRoot = Join-Path $outputDirectoryPath "qml\QtQuick"
+$unusedStyleDirectories = @(
+    "Controls\FluentWinUI3",
+    "Controls\Fusion",
+    "Controls\Imagine",
+    "Controls\Material",
+    "Controls\Universal",
+    "Controls\Windows",
+    "NativeStyle"
+)
+foreach ($relativeStyleDirectory in $unusedStyleDirectories) {
+    $styleDirectory = Join-Path $qtQuickRoot $relativeStyleDirectory
+    if (Test-Path -LiteralPath $styleDirectory -PathType Container) {
+        Remove-Item -LiteralPath $styleDirectory -Recurse -Force
+    }
+}
+if (-not (Test-Path -LiteralPath (Join-Path $qtQuickRoot "Controls\Basic") -PathType Container)) {
+    throw "The required Qt Quick Controls Basic style was not deployed"
 }
 
 # MSYS2's windeployqt currently does not copy the UCRT64 MinGW runtime even
@@ -224,9 +259,6 @@ Copy-Item `
     -LiteralPath (Join-Path $repoRoot "LICENSE") `
     -Destination (Join-Path $outputDirectoryPath "LICENSE.txt")
 Copy-Item `
-    -LiteralPath (Join-Path $repoRoot "assets\Fonts\NotoSansCJKtc-OFL.txt") `
-    -Destination (Join-Path $licenseRoot "NotoSansCJKtc-OFL.txt")
-Copy-Item `
     -LiteralPath (Join-Path $qtRoot "THIRD_PARTY_NOTICES.txt") `
     -Destination (Join-Path $outputDirectoryPath "THIRD_PARTY_NOTICES.txt")
 
@@ -258,6 +290,14 @@ finally {
         Remove-Item -LiteralPath $smokeData -Recurse -Force
     }
 }
+
+# qoffscreen is included only so the packaged smoke can run without a desktop.
+# It is not part of the production payload.
+$offscreenPlugin = Join-Path $outputDirectoryPath "platforms\qoffscreen.dll"
+if (-not (Test-Path -LiteralPath $offscreenPlugin -PathType Leaf)) {
+    throw "Packaged smoke dependency was not deployed: $offscreenPlugin"
+}
+Remove-Item -LiteralPath $offscreenPlugin -Force
 
 $files = Get-ChildItem -LiteralPath $outputDirectoryPath -File -Recurse
 $totalBytes = ($files | Measure-Object -Property Length -Sum).Sum

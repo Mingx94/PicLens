@@ -31,6 +31,11 @@ This validates Release build/tests, deployed portable smoke, performance thresho
 ```powershell
 pwsh -NoProfile -File scripts/test-msi-lifecycle.ps1 `
   -PreviousMsiPath <previous.msi> -ConfirmSystemChanges
+
+# Or run it as the final, explicitly enabled build-msi stage:
+pwsh -NoProfile -File scripts/build-msi.ps1 `
+  -RunLifecycleTest -ConfirmSystemChanges `
+  -PreviousMsiPath <previous.msi>
 ```
 
 ```bash
@@ -38,7 +43,7 @@ bash scripts/test-linux-package-lifecycle.sh --deb <package.deb>
 bash scripts/test-linux-package-lifecycle.sh --rpm <package.rpm>
 ```
 
-Lifecycle gates install, launch, replace/upgrade where applicable, remove, and verify isolated profile preservation. They are intentionally separate from unit tests because they modify the runner OS.
+Lifecycle gates install, launch, replace/upgrade where applicable, remove, and verify isolated profile preservation. They are never run by a normal MSI build; the integrated form still requires both `-RunLifecycleTest` and `-ConfirmSystemChanges` because it modifies the runner OS.
 
 ## CI
 

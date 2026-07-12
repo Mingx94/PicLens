@@ -4,6 +4,7 @@
 #include <QCommandLineParser>
 #include <QDir>
 #include <QFontDatabase>
+#include <QFontInfo>
 #include <QGuiApplication>
 #include <QIcon>
 #include <QFile>
@@ -34,17 +35,30 @@
 
 namespace {
 
-void loadApplicationFonts(QGuiApplication &application)
+void configureApplicationFont(QGuiApplication &application)
 {
-    const QStringList resources{
-        QStringLiteral(":/qt/qml/PicLens/fonts/NotoSansCJKtc-Regular.otf"),
-        QStringLiteral(":/qt/qml/PicLens/fonts/NotoSansCJKtc-Medium.otf"),
-        QStringLiteral(":/qt/qml/PicLens/fonts/NotoSansCJKtc-Bold.otf"),
+    QFont font = QFontDatabase::systemFont(QFontDatabase::GeneralFont);
+    const QStringList preferredFamilies{
+#ifdef Q_OS_WIN
+        QStringLiteral("Microsoft JhengHei UI"),
+        QStringLiteral("Microsoft JhengHei"),
+#elif defined(Q_OS_MACOS)
+        QStringLiteral("PingFang TC"),
+        QStringLiteral("Heiti TC"),
+#else
+        QStringLiteral("Noto Sans CJK TC"),
+        QStringLiteral("Noto Sans TC"),
+        QStringLiteral("WenQuanYi Micro Hei"),
+#endif
     };
-    for (const QString &resource : resources) {
-        QFontDatabase::addApplicationFont(resource);
+    for (const QString &family : preferredFamilies) {
+        const QFont candidate(family);
+        if (QFontInfo(candidate).family().compare(family, Qt::CaseInsensitive) == 0) {
+            font.setFamilies({family, font.family()});
+            break;
+        }
     }
-    QFont font(QStringLiteral("Noto Sans CJK TC"));
+    font.setStyleHint(QFont::SansSerif);
     font.setPixelSize(14);
     application.setFont(font);
 }
@@ -217,7 +231,7 @@ int main(int argc, char *argv[])
     application.setApplicationName(QStringLiteral("PicLens"));
     application.setApplicationVersion(QStringLiteral(PICLENS_VERSION));
     application.setWindowIcon(QIcon(QStringLiteral(":/qt/qml/PicLens/assets/AppIcon.ico")));
-    loadApplicationFonts(application);
+    configureApplicationFont(application);
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("PicLens Qt image browser"));

@@ -80,7 +80,10 @@ ProcessLaunchRequest PlatformFileManager::revealRequest(const QString &path)
 #ifdef Q_OS_WIN
     return {
         .program = QStringLiteral("explorer.exe"),
-        .arguments = {QStringLiteral("/select,%1").arg(QDir::toNativeSeparators(info.absoluteFilePath()))},
+        .arguments = {
+            QStringLiteral("/select,"),
+            QDir::toNativeSeparators(info.absoluteFilePath()),
+        },
     };
 #elif defined(Q_OS_LINUX)
     return {

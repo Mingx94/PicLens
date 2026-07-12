@@ -321,7 +321,9 @@ void FileOperationTests::revealBuildsPlatformRequestAndUsesLauncher()
 {
     QTemporaryDir root;
     QVERIFY(root.isValid());
-    const QString source = childPath(root.path(), QStringLiteral("photo.jpg"));
+    const QString folderWithSpaces = childPath(root.path(), QStringLiteral("folder with spaces"));
+    QVERIFY(QDir().mkpath(folderWithSpaces));
+    const QString source = childPath(folderWithSpaces, QStringLiteral("photo with spaces.jpg"));
     writeFile(source, QByteArrayLiteral("photo"));
     std::optional<ProcessLaunchRequest> launched;
     PlatformFileManager manager([&](const ProcessLaunchRequest &request) {
@@ -334,12 +336,13 @@ void FileOperationTests::revealBuildsPlatformRequestAndUsesLauncher()
     QVERIFY(launched.has_value());
 #ifdef Q_OS_WIN
     QCOMPARE(launched->program, QStringLiteral("explorer.exe"));
-    QCOMPARE(launched->arguments.size(), 1);
-    QVERIFY(launched->arguments.constFirst().startsWith(QStringLiteral("/select,")));
-    QVERIFY(launched->arguments.constFirst().contains(QDir::toNativeSeparators(source)));
+    QCOMPARE(launched->arguments, QStringList({
+        QStringLiteral("/select,"),
+        QDir::toNativeSeparators(source),
+    }));
 #elif defined(Q_OS_LINUX)
     QCOMPARE(launched->program, QStringLiteral("xdg-open"));
-    QCOMPARE(launched->arguments, QStringList{root.path()});
+    QCOMPARE(launched->arguments, QStringList{folderWithSpaces});
 #endif
     QVERIFY_EXCEPTION_THROWN(
         manager.reveal(childPath(root.path(), QStringLiteral("missing.jpg"))),

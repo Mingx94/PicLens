@@ -40,6 +40,9 @@ Raw output is generated at `artifacts/performance/windows-release.json` and inte
 
 The current runtime avoids the largest known application-level hot paths:
 
+- Gallery delegates contain only per-tile interaction and rendering state; context menus and rename/trash dialogs are shared once by the library pane.
+- The application uses installed platform fonts with Qt's system font fallback instead of registering three embedded CJK OTF files at startup.
+- The inline viewer subtree is instantiated only while the viewer is open.
 - `LibraryItemModel` maintains a path-to-row index for O(1) thumbnail delivery and emits selection changes only for affected rows.
 - Search input is debounced and search/sort model resets retain valid thumbnail mappings.
 - Thumbnail cache size is tracked incrementally; a full directory sort occurs only when the configured bound is exceeded.
@@ -48,6 +51,8 @@ The current runtime avoids the largest known application-level hot paths:
 - Release builds enable interprocedural optimization when supported by the active non-MinGW toolchain. MinGW is excluded because Qt-generated QML COFF objects cannot be merged reliably by its LTO linker.
 
 2026-07-11 post-change mechanism smoke on the two image assets in this repository produced cold/warm elapsed times of 1,612/1,624 ms, first thumbnail at 117 ms, two warm-cache hits, Direct3D 11 rendering, 5.99 ms frame-swap interval p95 and a 210,612,224-byte peak working set. This validates the new metrics and warm-cache path only; two images are not representative performance evidence and do not replace the larger results below.
+
+2026-07-12 startup-memory optimization smoke on the same two assets produced cold/warm elapsed times of 1,612/1,593 ms and cold/warm working sets of 59,084,800/58,777,600 bytes with Direct3D 11 rendering. The Release executable decreased from 55,243,537 to 5,327,267 bytes after embedded application fonts were removed. Relative to the preceding two-asset smoke, cold working set decreased by 151,527,424 bytes (71.9%) without increasing the measured settle time. This isolates the startup-memory mechanisms but still does not replace the representative-library gate.
 
 ## Hosted Windows evidence
 

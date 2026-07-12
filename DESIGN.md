@@ -61,7 +61,8 @@ PicLens intentionally supports the light theme only. Keep `RequestedThemeVariant
 
 ### Font Stack
 
-- Primary: embedded `Noto Sans CJK TC` from `assets/Fonts`.
+- Primary: an installed platform Traditional Chinese UI font (`Microsoft JhengHei UI` on Windows, `PingFang TC` on macOS, or Noto/WenQuanYi families on Linux when available).
+- Fallback: Qt's general system font with its native glyph fallback chain.
 - Mono: platform default monospace when needed.
 - Serif: not used.
 

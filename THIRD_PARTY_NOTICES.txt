@@ -15,7 +15,5 @@ one of these toolchain-specific layouts:
 
 The Qt libraries remain separate dynamically linked files beside PicLens.exe.
 
-Noto Sans CJK TC
-----------------
-PicLens embeds Noto Sans CJK TC font files. Their SIL Open Font License text is
-included as licenses/NotoSansCJKtc-OFL.txt.
+PicLens does not embed or redistribute application fonts. It uses fonts already
+installed on the operating system and falls back to Qt's general system font.

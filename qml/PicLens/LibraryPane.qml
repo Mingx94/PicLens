@@ -8,6 +8,7 @@ Rectangle {
     id: pane
     required property AppController appController
     signal openFolderRequested()
+    property string contextMenuPath: ""
     color: Theme.surface
     border.width: 1
     border.color: Theme.line
@@ -21,6 +22,12 @@ Rectangle {
 
     function restoreGalleryFocus() {
         gallery.forceActiveFocus()
+    }
+
+    function openItemContextMenu(sourcePath, x, y) {
+        contextMenuPath = sourcePath
+        appController.prepareContextSelection(sourcePath)
+        itemContextMenu.popup(gallery, x, y)
     }
 
     function runPerformanceExercise() {
@@ -407,6 +414,9 @@ Rectangle {
                         else
                             gallery.endInternalDrag(x, y, false)
                     }
+                    onContextMenuRequested: function(sourcePath, x, y) {
+                        pane.openItemContextMenu(sourcePath, x, y)
+                    }
                 }
 
                 ScrollBar.vertical: ScrollBar { }
@@ -512,6 +522,79 @@ Rectangle {
                     }
                 }
             }
+        }
+    }
+
+    Dialog {
+        id: renameDialog
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(420, pane.width - 48)
+        title: "重新命名圖片"
+        modal: true
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        closePolicy: Popup.CloseOnEscape
+        onOpened: {
+            renameField.text = pane.appController.fileOperations.selectedBaseName
+            renameField.forceActiveFocus()
+            renameField.selectAll()
+        }
+        onAccepted: pane.appController.fileOperations.renameSelected(renameField.text)
+
+        contentItem: Column {
+            spacing: Theme.space3
+            Text {
+                text: "輸入新的檔名（副檔名會保留）"
+                color: Theme.primaryText
+            }
+            TextField {
+                id: renameField
+                width: Math.min(340, renameDialog.availableWidth)
+                selectByMouse: true
+                onAccepted: renameDialog.accept()
+            }
+        }
+    }
+
+    Dialog {
+        id: trashDialog
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(420, pane.width - 48)
+        title: "將選取的圖片移至回收筒"
+        modal: true
+        standardButtons: Dialog.Yes | Dialog.Cancel
+        closePolicy: Popup.CloseOnEscape
+        onAccepted: pane.appController.fileOperations.trashSelected()
+
+        contentItem: Text {
+            width: trashDialog.availableWidth
+            text: pane.appController.library.selectedCount === 1
+                  ? "要將這張圖片移至回收筒嗎？"
+                  : "要將選取的 " + pane.appController.library.selectedCount + " 張圖片移至回收筒嗎？"
+            color: Theme.primaryText
+            wrapMode: Text.Wrap
+        }
+    }
+
+    Menu {
+        id: itemContextMenu
+
+        MenuItem {
+            text: "在檔案管理器中顯示"
+            enabled: !pane.appController.fileOperations.busy
+            onTriggered: pane.appController.fileOperations.reveal(pane.contextMenuPath)
+        }
+        MenuSeparator { }
+        MenuItem {
+            text: "重新命名"
+            enabled: pane.appController.fileOperations.canRename
+            onTriggered: renameDialog.open()
+        }
+        MenuItem {
+            text: "移至回收筒"
+            enabled: pane.appController.fileOperations.canTrash
+            onTriggered: trashDialog.open()
         }
     }
 
