@@ -34,7 +34,11 @@ QtObject {
     readonly property color viewerCanvas: "#11141A"
     readonly property color viewerChrome: "#E61D2129"
     readonly property color viewerLine: "#33FFFFFF"
+    readonly property color viewerText: "#F7F8FA"
     readonly property color viewerSecondaryText: "#AAB2C0"
+    readonly property color viewerDisabledText: "#667080"
+    readonly property color viewerHover: "#26FFFFFF"
+    readonly property color viewerPressed: "#40FFFFFF"
 
     readonly property int space1: 4
     readonly property int space2: 8

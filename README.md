@@ -23,17 +23,25 @@ VERSION             package version authority
 
 需要 CMake 3.21+、Ninja、C++20 compiler 與 Qt 6.5+（Core、Gui、Qml、Quick、QuickControls2、Concurrent、Test、QuickTest）。
 
+以下命令都從 repo root 執行，PowerShell 需使用 PowerShell 7（`pwsh`）。
+
+常用單行建置命令：
+
 ```powershell
-cmake --preset debug
-cmake --build --preset debug
-ctest --preset debug --output-on-failure
+# Debug -> build/debug/bin/PicLens.exe
+cmake --preset debug && cmake --build --preset debug
+
+# Release -> build/release/bin/PicLens.exe
+cmake --preset release && cmake --build --preset release
+
+# Windows Installer -> artifacts/installer/PicLens-win-x64.msi
+pwsh -NoProfile -File scripts/build-msi.ps1
 ```
 
-Release：
+執行完整測試：
 
 ```powershell
-cmake --preset release
-cmake --build --preset release
+ctest --preset debug --output-on-failure
 ctest --preset release --output-on-failure
 ```
 

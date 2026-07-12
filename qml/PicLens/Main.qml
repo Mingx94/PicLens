@@ -374,6 +374,7 @@ ApplicationWindow {
         id: viewerLoader
         anchors.fill: parent
         active: window.appController.viewer.open
+        focus: active
         sourceComponent: Component {
             ViewerOverlay {
                 appController: window.appController

@@ -25,6 +25,12 @@ Item {
             return "M11 19 A8 8 0 1 1 19 11 A8 8 0 0 1 11 19 M17 17 L21 21"
         case "plus":
             return "M12 5 L12 19 M5 12 L19 12"
+        case "zoom-in":
+            return "M10.5 18 A7.5 7.5 0 1 1 18 10.5 A7.5 7.5 0 0 1 10.5 18 M16 16 L21 21 M10.5 7.5 L10.5 13.5 M7.5 10.5 L13.5 10.5"
+        case "zoom-out":
+            return "M10.5 18 A7.5 7.5 0 1 1 18 10.5 A7.5 7.5 0 0 1 10.5 18 M16 16 L21 21 M7.5 10.5 L13.5 10.5"
+        case "fit":
+            return "M9 4 L4 4 L4 9 M15 4 L20 4 L20 9 M4 15 L4 20 L9 20 M20 15 L20 20 L15 20"
         case "close":
             return "M6 6 L18 18 M18 6 L6 18"
         case "grid":

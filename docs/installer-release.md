@@ -14,7 +14,7 @@ Useful diagnostic options:
 pwsh -NoProfile -File scripts/build-msi.ps1 -DryRun
 pwsh -NoProfile -File scripts/build-msi.ps1 -NoRelease
 pwsh -NoProfile -File scripts/build-msi.ps1 -NoClean
-pwsh -NoProfile -File scripts/build-msi.ps1 -Version 2.0.0
+pwsh -NoProfile -File scripts/build-msi.ps1 -Version 2.1.0
 ```
 
 To Authenticode-sign the application executable first and the MSI last, pass a
@@ -78,4 +78,4 @@ Pushing a tag named `v<version>` runs the full Windows, Linux, and Fedora releas
 - the Fedora RPM; and
 - `SHA256SUMS.txt` for every uploaded download.
 
-The tag must exactly match the root `VERSION` file (for example, `VERSION=2.0.0` requires tag `v2.0.0`). To rebuild an existing release, run **Qt release gates** with **Run workflow**, enter its existing tag in `release_tag`, and the workflow builds from that tagged source before replacing assets with the same names.
+The tag must exactly match the root `VERSION` file (for example, `VERSION=2.1.0` requires tag `v2.1.0`). To rebuild an existing release, run **Qt release gates** with **Run workflow**, enter its existing tag in `release_tag`, and the workflow builds from that tagged source before replacing assets with the same names.
