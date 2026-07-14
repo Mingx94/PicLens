@@ -107,7 +107,8 @@ Rectangle drag selection 已明確不在目前 scope。
 File-management behavior 應保持保守：
 
 - Trash-like operations 送到 OS recycle bin/trash。Linux 使用 `gio trash`，不可 fallback 為永久刪除。
-- JPG conversion 會保留 original files。
+- JPG conversion 使用 quality 100，並保留 original files。
+- Lossless WebP conversion 會保留 original files；JPG、JPEG、既有 WebP 與 animated images 會略過。
 - Target collisions 會略過，不覆寫。
 - Batch operations 會回報 per-file results。
 - Failures 會逐項繼續處理。

@@ -119,7 +119,7 @@ try {
         --no-quickcontrols2universalstyleimpl `
         --no-quickcontrols2windowsstyleimpl `
         --verbose 0 `
-        --include-plugins "qoffscreen" `
+        --include-plugins "qoffscreen,qwebp" `
         --skip-plugin-types "qmltooling,generic" `
         $deployedExecutable
     if ($LASTEXITCODE -ne 0) {
@@ -213,12 +213,19 @@ if ($usesMingwRuntime) {
 }
 Write-Host "Additional MSYS2 runtime DLLs: $($copiedDependencies.Count)"
 
+$webpPlugin = Join-Path $outputDirectoryPath "imageformats\qwebp.dll"
+if (-not (Test-Path -LiteralPath $webpPlugin -PathType Leaf)) {
+    throw "Required WebP image plugin was not deployed: $webpPlugin"
+}
+
 $licenseRoot = Join-Path $outputDirectoryPath "licenses"
 New-Item -ItemType Directory -Path $licenseRoot -Force | Out-Null
 $msysLicenseRoot = Join-Path $qtPrefix "share\licenses"
 if ((Test-Path -LiteralPath (Join-Path $msysLicenseRoot "qt6-base") -PathType Container) -and
-    (Test-Path -LiteralPath (Join-Path $msysLicenseRoot "qt6-declarative") -PathType Container)) {
-    foreach ($qtLicensePackage in @("qt6-base", "qt6-declarative")) {
+    (Test-Path -LiteralPath (Join-Path $msysLicenseRoot "qt6-declarative") -PathType Container) -and
+    (Test-Path -LiteralPath (Join-Path $msysLicenseRoot "qt6-imageformats") -PathType Container) -and
+    (Test-Path -LiteralPath (Join-Path $msysLicenseRoot "libwebp") -PathType Container)) {
+    foreach ($qtLicensePackage in @("qt6-base", "qt6-declarative", "qt6-imageformats", "libwebp")) {
         Copy-Item `
             -LiteralPath (Join-Path $msysLicenseRoot $qtLicensePackage) `
             -Destination $licenseRoot `
@@ -239,12 +246,12 @@ else {
         -Filter LICENSES `
         -Recurse `
         -ErrorAction SilentlyContinue | Where-Object {
-            $_.Parent.Name -in @("qtbase", "qtdeclarative") -and
+            $_.Parent.Name -in @("qtbase", "qtdeclarative", "qtimageformats") -and
             $_.Parent.Parent.Name -eq "Src"
         })
     $sourceModules = @($sourceLicenseDirectories | ForEach-Object { $_.Parent.Name } | Sort-Object -Unique)
-    if ($sourceModules.Count -ne 2) {
-        throw "Qt base/declarative license texts were not found below the selected Qt installation: $qtInstallRoot"
+    if ($sourceModules.Count -ne 3) {
+        throw "Qt base/declarative/imageformats license texts were not found below the selected Qt installation: $qtInstallRoot"
     }
     $qtLicenseRoot = Join-Path $licenseRoot "Qt"
     New-Item -ItemType Directory -Path $qtLicenseRoot -Force | Out-Null

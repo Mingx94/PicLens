@@ -17,13 +17,21 @@ public:
 class FileOperationService final
 {
 public:
-    using JpegEncoder = std::function<void(const QString &, const QString &, std::stop_token)>;
+    using ImageEncoder = std::function<void(const QString &, const QString &, std::stop_token)>;
     using TrashHandler = std::function<void(const QString &, std::stop_token)>;
 
     FileOperationService();
-    FileOperationService(JpegEncoder encoder, TrashHandler trashHandler);
+    FileOperationService(ImageEncoder jpegEncoder, TrashHandler trashHandler);
+    FileOperationService(
+        ImageEncoder jpegEncoder,
+        ImageEncoder webpEncoder,
+        TrashHandler trashHandler);
 
     [[nodiscard]] core::FileOperationBatchResult convertVisibleToJpg(
+        const QVector<core::ImageListItem> &visibleImages,
+        std::stop_token stopToken = {}) const;
+
+    [[nodiscard]] core::FileOperationBatchResult convertVisibleToWebp(
         const QVector<core::ImageListItem> &visibleImages,
         std::stop_token stopToken = {}) const;
 
@@ -50,8 +58,12 @@ private:
     [[nodiscard]] core::FileOperationResult convertOneToJpg(
         const core::ImageListItem &image,
         std::stop_token stopToken) const;
+    [[nodiscard]] core::FileOperationResult convertOneToWebp(
+        const core::ImageListItem &image,
+        std::stop_token stopToken) const;
 
-    JpegEncoder m_encoder;
+    ImageEncoder m_jpegEncoder;
+    ImageEncoder m_webpEncoder;
     TrashHandler m_trashHandler;
 };
 

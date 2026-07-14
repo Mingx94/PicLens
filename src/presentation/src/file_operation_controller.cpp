@@ -47,6 +47,7 @@ FileOperationController::FileOperationController(
     RenameFunction rename,
     TrashFunction trash,
     BatchFunction convertVisible,
+    BatchFunction convertVisibleToWebp,
     BatchFunction clearSameBasename,
     RevealFunction reveal,
     DropRenameFunction dropRename,
@@ -57,12 +58,13 @@ FileOperationController::FileOperationController(
     , m_rename(std::move(rename))
     , m_trash(std::move(trash))
     , m_convertVisible(std::move(convertVisible))
+    , m_convertVisibleToWebp(std::move(convertVisibleToWebp))
     , m_clearSameBasename(std::move(clearSameBasename))
     , m_reveal(std::move(reveal))
     , m_dropRename(std::move(dropRename))
     , m_existingPaths(std::move(existingPaths))
 {
-    if (!m_library || !m_rename || !m_trash || !m_convertVisible
+    if (!m_library || !m_rename || !m_trash || !m_convertVisible || !m_convertVisibleToWebp
         || !m_clearSameBasename || !m_reveal) {
         throw std::invalid_argument("File operation controller dependencies are required.");
     }
@@ -294,6 +296,15 @@ void FileOperationController::convertVisible()
         QStringLiteral("轉換為 JPG"),
         QStringLiteral("正在轉換 %1 張圖片為 JPG…").arg(visibleImageCount()),
         m_convertVisible);
+}
+
+void FileOperationController::convertVisibleToWebp()
+{
+    startBatch(
+        QStringLiteral("convert_webp"),
+        QStringLiteral("轉換為無損 WebP"),
+        QStringLiteral("正在轉換 %1 張圖片為無損 WebP…").arg(visibleImageCount()),
+        m_convertVisibleToWebp);
 }
 
 void FileOperationController::clearSameBasename()

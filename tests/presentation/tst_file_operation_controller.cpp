@@ -101,6 +101,7 @@ void FileOperationControllerTests::renamePreservesExtensionRunsOffThreadAndRefre
         [](const QString &path, std::stop_token) { return operationResult(path); },
         [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
         [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
+        [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
         [](const QString &) {});
 
     QVERIFY(operations.canRename());
@@ -138,6 +139,7 @@ void FileOperationControllerTests::trashProcessesSelectionInOrderAndContinuesFai
         },
         [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
         [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
+        [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
         [](const QString &) {});
     QSignalSpy failed(&operations, &FileOperationController::operationFailed);
 
@@ -162,6 +164,7 @@ void FileOperationControllerTests::revealFailureIsDiagnosedWithoutMutatingSelect
         &library,
         [](const QString &path, const QString &, std::stop_token) { return operationResult(path); },
         [](const QString &path, std::stop_token) { return operationResult(path); },
+        [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
         [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
         [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
         [](const QString &) { throw std::runtime_error("launch denied"); });
@@ -197,6 +200,7 @@ void FileOperationControllerTests::visibleBatchUsesImmutableSnapshotAndRefreshes
             return batch;
         },
         [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
+        [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
         [](const QString &) {});
 
     QVERIFY(operations.canProcessVisible());
@@ -229,6 +233,7 @@ void FileOperationControllerTests::cancelSuppressesBatchRefreshAndReportsCancele
             throw std::runtime_error("canceled");
         },
         [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
+        [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
         [](const QString &) {});
 
     operations.convertVisible();
@@ -252,6 +257,7 @@ void FileOperationControllerTests::dropRenameRequiresPreviewAndPreservesSelectio
         &library,
         [](const QString &path, const QString &, std::stop_token) { return operationResult(path); },
         [](const QString &path, std::stop_token) { return operationResult(path); },
+        [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
         [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
         [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
         [](const QString &) {},
@@ -303,6 +309,7 @@ void FileOperationControllerTests::cancelDropRenamePreviewSkipsExecution()
         &library,
         [](const QString &path, const QString &, std::stop_token) { return operationResult(path); },
         [](const QString &path, std::stop_token) { return operationResult(path); },
+        [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
         [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
         [](const QVector<ImageListItem> &, std::stop_token) { return FileOperationBatchResult{}; },
         [](const QString &) {},

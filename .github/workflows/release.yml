@@ -68,8 +68,9 @@ jobs:
           version: "6.8.3"
           arch: win64_msvc2022_64
           cache: true
+          modules: qtimageformats
           source: true
-          src-archives: qtbase qtdeclarative
+          src-archives: qtbase qtdeclarative qtimageformats
       - name: Configure and test Release
         shell: pwsh
         run: |
@@ -154,8 +155,9 @@ jobs:
         with:
           version: "6.8.3"
           cache: true
+          modules: qtimageformats
           source: true
-          src-archives: qtbase qtdeclarative
+          src-archives: qtbase qtdeclarative qtimageformats
       - name: Build, test, deploy, and run sanitized smoke
         run: xvfb-run -a bash scripts/build-linux-portable.sh
       - name: Exercise gio trash and xdg-open adapters
@@ -186,7 +188,7 @@ jobs:
         run: >-
           dnf install --assumeyes
           git gcc-c++ cmake ninja-build rpm-build
-          qt6-qtbase-devel qt6-qtdeclarative-devel
+          qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtimageformats
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.release_tag || github.sha }}

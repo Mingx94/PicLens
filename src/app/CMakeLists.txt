@@ -98,6 +98,10 @@ target_link_libraries(piclens
         Qt6::Quick
         Qt6::QuickControls2
 )
+if(NOT TARGET Qt6::QWebpPlugin)
+    message(FATAL_ERROR "PicLens requires the Qt Image Formats qwebp plugin")
+endif()
+qt_import_plugins(piclens INCLUDE Qt6::QWebpPlugin)
 if(WIN32)
     target_link_libraries(piclens PRIVATE psapi)
 endif()
@@ -161,7 +165,8 @@ if(EXISTS "${PICLENS_QT_INSTALL_PREFIX}/LICENSES")
         DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/Qt
     )
 elseif(EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtbase/LICENSES" AND
-       EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtdeclarative/LICENSES")
+       EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtdeclarative/LICENSES" AND
+       EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtimageformats/LICENSES")
     install(
         DIRECTORY "${PICLENS_QT_SOURCE_ROOT}/qtbase/LICENSES/"
         DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/Qt/qtbase
@@ -170,6 +175,17 @@ elseif(EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtbase/LICENSES" AND
         DIRECTORY "${PICLENS_QT_SOURCE_ROOT}/qtdeclarative/LICENSES/"
         DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/Qt/qtdeclarative
     )
+    install(
+        DIRECTORY "${PICLENS_QT_SOURCE_ROOT}/qtimageformats/LICENSES/"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/Qt/qtimageformats
+    )
+    if(EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtimageformats/src/3rdparty/libwebp/COPYING")
+        install(
+            FILES "${PICLENS_QT_SOURCE_ROOT}/qtimageformats/src/3rdparty/libwebp/COPYING"
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/Qt/qtimageformats
+            RENAME libwebp-COPYING
+        )
+    endif()
 endif()
 
 if(BUILD_TESTING)

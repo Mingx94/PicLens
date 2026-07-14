@@ -35,13 +35,19 @@ ctest --test-dir "$build_dir" --output-on-failure
 rm -rf -- "$output_dir"
 cmake --install "$build_dir" --prefix "$output_dir"
 
-for qt_module in qtbase qtdeclarative; do
+for qt_module in qtbase qtdeclarative qtimageformats; do
     license_dir="$output_dir/share/licenses/Qt/$qt_module"
     if [[ ! -d "$license_dir" ]] || ! find "$license_dir" -type f -print -quit | grep -q .; then
         echo "Qt $qt_module license texts were not installed from $qt_source_root" >&2
         exit 4
     fi
 done
+
+webp_plugin="$output_dir/plugins/imageformats/libqwebp.so"
+if [[ ! -f "$webp_plugin" ]]; then
+    echo "Required WebP image plugin was not deployed: $webp_plugin" >&2
+    exit 5
+fi
 
 platform_plugin=""
 if [[ -f "$output_dir/plugins/platforms/libqoffscreen.so" ]]; then

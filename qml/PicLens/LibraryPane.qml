@@ -253,13 +253,23 @@ Rectangle {
                         id: operationsMenu
                         y: parent.height
                         MenuItem {
-                            text: "將目前顯示項目轉為 JPG"
+                            text: "將目前顯示項目轉為 JPG（品質 100）"
                             enabled: pane.appController.fileOperations.canProcessVisible
                             onTriggered: {
                                 if (pane.appController.fileOperations.visibleImageCount >= 50)
                                     convertDialog.open()
                                 else
                                     pane.appController.fileOperations.convertVisible()
+                            }
+                        }
+                        MenuItem {
+                            text: "將目前顯示項目轉為無損 WebP"
+                            enabled: pane.appController.fileOperations.canProcessVisible
+                            onTriggered: {
+                                if (pane.appController.fileOperations.visibleImageCount >= 50)
+                                    convertWebpDialog.open()
+                                else
+                                    pane.appController.fileOperations.convertVisibleToWebp()
                             }
                         }
                         MenuItem {
@@ -603,7 +613,7 @@ Rectangle {
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(440, pane.width - 48)
-        title: "轉換為 JPG"
+        title: "轉換為 JPG（品質 100）"
         modal: true
         standardButtons: Dialog.Yes | Dialog.Cancel
         onAccepted: pane.appController.fileOperations.convertVisible()
@@ -611,7 +621,7 @@ Rectangle {
         contentItem: Text {
             width: convertDialog.availableWidth
             text: "要將目前顯示的 " + pane.appController.fileOperations.visibleImageCount
-                  + " 張圖片轉為 JPG 嗎？原始檔案會保留。"
+                  + " 張圖片轉為品質 100 的 JPG 嗎？原始檔案會保留。"
             color: Theme.primaryText
             wrapMode: Text.Wrap
         }
@@ -630,6 +640,25 @@ Rectangle {
         contentItem: Text {
             width: cleanupDialog.availableWidth
             text: "要將目前顯示圖片中，已有同名 JPG 的非 JPG 檔案移至回收筒嗎？"
+            color: Theme.primaryText
+            wrapMode: Text.Wrap
+        }
+    }
+
+    Dialog {
+        id: convertWebpDialog
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(460, pane.width - 48)
+        title: "轉換為無損 WebP"
+        modal: true
+        standardButtons: Dialog.Yes | Dialog.Cancel
+        onAccepted: pane.appController.fileOperations.convertVisibleToWebp()
+
+        contentItem: Text {
+            width: convertWebpDialog.availableWidth
+            text: "要將目前顯示的 " + pane.appController.fileOperations.visibleImageCount
+                  + " 張圖片轉為無損 WebP 嗎？JPG/JPEG 與既有 WebP 會略過，原始檔案會保留。"
             color: Theme.primaryText
             wrapMode: Text.Wrap
         }

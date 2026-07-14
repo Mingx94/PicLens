@@ -71,6 +71,7 @@ private slots:
     void visibleThumbnailRequestUpdatesModelAndSizePersistence();
     void selectedRenameUsesComposedWorkerAndRefreshesLibrary();
     void convertVisiblePreservesOriginalAndRefreshesLibrary();
+    void convertVisibleToWebpPreservesOriginalAndSkipsJpg();
     void viewerSnapshotRemainsImmutableAcrossLibraryReload();
     void shellViewStateMatchesLegacyDefaultsAndToggles();
 };
@@ -333,6 +334,39 @@ void AppControllerTests::convertVisiblePreservesOriginalAndRefreshesLibrary()
     QVERIFY(QFileInfo::exists(source));
     QVERIFY(QFileInfo::exists(converted));
     QCOMPARE(controller.library()->items()->rowCount(), 2);
+}
+
+void AppControllerTests::convertVisibleToWebpPreservesOriginalAndSkipsJpg()
+{
+    QTemporaryDir data;
+    QTemporaryDir workspace;
+    QVERIFY(data.isValid());
+    QVERIFY(workspace.isValid());
+    const QString source = childPath(workspace.path(), QStringLiteral("source.bmp"));
+    const QString jpg = childPath(workspace.path(), QStringLiteral("existing.jpg"));
+    const QString converted = childPath(workspace.path(), QStringLiteral("source.webp"));
+    const QString skippedJpgTarget = childPath(workspace.path(), QStringLiteral("existing.webp"));
+    const QString settingsPath = childPath(data.path(), QStringLiteral("settings.json"));
+    writeFile(source, onePixelBmp());
+    writeFile(jpg, QByteArrayLiteral("jpg-source"));
+    seedSettings(settingsPath, lastFolderPatch(workspace.path()));
+    AppController controller(
+        settingsPath,
+        childPath(data.path(), QStringLiteral("app.log")),
+        childPath(data.path(), QStringLiteral("thumbnails")));
+    controller.initialize();
+    waitForReady(controller);
+
+    QCOMPARE(controller.fileOperations()->visibleImageCount(), 2);
+    controller.fileOperations()->convertVisibleToWebp();
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.fileOperations()->busy(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.library()->busy(), 5000);
+
+    QVERIFY(QFileInfo::exists(source));
+    QVERIFY(QFileInfo::exists(jpg));
+    QVERIFY(QFileInfo::exists(converted));
+    QVERIFY(!QFileInfo::exists(skippedJpgTarget));
+    QCOMPARE(controller.library()->items()->rowCount(), 3);
 }
 
 void AppControllerTests::viewerSnapshotRemainsImmutableAcrossLibraryReload()

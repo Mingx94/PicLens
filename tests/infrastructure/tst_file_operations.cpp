@@ -3,6 +3,8 @@
 
 #include <QDir>
 #include <QFile>
+#include <QImage>
+#include <QImageReader>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -66,6 +68,8 @@ class FileOperationTests final : public QObject
 private slots:
     void conversionPreservesOriginalsAndSkipsConservatively();
     void defaultEncoderWritesJpegBytes();
+    void webpConversionSkipsJpgAndExistingWebp();
+    void defaultEncoderWritesLosslessWebpBytes();
     void conversionFailureCleansPartialTargetAndContinues();
     void matchingNonJpgCleanupUsesInjectedTrash();
     void trashReportsMissingAndHandlerFailures();
@@ -129,6 +133,91 @@ void FileOperationTests::defaultEncoderWritesJpegBytes()
     QVERIFY(bytes.size() > 2);
     QCOMPARE(static_cast<unsigned char>(bytes[0]), static_cast<unsigned char>(0xff));
     QCOMPARE(static_cast<unsigned char>(bytes[1]), static_cast<unsigned char>(0xd8));
+    QVERIFY2(
+        bytes.contains(QByteArray(64, '\x01')),
+        "JPEG quantization table does not match quality 100");
+    QVERIFY(QFileInfo::exists(source));
+}
+
+void FileOperationTests::webpConversionSkipsJpgAndExistingWebp()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString png = childPath(root.path(), QStringLiteral("a.png"));
+    const QString jpg = childPath(root.path(), QStringLiteral("b.jpg"));
+    const QString jpeg = childPath(root.path(), QStringLiteral("c.jpeg"));
+    const QString webp = childPath(root.path(), QStringLiteral("d.webp"));
+    const QString gif = childPath(root.path(), QStringLiteral("loop.gif"));
+    const QString collision = childPath(root.path(), QStringLiteral("taken.bmp"));
+    writeFile(png, QByteArrayLiteral("png"));
+    writeFile(jpg, QByteArrayLiteral("jpg"));
+    writeFile(jpeg, QByteArrayLiteral("jpeg"));
+    writeFile(webp, QByteArrayLiteral("webp"));
+    writeFile(gif, QByteArrayLiteral("gif"));
+    writeFile(collision, QByteArrayLiteral("bmp"));
+    writeFile(childPath(root.path(), QStringLiteral("taken.webp")), QByteArrayLiteral("existing"));
+
+    QVector<QString> converted;
+    FileOperationService service(
+        [](const QString &, const QString &, std::stop_token) {},
+        [&](const QString &source, const QString &target, std::stop_token) {
+            converted.append(source);
+            writeFile(target, QByteArrayLiteral("lossless-webp"));
+        },
+        [](const QString &, std::stop_token) {});
+
+    const auto result = service.convertVisibleToWebp(
+        {image(png), image(jpg), image(jpeg), image(webp), image(gif, true), image(collision)});
+
+    QCOMPARE(result.total(), 6);
+    QCOMPARE(result.succeeded(), 1);
+    QCOMPARE(result.skipped(), 5);
+    QCOMPARE(converted, QVector<QString>{png});
+    QVERIFY(QFileInfo::exists(png));
+    QVERIFY(QFileInfo::exists(childPath(root.path(), QStringLiteral("a.webp"))));
+    QCOMPARE(findResult(result, jpg)->reason, std::optional<QString>{QStringLiteral("jpg_source_skipped")});
+    QCOMPARE(findResult(result, jpeg)->reason, std::optional<QString>{QStringLiteral("jpg_source_skipped")});
+    QCOMPARE(findResult(result, webp)->reason, std::optional<QString>{QStringLiteral("already_webp")});
+    QCOMPARE(findResult(result, gif)->reason, std::optional<QString>{QStringLiteral("animated_unsupported")});
+    QCOMPARE(findResult(result, collision)->reason, std::optional<QString>{QStringLiteral("target_exists")});
+}
+
+void FileOperationTests::defaultEncoderWritesLosslessWebpBytes()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString source = childPath(root.path(), QStringLiteral("source.png"));
+    const QString target = childPath(root.path(), QStringLiteral("source.webp"));
+    QImage sourceImage(2, 2, QImage::Format_RGBA8888);
+    sourceImage.setPixelColor(0, 0, QColor(12, 34, 56, 255));
+    sourceImage.setPixelColor(1, 0, QColor(78, 90, 123, 192));
+    sourceImage.setPixelColor(0, 1, QColor(145, 167, 189, 128));
+    sourceImage.setPixelColor(1, 1, QColor(210, 220, 230, 64));
+    QVERIFY(sourceImage.save(source, "PNG"));
+
+    const auto result = FileOperationService().convertVisibleToWebp({image(source)});
+
+    QCOMPARE(result.succeeded(), 1);
+    QFile output(target);
+    QVERIFY(output.open(QIODevice::ReadOnly));
+    const QByteArray bytes = output.readAll();
+    output.close();
+    QVERIFY(bytes.size() > 16);
+    QCOMPARE(bytes.left(4), QByteArrayLiteral("RIFF"));
+    QCOMPARE(bytes.mid(8, 4), QByteArrayLiteral("WEBP"));
+    QVERIFY2(bytes.contains(QByteArrayLiteral("VP8L")), "WebP output is not lossless VP8L");
+
+    const QImage original(source);
+    QImageReader reader(target, QByteArrayLiteral("webp"));
+    const QImage converted = reader.read();
+    QVERIFY(!original.isNull());
+    QVERIFY2(!converted.isNull(), qPrintable(reader.errorString()));
+    QCOMPARE(converted.size(), original.size());
+    for (int y = 0; y < original.height(); ++y) {
+        for (int x = 0; x < original.width(); ++x) {
+            QCOMPARE(converted.pixelColor(x, y), original.pixelColor(x, y));
+        }
+    }
     QVERIFY(QFileInfo::exists(source));
 }
 
