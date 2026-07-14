@@ -71,7 +71,9 @@ DEB/RPM are generated from the Qt CMake install graph. The old standalone Fedora
 
 ## GitHub Release downloads
 
-Pushing a tag named `v<version>` runs the full Windows, Linux, and Fedora release gates. After all three succeed, the workflow publishes (or updates) the matching GitHub Release with:
+Changing the root `VERSION` file on a pull request or on `main` runs the full Windows, Linux, and Fedora release gates. Ordinary source, QML, test, packaging, or workflow-only changes do not trigger these Release builds.
+
+Pushing a tag named `v<version>` also runs the release gates. After all three succeed, the workflow publishes (or updates) the matching GitHub Release with:
 
 - `PicLens-win-x64.msi` and `PicLens-win-x64-portable.zip`;
 - `PicLens-linux-x64-portable.tar.gz` and the Debian package;

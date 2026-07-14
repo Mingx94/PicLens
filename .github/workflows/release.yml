@@ -7,34 +7,10 @@ on:
     tags:
       - "v*"
     paths:
-      - "CMakeLists.txt"
-      - "CMakePresets.json"
-      - "src/**"
-      - "qml/**"
-      - "tests/**"
-      - "scripts/**"
-      - "packaging/**"
-      - "assets/**"
-      - "installer/**"
-      - "LICENSE"
-      - "THIRD_PARTY_NOTICES.txt"
       - "VERSION"
-      - ".github/workflows/release.yml"
   pull_request:
     paths:
-      - "CMakeLists.txt"
-      - "CMakePresets.json"
-      - "src/**"
-      - "qml/**"
-      - "tests/**"
-      - "scripts/**"
-      - "packaging/**"
-      - "assets/**"
-      - "installer/**"
-      - "LICENSE"
-      - "THIRD_PARTY_NOTICES.txt"
       - "VERSION"
-      - ".github/workflows/release.yml"
   workflow_dispatch:
     inputs:
       release_tag:
