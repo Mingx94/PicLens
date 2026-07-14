@@ -2,15 +2,8 @@ name: Qt release gates
 
 on:
   push:
-    branches:
-      - main
     tags:
       - "v*"
-    paths:
-      - "VERSION"
-  pull_request:
-    paths:
-      - "VERSION"
   workflow_dispatch:
     inputs:
       release_tag:
