@@ -15,7 +15,6 @@
 #include <algorithm>
 #include <limits>
 #include <utility>
-#include <vector>
 
 namespace piclens::infrastructure {
 namespace {
@@ -227,18 +226,24 @@ void ThumbnailService::triggerPrune(const QString &pathToKeep)
 
 void ThumbnailService::pruneCache(const QString &pathToKeep)
 {
-    const std::scoped_lock lock(m_pruneMutex);
+    std::unique_lock lock(m_pruneMutex, std::try_to_lock);
+    if (!lock.owns_lock()) {
+        m_cacheIndexDirty.store(true, std::memory_order_release);
+        return;
+    }
     if (m_maxCacheBytes <= 0 || !QDir(m_cacheRoot).exists()) {
         return;
     }
 
     QFileInfoList cacheFiles;
-    if (m_knownCacheBytes < 0) {
+    if (m_knownCacheBytes < 0
+        || m_cacheIndexDirty.exchange(false, std::memory_order_acq_rel)) {
         cacheFiles = QDir(m_cacheRoot).entryInfoList(
             {QStringLiteral("*.png")},
             QDir::Files,
             QDir::Time);
         m_knownCacheBytes = 0;
+        m_knownCacheFileSizes.clear();
         for (const QFileInfo &file : cacheFiles) {
             m_knownCacheBytes += file.size();
             m_knownCacheFileSizes.insert(file.absoluteFilePath(), file.size());
@@ -258,12 +263,11 @@ void ThumbnailService::pruneCache(const QString &pathToKeep)
             QDir::Files,
             QDir::Time);
     }
-    std::vector<QFileInfo> files(cacheFiles.cbegin(), cacheFiles.cend());
-    std::sort(files.begin(), files.end(), [](const QFileInfo &left, const QFileInfo &right) {
-        return left.lastModified() > right.lastModified();
-    });
-    for (auto iterator = files.rbegin();
-         iterator != files.rend() && m_knownCacheBytes > m_maxCacheBytes;
+    const qint64 pruneTargetBytes = m_maxCacheBytes - std::max<qint64>(
+        1,
+        m_maxCacheBytes / 10);
+    for (auto iterator = cacheFiles.crbegin();
+         iterator != cacheFiles.crend() && m_knownCacheBytes > pruneTargetBytes;
          ++iterator) {
         if (core::path_rules::pathEquals(iterator->absoluteFilePath(), pathToKeep)) {
             continue;

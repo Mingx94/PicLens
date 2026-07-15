@@ -6,6 +6,7 @@
 #include <QCache>
 #include <QImage>
 
+#include <atomic>
 #include <mutex>
 #include <optional>
 #include <stop_token>
@@ -61,6 +62,7 @@ private:
     qint64 m_knownCacheBytes = -1;
     QHash<QString, qint64> m_knownCacheFileSizes;
     std::mutex m_pruneMutex;
+    std::atomic_bool m_cacheIndexDirty = false;
     QCache<QString, QImage> m_imageCache{128 * 1024};
     std::mutex m_imageCacheMutex;
 };

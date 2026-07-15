@@ -96,6 +96,7 @@ private slots:
     void unsupportedMissingAnimatedAndCanceledInputsDoNotCreateCache();
     void corruptCacheEntryIsRegenerated();
     void pruneRemovesOldEntriesButKeepsNewThumbnail();
+    void pruneCreatesHeadroomBelowCacheLimit();
 };
 
 void ThumbnailServiceTests::defaultRootUsesPicLensThumbnailDirectory()
@@ -213,6 +214,38 @@ void ThumbnailServiceTests::pruneRemovesOldEntriesButKeepsNewThumbnail()
     QCOMPARE(generated.status, ThumbnailStatus::Ready);
     QVERIFY(QFileInfo::exists(*generated.cachePath));
     QVERIFY(!QFileInfo::exists(old));
+}
+
+void ThumbnailServiceTests::pruneCreatesHeadroomBelowCacheLimit()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString source = childPath(root.path(), QStringLiteral("source.bmp"));
+    const QString cache = childPath(root.path(), QStringLiteral("cache"));
+    QVERIFY(QDir().mkpath(cache));
+    writeFile(source, bmp(20, 10));
+    for (int index = 0; index < 10; ++index) {
+        const QString path = childPath(cache, QStringLiteral("old-%1.png").arg(index));
+        writeFile(path, QByteArray(1024, 'x'));
+        setModificationTime(
+            path,
+            QStringLiteral("2026-01-01T00:00:%1Z").arg(index, 2, 10, QLatin1Char('0')));
+    }
+    constexpr qint64 cacheLimit = 10 * 1024;
+    ThumbnailService service(cache, cacheLimit);
+
+    const ThumbnailResult generated = service.getOrCreate(source, 5);
+
+    QCOMPARE(generated.status, ThumbnailStatus::Ready);
+    QVERIFY(QFileInfo::exists(*generated.cachePath));
+    const QFileInfoList remaining = QDir(cache).entryInfoList(
+        {QStringLiteral("*.png")},
+        QDir::Files);
+    qint64 remainingBytes = 0;
+    for (const QFileInfo &file : remaining) {
+        remainingBytes += file.size();
+    }
+    QVERIFY(remainingBytes <= cacheLimit - cacheLimit / 10);
 }
 
 QTEST_GUILESS_MAIN(ThumbnailServiceTests)

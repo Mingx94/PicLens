@@ -45,7 +45,7 @@ The current runtime avoids the largest known application-level hot paths:
 - The inline viewer subtree is instantiated only while the viewer is open.
 - `LibraryItemModel` maintains a path-to-row index for O(1) thumbnail delivery and emits selection changes only for affected rows.
 - Search input is debounced and search/sort model resets retain valid thumbnail mappings.
-- Thumbnail cache size is tracked incrementally; a full directory sort occurs only when the configured bound is exceeded.
+- Thumbnail cache size is tracked incrementally. Cache eviction has one non-blocking owner and prunes to 90% of the configured bound, so concurrent thumbnail loads do not queue behind a full cache-directory scan and newly generated thumbnails do not retrigger eviction one file at a time.
 - A forced-asynchronous Qt Quick image provider serves generated thumbnails from a 128 MiB bounded decoded-image cache, avoiding the cold-path PNG read/decode round trip while retaining the persistent disk cache.
 - The inline viewer requests viewport/DPI-sized images at quantized zoom tiers and caps either decoded dimension at 8,192 pixels, avoiding an unconditional original-size scene-graph texture.
 - Release builds enable interprocedural optimization when supported by the active non-MinGW toolchain. MinGW is excluded because Qt-generated QML COFF objects cannot be merged reliably by its LTO linker.
