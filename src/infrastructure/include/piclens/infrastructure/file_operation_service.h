@@ -35,7 +35,7 @@ public:
         const QVector<core::ImageListItem> &visibleImages,
         std::stop_token stopToken = {}) const;
 
-    [[nodiscard]] core::FileOperationBatchResult trashSameBasenameNonJpg(
+    [[nodiscard]] core::FileOperationBatchResult trashSameBasenameExtras(
         const QVector<core::ImageListItem> &visibleImages,
         std::stop_token stopToken = {}) const;
 

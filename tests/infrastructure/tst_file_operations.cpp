@@ -71,7 +71,7 @@ private slots:
     void webpConversionSkipsJpgAndExistingWebp();
     void defaultEncoderWritesLosslessWebpBytes();
     void conversionFailureCleansPartialTargetAndContinues();
-    void matchingNonJpgCleanupUsesInjectedTrash();
+    void matchingExtraFormatCleanupAcceptsJpgOrWebp();
     void trashReportsMissingAndHandlerFailures();
     void singleRenameHandlesSameNameCollisionAndSuccess();
     void singleRenameRejectsInvalidRequests();
@@ -248,30 +248,52 @@ void FileOperationTests::conversionFailureCleansPartialTargetAndContinues()
     QCOMPARE(findResult(result, first)->reason, std::optional<QString>{QStringLiteral("conversion_failed")});
 }
 
-void FileOperationTests::matchingNonJpgCleanupUsesInjectedTrash()
+void FileOperationTests::matchingExtraFormatCleanupAcceptsJpgOrWebp()
 {
     QTemporaryDir root;
     QVERIFY(root.isValid());
     const QString jpg = childPath(root.path(), QStringLiteral("a.jpg"));
     const QString png = childPath(root.path(), QStringLiteral("a.png"));
-    const QString webp = childPath(root.path(), QStringLiteral("b.webp"));
+    const QString webp = childPath(root.path(), QStringLiteral("a.webp"));
+    const QString jpgWithoutWebp = childPath(root.path(), QStringLiteral("b.jpg"));
+    const QString pngWithoutWebp = childPath(root.path(), QStringLiteral("b.png"));
+    const QString webpWithoutJpg = childPath(root.path(), QStringLiteral("c.webp"));
+    const QString pngWithoutJpg = childPath(root.path(), QStringLiteral("c.png"));
+    const QString pngWithoutMatch = childPath(root.path(), QStringLiteral("d.png"));
     writeFile(jpg, QByteArrayLiteral("jpg"));
     writeFile(png, QByteArrayLiteral("png"));
     writeFile(webp, QByteArrayLiteral("webp"));
+    writeFile(jpgWithoutWebp, QByteArrayLiteral("jpg"));
+    writeFile(pngWithoutWebp, QByteArrayLiteral("png"));
+    writeFile(webpWithoutJpg, QByteArrayLiteral("webp"));
+    writeFile(pngWithoutJpg, QByteArrayLiteral("png"));
+    writeFile(pngWithoutMatch, QByteArrayLiteral("png"));
 
     QVector<QString> trashed;
     FileOperationService service(
         [](const QString &, const QString &, std::stop_token) {},
         [&](const QString &path, std::stop_token) { trashed.append(path); });
 
-    const auto result = service.trashSameBasenameNonJpg({image(jpg), image(png), image(webp)});
+    const auto result = service.trashSameBasenameExtras({
+        image(jpg),
+        image(png),
+        image(webp),
+        image(jpgWithoutWebp),
+        image(pngWithoutWebp),
+        image(webpWithoutJpg),
+        image(pngWithoutJpg),
+        image(pngWithoutMatch),
+    });
 
-    QCOMPARE(result.total(), 3);
-    QCOMPARE(result.succeeded(), 1);
-    QCOMPARE(result.skipped(), 2);
-    QCOMPARE(trashed, QVector<QString>{png});
-    QCOMPARE(findResult(result, jpg)->reason, std::optional<QString>{QStringLiteral("already_jpg")});
-    QCOMPARE(findResult(result, webp)->reason, std::optional<QString>{QStringLiteral("no_matching_jpg")});
+    QCOMPARE(result.total(), 8);
+    QCOMPARE(result.succeeded(), 3);
+    QCOMPARE(result.skipped(), 5);
+    QCOMPARE(trashed, QVector<QString>({png, pngWithoutWebp, pngWithoutJpg}));
+    QCOMPARE(findResult(result, jpg)->reason, std::optional<QString>{QStringLiteral("keep_jpg")});
+    QCOMPARE(findResult(result, webp)->reason, std::optional<QString>{QStringLiteral("keep_webp")});
+    QCOMPARE(
+        findResult(result, pngWithoutMatch)->reason,
+        std::optional<QString>{QStringLiteral("no_matching_jpg_or_webp")});
 }
 
 void FileOperationTests::trashReportsMissingAndHandlerFailures()

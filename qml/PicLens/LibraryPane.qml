@@ -273,7 +273,7 @@ Rectangle {
                             }
                         }
                         MenuItem {
-                            text: "清除同名非 JPG 檔案"
+                            text: "清除同名 JPG/WebP 以外的格式"
                             enabled: pane.appController.fileOperations.canProcessVisible
                             onTriggered: cleanupDialog.open()
                         }
@@ -632,14 +632,14 @@ Rectangle {
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(460, pane.width - 48)
-        title: "清除同名檔案"
+        title: "清除其他同名格式"
         modal: true
         standardButtons: Dialog.Yes | Dialog.Cancel
-        onAccepted: pane.appController.fileOperations.clearSameBasename()
+        onAccepted: pane.appController.fileOperations.clearSameBasenameExtras()
 
         contentItem: Text {
             width: cleanupDialog.availableWidth
-            text: "要將目前顯示圖片中，已有同名 JPG 的非 JPG 檔案移至回收筒嗎？"
+            text: "要將目前顯示圖片中，已有同名 JPG/JPEG 或 WebP 的其他格式移至回收筒嗎？JPG/JPEG 與 WebP 會保留。"
             color: Theme.primaryText
             wrapMode: Text.Wrap
         }

@@ -47,7 +47,7 @@ public:
         TrashFunction trash,
         BatchFunction convertVisible,
         BatchFunction convertVisibleToWebp,
-        BatchFunction clearSameBasename,
+        BatchFunction clearSameBasenameExtras,
         RevealFunction reveal,
         DropRenameFunction dropRename = {},
         ExistingPathsFunction existingPaths = {},
@@ -72,7 +72,7 @@ public:
     Q_INVOKABLE void reveal(const QString &path);
     Q_INVOKABLE void convertVisible();
     Q_INVOKABLE void convertVisibleToWebp();
-    Q_INVOKABLE void clearSameBasename();
+    Q_INVOKABLE void clearSameBasenameExtras();
     Q_INVOKABLE void cancel();
     Q_INVOKABLE void beginImageDrag(const QString &sourcePath);
     Q_INVOKABLE void cancelImageDrag();
@@ -109,7 +109,7 @@ private:
     TrashFunction m_trash;
     BatchFunction m_convertVisible;
     BatchFunction m_convertVisibleToWebp;
-    BatchFunction m_clearSameBasename;
+    BatchFunction m_clearSameBasenameExtras;
     RevealFunction m_reveal;
     DropRenameFunction m_dropRename;
     ExistingPathsFunction m_existingPaths;

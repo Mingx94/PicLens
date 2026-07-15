@@ -48,7 +48,7 @@ FileOperationController::FileOperationController(
     TrashFunction trash,
     BatchFunction convertVisible,
     BatchFunction convertVisibleToWebp,
-    BatchFunction clearSameBasename,
+    BatchFunction clearSameBasenameExtras,
     RevealFunction reveal,
     DropRenameFunction dropRename,
     ExistingPathsFunction existingPaths,
@@ -59,13 +59,13 @@ FileOperationController::FileOperationController(
     , m_trash(std::move(trash))
     , m_convertVisible(std::move(convertVisible))
     , m_convertVisibleToWebp(std::move(convertVisibleToWebp))
-    , m_clearSameBasename(std::move(clearSameBasename))
+    , m_clearSameBasenameExtras(std::move(clearSameBasenameExtras))
     , m_reveal(std::move(reveal))
     , m_dropRename(std::move(dropRename))
     , m_existingPaths(std::move(existingPaths))
 {
     if (!m_library || !m_rename || !m_trash || !m_convertVisible || !m_convertVisibleToWebp
-        || !m_clearSameBasename || !m_reveal) {
+        || !m_clearSameBasenameExtras || !m_reveal) {
         throw std::invalid_argument("File operation controller dependencies are required.");
     }
     if (!m_dropRename) {
@@ -307,13 +307,13 @@ void FileOperationController::convertVisibleToWebp()
         m_convertVisibleToWebp);
 }
 
-void FileOperationController::clearSameBasename()
+void FileOperationController::clearSameBasenameExtras()
 {
     startBatch(
-        QStringLiteral("clear_same_basename"),
-        QStringLiteral("清除同名檔案"),
-        QStringLiteral("正在清除同名的非 JPG 圖片…"),
-        m_clearSameBasename);
+        QStringLiteral("clear_same_basename_extras"),
+        QStringLiteral("清除其他同名格式"),
+        QStringLiteral("正在清除同名 JPG/WebP 以外的格式…"),
+        m_clearSameBasenameExtras);
 }
 
 void FileOperationController::cancel()

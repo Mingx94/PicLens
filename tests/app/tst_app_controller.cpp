@@ -67,6 +67,7 @@ private slots:
     void pickerSelectionResetsRootAndPersists();
     void treeNavigationDoesNotReplacePickerStartupFolder();
     void backAndForwardRestoreFolderTreeRootContext();
+    void searchDoesNotResetOrResizeFolderTree();
     void sortAndRecursiveModePersistOffControllerThread();
     void visibleThumbnailRequestUpdatesModelAndSizePersistence();
     void selectedRenameUsesComposedWorkerAndRefreshesLibrary();
@@ -187,6 +188,41 @@ void AppControllerTests::backAndForwardRestoreFolderTreeRootContext()
     QTRY_VERIFY_WITH_TIMEOUT(!controller.folderTree()->busy(), 5000);
     QCOMPARE(controller.library()->currentFolderPath(), QDir::cleanPath(second.path()));
     QCOMPARE(controller.folderTree()->rootPath(), QDir::cleanPath(second.path()));
+}
+
+void AppControllerTests::searchDoesNotResetOrResizeFolderTree()
+{
+    QTemporaryDir data;
+    QTemporaryDir workspace;
+    QVERIFY(data.isValid());
+    QVERIFY(workspace.isValid());
+    QVERIFY(QDir().mkpath(childPath(workspace.path(), QStringLiteral("album-one"))));
+    QVERIFY(QDir().mkpath(childPath(workspace.path(), QStringLiteral("album-two"))));
+    writeFile(childPath(workspace.path(), QStringLiteral("needle.bmp")), onePixelBmp());
+    writeFile(childPath(workspace.path(), QStringLiteral("other.bmp")), onePixelBmp());
+
+    const QString settingsPath = childPath(data.path(), QStringLiteral("settings.json"));
+    seedSettings(settingsPath, lastFolderPatch(workspace.path()));
+    AppController controller(
+        settingsPath,
+        childPath(data.path(), QStringLiteral("app.log")),
+        childPath(data.path(), QStringLiteral("thumbnails")));
+    controller.initialize();
+    waitForReady(controller);
+
+    auto *tree = controller.folderTree();
+    const QModelIndex rootIndex = tree->index(0, 0);
+    QVERIFY(rootIndex.isValid());
+    QCOMPARE(tree->rowCount(rootIndex), 2);
+    QVERIFY(tree->data(rootIndex, piclens::presentation::FolderTreeModel::ExpandedRole).toBool());
+    QSignalSpy treeReset(tree, &QAbstractItemModel::modelReset);
+
+    controller.library()->setSearchQuery(QStringLiteral("needle"));
+
+    QCOMPARE(controller.library()->items()->rowCount(), 1);
+    QCOMPARE(treeReset.count(), 0);
+    QCOMPARE(tree->rowCount(rootIndex), 2);
+    QVERIFY(tree->data(rootIndex, piclens::presentation::FolderTreeModel::ExpandedRole).toBool());
 }
 
 void AppControllerTests::sortAndRecursiveModePersistOffControllerThread()

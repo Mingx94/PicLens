@@ -234,14 +234,14 @@ core::FileOperationBatchResult FileOperationService::convertVisibleToWebp(
     return result;
 }
 
-core::FileOperationBatchResult FileOperationService::trashSameBasenameNonJpg(
+core::FileOperationBatchResult FileOperationService::trashSameBasenameExtras(
     const QVector<core::ImageListItem> &visibleImages,
     std::stop_token stopToken) const
 {
-    QSet<QString> jpgBasenames;
+    QSet<QString> preservedBasenames;
     for (const auto &image : visibleImages) {
-        if (isJpgExtension(image.extension)) {
-            jpgBasenames.insert(basenameKey(image.path));
+        if (isJpgExtension(image.extension) || isWebpExtension(image.extension)) {
+            preservedBasenames.insert(basenameKey(image.path));
         }
     }
 
@@ -254,13 +254,19 @@ core::FileOperationBatchResult FileOperationService::trashSameBasenameNonJpg(
                 image.path,
                 core::FileOperationStatus::Skipped,
                 std::nullopt,
-                QStringLiteral("already_jpg")));
-        } else if (!jpgBasenames.contains(basenameKey(image.path))) {
+                QStringLiteral("keep_jpg")));
+        } else if (isWebpExtension(image.extension)) {
             result.items.append(makeResult(
                 image.path,
                 core::FileOperationStatus::Skipped,
                 std::nullopt,
-                QStringLiteral("no_matching_jpg")));
+                QStringLiteral("keep_webp")));
+        } else if (!preservedBasenames.contains(basenameKey(image.path))) {
+            result.items.append(makeResult(
+                image.path,
+                core::FileOperationStatus::Skipped,
+                std::nullopt,
+                QStringLiteral("no_matching_jpg_or_webp")));
         } else {
             result.items.append(trash(image.path, stopToken));
         }

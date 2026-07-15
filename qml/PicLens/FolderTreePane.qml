@@ -76,6 +76,7 @@ Rectangle {
                 required property bool loading
                 required property bool childrenLoaded
                 required property bool shouldExpand
+                readonly property bool isRootNode: depth === 0
 
                 activeFocusOnTab: true
                 Accessible.role: Accessible.TreeItem
@@ -87,7 +88,12 @@ Rectangle {
                 Accessible.onPressAction: pane.appController.navigateFromTree(treeDelegate.path)
 
                 function synchronizeExpansion() {
-                    if (shouldExpand && !expanded)
+                    if ((isRootNode || shouldExpand) && !expanded)
+                        treeView.toggleExpanded(row)
+                }
+
+                function toggleExpansion() {
+                    if (!isRootNode)
                         treeView.toggleExpanded(row)
                 }
 
@@ -120,7 +126,7 @@ Rectangle {
 
                     TapHandler {
                         enabled: disclosure.visible
-                        onTapped: treeDelegate.treeView.toggleExpanded(treeDelegate.row)
+                        onTapped: treeDelegate.toggleExpansion()
                     }
                 }
                 Text {
@@ -150,7 +156,7 @@ Rectangle {
                 }
                 TapHandler {
                     onTapped: pane.appController.navigateFromTree(treeDelegate.path)
-                    onDoubleTapped: treeDelegate.treeView.toggleExpanded(treeDelegate.row)
+                    onDoubleTapped: treeDelegate.toggleExpansion()
                 }
                 Keys.onReturnPressed: function(event) {
                     pane.appController.navigateFromTree(treeDelegate.path)
@@ -162,15 +168,16 @@ Rectangle {
                 }
                 Keys.onRightPressed: function(event) {
                     if (treeDelegate.hasChildren && !treeDelegate.expanded)
-                        treeDelegate.treeView.toggleExpanded(treeDelegate.row)
+                        treeDelegate.toggleExpansion()
                     event.accepted = true
                 }
                 Keys.onLeftPressed: function(event) {
                     if (treeDelegate.expanded)
-                        treeDelegate.treeView.toggleExpanded(treeDelegate.row)
+                        treeDelegate.toggleExpansion()
                     event.accepted = true
                 }
                 onExpandedChanged: {
+                    synchronizeExpansion()
                     if (expanded && !childrenLoaded)
                         pane.appController.folderTree.loadChildren(treeView.index(row, 0))
                 }

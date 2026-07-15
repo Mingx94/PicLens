@@ -75,7 +75,7 @@ AppController::AppController(
               return m_fileOperationService.convertVisibleToWebp(images, stopToken);
           },
           [this](const QVector<core::ImageListItem> &images, std::stop_token stopToken) {
-              return m_fileOperationService.trashSameBasenameNonJpg(images, stopToken);
+              return m_fileOperationService.trashSameBasenameExtras(images, stopToken);
           },
           [this](const QString &path) { m_platformFileManager.reveal(path); },
           [this](const QVector<QString> &sources, const QString &target, std::stop_token stopToken) {
