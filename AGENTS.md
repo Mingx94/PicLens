@@ -1,2 +1,1 @@
-- 專案文件入口放在 `docs/README.md`
-- Avalonia 的 docs 請用 avalonia-docs mcp
+專案文件入口放在 `docs/README.md`
