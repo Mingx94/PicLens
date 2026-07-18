@@ -8,15 +8,88 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QHash>
 #include <QImageReader>
 #include <QImageWriter>
+#include <QSemaphore>
 #include <QSet>
+#include <QThread>
 
+#include <atomic>
+#include <exception>
+#include <mutex>
 #include <stdexcept>
+#include <thread>
 #include <utility>
+#include <vector>
 
 namespace piclens::infrastructure {
 namespace {
+
+constexpr qint64 ConversionBudgetBytes = 512LL * 1024 * 1024;
+constexpr qint64 ConversionBudgetUnitBytes = 16LL * 1024 * 1024;
+constexpr int ConversionBudgetPermits = static_cast<int>(
+    ConversionBudgetBytes / ConversionBudgetUnitBytes);
+
+int recommendedConversionConcurrency(int requested)
+{
+    if (requested > 0) {
+        return std::clamp(requested, 1, 8);
+    }
+    const int ideal = QThread::idealThreadCount();
+    if (ideal <= 0) {
+        return 2;
+    }
+    return std::clamp(ideal - 2, 1, 4);
+}
+
+int conversionBudgetPermits(const QString &path)
+{
+    QImageReader reader(path);
+    const QSize size = reader.size();
+    if (!size.isValid() || size.isEmpty()) {
+        return 4;
+    }
+    const qint64 width = size.width();
+    const qint64 height = size.height();
+    const qint64 maximumPixels = ConversionBudgetBytes / 5;
+    const qint64 pixels = width > 0 && height > maximumPixels / width
+        ? maximumPixels
+        : width * height;
+    const qint64 estimatedBytes = std::min(ConversionBudgetBytes, pixels * 5);
+    return std::clamp(
+        static_cast<int>((estimatedBytes + ConversionBudgetUnitBytes - 1)
+                         / ConversionBudgetUnitBytes),
+        1,
+        ConversionBudgetPermits);
+}
+
+class ConversionBudgetLease final
+{
+public:
+    ConversionBudgetLease(QSemaphore &budget, int permits, std::stop_token stopToken)
+        : m_budget(&budget)
+        , m_permits(permits)
+    {
+        while (!m_budget->tryAcquire(m_permits, 25)) {
+            if (stopToken.stop_requested()) {
+                throw FileOperationCanceledError();
+            }
+        }
+    }
+
+    ~ConversionBudgetLease()
+    {
+        m_budget->release(m_permits);
+    }
+
+    ConversionBudgetLease(const ConversionBudgetLease &) = delete;
+    ConversionBudgetLease &operator=(const ConversionBudgetLease &) = delete;
+
+private:
+    QSemaphore *m_budget;
+    int m_permits;
+};
 
 bool isJpgExtension(const QString &extension)
 {
@@ -36,6 +109,32 @@ QString basenameKey(const QString &path)
     return core::path_rules::pathCaseSensitivity() == Qt::CaseInsensitive
         ? key.toCaseFolded()
         : key;
+}
+
+QString conversionTargetPath(const core::ImageListItem &image, bool convertToWebp)
+{
+    const QFileInfo source(image.path);
+    return QDir(source.absolutePath()).filePath(
+        source.completeBaseName()
+        + (convertToWebp ? QStringLiteral(".webp") : QStringLiteral(".jpg")));
+}
+
+QString conversionTargetKey(const core::ImageListItem &image, bool convertToWebp)
+{
+    return core::path_rules::pathKey(conversionTargetPath(image, convertToWebp));
+}
+
+bool mayRequireEncoding(const core::ImageListItem &image, bool convertToWebp)
+{
+    if (!QFileInfo(image.path).isFile() || image.isAnimated
+        || !core::image_format_rules::supportedImageExtension(image.path).has_value()) {
+        return false;
+    }
+    if (convertToWebp ? (isJpgExtension(image.extension) || isWebpExtension(image.extension))
+                      : isJpgExtension(image.extension)) {
+        return false;
+    }
+    return !QFileInfo::exists(conversionTargetPath(image, convertToWebp));
 }
 
 QString exceptionMessage(const std::exception &exception)
@@ -198,10 +297,12 @@ FileOperationService::FileOperationService(ImageEncoder jpegEncoder, TrashHandle
 FileOperationService::FileOperationService(
     ImageEncoder jpegEncoder,
     ImageEncoder webpEncoder,
-    TrashHandler trashHandler)
+    TrashHandler trashHandler,
+    int maxConcurrentConversions)
     : m_jpegEncoder(std::move(jpegEncoder))
     , m_webpEncoder(std::move(webpEncoder))
     , m_trashHandler(std::move(trashHandler))
+    , m_maxConcurrentConversions(recommendedConversionConcurrency(maxConcurrentConversions))
 {
     if (!m_jpegEncoder || !m_webpEncoder || !m_trashHandler) {
         throw std::invalid_argument("File operation handlers are required.");
@@ -212,26 +313,109 @@ core::FileOperationBatchResult FileOperationService::convertVisibleToJpg(
     const QVector<core::ImageListItem> &visibleImages,
     std::stop_token stopToken) const
 {
-    core::FileOperationBatchResult result;
-    result.items.reserve(visibleImages.size());
-    for (const auto &image : visibleImages) {
-        throwIfCanceled(stopToken);
-        result.items.append(convertOneToJpg(image, stopToken));
-    }
-    return result;
+    return convertBatch(visibleImages, stopToken, false);
 }
 
 core::FileOperationBatchResult FileOperationService::convertVisibleToWebp(
     const QVector<core::ImageListItem> &visibleImages,
     std::stop_token stopToken) const
 {
-    core::FileOperationBatchResult result;
-    result.items.reserve(visibleImages.size());
-    for (const auto &image : visibleImages) {
-        throwIfCanceled(stopToken);
-        result.items.append(convertOneToWebp(image, stopToken));
+    return convertBatch(visibleImages, stopToken, true);
+}
+
+core::FileOperationBatchResult FileOperationService::convertBatch(
+    const QVector<core::ImageListItem> &visibleImages,
+    std::stop_token stopToken,
+    bool convertToWebp) const
+{
+    throwIfCanceled(stopToken);
+    if (visibleImages.isEmpty()) {
+        return {};
     }
-    return result;
+
+    std::vector<std::vector<std::size_t>> targetGroups;
+    QHash<QString, qsizetype> groupByTarget;
+    groupByTarget.reserve(visibleImages.size());
+    for (qsizetype index = 0; index < visibleImages.size(); ++index) {
+        const QString key = conversionTargetKey(visibleImages.at(index), convertToWebp);
+        auto group = groupByTarget.constFind(key);
+        if (group == groupByTarget.cend()) {
+            const qsizetype newGroup = static_cast<qsizetype>(targetGroups.size());
+            groupByTarget.insert(key, newGroup);
+            targetGroups.push_back({});
+            group = groupByTarget.constFind(key);
+        }
+        targetGroups.at(static_cast<std::size_t>(*group)).push_back(
+            static_cast<std::size_t>(index));
+    }
+
+    const int workerCount = std::min(
+        m_maxConcurrentConversions,
+        static_cast<int>(targetGroups.size()));
+    std::vector<std::vector<std::size_t>> workerGroups(
+        static_cast<std::size_t>(workerCount));
+    for (std::size_t group = 0; group < targetGroups.size(); ++group) {
+        workerGroups.at(group % static_cast<std::size_t>(workerCount)).push_back(group);
+    }
+
+    std::vector<std::optional<core::FileOperationResult>> results(
+        static_cast<std::size_t>(visibleImages.size()));
+    QSemaphore conversionBudget(ConversionBudgetPermits);
+    std::atomic_bool aborted = false;
+    std::exception_ptr failure;
+    std::mutex failureMutex;
+    std::vector<std::jthread> workers;
+    workers.reserve(static_cast<std::size_t>(workerCount));
+
+    for (int worker = 0; worker < workerCount; ++worker) {
+        workers.emplace_back([&, worker] {
+            try {
+                for (const std::size_t group : workerGroups.at(static_cast<std::size_t>(worker))) {
+                    for (const std::size_t index : targetGroups.at(group)) {
+                        if (aborted.load(std::memory_order_acquire)) {
+                            return;
+                        }
+                        throwIfCanceled(stopToken);
+                        const auto &image = visibleImages.at(static_cast<qsizetype>(index));
+                        if (mayRequireEncoding(image, convertToWebp)) {
+                            ConversionBudgetLease lease(
+                                conversionBudget,
+                                conversionBudgetPermits(image.path),
+                                stopToken);
+                            results.at(index) = convertToWebp
+                                ? convertOneToWebp(image, stopToken)
+                                : convertOneToJpg(image, stopToken);
+                        } else {
+                            results.at(index) = convertToWebp
+                                ? convertOneToWebp(image, stopToken)
+                                : convertOneToJpg(image, stopToken);
+                        }
+                    }
+                }
+            } catch (...) {
+                if (!aborted.exchange(true, std::memory_order_acq_rel)) {
+                    const std::scoped_lock lock(failureMutex);
+                    failure = std::current_exception();
+                }
+            }
+        });
+    }
+    for (auto &worker : workers) {
+        worker.join();
+    }
+    if (failure) {
+        std::rethrow_exception(failure);
+    }
+
+    core::FileOperationBatchResult batch;
+    batch.items.reserve(visibleImages.size());
+    for (auto &converted : results) {
+        if (!converted.has_value()) {
+            throw FileOperationCanceledError();
+        }
+        batch.items.append(std::move(*converted));
+    }
+    return batch;
 }
 
 core::FileOperationBatchResult FileOperationService::trashSameBasenameExtras(

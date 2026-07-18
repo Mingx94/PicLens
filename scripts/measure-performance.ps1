@@ -65,6 +65,9 @@ function Assert-Measurement($Metrics, [string]$CacheState) {
     if ($Metrics.libraryReadyMilliseconds -le 0 -or
         $Metrics.firstThumbnailMilliseconds -le 0 -or
         $Metrics.completedThumbnailRequests -le 0 -or
+        $Metrics.processCpuMilliseconds -le 0 -or
+        $Metrics.logicalProcessorCount -le 0 -or
+        $Metrics.maxConcurrentThumbnailRequests -le 0 -or
         $Metrics.renderFrameSampleCount -le 0 -or
         [string]::IsNullOrWhiteSpace([string]$Metrics.graphicsApi)) {
         throw "$CacheState performance diagnostics are incomplete"
@@ -84,6 +87,9 @@ Write-Host "  Cold elapsed:       $($metrics.elapsedMilliseconds) ms"
 Write-Host "  Warm elapsed:       $($warmMetrics.elapsedMilliseconds) ms"
 Write-Host "  First thumbnail:    $($metrics.firstThumbnailMilliseconds) ms"
 Write-Host "  Warm cache hits:    $($warmMetrics.thumbnailCacheHits)"
+Write-Host "  Thumbnail workers:  $($metrics.maxConcurrentThumbnailRequests)"
+Write-Host "  Thumbnail rate:     $([math]::Round($metrics.thumbnailThroughputPerSecond, 1))/s"
+Write-Host "  Average CPU:        $([math]::Round($metrics.averageCpuUtilizationPercent, 1))%"
 Write-Host "  Renderer:           $($metrics.graphicsApi)"
 Write-Host "  Frame interval p95: $($metrics.renderFrameIntervalP95Milliseconds) ms"
 Write-Host "  RSS:                $($metrics.workingSetBytes) bytes"

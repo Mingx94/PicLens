@@ -27,13 +27,14 @@ class ThumbnailCoordinator final : public QObject
     Q_PROPERTY(int activeRequestCount READ activeRequestCount NOTIFY activeRequestCountChanged)
     Q_PROPERTY(int completedRequestCount READ completedRequestCount NOTIFY statisticsChanged)
     Q_PROPERTY(int cacheHitCount READ cacheHitCount NOTIFY statisticsChanged)
+    Q_PROPERTY(int maxConcurrentRequestCount READ maxConcurrentRequestCount CONSTANT)
 
 public:
     using LoadFunction = std::function<ThumbnailLoadResult(const QString &, int, std::stop_token)>;
 
     explicit ThumbnailCoordinator(
         LoadFunction load,
-        int maxConcurrent = 4,
+        int maxConcurrent = 0,
         std::chrono::milliseconds timeout = std::chrono::seconds(8),
         QObject *parent = nullptr);
     ~ThumbnailCoordinator() override;
@@ -42,6 +43,7 @@ public:
     [[nodiscard]] int activeRequestCount() const;
     [[nodiscard]] int completedRequestCount() const;
     [[nodiscard]] int cacheHitCount() const;
+    [[nodiscard]] int maxConcurrentRequestCount() const;
 
     void setRequestedSize(int requestedSize);
     void requestThumbnail(const QString &sourcePath, bool animated);

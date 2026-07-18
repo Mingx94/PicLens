@@ -4,6 +4,7 @@
 #include <piclens/core/settings_rules.h>
 
 #include <QFutureWatcher>
+#include <QThread>
 #include <QTimer>
 #include <QtConcurrentRun>
 
@@ -12,6 +13,19 @@
 #include <utility>
 
 namespace piclens::presentation {
+
+namespace {
+
+int normalizedConcurrency(int requested)
+{
+    if (requested > 0) {
+        return std::clamp(requested, 1, 8);
+    }
+    const int ideal = QThread::idealThreadCount();
+    return ideal > 0 ? std::clamp(ideal / 2, 2, 8) : 4;
+}
+
+} // namespace
 
 struct ThumbnailCoordinator::Request {
     QString sourcePath;
@@ -33,7 +47,7 @@ ThumbnailCoordinator::ThumbnailCoordinator(
     QObject *parent)
     : QObject(parent)
     , m_load(std::move(load))
-    , m_maxConcurrent(std::max(1, maxConcurrent))
+    , m_maxConcurrent(normalizedConcurrency(maxConcurrent))
     , m_timeout(std::max(std::chrono::milliseconds(1), timeout))
 {
     if (!m_load) {
@@ -67,6 +81,11 @@ int ThumbnailCoordinator::completedRequestCount() const
 int ThumbnailCoordinator::cacheHitCount() const
 {
     return m_cacheHits;
+}
+
+int ThumbnailCoordinator::maxConcurrentRequestCount() const
+{
+    return m_maxConcurrent;
 }
 
 void ThumbnailCoordinator::setRequestedSize(int requestedSize)

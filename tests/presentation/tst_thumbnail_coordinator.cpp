@@ -41,6 +41,7 @@ class ThumbnailCoordinatorTests final : public QObject
 private slots:
     void readyResultIsDeliveredWithRequestedSize();
     void completedAndCacheHitStatisticsAreTracked();
+    void automaticConcurrencyIsBoundedAndExplicitOverrideWins();
     void animatedAndDuplicateRequestsDoNotScheduleExtraWork();
     void cancellationSuppressesLateResultAndReleasesSlot();
     void sizeChangeSuppressesOldGeneration();
@@ -89,6 +90,21 @@ void ThumbnailCoordinatorTests::completedAndCacheHitStatisticsAreTracked()
 
     QCOMPARE(coordinator.cacheHitCount(), 1);
     QCOMPARE(statistics.count(), 1);
+}
+
+void ThumbnailCoordinatorTests::automaticConcurrencyIsBoundedAndExplicitOverrideWins()
+{
+    const auto load = [](const QString &path, int, std::stop_token) {
+        return readyResult(path + QStringLiteral(".png"));
+    };
+    ThumbnailCoordinator automatic(load);
+    ThumbnailCoordinator explicitOverride(load, 3);
+    ThumbnailCoordinator clampedOverride(load, 99);
+
+    QVERIFY(automatic.maxConcurrentRequestCount() >= 2);
+    QVERIFY(automatic.maxConcurrentRequestCount() <= 8);
+    QCOMPARE(explicitOverride.maxConcurrentRequestCount(), 3);
+    QCOMPARE(clampedOverride.maxConcurrentRequestCount(), 8);
 }
 
 void ThumbnailCoordinatorTests::animatedAndDuplicateRequestsDoNotScheduleExtraWork()

@@ -9,6 +9,10 @@
 #include <QTest>
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
 #include <optional>
 #include <stdexcept>
 #include <stop_token>
@@ -28,6 +32,17 @@ void writeFile(const QString &path, const QByteArray &bytes)
     QFile file(path);
     QVERIFY2(file.open(QIODevice::WriteOnly), qPrintable(file.errorString()));
     QCOMPARE(file.write(bytes), bytes.size());
+}
+
+void writeFileOrThrow(const QString &path, const QByteArray &bytes)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly)) {
+        throw std::runtime_error(file.errorString().toStdString());
+    }
+    if (file.write(bytes) != bytes.size()) {
+        throw std::runtime_error(file.errorString().toStdString());
+    }
 }
 
 ImageListItem image(const QString &path, bool isAnimated = false)
@@ -71,6 +86,8 @@ private slots:
     void webpConversionSkipsJpgAndExistingWebp();
     void defaultEncoderWritesLosslessWebpBytes();
     void conversionFailureCleansPartialTargetAndContinues();
+    void conversionUsesBoundedParallelismAndPreservesOrder();
+    void conversionSerializesCollidingTargets();
     void matchingExtraFormatCleanupAcceptsJpgOrWebp();
     void trashReportsMissingAndHandlerFailures();
     void singleRenameHandlesSameNameCollisionAndSuccess();
@@ -99,7 +116,7 @@ void FileOperationTests::conversionPreservesOriginalsAndSkipsConservatively()
     FileOperationService service(
         [&](const QString &source, const QString &target, std::stop_token) {
             converted.append(source);
-            writeFile(target, QByteArrayLiteral("encoded"));
+            writeFileOrThrow(target, QByteArrayLiteral("encoded"));
         },
         [](const QString &, std::stop_token) {});
 
@@ -162,7 +179,7 @@ void FileOperationTests::webpConversionSkipsJpgAndExistingWebp()
         [](const QString &, const QString &, std::stop_token) {},
         [&](const QString &source, const QString &target, std::stop_token) {
             converted.append(source);
-            writeFile(target, QByteArrayLiteral("lossless-webp"));
+            writeFileOrThrow(target, QByteArrayLiteral("lossless-webp"));
         },
         [](const QString &, std::stop_token) {});
 
@@ -232,7 +249,7 @@ void FileOperationTests::conversionFailureCleansPartialTargetAndContinues()
 
     FileOperationService service(
         [&](const QString &source, const QString &target, std::stop_token) {
-            writeFile(target, QByteArrayLiteral("partial"));
+            writeFileOrThrow(target, QByteArrayLiteral("partial"));
             if (source == first) {
                 throw std::runtime_error("decoder failed");
             }
@@ -246,6 +263,80 @@ void FileOperationTests::conversionFailureCleansPartialTargetAndContinues()
     QVERIFY(!QFileInfo::exists(childPath(root.path(), QStringLiteral("first.jpg"))));
     QVERIFY(QFileInfo::exists(childPath(root.path(), QStringLiteral("second.jpg"))));
     QCOMPARE(findResult(result, first)->reason, std::optional<QString>{QStringLiteral("conversion_failed")});
+}
+
+void FileOperationTests::conversionUsesBoundedParallelismAndPreservesOrder()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    QVector<ImageListItem> images;
+    for (int index = 0; index < 4; ++index) {
+        const QString path = childPath(root.path(), QStringLiteral("image-%1.png").arg(index));
+        writeFile(path, QByteArrayLiteral("source"));
+        images.append(image(path));
+    }
+
+    std::atomic_int active = 0;
+    std::atomic_int maximumActive = 0;
+    std::atomic_int started = 0;
+    std::mutex startMutex;
+    std::condition_variable startCondition;
+    FileOperationService service(
+        [&](const QString &, const QString &target, std::stop_token) {
+            const int current = ++active;
+            int observed = maximumActive.load();
+            while (current > observed
+                   && !maximumActive.compare_exchange_weak(observed, current)) {
+            }
+            ++started;
+            startCondition.notify_all();
+            {
+                std::unique_lock lock(startMutex);
+                startCondition.wait_for(lock, std::chrono::seconds(2), [&] {
+                    return started.load() >= 2;
+                });
+            }
+            writeFileOrThrow(target, QByteArrayLiteral("encoded"));
+            --active;
+        },
+        [](const QString &, const QString &, std::stop_token) {},
+        [](const QString &, std::stop_token) {},
+        4);
+
+    const auto result = service.convertVisibleToJpg(images);
+
+    QVERIFY(maximumActive.load() >= 2);
+    QCOMPARE(result.total(), images.size());
+    for (qsizetype index = 0; index < images.size(); ++index) {
+        QCOMPARE(result.items.at(index).path, images.at(index).path);
+        QCOMPARE(result.items.at(index).status, FileOperationStatus::Converted);
+    }
+}
+
+void FileOperationTests::conversionSerializesCollidingTargets()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString first = childPath(root.path(), QStringLiteral("same.png"));
+    const QString second = childPath(root.path(), QStringLiteral("same.bmp"));
+    writeFile(first, QByteArrayLiteral("first"));
+    writeFile(second, QByteArrayLiteral("second"));
+    QVector<QString> converted;
+    FileOperationService service(
+        [&](const QString &source, const QString &target, std::stop_token) {
+            converted.append(source);
+            writeFileOrThrow(target, QByteArrayLiteral("encoded"));
+        },
+        [](const QString &, const QString &, std::stop_token) {},
+        [](const QString &, std::stop_token) {},
+        4);
+
+    const auto result = service.convertVisibleToJpg({image(first), image(second)});
+
+    QCOMPARE(converted, QVector<QString>{first});
+    QCOMPARE(result.items.at(0).status, FileOperationStatus::Converted);
+    QCOMPARE(result.items.at(1).status, FileOperationStatus::Skipped);
+    QCOMPARE(result.items.at(1).reason, std::optional<QString>{QStringLiteral("target_exists")});
 }
 
 void FileOperationTests::matchingExtraFormatCleanupAcceptsJpgOrWebp()

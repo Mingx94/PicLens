@@ -25,7 +25,8 @@ public:
     FileOperationService(
         ImageEncoder jpegEncoder,
         ImageEncoder webpEncoder,
-        TrashHandler trashHandler);
+        TrashHandler trashHandler,
+        int maxConcurrentConversions = 0);
 
     [[nodiscard]] core::FileOperationBatchResult convertVisibleToJpg(
         const QVector<core::ImageListItem> &visibleImages,
@@ -55,6 +56,10 @@ public:
 
 private:
     static void throwIfCanceled(std::stop_token stopToken);
+    [[nodiscard]] core::FileOperationBatchResult convertBatch(
+        const QVector<core::ImageListItem> &visibleImages,
+        std::stop_token stopToken,
+        bool convertToWebp) const;
     [[nodiscard]] core::FileOperationResult convertOneToJpg(
         const core::ImageListItem &image,
         std::stop_token stopToken) const;
@@ -65,6 +70,7 @@ private:
     ImageEncoder m_jpegEncoder;
     ImageEncoder m_webpEncoder;
     TrashHandler m_trashHandler;
+    int m_maxConcurrentConversions;
 };
 
 } // namespace piclens::infrastructure

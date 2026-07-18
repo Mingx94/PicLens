@@ -19,9 +19,11 @@
 #include <QSaveFile>
 #include <QSGRendererInterface>
 #include <QTimer>
+#include <QThread>
 
 #include <algorithm>
 #include <cmath>
+#include <ctime>
 #include <cstdlib>
 #include <memory>
 
@@ -178,6 +180,11 @@ ProcessMemorySample processMemorySample()
     return {};
 }
 
+double processCpuMilliseconds()
+{
+    return static_cast<double>(std::clock()) * 1'000.0 / CLOCKS_PER_SEC;
+}
+
 bool writePerformanceMetrics(
     const QString &path,
     qint64 elapsedMilliseconds,
@@ -189,6 +196,10 @@ bool writePerformanceMetrics(
         return false;
     }
     const ProcessMemorySample memory = processMemorySample();
+    const double cpuMilliseconds = processCpuMilliseconds();
+    const int logicalProcessorCount = std::max(1, QThread::idealThreadCount());
+    const double elapsedSeconds = std::max(0.001, elapsedMilliseconds / 1'000.0);
+    const int completedThumbnails = controller->thumbnails()->completedRequestCount();
     const QJsonObject metrics{
         {QStringLiteral("elapsedMilliseconds"), elapsedMilliseconds},
         {QStringLiteral("libraryReadyMilliseconds"), timing.libraryReadyMilliseconds},
@@ -199,11 +210,18 @@ bool writePerformanceMetrics(
         {QStringLiteral("renderFrameIntervalP99Milliseconds"),
          percentile(timing.frameIntervalsMilliseconds, 0.99)},
         {QStringLiteral("graphicsApi"), graphicsApiName()},
+        {QStringLiteral("processCpuMilliseconds"), cpuMilliseconds},
+        {QStringLiteral("logicalProcessorCount"), logicalProcessorCount},
+        {QStringLiteral("averageCpuUtilizationPercent"),
+         cpuMilliseconds / (elapsedSeconds * 1'000.0) / logicalProcessorCount * 100.0},
         {QStringLiteral("rowCount"), controller->library()->items()->rowCount()},
         {QStringLiteral("imageCount"), controller->library()->visibleImages().size()},
         {QStringLiteral("activeThumbnailRequests"), controller->thumbnails()->activeRequestCount()},
-        {QStringLiteral("completedThumbnailRequests"),
-         controller->thumbnails()->completedRequestCount()},
+        {QStringLiteral("completedThumbnailRequests"), completedThumbnails},
+        {QStringLiteral("thumbnailThroughputPerSecond"),
+         completedThumbnails / elapsedSeconds},
+        {QStringLiteral("maxConcurrentThumbnailRequests"),
+         controller->thumbnails()->maxConcurrentRequestCount()},
         {QStringLiteral("thumbnailCacheHits"), controller->thumbnails()->cacheHitCount()},
         {QStringLiteral("includeSubfolders"), controller->library()->includeSubfolders()},
         {QStringLiteral("sortKey"), controller->library()->sortKey()},
