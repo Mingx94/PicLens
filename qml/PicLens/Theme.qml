@@ -50,6 +50,7 @@ QtObject {
     readonly property int commandHeight: 64
     readonly property int statusHeight: 48
     readonly property int controlHeight: 38
+    readonly property int viewerRailWidth: 80
     readonly property int cornerRadius: 8
     readonly property int largeRadius: 12
 }

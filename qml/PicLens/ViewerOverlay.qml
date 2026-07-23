@@ -72,6 +72,43 @@ Rectangle {
         }
     }
 
+    component ViewerNavigationRail: Button {
+        id: rail
+        required property string iconName
+        required property string accessibleName
+        required property bool leftEdge
+
+        implicitWidth: Theme.viewerRailWidth
+        padding: 0
+        focusPolicy: Qt.StrongFocus
+        Accessible.role: Accessible.Button
+        Accessible.name: accessibleName
+        Accessible.description: ToolTip.text
+        Accessible.focusable: true
+        Accessible.onPressAction: rail.click()
+
+        contentItem: AppIcon {
+            name: rail.iconName
+            width: 28
+            height: 28
+            color: rail.enabled ? Theme.viewerText : Theme.viewerDisabledText
+        }
+
+        background: Rectangle {
+            color: rail.down ? Theme.viewerPressed
+                 : rail.enabled && (rail.hovered || rail.activeFocus) ? Theme.viewerHover
+                 : Theme.viewerChrome
+
+            Rectangle {
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                x: rail.leftEdge ? parent.width - width : 0
+                width: 1
+                color: Theme.viewerLine
+            }
+        }
+    }
+
     // Window shortcuts keep viewer navigation working even after a command button
     // or another control becomes the active focus item.
     Shortcut {
@@ -278,8 +315,8 @@ Rectangle {
             property int decodeHeight: 0
 
             anchors.fill: parent
-            anchors.leftMargin: 76
-            anchors.rightMargin: 76
+            anchors.leftMargin: Theme.viewerRailWidth + Theme.space4
+            anchors.rightMargin: Theme.viewerRailWidth + Theme.space4
             anchors.topMargin: 96
             anchors.bottomMargin: Theme.space6
             visible: false
@@ -517,34 +554,30 @@ Rectangle {
         }
     }
 
-    ViewerButton {
+    ViewerNavigationRail {
         anchors.left: parent.left
-        anchors.leftMargin: Theme.space5
-        anchors.verticalCenter: parent.verticalCenter
-        width: 48
-        height: 48
-        circular: true
+        anchors.top: commandBar.bottom
+        anchors.bottom: parent.bottom
+        anchors.topMargin: Theme.space4
         iconName: "chevron-left"
         accessibleName: "上一張圖片"
+        leftEdge: true
         enabled: overlay.appController.viewer.canGoPrevious
-        visible: enabled
-        ToolTip.visible: hovered
+        ToolTip.visible: hovered && enabled
         ToolTip.text: "上一張（←）"
         onClicked: overlay.appController.viewer.previous()
     }
 
-    ViewerButton {
+    ViewerNavigationRail {
         anchors.right: parent.right
-        anchors.rightMargin: Theme.space5
-        anchors.verticalCenter: parent.verticalCenter
-        width: 48
-        height: 48
-        circular: true
+        anchors.top: commandBar.bottom
+        anchors.bottom: parent.bottom
+        anchors.topMargin: Theme.space4
         iconName: "chevron-right"
         accessibleName: "下一張圖片"
+        leftEdge: false
         enabled: overlay.appController.viewer.canGoNext
-        visible: enabled
-        ToolTip.visible: hovered
+        ToolTip.visible: hovered && enabled
         ToolTip.text: "下一張（→）"
         onClicked: overlay.appController.viewer.next()
     }
