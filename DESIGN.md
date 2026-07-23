@@ -127,10 +127,10 @@ All spacing derives from a base of 4px.
 
 ### Viewer Navigation Rails
 
-- **Structure**: 80px edge controls spanning the image canvas height below the command strip.
-- **States**: quiet viewer chrome at rest, full-rail hover/keyboard-focus feedback, stronger pressed feedback, and a muted icon at sequence boundaries.
+- **Structure**: edge controls spanning the image canvas height below the command strip, each occupying 10% of the viewer width.
+- **States**: low-opacity viewer surface at rest, full-rail hover/keyboard-focus feedback, stronger pressed feedback, and a muted icon at sequence boundaries.
 - **Accessibility**: the complete rail is the pointer target; previous/next labels and keyboard navigation remain available.
-- **Layout**: image content reserves the rail width plus `space-4` on both sides so controls never obscure the image.
+- **Layout**: rail width responds continuously to the viewer viewport, not physical screen metadata; the centered chevron remains 28px regardless of rail width, and image content reserves the active rail width plus `space-4` on both sides so controls never obscure the image.
 
 ## 6. Motion & Interaction
 

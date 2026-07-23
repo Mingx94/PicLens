@@ -37,6 +37,7 @@ QtObject {
     readonly property color viewerText: "#F7F8FA"
     readonly property color viewerSecondaryText: "#AAB2C0"
     readonly property color viewerDisabledText: "#667080"
+    readonly property color viewerRailSurface: "#401D2129"
     readonly property color viewerHover: "#26FFFFFF"
     readonly property color viewerPressed: "#40FFFFFF"
 
@@ -50,7 +51,11 @@ QtObject {
     readonly property int commandHeight: 64
     readonly property int statusHeight: 48
     readonly property int controlHeight: 38
-    readonly property int viewerRailWidth: 80
+    readonly property int viewerRailIconSize: 28
     readonly property int cornerRadius: 8
     readonly property int largeRadius: 12
+
+    function viewerRailWidthFor(viewportWidth) {
+        return viewportWidth / 10
+    }
 }

@@ -78,7 +78,11 @@ TestCase {
         compare(Theme.commandHeight, 64)
         compare(Theme.controlHeight, 38)
         compare(Theme.statusHeight, 48)
-        compare(Theme.viewerRailWidth, 80)
+        compare(Theme.viewerRailSurface.toString(), "#401d2129")
+        compare(Theme.viewerRailIconSize, 28)
+        compare(Theme.viewerRailWidthFor(840), 84)
+        compare(Theme.viewerRailWidthFor(1440), 144)
+        compare(Theme.viewerRailWidthFor(2560), 256)
         compare(Theme.brandMountain.toString(), "#155dbb")
     }
 

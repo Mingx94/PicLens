@@ -12,6 +12,7 @@ Rectangle {
     z: 100
     color: Theme.viewerCanvas
     focus: visible
+    readonly property real navigationRailWidth: Theme.viewerRailWidthFor(width)
 
     function closeViewer() {
         appController.viewer.close()
@@ -78,7 +79,7 @@ Rectangle {
         required property string accessibleName
         required property bool leftEdge
 
-        implicitWidth: Theme.viewerRailWidth
+        implicitWidth: overlay.navigationRailWidth
         padding: 0
         focusPolicy: Qt.StrongFocus
         Accessible.role: Accessible.Button
@@ -87,17 +88,20 @@ Rectangle {
         Accessible.focusable: true
         Accessible.onPressAction: rail.click()
 
-        contentItem: AppIcon {
-            name: rail.iconName
-            width: 28
-            height: 28
-            color: rail.enabled ? Theme.viewerText : Theme.viewerDisabledText
+        contentItem: Item {
+            AppIcon {
+                anchors.centerIn: parent
+                name: rail.iconName
+                width: Theme.viewerRailIconSize
+                height: Theme.viewerRailIconSize
+                color: rail.enabled ? Theme.viewerText : Theme.viewerDisabledText
+            }
         }
 
         background: Rectangle {
             color: rail.down ? Theme.viewerPressed
                  : rail.enabled && (rail.hovered || rail.activeFocus) ? Theme.viewerHover
-                 : Theme.viewerChrome
+                 : Theme.viewerRailSurface
 
             Rectangle {
                 anchors.top: parent.top
@@ -315,8 +319,8 @@ Rectangle {
             property int decodeHeight: 0
 
             anchors.fill: parent
-            anchors.leftMargin: Theme.viewerRailWidth + Theme.space4
-            anchors.rightMargin: Theme.viewerRailWidth + Theme.space4
+            anchors.leftMargin: overlay.navigationRailWidth + Theme.space4
+            anchors.rightMargin: overlay.navigationRailWidth + Theme.space4
             anchors.topMargin: 96
             anchors.bottomMargin: Theme.space6
             visible: false
