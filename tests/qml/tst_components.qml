@@ -52,6 +52,15 @@ TestCase {
         }
     }
 
+    Component {
+        id: folderTreePaneComponent
+        FolderTreePane {
+            width: 228
+            height: 240
+            appController: testAppController
+        }
+    }
+
     SignalSpy {
         id: clickedSpy
         signalName: "clicked"
@@ -137,6 +146,27 @@ TestCase {
         handler.handleButton(Qt.ForwardButton)
         compare(backSpy.count, 1)
         compare(forwardSpy.count, 1)
+    }
+
+    function test_folderTreeRootStaysExpandedAfterScrollingAwayAndBack() {
+        const pane = createTemporaryObject(folderTreePaneComponent, testCase)
+        verify(pane !== null)
+        tryCompare(testAppController.folderTree, "busy", false)
+
+        const tree = findChild(pane, "folderTreeView")
+        verify(tree !== null)
+        tryVerify(() => tree.rows > 40)
+        verify(tree.isExpanded(0))
+
+        tree.flick(0, -10000)
+        tryVerify(() => !tree.moving)
+        tryVerify(() => tree.contentY > tree.height)
+        tree.flick(0, 10000)
+        tryVerify(() => !tree.moving)
+        tryCompare(tree, "contentY", 0)
+
+        verify(tree.isExpanded(0))
+        verify(tree.rows > 40)
     }
 
     function test_viewerPointerSurfaceBlocksGalleryAndStillPans() {

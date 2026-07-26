@@ -2,7 +2,14 @@ qt_add_executable(piclens_qml_tests
     tst_qml_main.cpp
 )
 
-target_link_libraries(piclens_qml_tests PRIVATE Qt6::QuickControls2 Qt6::QuickTest)
+target_link_libraries(
+    piclens_qml_tests
+    PRIVATE
+        PicLens::App
+        Qt6::Qml
+        Qt6::QuickControls2
+        Qt6::QuickTest
+)
 set_target_properties(piclens_qml_tests PROPERTIES WIN32_EXECUTABLE FALSE)
 target_compile_definitions(
     piclens_qml_tests
@@ -47,8 +54,13 @@ configure_file(
     "${PICLENS_TEST_IMPORT_DIR}/ViewerPointerSurface.qml"
     COPYONLY
 )
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/FolderTreePane.qml"
+    "${PICLENS_TEST_IMPORT_DIR}/FolderTreePane.qml"
+    COPYONLY
+)
 file(WRITE "${PICLENS_TEST_IMPORT_DIR}/qmldir"
-    "module PicLens\nsingleton Theme 1.0 Theme.qml\nAppIcon 1.0 AppIcon.qml\nLensMark 1.0 LensMark.qml\nCompactComboBox 1.0 CompactComboBox.qml\nToolbarButton 1.0 ToolbarButton.qml\nHistoryMouseHandler 1.0 HistoryMouseHandler.qml\nViewerPointerSurface 1.0 ViewerPointerSurface.qml\n"
+    "module PicLens\nsingleton Theme 1.0 Theme.qml\nAppIcon 1.0 AppIcon.qml\nLensMark 1.0 LensMark.qml\nCompactComboBox 1.0 CompactComboBox.qml\nToolbarButton 1.0 ToolbarButton.qml\nHistoryMouseHandler 1.0 HistoryMouseHandler.qml\nViewerPointerSurface 1.0 ViewerPointerSurface.qml\nFolderTreePane 1.0 FolderTreePane.qml\n"
 )
 
 add_test(

@@ -53,6 +53,7 @@ Rectangle {
 
         TreeView {
             id: treeView
+            objectName: "folderTreeView"
             width: parent.width
             height: parent.height - y
             clip: true
@@ -89,7 +90,7 @@ Rectangle {
 
                 function synchronizeExpansion() {
                     if ((isRootNode || shouldExpand) && !expanded)
-                        treeView.toggleExpanded(row)
+                        treeView.expand(row)
                 }
 
                 function toggleExpansion() {
