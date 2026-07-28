@@ -5,10 +5,10 @@
 ## 接手基準線
 
 - 盤點日期：2026-07-28
-- 分支／版本：`main`、`VERSION=2.1.9`
-- HEAD／tag：`3621565`，同時是 `v2.1.9`
+- 分支／版本：`main`、`VERSION=2.1.11`
+- HEAD／tag：`5d03a15`，同時是 `v2.1.11`
 - 工作樹：盤點前乾淨
-- 本機驗證：Debug configure/build 成功，CTest 15/15 通過
+- 本機驗證：在 `5d03a15` 重新執行 Debug configure/build 成功，CTest 15/15 通過
 - 程式碼內沒有 `TODO`、`FIXME`、`HACK` 或 `XXX` 標記
 - [Runtime contract](docs/runtime-contract.md) 目前沒有已知但尚未實作的 committed behavior
 
@@ -55,6 +55,7 @@ ctest --preset debug --output-on-failure
 - Settings 更新要維持 normalization、atomic write 與舊 schema continuity。
 - 搜尋、排序、重新掃描、recursive mode 與檔案操作後，不得殘留 stale selection。
 - Folder tree 不應因 library 搜尋或目前資料夾切換而 reset／收合。`v2.1.9` 就是修這個 regression。
+- Gallery context menu 與 viewer overlay 都能「在檔案管理器中顯示」目前圖片；Windows 使用 `explorer.exe /select,`，Linux 使用 `xdg-open` 開啟所在資料夾。失敗要保留 selection、回報狀態並寫入診斷。
 - QML 的 pointer capture、selection、drag/drop 與 viewer overlay 有刻意的事件邊界；改動時至少跑 QML 與 presentation tests。
 - Thumbnail pipeline 是 bounded async work，包含取消、timeout、cache bound 與 stale generation discard；不要在 UI thread 同步 decode。
 
@@ -96,7 +97,7 @@ pwsh -NoProfile -File scripts/run-windows-cutover-gate.ps1
 4. 建立完全相符的 tag，例如 `VERSION=2.2.0` 就只能用 `v2.2.0`。
 5. push tag；`.github/workflows/release.yml` 通過 Windows、Ubuntu 與 Fedora gates 後才會發布 GitHub Release assets。
 
-Windows portable 是 MSI 的 audited payload；不要分別拼兩份內容。Windows 簽章需要 repository 外的憑證，Linux package signing 也是 release operations 責任。
+Windows portable 是 MSI 的 audited payload；不要分別拼兩份內容。`scripts/build-msi.ps1` 預設會先 configure/build Release，再建立 portable 與 MSI；只有已有可信 payload 時才用 `-NoRelease` 跳過重建。MSI 檔名包含版本，例如 `artifacts/installer/PicLens-2.1.11-win-x64.msi`，更新相關腳本或 workflow 時不可再假設固定的 `PicLens-win-x64.msi`。Windows 簽章需要 repository 外的憑證，Linux package signing 也是 release operations 責任。
 
 ## 已確認的文件／流程落差
 
