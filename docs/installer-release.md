@@ -38,7 +38,7 @@ pwsh -NoProfile -File scripts/build-msi.ps1 `
 
 Output: `artifacts/installer/PicLens-<version>-win-x64.msi`.
 
-The script logs and times the portable, WiX, signing, audit and optional lifecycle stages that are enabled. The MSI audit expands an administrative image and requires every relative path, byte length and SHA-256 to exactly match the portable payload. `-NoRelease` requires an existing portable bundle. WiX Toolset currently requires the .NET SDK, but no application runtime or test project uses .NET.
+By default the script configures and rebuilds the current Release executable before creating the portable payload and MSI. It logs and times the Release build, portable, WiX, signing, audit and optional lifecycle stages that are enabled. The MSI audit expands an administrative image and requires every relative path, byte length and SHA-256 to exactly match the portable payload. `-NoRelease` skips the rebuild and requires an existing portable bundle. WiX Toolset currently requires the .NET SDK, but no application runtime or test project uses .NET.
 
 ## Debian / Ubuntu DEB
 

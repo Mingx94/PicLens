@@ -352,12 +352,13 @@ ApplicationWindow {
                     interval: 250
                     onTriggered: window.appController.setThumbnailSize(statusSizeSlider.value)
                 }
-                AppIcon {
-                    Layout.preferredWidth: 18
-                    Layout.preferredHeight: 18
+                Text {
+                    objectName: "appVersionLabel"
                     Layout.leftMargin: Theme.space3
-                    name: "sidebar"
+                    text: "v" + Qt.application.version
                     color: Theme.secondaryText
+                    font.pixelSize: 11
+                    Accessible.name: "PicLens 版本 " + Qt.application.version
                 }
             }
         }

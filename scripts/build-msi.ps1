@@ -79,6 +79,8 @@ if ($RunLifecycleTest -and -not $ConfirmSystemChanges) {
 
 if ($DryRun) {
     if (-not $NoRelease) {
+        Write-Host "cmake --preset release"
+        Write-Host "cmake --build --preset release"
         Write-Host "pwsh -NoProfile -File `"$portableScript`""
     }
     Write-Host "dotnet build `"$projectPath`" --no-incremental --configuration Release /p:AppVersion=$Version /p:PayloadDir=`"$portableDirectory`" /p:SuppressValidation=true /p:OutputPath=`"$installerDirectory\`" /p:OutputName=$outputName"
@@ -89,6 +91,22 @@ if ($DryRun) {
 }
 
 if (-not $NoRelease) {
+    Invoke-Stage "Configure and build Qt Release" {
+        Push-Location $repoRoot
+        try {
+            & cmake --preset release
+            if ($LASTEXITCODE -ne 0) {
+                throw "Release configure failed with exit code $LASTEXITCODE"
+            }
+            & cmake --build --preset release
+            if ($LASTEXITCODE -ne 0) {
+                throw "Release build failed with exit code $LASTEXITCODE"
+            }
+        }
+        finally {
+            Pop-Location
+        }
+    }
     Invoke-Stage "Build Qt portable payload" {
         & $portableScript
         if ($LASTEXITCODE -ne 0) { throw "Portable build failed with exit code $LASTEXITCODE" }
