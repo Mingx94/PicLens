@@ -36,7 +36,7 @@ pwsh -NoProfile -File scripts/build-msi.ps1 `
   -PreviousMsiPath <previous.msi>
 ```
 
-Output: `artifacts/installer/PicLens-win-x64.msi`.
+Output: `artifacts/installer/PicLens-<version>-win-x64.msi`.
 
 The script logs and times the portable, WiX, signing, audit and optional lifecycle stages that are enabled. The MSI audit expands an administrative image and requires every relative path, byte length and SHA-256 to exactly match the portable payload. `-NoRelease` requires an existing portable bundle. WiX Toolset currently requires the .NET SDK, but no application runtime or test project uses .NET.
 
@@ -73,7 +73,7 @@ DEB/RPM are generated from the Qt CMake install graph. The old standalone Fedora
 
 Changing or pushing the root `VERSION` file does not run a Release build by itself. Pushing a tag named `v<version>` runs the full Windows, Linux, and Fedora release gates. After all three succeed, the workflow publishes (or updates) the matching GitHub Release with:
 
-- `PicLens-win-x64.msi` and `PicLens-win-x64-portable.zip`;
+- `PicLens-<version>-win-x64.msi` and `PicLens-win-x64-portable.zip`;
 - `PicLens-linux-x64-portable.tar.gz` and the Debian package;
 - the Fedora RPM; and
 - `SHA256SUMS.txt` for every uploaded download.

@@ -25,7 +25,8 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 $qtRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $repoRoot = $qtRoot
 if ([string]::IsNullOrWhiteSpace($MsiPath)) {
-    $MsiPath = Join-Path $repoRoot "artifacts\installer\PicLens-win-x64.msi"
+    $version = (Get-Content -Raw (Join-Path $repoRoot "VERSION")).Trim()
+    $MsiPath = Join-Path $repoRoot "artifacts\installer\PicLens-$version-win-x64.msi"
 }
 if ([string]::IsNullOrWhiteSpace($ExpectedExecutable)) {
     $ExpectedExecutable = Join-Path $repoRoot "artifacts\qt-portable\PicLens-win-x64\PicLens.exe"

@@ -34,7 +34,7 @@ cmake --preset debug && cmake --build --preset debug
 # Release -> build/release/bin/PicLens.exe
 cmake --preset release && cmake --build --preset release
 
-# Windows Installer -> artifacts/installer/PicLens-win-x64.msi
+# Windows Installer -> artifacts/installer/PicLens-<version>-win-x64.msi
 pwsh -NoProfile -File scripts/build-msi.ps1
 ```
 

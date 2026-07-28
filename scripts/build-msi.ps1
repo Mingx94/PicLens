@@ -26,7 +26,8 @@ if ($Version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') {
 
 $portableDirectory = Join-Path $repoRoot "artifacts\qt-portable\PicLens-win-x64"
 $installerDirectory = Join-Path $repoRoot "artifacts\installer"
-$msiPath = Join-Path $installerDirectory "PicLens-win-x64.msi"
+$outputName = "PicLens-$Version-win-x64"
+$msiPath = Join-Path $installerDirectory "$outputName.msi"
 $projectPath = Join-Path $repoRoot "installer\PicLens.wixproj"
 $portableScript = Join-Path $PSScriptRoot "build-portable.ps1"
 $auditScript = Join-Path $PSScriptRoot "audit-msi.ps1"
@@ -80,7 +81,7 @@ if ($DryRun) {
     if (-not $NoRelease) {
         Write-Host "pwsh -NoProfile -File `"$portableScript`""
     }
-    Write-Host "dotnet build `"$projectPath`" --no-incremental --configuration Release /p:AppVersion=$Version /p:PayloadDir=`"$portableDirectory`" /p:SuppressValidation=true /p:OutputPath=`"$installerDirectory\`" /p:OutputName=PicLens-win-x64"
+    Write-Host "dotnet build `"$projectPath`" --no-incremental --configuration Release /p:AppVersion=$Version /p:PayloadDir=`"$portableDirectory`" /p:SuppressValidation=true /p:OutputPath=`"$installerDirectory\`" /p:OutputName=$outputName"
     if ($Sign) { Write-Host "Sign PicLens.exe and MSI with certificate $CertificateThumbprint and RFC 3161 timestamp $TimestampUrl" }
     Write-Host "pwsh -NoProfile -File `"$auditScript`" -MsiPath `"$msiPath`" -PayloadDirectory `"$portableDirectory`" -ExpectedVersion $Version -RequireSigned:$Sign"
     if ($RunLifecycleTest) { Write-Host "pwsh -NoProfile -File `"$lifecycleScript`" -MsiPath `"$msiPath`" -ConfirmSystemChanges" }
@@ -118,7 +119,7 @@ Invoke-Stage "Build WiX MSI" {
         "/p:PayloadDir=$portableDirectory" `
         "/p:SuppressValidation=true" `
         "/p:OutputPath=$installerDirectory\" `
-        "/p:OutputName=PicLens-win-x64"
+        "/p:OutputName=$outputName"
     if ($LASTEXITCODE -ne 0) { throw "WiX build failed with exit code $LASTEXITCODE" }
 }
 

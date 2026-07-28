@@ -18,7 +18,8 @@ $artifactRoot = Join-Path $repoRoot "artifacts\cutover"
 $evidencePath = Join-Path $artifactRoot "windows-local-gate.json"
 $portableRoot = Join-Path $repoRoot "artifacts\qt-portable\PicLens-win-x64"
 $portableExecutable = Join-Path $portableRoot "PicLens.exe"
-$msiPath = Join-Path $repoRoot "artifacts\installer\PicLens-win-x64.msi"
+$version = (Get-Content -Raw (Join-Path $repoRoot "VERSION")).Trim()
+$msiPath = Join-Path $repoRoot "artifacts\installer\PicLens-$version-win-x64.msi"
 $performancePath = Join-Path $repoRoot "artifacts\performance\windows-release.json"
 $continuityPath = Join-Path $repoRoot "artifacts\data-migration\profile-continuity.json"
 

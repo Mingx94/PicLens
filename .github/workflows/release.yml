@@ -79,8 +79,9 @@ jobs:
       - name: Prepare same-version migration replacement fixture
         shell: pwsh
         run: |
+          $version = (Get-Content -Raw VERSION).Trim()
           New-Item -ItemType Directory -Path artifacts/installer-lifecycle -Force | Out-Null
-          Copy-Item artifacts/installer/PicLens-win-x64.msi artifacts/installer-lifecycle/PicLens-previous-build.msi
+          Copy-Item "artifacts/installer/PicLens-$version-win-x64.msi" artifacts/installer-lifecycle/PicLens-previous-build.msi
           pwsh -NoProfile -File scripts/build-msi.ps1 -NoRelease
       - name: Install, upgrade, launch, and uninstall MSI
         timeout-minutes: 25
@@ -103,7 +104,7 @@ jobs:
           if-no-files-found: error
           path: |
             artifacts/qt-portable/PicLens-win-x64/**
-            artifacts/installer/PicLens-win-x64.msi
+            artifacts/installer/PicLens-*-win-x64.msi
             artifacts/performance/windows-release.json
 
   linux-release:
@@ -206,6 +207,7 @@ jobs:
       - name: Package release downloads and checksums
         run: |
           set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
           mkdir -p release-assets/publish
           (
             cd release-assets/PicLens-Qt-Windows/qt-portable
@@ -214,7 +216,7 @@ jobs:
           tar -C release-assets/PicLens-Qt-Linux/qt-portable \
             -czf release-assets/publish/PicLens-linux-x64-portable.tar.gz \
             PicLens-linux-x64
-          cp release-assets/PicLens-Qt-Windows/installer/PicLens-win-x64.msi \
+          cp "release-assets/PicLens-Qt-Windows/installer/PicLens-${version}-win-x64.msi" \
             release-assets/publish/
           cp release-assets/PicLens-Qt-Linux/installer/*.deb release-assets/publish/
           cp release-assets/PicLens-Qt-Fedora-44/*.rpm release-assets/publish/
