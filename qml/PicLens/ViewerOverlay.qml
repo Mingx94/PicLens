@@ -545,14 +545,27 @@ Rectangle {
                 Layout.minimumWidth: 160
                 Layout.fillHeight: true
 
-                ViewerButton {
+                Row {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    iconName: "close"
-                    accessibleName: "關閉圖片檢視器"
-                    ToolTip.visible: hovered
-                    ToolTip.text: "關閉（Esc）"
-                    onClicked: overlay.closeViewer()
+                    spacing: Theme.space1
+
+                    ViewerButton {
+                        iconName: "folder-open"
+                        accessibleName: "在檔案管理器中顯示"
+                        enabled: overlay.appController.viewer.currentPath.length > 0
+                        ToolTip.visible: hovered
+                        ToolTip.text: "在檔案管理器中顯示"
+                        onClicked: overlay.appController.fileOperations.reveal(
+                            overlay.appController.viewer.currentPath)
+                    }
+                    ViewerButton {
+                        iconName: "close"
+                        accessibleName: "關閉圖片檢視器"
+                        ToolTip.visible: hovered
+                        ToolTip.text: "關閉（Esc）"
+                        onClicked: overlay.closeViewer()
+                    }
                 }
             }
         }

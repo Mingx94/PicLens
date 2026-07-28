@@ -42,6 +42,8 @@ Item {
             return "M6 12 L6.01 12 M12 12 L12.01 12 M18 12 L18.01 12"
         case "image":
             return "M3 5 L21 5 L21 19 L3 19 Z M3 16 L8.5 10.5 L13 15 L16 12 L21 17 M16 8.5 L16.01 8.5"
+        case "folder-open":
+            return "M3 7 L10 7 L12 9 L21 9 L19 19 L3 19 Z M3 7 L3 5 L9 5 L11 7"
         case "sidebar":
             return "M4 4 L20 4 L20 20 L4 20 Z M9 4 L9 20"
         default:

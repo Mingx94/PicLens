@@ -2,6 +2,7 @@
 
 PicLens 是 Windows / 主流 Linux 的 Qt 6、C++20、Qt Quick 圖片整理與檢視應用程式。
 
+- [Agent handoff](../HANDOFF.md)：接手基準線、修改入口、驗證與 release 注意事項。
 - [Product specification](product-spec.md)：使用者功能與驗收準則。
 - [Architecture](architecture.md)：C++/QML layers、ownership 與依賴方向。
 - [Runtime contract](runtime-contract.md)：產品行為與資料契約。
