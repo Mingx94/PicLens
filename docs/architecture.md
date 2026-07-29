@@ -10,7 +10,7 @@ src/app/                  composition root, QML registration and executable
 qml/PicLens/              Qt Quick shell and reusable controls
 tests/                    C++ Qt Test and QML Quick Test suites
 scripts/                  portable, installer, lifecycle and performance gates
-assets/                   icons, logos and embedded fonts
+assets/                   application icons, logos and unpackaged font sources
 installer/                WiX definition for the Qt Windows payload
 ```
 

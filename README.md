@@ -10,7 +10,7 @@ qml/                Qt Quick shell and reusable controls
 tests/              Qt Test and Qt Quick Test suites
 scripts/            release, lifecycle and performance automation
 packaging/          Linux desktop integration
-assets/             framework-neutral icons、logos 與 embedded fonts
+assets/             application icons、logos 與未打包的字型來源檔
 installer/          Windows WiX MSI definition
 docs/               product、architecture、testing、release 與 migration evidence
 LICENSE             MIT license

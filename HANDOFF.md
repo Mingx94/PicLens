@@ -2,15 +2,15 @@
 
 這份文件給下一位維護 PicLens 的 AGENT。先相信程式碼、測試與 workflow 的實際行為，再相信敘述性文件；如果兩者不一致，修正文件並留下測試。
 
-## 接手基準線
+## 最近驗證快照
 
-- 盤點日期：2026-07-28
-- 分支／版本：`main`、`VERSION=2.1.11`
-- HEAD／tag：`5d03a15`，同時是 `v2.1.11`
-- 工作樹：盤點前乾淨
+- 快照日期：2026-07-28
+- 已驗證 release：`VERSION=2.1.11`、tag `v2.1.11`、commit `5d03a15`
 - 本機驗證：在 `5d03a15` 重新執行 Debug configure/build 成功，CTest 15/15 通過
-- 程式碼內沒有 `TODO`、`FIXME`、`HACK` 或 `XXX` 標記
-- [Runtime contract](docs/runtime-contract.md) 目前沒有已知但尚未實作的 committed behavior
+- 當時程式碼內沒有 `TODO`、`FIXME`、`HACK` 或 `XXX` 標記
+- [Runtime contract](docs/runtime-contract.md) 當時沒有已知但尚未實作的 committed behavior
+
+這是可重現的歷史快照，不代表目前 checkout、工作樹或測試狀態。接手時先執行 `git status --short`、`git branch --show-current`、`git rev-parse --short HEAD` 與下列基準線，不要覆蓋使用者既有修改。
 
 重跑基準線：
 
@@ -22,13 +22,14 @@ ctest --preset debug --output-on-failure
 
 ## 先讀這些
 
-1. [Runtime contract](docs/runtime-contract.md)：不可無意改掉的產品行為。
-2. [Architecture](docs/architecture.md)：layer ownership 與依賴方向。
-3. [Testing](docs/testing.md)：本機與 release gates。
-4. [Product specification](docs/product-spec.md)：使用者功能與驗收準則。
-5. [Design system](DESIGN.md)：動 QML 前先看 token、元件與互動規則。
+先從 [documentation index](docs/README.md) 確認各主題的權威文件。日常程式修改依序讀：
 
-`docs/qt-migration.md` 與 `docs/qt-parity-audit.md` 是 cutover 紀錄，不是目前工作的 backlog。
+1. [Runtime contract](docs/runtime-contract.md)：不可無意改掉的已承諾行為。
+2. [Architecture](docs/architecture.md)：layer ownership 與依賴方向。
+3. [Testing](docs/testing.md)：本機測試與 release gates。
+4. 依變更範圍閱讀 [Product specification](docs/product-spec.md) 或 [Design system](DESIGN.md)。
+
+`docs/qt-migration.md` 與 `docs/qt-parity-audit.md` 只記錄 cutover，不是目前工作的 backlog 或狀態來源。
 
 ## 實際架構與修改入口
 
@@ -97,17 +98,7 @@ pwsh -NoProfile -File scripts/run-windows-cutover-gate.ps1
 4. 建立完全相符的 tag，例如 `VERSION=2.2.0` 就只能用 `v2.2.0`。
 5. push tag；`.github/workflows/release.yml` 通過 Windows、Ubuntu 與 Fedora gates 後才會發布 GitHub Release assets。
 
-Windows portable 是 MSI 的 audited payload；不要分別拼兩份內容。`scripts/build-msi.ps1` 預設會先 configure/build Release，再建立 portable 與 MSI；只有已有可信 payload 時才用 `-NoRelease` 跳過重建。MSI 檔名包含版本，例如 `artifacts/installer/PicLens-2.1.11-win-x64.msi`，更新相關腳本或 workflow 時不可再假設固定的 `PicLens-win-x64.msi`。Windows 簽章需要 repository 外的憑證，Linux package signing 也是 release operations 責任。
-
-## 已確認的文件／流程落差
-
-這些不是推測：
-
-- `docs/testing.md` 說 feature branch 會由 pull-request event 驗證，但目前唯一 workflow 沒有 `pull_request` trigger。
-- 同一份文件說 direct push validation 限於 `main`，目前 workflow 也沒有 branch push trigger；只有 `v*` tag push 或手動 dispatch。
-- `docs/runtime-contract.md` 指向 `docs/lore/`，但該目錄不存在。
-
-在補 CI 或 lore 之前，不要假設它們存在。最優先值得處理的是讓 PR 至少跑 configure/build/CTest，或修正 `docs/testing.md` 使它誠實描述只在 release tag 執行的現況。
+Windows portable 是 MSI 的 audited payload，不要分別拼兩份內容。完整產物、選項、lifecycle 與 signing 說明見 [Portable release](docs/portable-release.md)、[Installer release](docs/installer-release.md) 與 [Qt licensing](docs/qt-licensing.md)；實際行為以 scripts、CMake install graph 與 workflow 為準。
 
 ## 最小交付檢查
 

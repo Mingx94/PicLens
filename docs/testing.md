@@ -47,6 +47,8 @@ Lifecycle gates install, launch, replace/upgrade where applicable, remove, and v
 
 ## CI
 
-`.github/workflows/release.yml` runs Windows 2025, Ubuntu 24.04 and Fedora 44 jobs. Each slow stage has a descriptive name; the 10,000-image fixture and measurement are separate bounded steps, while MSI construction emits timed log groups for portable build, WiX build and database audit. This makes a timeout attributable instead of appearing as one opaque task.
+`.github/workflows/release.yml` 目前只由 `v*` tag push 或手動 `workflow_dispatch` 觸發；一般 branch push 與 pull request 不會自動執行這組 gates。非 release 變更在合併前仍需依修改範圍完成本機驗證。
 
-Feature branches are validated by the pull-request event; direct push validation is limited to `main`. Workflow concurrency automatically cancels an older run for the same PR/ref when a newer commit arrives, preventing duplicate or stale long-running jobs.
+Workflow 會執行 Windows 2025、Ubuntu 24.04 與 Fedora 44 jobs。Windows job 包含 Release CTest、10,000-image performance gate、portable、MSI 與 lifecycle；Ubuntu job 包含 portable、desktop adapters、DEB 與 lifecycle；Fedora job 包含 RPM build 與 lifecycle。符合版本規則的 tag 在三個平台全部成功後才發布 GitHub Release assets。
+
+同一個 ref 的新 run 會取消較舊的 run，避免重複或過期的長時間工作。實際 trigger、runner 與 stage 以 `.github/workflows/release.yml` 為準。

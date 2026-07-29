@@ -64,10 +64,10 @@ zlib1.dll
 
 ## Fonts and notices
 
-- PicLens 不內嵌或散佈應用程式字型；執行時優先選擇作業系統已安裝的繁中文字型，找不到時回退至 Qt general system font。
+- PicLens 不內嵌或散佈應用程式字型；`assets/Fonts/` 中保留的來源檔未被 production resource 或 install rules 引用。執行時優先選擇作業系統已安裝的繁中文字型，找不到時回退至 Qt general system font。
 - Windows artifact 包含 PicLens MIT `LICENSE.txt`、`THIRD_PARTY_NOTICES.txt` 與 Qt base/declarative/imageformats、libwebp license directories；MSYS2 builds 使用 distro license packages，official MSVC CI 同步取得對應 Qt source `LICENSES`。
 - Linux portable/Ubuntu DEB tree 包含 PicLens MIT license、PicLens notice，以及 `qtbase`/`qtdeclarative`/`qtimageformats` source `LICENSES`。Fedora RPM metadata 宣告 MIT 並明確依賴 `qt6-qtimageformats`；Qt 與 libwebp license texts 由 Fedora Qt packages 提供。
-- MSI database audit 會確認 notice、font license payload tree、Qt runtime 與 compiler runtime 沒有因 incremental build 遺失。
+- MSI database audit 會確認 notices、Qt runtime 與 compiler runtime 沒有因 incremental build 遺失。
 
 ## Release blockers
 

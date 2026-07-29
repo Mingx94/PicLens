@@ -1,6 +1,8 @@
 # Runtime Contract
 
-這份文件記錄 PicLens desktop runtime 必須保留的行為契約。它不是 backlog；未決或想做的事項應放在 issue 或 roadmap，測試執行細節放在 `docs/testing.md`，踩坑與決策背景放在 `docs/lore/`。
+這份文件記錄 PicLens desktop runtime 已承諾且必須保留的工程行為。它不是 backlog，也不重新定義產品方向；使用者需求與未決產品問題由 [Product specification](product-spec.md) 維護，測試執行方式由 [Testing](testing.md) 維護，架構 ownership 由 [Architecture](architecture.md) 維護。
+
+若產品意圖、runtime contract 或測試彼此不一致，先確認預期行為，再在同一個 change 更新負責該主題的文件與測試。尚未承諾的構想不要加入本文件。
 
 ## 支援格式
 
