@@ -86,6 +86,8 @@ Output: `artifacts/installer/piclens-<version>-<release>.<architecture>.rpm`.
 
 The Linux package wrappers use the shared `build-linux-package.sh`, run the configured build and tests unless explicitly disabled, generate a package through CPack, verify package metadata and print SHA-256. DEB defaults to `build/linux-deb-release`; RPM defaults to `build/fedora-rpm-release`, so portable、DEB and RPM no longer exchange policy through one CMake cache.
 
+Each package run clears its own `package-output/<kind>` staging directory and requires exactly one generated package. It writes `piclens-deb-manifest.json` or `piclens-rpm-manifest.json` beside the copied artifact with schema version、package version、architecture、filename、byte count and SHA-256. Lifecycle and publish jobs resolve the exact package from that manifest instead of choosing by mtime or a broad wildcard.
+
 ```bash
 bash scripts/build-deb.sh --dry-run
 bash scripts/build-deb.sh --no-test

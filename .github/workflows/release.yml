@@ -159,7 +159,7 @@ jobs:
           if-no-files-found: error
           path: |
             artifacts/qt-portable/PicLens-win-x64/**
-            artifacts/installer/PicLens-*-win-x64.msi
+            artifacts/installer/PicLens-${{ needs.validate_release.outputs.version }}-win-x64.msi
             artifacts/performance/windows-release.json
 
   linux-release:
@@ -191,10 +191,11 @@ jobs:
       - name: Build Debian candidate
         run: bash scripts/build-deb.sh
       - name: Install, launch, and remove Debian package
-        run: >-
-          xvfb-run -a bash scripts/test-linux-package-lifecycle.sh
-          --deb artifacts/installer/*.deb
-          --expected-executable artifacts/qt-portable/PicLens-linux-x64/bin/PicLens
+        run: |
+          package_name="$(python3 -c 'import json; print(json.load(open("artifacts/installer/piclens-deb-manifest.json"))["file"])')"
+          xvfb-run -a bash scripts/test-linux-package-lifecycle.sh \
+            --deb "artifacts/installer/$package_name" \
+            --expected-executable artifacts/qt-portable/PicLens-linux-x64/bin/PicLens
       - name: Upload Linux portable candidate
         uses: actions/upload-artifact@v4
         with:
@@ -202,7 +203,7 @@ jobs:
           if-no-files-found: error
           path: |
             artifacts/qt-portable/PicLens-linux-x64/**
-            artifacts/installer/*.deb
+            artifacts/installer/**
 
   fedora-release:
     name: Fedora RPM build and lifecycle
@@ -214,7 +215,7 @@ jobs:
       - name: Install Fedora Qt and build dependencies
         run: >-
           dnf install --assumeyes
-          git gcc-c++ cmake ninja-build rpm-build
+          git gcc-c++ cmake ninja-build python3 rpm-build
           qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtimageformats
       - uses: actions/checkout@v4
         with:
@@ -222,17 +223,20 @@ jobs:
       - name: Configure, build, and test against Fedora system Qt
         run: bash scripts/build-rpm.sh
       - name: Inspect RPM dependencies
-        run: rpm --query --package --requires artifacts/installer/*.rpm
+        run: |
+          package_name="$(python3 -c 'import json; print(json.load(open("artifacts/installer/piclens-rpm-manifest.json"))["file"])')"
+          rpm --query --package --requires "artifacts/installer/$package_name"
       - name: Install, launch, and remove RPM
-        run: >-
-          bash scripts/test-linux-package-lifecycle.sh
-          --rpm artifacts/installer/*.rpm
+        run: |
+          package_name="$(python3 -c 'import json; print(json.load(open("artifacts/installer/piclens-rpm-manifest.json"))["file"])')"
+          bash scripts/test-linux-package-lifecycle.sh \
+            --rpm "artifacts/installer/$package_name"
       - name: Upload Fedora RPM candidate
         uses: actions/upload-artifact@v4
         with:
           name: PicLens-Qt-Fedora-44
           if-no-files-found: error
-          path: artifacts/installer/*.rpm
+          path: artifacts/installer/**
 
   publish-release:
     name: Publish GitHub Release assets
@@ -268,8 +272,10 @@ jobs:
             PicLens-linux-x64
           cp "release-assets/PicLens-Qt-Windows/installer/PicLens-${version}-win-x64.msi" \
             release-assets/publish/
-          cp release-assets/PicLens-Qt-Linux/installer/*.deb release-assets/publish/
-          cp release-assets/PicLens-Qt-Fedora-44/*.rpm release-assets/publish/
+          deb_name="$(python3 -c 'import json; print(json.load(open("release-assets/PicLens-Qt-Linux/installer/piclens-deb-manifest.json"))["file"])')"
+          rpm_name="$(python3 -c 'import json; print(json.load(open("release-assets/PicLens-Qt-Fedora-44/piclens-rpm-manifest.json"))["file"])')"
+          cp "release-assets/PicLens-Qt-Linux/installer/$deb_name" release-assets/publish/
+          cp "release-assets/PicLens-Qt-Fedora-44/$rpm_name" release-assets/publish/
           (
             cd release-assets/publish
             sha256sum * > SHA256SUMS.txt

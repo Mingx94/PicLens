@@ -149,32 +149,34 @@ elif [[ ! -f "$build_dir/CPackConfig.cmake" ]]; then
     exit 5
 fi
 
-run cpack -G "${package_kind^^}" --config "$build_dir/CPackConfig.cmake" -B "$build_dir"
+package_output_dir="$build_dir/package-output/$package_kind"
+if [[ "$dry_run" == false ]]; then
+    rm -rf -- "$package_output_dir"
+    mkdir -p -- "$package_output_dir"
+fi
+run cpack -G "${package_kind^^}" --config "$build_dir/CPackConfig.cmake" -B "$package_output_dir"
 if [[ "$dry_run" == true ]]; then
     exit 0
 fi
 
-package_path=""
-package_timestamp=0
-while IFS= read -r -d '' candidate; do
-    candidate_timestamp="$(stat -c %Y "$candidate")"
-    if ((candidate_timestamp >= package_timestamp)); then
-        package_path="$candidate"
-        package_timestamp="$candidate_timestamp"
-    fi
-done < <(find "$build_dir" -maxdepth 1 -type f -name "*.$package_extension" -print0)
-if [[ -z "$package_path" ]]; then
-    echo "CPack completed but no .$package_extension package was found in $build_dir" >&2
+shopt -s nullglob
+package_candidates=("$package_output_dir"/*."$package_extension")
+shopt -u nullglob
+if (( ${#package_candidates[@]} != 1 )); then
+    echo "Expected exactly one .$package_extension package in $package_output_dir, found ${#package_candidates[@]}" >&2
     exit 6
 fi
+package_path="${package_candidates[0]}"
 
 if [[ "$package_kind" == "deb" ]]; then
     packaged_version="$(dpkg-deb -f "$package_path" Version)"
+    packaged_architecture="$(dpkg-deb -f "$package_path" Architecture)"
     dpkg-deb --fsys-tarfile "$package_path" \
         | tar -tf - \
         | grep -Fx './opt/piclens/bin/PicLens' >/dev/null
 else
     packaged_version="$(rpm --query --package --queryformat '%{VERSION}' "$package_path")"
+    packaged_architecture="$(rpm --query --package --queryformat '%{ARCH}' "$package_path")"
     rpm --query --package --list "$package_path" \
         | grep -Fx '/opt/piclens/bin/PicLens' >/dev/null
 fi
@@ -183,10 +185,25 @@ if [[ "$packaged_version" != "$version" ]]; then
     exit 7
 fi
 
-artifact_path="$output_dir/$(basename -- "$package_path")"
+artifact_name="$(basename -- "$package_path")"
+artifact_path="$output_dir/$artifact_name"
 if [[ "$(realpath -m -- "$package_path")" != "$(realpath -m -- "$artifact_path")" ]]; then
     cp -f -- "$package_path" "$artifact_path"
 fi
+artifact_bytes="$(stat -c %s "$artifact_path")"
+artifact_sha256="$(sha256sum "$artifact_path" | awk '{print toupper($1)}')"
+manifest_path="$output_dir/piclens-$package_kind-manifest.json"
+manifest_temp="$manifest_path.tmp"
+printf '{\n  "schemaVersion": 1,\n  "kind": "%s",\n  "version": "%s",\n  "architecture": "%s",\n  "file": "%s",\n  "bytes": %s,\n  "sha256": "%s"\n}\n' \
+    "$package_kind" \
+    "$packaged_version" \
+    "$packaged_architecture" \
+    "$artifact_name" \
+    "$artifact_bytes" \
+    "$artifact_sha256" > "$manifest_temp"
+mv -f -- "$manifest_temp" "$manifest_path"
+
 echo "Installer ready: $artifact_path"
-echo "Bytes: $(stat -c %s "$artifact_path")"
-echo "SHA256: $(sha256sum "$artifact_path" | awk '{print toupper($1)}')"
+echo "Manifest: $manifest_path"
+echo "Bytes: $artifact_bytes"
+echo "SHA256: $artifact_sha256"
