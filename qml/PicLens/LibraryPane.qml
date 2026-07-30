@@ -222,7 +222,6 @@ Rectangle {
                             accessibleName: "格狀檢視"
                             checked: pane.appController.gridViewMode
                             checkable: true
-                            ToolTip.visible: hovered
                             ToolTip.text: "格狀檢視"
                             onClicked: pane.appController.setGridViewMode(true)
                         }
@@ -233,7 +232,6 @@ Rectangle {
                             accessibleName: "列表檢視"
                             checked: !pane.appController.gridViewMode
                             checkable: true
-                            ToolTip.visible: hovered
                             ToolTip.text: "列表檢視"
                             onClicked: pane.appController.setGridViewMode(false)
                         }
@@ -245,7 +243,6 @@ Rectangle {
                     accessibleName: "更多圖庫動作"
                     enabled: pane.appController.fileOperations.canProcessVisible
                              || pane.appController.fileOperations.busy
-                    ToolTip.visible: hovered
                     ToolTip.text: "更多圖庫動作"
                     onClicked: operationsMenu.open()
 

@@ -38,7 +38,7 @@ Item {
     Accessible.onPressAction: {
         tile.forceActiveFocus()
         if (tile.isFolder)
-            tile.appController.navigateFromTree(tile.path)
+            tile.navigateFolder()
         else
             tile.appController.selectLibraryItem(tile.path, Qt.NoModifier)
     }
@@ -50,6 +50,19 @@ Item {
     function cancelThumbnail() {
         if (!isFolder)
             appController.cancelThumbnail(path)
+    }
+    function navigateFolder() {
+        appController.navigateFromTree(path)
+    }
+    function openImage(preferSelectionOrder) {
+        appController.openViewer(path, preferSelectionOrder)
+    }
+    function activateFromKeyboard(event) {
+        if (isFolder)
+            navigateFolder()
+        else
+            openImage(true)
+        event.accepted = true
     }
     function sizeLabel() {
         if (isFolder || sizeBytes === undefined || sizeBytes === null)
@@ -74,7 +87,7 @@ Item {
         radius: Theme.cornerRadius
         color: tile.selected ? Theme.accentSoft : tileMouse.containsMouse ? Theme.hover : "transparent"
         border.width: tile.dropRenameTarget ? 3 : tile.activeFocus || tile.selected ? 2 : 0
-        border.color: tile.dropRenameTarget ? Theme.accent : Theme.accent
+        border.color: Theme.accent
     }
 
     Rectangle {
@@ -260,14 +273,14 @@ Item {
                     tile.contextMenuRequested(tile.path, point.x, point.y)
                 }
             } else if (tile.isFolder) {
-                tile.appController.navigateFromTree(tile.path)
+                tile.navigateFolder()
             } else {
                 tile.appController.selectLibraryItem(tile.path, mouse.modifiers)
             }
         }
         onDoubleClicked: function(mouse) {
             if (mouse.button === Qt.LeftButton && !tile.isFolder)
-                tile.appController.openViewer(tile.path, false)
+                tile.openImage(false)
         }
     }
 
@@ -306,18 +319,10 @@ Item {
         }
     }
     Keys.onReturnPressed: function(event) {
-        if (tile.isFolder)
-            tile.appController.navigateFromTree(tile.path)
-        else
-            tile.appController.openViewer(tile.path, true)
-        event.accepted = true
+        tile.activateFromKeyboard(event)
     }
     Keys.onEnterPressed: function(event) {
-        if (tile.isFolder)
-            tile.appController.navigateFromTree(tile.path)
-        else
-            tile.appController.openViewer(tile.path, true)
-        event.accepted = true
+        tile.activateFromKeyboard(event)
     }
     Keys.onPressed: function(event) {
         if (event.key === Qt.Key_F10

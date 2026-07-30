@@ -32,6 +32,10 @@ Rectangle {
             appController.viewer.next()
     }
 
+    function panVertical(deltaY) {
+        appController.viewer.panBy(0, deltaY)
+    }
+
     function decodeTier(zoom) {
         if (zoom <= 1)
             return 1
@@ -44,7 +48,6 @@ Rectangle {
         id: control
         property string iconName: ""
         property string accessibleName: ""
-        property bool circular: false
 
         implicitWidth: 38
         implicitHeight: 38
@@ -55,6 +58,7 @@ Rectangle {
         Accessible.description: ToolTip.text
         Accessible.focusable: true
         Accessible.onPressAction: control.click()
+        ToolTip.visible: hovered && ToolTip.text.length > 0
 
         contentItem: AppIcon {
             name: control.iconName
@@ -64,7 +68,7 @@ Rectangle {
         }
 
         background: Rectangle {
-            radius: control.circular ? control.width / 2 : Theme.cornerRadius
+            radius: Theme.cornerRadius
             color: control.down ? Theme.viewerPressed
                  : control.hovered || control.activeFocus ? Theme.viewerHover
                  : "transparent"
@@ -87,6 +91,7 @@ Rectangle {
         Accessible.description: ToolTip.text
         Accessible.focusable: true
         Accessible.onPressAction: rail.click()
+        ToolTip.visible: hovered && enabled && ToolTip.text.length > 0
 
         contentItem: Item {
             AppIcon {
@@ -133,12 +138,12 @@ Rectangle {
     Shortcut {
         sequence: "Up"
         context: Qt.WindowShortcut
-        onActivated: overlay.appController.viewer.panBy(0, 48)
+        onActivated: overlay.panVertical(48)
     }
     Shortcut {
         sequence: "Down"
         context: Qt.WindowShortcut
-        onActivated: overlay.appController.viewer.panBy(0, -48)
+        onActivated: overlay.panVertical(-48)
     }
 
     // Keep direct key handling as a fallback for platforms where a bare arrow
@@ -156,11 +161,11 @@ Rectangle {
         event.accepted = true
     }
     Keys.onUpPressed: function(event) {
-        appController.viewer.panBy(0, 48)
+        panVertical(48)
         event.accepted = true
     }
     Keys.onDownPressed: function(event) {
-        appController.viewer.panBy(0, -48)
+        panVertical(-48)
         event.accepted = true
     }
 
@@ -490,7 +495,6 @@ Rectangle {
                     iconName: "chevron-left"
                     accessibleName: "上一張圖片"
                     enabled: overlay.appController.viewer.canGoPrevious
-                    ToolTip.visible: hovered
                     ToolTip.text: "上一張（←）"
                     onClicked: overlay.appController.viewer.previous()
                 }
@@ -504,7 +508,6 @@ Rectangle {
                     iconName: "zoom-out"
                     accessibleName: "縮小圖片"
                     enabled: overlay.appController.viewer.canZoomOut
-                    ToolTip.visible: hovered
                     ToolTip.text: "縮小"
                     onClicked: overlay.appController.viewer.zoomOut(canvas.width, canvas.height)
                 }
@@ -512,7 +515,6 @@ Rectangle {
                     iconName: "fit"
                     accessibleName: "重設圖片大小"
                     enabled: overlay.appController.viewer.imageVisible
-                    ToolTip.visible: hovered
                     ToolTip.text: "重設縮放"
                     onClicked: overlay.appController.viewer.resetZoom()
                 }
@@ -520,7 +522,6 @@ Rectangle {
                     iconName: "zoom-in"
                     accessibleName: "放大圖片"
                     enabled: overlay.appController.viewer.canZoomIn
-                    ToolTip.visible: hovered
                     ToolTip.text: "放大"
                     onClicked: overlay.appController.viewer.zoomIn(canvas.width, canvas.height)
                 }
@@ -534,7 +535,6 @@ Rectangle {
                     iconName: "chevron-right"
                     accessibleName: "下一張圖片"
                     enabled: overlay.appController.viewer.canGoNext
-                    ToolTip.visible: hovered
                     ToolTip.text: "下一張（→）"
                     onClicked: overlay.appController.viewer.next()
                 }
@@ -554,16 +554,14 @@ Rectangle {
                         iconName: "folder-open"
                         accessibleName: "在檔案管理器中顯示"
                         enabled: overlay.appController.viewer.currentPath.length > 0
-                        ToolTip.visible: hovered
-                        ToolTip.text: "在檔案管理器中顯示"
+                            ToolTip.text: "在檔案管理器中顯示"
                         onClicked: overlay.appController.fileOperations.reveal(
                             overlay.appController.viewer.currentPath)
                     }
                     ViewerButton {
                         iconName: "close"
                         accessibleName: "關閉圖片檢視器"
-                        ToolTip.visible: hovered
-                        ToolTip.text: "關閉（Esc）"
+                            ToolTip.text: "關閉（Esc）"
                         onClicked: overlay.closeViewer()
                     }
                 }
@@ -580,7 +578,6 @@ Rectangle {
         accessibleName: "上一張圖片"
         leftEdge: true
         enabled: overlay.appController.viewer.canGoPrevious
-        ToolTip.visible: hovered && enabled
         ToolTip.text: "上一張（←）"
         onClicked: overlay.appController.viewer.previous()
     }
@@ -594,7 +591,6 @@ Rectangle {
         accessibleName: "下一張圖片"
         leftEdge: false
         enabled: overlay.appController.viewer.canGoNext
-        ToolTip.visible: hovered && enabled
         ToolTip.text: "下一張（→）"
         onClicked: overlay.appController.viewer.next()
     }

@@ -22,6 +22,14 @@ ApplicationWindow {
         return libraryPane.runPerformanceExercise()
     }
 
+    function clearLibrarySearch(restoreFocus) {
+        searchCommit.stop()
+        librarySearch.clear()
+        appController.library.setSearchQuery("")
+        if (restoreFocus)
+            librarySearch.forceActiveFocus()
+    }
+
     HistoryMouseHandler {
         anchors.fill: parent
         enabled: !window.appController.viewer.open
@@ -88,7 +96,6 @@ ApplicationWindow {
                     outlined: true
                     accessibleName: window.appController.sidebarOpen ? "收合側欄" : "展開側欄"
                     ToolTip.text: window.appController.sidebarOpen ? "收合側欄" : "展開側欄"
-                    ToolTip.visible: hovered
                     onClicked: window.appController.toggleSidebar()
                 }
                 Item {
@@ -118,8 +125,7 @@ ApplicationWindow {
                             accessibleName: "上一個資料夾"
                             enabled: window.appController.library.canGoBack
                             ToolTip.text: "上一個資料夾"
-                            ToolTip.visible: hovered
-                            onClicked: window.appController.goBack()
+                                    onClicked: window.appController.goBack()
                         }
                         ToolbarButton {
                             width: 38
@@ -128,8 +134,7 @@ ApplicationWindow {
                             accessibleName: "下一個資料夾"
                             enabled: window.appController.library.canGoForward
                             ToolTip.text: "下一個資料夾"
-                            ToolTip.visible: hovered
-                            onClicked: window.appController.goForward()
+                                    onClicked: window.appController.goForward()
                         }
                     }
                 }
@@ -138,7 +143,6 @@ ApplicationWindow {
                     accessibleName: "重新整理圖庫"
                     enabled: window.appController.library.currentFolderPath.length > 0
                     ToolTip.text: "重新整理"
-                    ToolTip.visible: hovered
                     onClicked: window.appController.reload()
                 }
             }
@@ -166,9 +170,7 @@ ApplicationWindow {
                 Accessible.searchEdit: true
                 onTextEdited: searchCommit.restart()
                 Keys.onEscapePressed: function(event) {
-                    searchCommit.stop()
-                    clear()
-                    window.appController.library.setSearchQuery("")
+                    window.clearLibrarySearch(false)
                     event.accepted = true
                 }
 
@@ -205,13 +207,7 @@ ApplicationWindow {
                     iconName: "close"
                     accessibleName: "清除搜尋"
                     ToolTip.text: "清除搜尋"
-                    ToolTip.visible: hovered
-                    onClicked: {
-                        searchCommit.stop()
-                        librarySearch.clear()
-                        window.appController.library.setSearchQuery("")
-                        librarySearch.forceActiveFocus()
-                    }
+                    onClicked: window.clearLibrarySearch(true)
                 }
             }
 

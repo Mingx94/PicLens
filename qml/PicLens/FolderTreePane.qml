@@ -86,7 +86,11 @@ Rectangle {
                 Accessible.focusable: true
                 Accessible.selectable: true
                 Accessible.selected: currentFolder
-                Accessible.onPressAction: pane.appController.navigateFromTree(treeDelegate.path)
+                Accessible.onPressAction: treeDelegate.activateNode()
+
+                function activateNode() {
+                    pane.appController.navigateFromTree(path)
+                }
 
                 function synchronizeExpansion() {
                     if ((isRootNode || shouldExpand) && !expanded)
@@ -156,15 +160,15 @@ Rectangle {
                     id: hoverHandler
                 }
                 TapHandler {
-                    onTapped: pane.appController.navigateFromTree(treeDelegate.path)
+                    onTapped: treeDelegate.activateNode()
                     onDoubleTapped: treeDelegate.toggleExpansion()
                 }
                 Keys.onReturnPressed: function(event) {
-                    pane.appController.navigateFromTree(treeDelegate.path)
+                    treeDelegate.activateNode()
                     event.accepted = true
                 }
                 Keys.onEnterPressed: function(event) {
-                    pane.appController.navigateFromTree(treeDelegate.path)
+                    treeDelegate.activateNode()
                     event.accepted = true
                 }
                 Keys.onRightPressed: function(event) {

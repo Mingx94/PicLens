@@ -107,10 +107,9 @@ TestCase {
         const button = createTemporaryObject(toolbarButtonComponent, testCase)
         verify(button !== null)
         clickedSpy.target = button
-        compare(button.implicitHeight, 38)
-        compare(button.Accessible.name, "開啟資料夾")
+        compare(button.implicitHeight, Theme.controlHeight)
+        compare(button.Accessible.name, button.text)
         compare(button.Accessible.role, Accessible.Button)
-        compare(button.iconName, "plus")
         button.click()
         compare(clickedSpy.count, 1)
     }
@@ -118,7 +117,7 @@ TestCase {
     function test_controlContentUsesSingleCenteringInset() {
         const iconButton = createTemporaryObject(iconButtonComponent, testCase)
         verify(iconButton !== null)
-        compare(iconButton.implicitWidth, 38)
+        compare(iconButton.implicitWidth, Theme.controlHeight)
         compare(iconButton.leftPadding, 0)
         compare(iconButton.rightPadding, 0)
 

@@ -4,7 +4,6 @@ import QtQuick
 Item {
     id: surface
     property bool panEnabled: false
-    readonly property bool dragging: pointerArea.pressed && panEnabled
     readonly property int blockedButtons: pointerArea.acceptedButtons
     readonly property bool preventsStealing: pointerArea.preventStealing
     signal panRequested(real deltaX, real deltaY)

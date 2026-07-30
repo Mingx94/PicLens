@@ -3,10 +3,8 @@ import QtQuick.Controls
 
 Button {
     id: control
-    property string symbol: ""
     property string iconName: ""
-    property string trailingIconName: ""
-    property string accessibleName: text.length > 0 ? text : symbol
+    property string accessibleName: text
     property bool primary: false
     property bool outlined: false
 
@@ -15,6 +13,7 @@ Button {
     Accessible.description: ToolTip.text
     Accessible.focusable: true
     Accessible.onPressAction: control.click()
+    ToolTip.visible: hovered && ToolTip.text.length > 0
 
     implicitHeight: Theme.controlHeight
     implicitWidth: text.length > 0 ? contentRow.implicitWidth + 24 : 38
@@ -43,15 +42,6 @@ Button {
                      : control.primary ? "white" : Theme.primaryText
             }
             Text {
-                visible: control.iconName.length === 0 && control.symbol.length > 0
-                text: control.symbol
-                color: !control.enabled ? Theme.mutedText
-                      : control.primary ? "white" : Theme.primaryText
-                font.pixelSize: 17
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-            }
-            Text {
                 visible: control.text.length > 0
                 text: control.text
                 color: !control.enabled ? Theme.mutedText
@@ -59,14 +49,6 @@ Button {
                 font.pixelSize: 14
                 font.weight: Font.Medium
                 verticalAlignment: Text.AlignVCenter
-            }
-            AppIcon {
-                visible: control.trailingIconName.length > 0
-                name: control.trailingIconName
-                width: 15
-                height: 15
-                color: !control.enabled ? Theme.mutedText
-                     : control.primary ? "white" : Theme.primaryText
             }
         }
     }
