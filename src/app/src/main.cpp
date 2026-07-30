@@ -8,6 +8,9 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
+#include <QtQml/QQmlExtensionPlugin>
+
+Q_IMPORT_QML_PLUGIN(PicLensQmlPlugin)
 
 int main(int argc, char *argv[])
 {

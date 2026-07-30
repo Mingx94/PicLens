@@ -60,8 +60,30 @@ set_source_files_properties(
     PROPERTIES QT_RESOURCE_ALIAS assets/AppLogo.png
 )
 
+qt_add_qml_module(piclens_qml
+    STATIC
+    URI PicLens
+    VERSION 1.0
+    CLASS_NAME PicLensQmlPlugin
+    OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/PicLens"
+    SOURCES
+        include/piclens/app/qml_registration.h
+    QML_FILES ${PICLENS_QML_FILES}
+    RESOURCES ${PICLENS_RESOURCE_FILES}
+)
+target_include_directories(
+    piclens_qml
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/piclens/app
+)
+target_link_libraries(piclens_qml
+    PUBLIC
+        PicLens::App
+        Qt6::Qml
+        Qt6::Quick
+        Qt6::QuickControls2
+)
+
 qt_add_executable(piclens
-    include/piclens/app/qml_registration.h
     src/application_bootstrap.cpp
     src/application_bootstrap.h
     src/launch_options.cpp
@@ -85,16 +107,11 @@ if(WIN32)
     target_sources(piclens PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/PicLens.rc")
 endif()
 
-qt_add_qml_module(piclens
-    URI PicLens
-    VERSION 1.0
-    QML_FILES ${PICLENS_QML_FILES}
-    RESOURCES ${PICLENS_RESOURCE_FILES}
-)
-
 target_link_libraries(piclens
     PRIVATE
         PicLens::App
+        piclens_qml
+        piclens_qmlplugin
         Qt6::Gui
         Qt6::Qml
         Qt6::Quick

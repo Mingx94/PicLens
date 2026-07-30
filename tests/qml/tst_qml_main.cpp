@@ -4,10 +4,13 @@
 #include <QQmlContext>
 #include <QQmlEngine>
 #include <QtQuickTest/quicktest.h>
+#include <QtQml/QQmlExtensionPlugin>
 #include <QQuickStyle>
 #include <QTemporaryDir>
 
 #include <memory>
+
+Q_IMPORT_QML_PLUGIN(PicLensQmlPlugin)
 
 class QuickTestSetup final : public QObject
 {
@@ -17,12 +20,6 @@ public slots:
     void applicationAvailable()
     {
         QQuickStyle::setStyle(QStringLiteral("Basic"));
-        qmlRegisterUncreatableType<piclens::app::AppController>(
-            "PicLens",
-            1,
-            0,
-            "AppController",
-            QStringLiteral("Created by the test setup."));
 
         m_workspace = std::make_unique<QTemporaryDir>();
         m_profile = std::make_unique<QTemporaryDir>();

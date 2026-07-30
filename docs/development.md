@@ -33,7 +33,7 @@ git rev-parse --short HEAD
 | 畫面、pointer／keyboard glue、元件與 theme | `qml/PicLens/` | `tests/qml/` |
 | portable、installer、lifecycle、效能 gate | `scripts/`、`installer/`、`packaging/` | release workflow／lifecycle scripts |
 
-新增 `.cpp`、`.h` 或 QML 檔時要同步更新對應 `CMakeLists.txt`；專案刻意使用明確 source lists，不使用自動 glob。
+新增 `.cpp`、`.h` 或 QML 檔時要同步更新對應 `CMakeLists.txt`；專案刻意使用明確 source lists，不使用自動 glob。正式 app 與 QuickTest 共用 `piclens_qml` static module，不得另外複製 QML 檔或手寫第二份 `qmldir`。
 
 啟動責任分散於 `src/app/src/main.cpp`、`launch_options.cpp`、`application_bootstrap.cpp` 與 `runtime_diagnostics.cpp`。修改其中任何一項時，必須同時驗證 CLI smoke、screenshot、viewer launch、performance scroll 與 metrics，而不能只手動開啟 GUI。
 
