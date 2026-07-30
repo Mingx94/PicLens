@@ -1,5 +1,7 @@
 # PicLens UI concept prompt
 
+Companion image: [piclens-ui-concept.png](piclens-ui-concept.png). Current design rules: [design system](../../design/system.md). Documentation index: [docs/README.md](../../README.md).
+
 Use case: ui-mockup
 
 Asset type: high-fidelity desktop application interface design reference for implementation in Qt Quick

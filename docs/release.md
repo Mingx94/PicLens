@@ -1,0 +1,115 @@
+# Release and packaging
+
+Root `VERSION` is the formal release version authority. Scripts、CMake install rules、WiX and `.github/workflows/release.yml` are the executable authorities; this document explains how to invoke them and which operations modify the host system.
+
+## Windows portable
+
+```powershell
+pwsh -NoProfile -File scripts/build-portable.ps1
+```
+
+Output: `artifacts/qt-portable/PicLens-win-x64/`.
+
+The script uses an existing Release build, verifies the native application icon, runs the matching deployment tooling available to the script, retains the Basic controls style, copies required licenses/assets and performs an isolated offscreen smoke. The test-only `qoffscreen` plugin is removed after smoke and is not distributed. Distribute the complete directory, not only `PicLens.exe`.
+
+The current script does not claim a general scan for absolute build-machine paths embedded inside artifact contents.
+
+## Windows MSI
+
+```powershell
+pwsh -NoProfile -File scripts/build-msi.ps1
+```
+
+Output: `artifacts/installer/PicLens-<version>-win-x64.msi`.
+
+By default the script rebuilds the Release executable, creates the portable payload, builds the MSI and audits an administrative image against that payload by relative path, byte length and SHA-256. WiX requires the .NET SDK, but the PicLens application runtime does not use .NET.
+
+Diagnostic options:
+
+```powershell
+pwsh -NoProfile -File scripts/build-msi.ps1 -DryRun
+pwsh -NoProfile -File scripts/build-msi.ps1 -NoRelease
+pwsh -NoProfile -File scripts/build-msi.ps1 -NoClean
+```
+
+`-NoRelease` requires an existing portable payload. The optional `-Version` parameter is reserved for local WiX rehearsal; it must not be used to publish a release because it can label the MSI independently from the executable built from `VERSION`.
+
+### Signing
+
+To sign the executable before packaging and the MSI after packaging:
+
+```powershell
+pwsh -NoProfile -File scripts/build-msi.ps1 -Sign `
+  -CertificateThumbprint <thumbprint> `
+  -TimestampUrl http://timestamp.digicert.com
+```
+
+The repository workflow currently does not pass `-Sign`. Artifacts published directly by that workflow are unsigned unless an external release-operations stage signs and re-audits them before publication.
+
+### MSI lifecycle
+
+Lifecycle testing installs and uninstalls PicLens and requires an elevated PowerShell process:
+
+```powershell
+pwsh -NoProfile -File scripts/build-msi.ps1 `
+  -RunLifecycleTest -ConfirmSystemChanges `
+  -PreviousMsiPath <previous.msi>
+```
+
+Run this only on a disposable or explicitly authorized Windows environment.
+
+## Linux portable
+
+```bash
+bash scripts/build-linux-portable.sh
+```
+
+Output: `artifacts/qt-portable/PicLens-linux-x64/`.
+
+The script builds/tests, deploys required libraries/plugins and performs a sanitized smoke. The output is a complete directory, not a single-file executable.
+
+## Debian / Ubuntu DEB
+
+```bash
+bash scripts/build-deb.sh
+```
+
+Output: `artifacts/installer/piclens_<version>_<architecture>.deb`.
+
+## Fedora / RHEL RPM
+
+```bash
+bash scripts/build-rpm.sh
+```
+
+Output: `artifacts/installer/piclens-<version>-<release>.<architecture>.rpm`.
+
+The Linux package wrappers use the shared `build-linux-package.sh`, run the configured build and tests unless explicitly disabled, generate a package through CPack, verify package metadata and print SHA-256.
+
+```bash
+bash scripts/build-deb.sh --dry-run
+bash scripts/build-deb.sh --no-test
+bash scripts/build-rpm.sh --no-build
+bash scripts/build-rpm.sh --build-dir /tmp/piclens-build --output-dir /tmp/piclens-artifacts
+```
+
+`--no-build` trusts an existing configured build tree and should only be used when its package mode and source revision are known. DEB bundles the deployed Qt runtime; RPM uses Fedora/RHEL system Qt dependencies.
+
+Linux lifecycle scripts install and remove packages and should run only in disposable containers/VMs or an explicitly authorized host:
+
+```bash
+bash scripts/test-linux-package-lifecycle.sh --deb <package.deb>
+bash scripts/test-linux-package-lifecycle.sh --rpm <package.rpm>
+```
+
+## GitHub Release
+
+Changing `VERSION` alone does not start a release. A tag named `v<version>` runs Windows、Ubuntu and Fedora release gates. The tag must exactly match `VERSION`.
+
+A successful release publishes the Windows MSI and portable archive, Linux portable archive, DEB, RPM and `SHA256SUMS.txt`. To rebuild an existing tag, run **Qt release gates** manually with that tag in `release_tag`.
+
+The workflow implementation is authoritative for exact runner versions, filenames and publication behavior. Current release automation still has known cleanup work around build-tree isolation, exact artifact manifests, signing and fail-closed license-source validation; do not infer stronger guarantees than the scripts actually enforce.
+
+## Licensing
+
+Every release candidate must be reviewed against [Licensing and redistribution](licensing.md). Root `LICENSE` and `THIRD_PARTY_NOTICES.txt` remain separate legal payloads and must not be removed merely to reduce duplication.

@@ -26,7 +26,7 @@ The gallery and folder tree use lazy/virtualized models. The library model index
 
 ## Data and diagnostics
 
-Without `PICLENS_DATA_ROOT`, platform local application data under `PicLens` remains the authority for settings, cache and logs. Tests, smoke runs and installers set an isolated root so they never modify the user's profile. See [data continuity](data-migration.md).
+Without `PICLENS_DATA_ROOT`, platform local application data under `PicLens` remains the authority for settings, cache and logs. Tests, smoke runs and installers set an isolated root so they never modify the user's profile. See [data continuity](data-continuity.md).
 
 ## Packaging
 

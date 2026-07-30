@@ -161,4 +161,4 @@ PicLens uses borders plus tonal shifts. Surfaces are separated with `Theme.line`
 
 ## 8. Interface Reference
 
-The generated high-fidelity direction is stored at [docs/design/piclens-ui-concept.png](docs/design/piclens-ui-concept.png). It is a visual reference rather than a pixel-perfect contract: runtime behavior, responsive constraints, accessibility, and the tokens in `qml/PicLens/Theme.qml` remain authoritative.
+The archived high-fidelity direction is stored at [piclens-ui-concept.png](../archive/design/piclens-ui-concept.png), with its [generation prompt](../archive/design/piclens-ui-concept.prompt.md). It is a historical visual reference rather than a pixel-perfect contract: runtime behavior, responsive constraints, accessibility, and the tokens in `qml/PicLens/Theme.qml` remain authoritative.

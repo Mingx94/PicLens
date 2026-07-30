@@ -12,7 +12,7 @@ scripts/            release, lifecycle and performance automation
 packaging/          Linux desktop integration
 assets/             application icons、logos 與未打包的字型來源檔
 installer/          Windows WiX MSI definition
-docs/               product、architecture、testing、release 與 migration evidence
+docs/               product、architecture、development、testing、release 與 archived evidence
 LICENSE             MIT license
 VERSION             package version authority
 ```
@@ -75,8 +75,8 @@ bash scripts/build-rpm.sh
 bash scripts/build-linux-portable.sh
 ```
 
-DEB/RPM 使用 CPack，詳細命令與選項見 [installer release](docs/installer-release.md)。Windows、Ubuntu 與 Fedora clean-runner gates 位於 `.github/workflows/release.yml`。
+DEB/RPM 使用 CPack，完整 portable、installer、lifecycle 與 signing 說明見 [release and packaging](docs/release.md)。Windows、Ubuntu 與 Fedora clean-runner gates 位於 `.github/workflows/release.yml`。
 
-## Status
+## Project state
 
-Production runtime 已完成 Qt cutover；舊 UI/runtime projects、tests、rollback commands 與 legacy packaging builders 已移除。MIT license、portable bundles、MSI/DEB/RPM lifecycle、profile-copy continuity 與 Windows 10,000-image performance gate 均已有驗證證據。
+Current product behavior and engineering invariants are documented under [`docs/`](docs/README.md). Historical Qt cutover and performance evidence is archived and does not replace verification of the current checkout.
