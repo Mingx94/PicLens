@@ -3,7 +3,7 @@
 #include <piclens/core/image_format_rules.h>
 #include <piclens/core/path_rules.h>
 #include <piclens/infrastructure/app_data_paths.h>
-#include <piclens/infrastructure/folder_scanner.h>
+#include <piclens/infrastructure/image_animation_probe.h>
 
 #include <QCryptographicHash>
 #include <QDir>
@@ -107,7 +107,7 @@ ThumbnailResult ThumbnailService::getOrCreate(
     if (!source.isFile()) {
         return result(ThumbnailStatus::SourceMissing);
     }
-    if (FolderScanner::isKnownAnimatedImage(source.absoluteFilePath())) {
+    if (image_animation_probe::isAnimated(source.absoluteFilePath())) {
         return result(ThumbnailStatus::Animated);
     }
 

@@ -33,8 +33,6 @@ public:
         const QString &folderPath,
         std::stop_token stopToken = {}) const;
 
-    [[nodiscard]] static bool isKnownAnimatedImage(const QString &path);
-
 private:
     static void throwIfCanceled(std::stop_token stopToken);
     [[nodiscard]] static QVector<core::FolderListItem> directFolders(

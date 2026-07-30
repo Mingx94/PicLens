@@ -3,6 +3,7 @@ qt_add_library(piclens_infrastructure STATIC
     include/piclens/infrastructure/file_operation_service.h
     include/piclens/infrastructure/file_app_logger.h
     include/piclens/infrastructure/folder_scanner.h
+    include/piclens/infrastructure/image_animation_probe.h
     include/piclens/infrastructure/json_settings_store.h
     include/piclens/infrastructure/platform_file_manager.h
     include/piclens/infrastructure/thumbnail_service.h
@@ -10,6 +11,7 @@ qt_add_library(piclens_infrastructure STATIC
     src/file_app_logger.cpp
     src/file_operation_service.cpp
     src/folder_scanner.cpp
+    src/image_animation_probe.cpp
     src/json_settings_store.cpp
     src/platform_file_manager.cpp
     src/thumbnail_service.cpp
