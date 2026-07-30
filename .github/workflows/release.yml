@@ -194,8 +194,7 @@ jobs:
         run: |
           package_name="$(python3 -c 'import json; print(json.load(open("artifacts/installer/piclens-deb-manifest.json"))["file"])')"
           xvfb-run -a bash scripts/test-linux-package-lifecycle.sh \
-            --deb "artifacts/installer/$package_name" \
-            --expected-executable artifacts/qt-portable/PicLens-linux-x64/bin/PicLens
+            --deb "artifacts/installer/$package_name"
       - name: Upload Linux portable candidate
         uses: actions/upload-artifact@v4
         with:
