@@ -214,8 +214,10 @@ void CoreDomainTests::pathRulesFollowCurrentOsCaseSensitivity()
 
 #ifdef Q_OS_WIN
     QVERIFY(path_rules::pathEquals(lower, upper));
+    QCOMPARE(path_rules::pathKey(lower), path_rules::pathKey(upper));
 #else
     QVERIFY(!path_rules::pathEquals(lower, upper));
+    QVERIFY(path_rules::pathKey(lower) != path_rules::pathKey(upper));
 #endif
 }
 

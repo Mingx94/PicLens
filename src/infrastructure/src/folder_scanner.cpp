@@ -28,10 +28,7 @@ QString canonicalDirectoryKey(const QString &path)
     if (canonical.isEmpty()) {
         return {};
     }
-    canonical = QDir::cleanPath(canonical);
-    return core::path_rules::pathCaseSensitivity() == Qt::CaseInsensitive
-        ? canonical.toCaseFolded()
-        : canonical;
+    return core::path_rules::pathKey(canonical);
 }
 
 } // namespace

@@ -105,10 +105,8 @@ bool isWebpExtension(const QString &extension)
 QString basenameKey(const QString &path)
 {
     const QFileInfo info(path);
-    QString key = QDir::cleanPath(info.absolutePath()) + QChar::Null + info.completeBaseName();
-    return core::path_rules::pathCaseSensitivity() == Qt::CaseInsensitive
-        ? key.toCaseFolded()
-        : key;
+    return core::path_rules::pathKey(
+        QDir(info.absolutePath()).filePath(info.completeBaseName()));
 }
 
 QString conversionTargetPath(const core::ImageListItem &image, bool convertToWebp)

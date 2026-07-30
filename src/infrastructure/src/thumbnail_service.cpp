@@ -33,14 +33,6 @@ ThumbnailResult result(
     };
 }
 
-QString normalizedPathForKey(const QString &path)
-{
-    QString normalized = QDir::cleanPath(QFileInfo(path).absoluteFilePath());
-    return core::path_rules::pathCaseSensitivity() == Qt::CaseInsensitive
-        ? normalized.toCaseFolded()
-        : normalized;
-}
-
 bool validCachedPng(const QString &path)
 {
     const QFileInfo info(path);
@@ -139,7 +131,7 @@ QString ThumbnailService::cachePathFor(const QFileInfo &source, int requestedSiz
 {
     const QByteArray key = QStringLiteral("v1\n%1\n%2\n%3\n%4")
                                .arg(
-                                   normalizedPathForKey(source.absoluteFilePath()),
+                                   core::path_rules::pathKey(source.absoluteFilePath()),
                                    QString::number(source.lastModified().toMSecsSinceEpoch()),
                                    QString::number(source.size()),
                                    QString::number(requestedSize))

@@ -18,14 +18,18 @@ Qt::CaseSensitivity pathCaseSensitivity()
 
 QString pathKey(const QString &path)
 {
-    return QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+    QString key = QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+    if (pathCaseSensitivity() == Qt::CaseInsensitive) {
+        key = key.toCaseFolded();
+    }
+    return key;
 }
 
 bool pathEquals(const QString &left, const QString &right)
 {
     return !left.isNull()
         && !right.isNull()
-        && QString::compare(pathKey(left), pathKey(right), pathCaseSensitivity()) == 0;
+        && pathKey(left) == pathKey(right);
 }
 
 bool hasSameDirectoryAndBasenameWithoutExtension(const QString &left, const QString &right)
