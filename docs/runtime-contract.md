@@ -46,7 +46,7 @@ Animated GIF 與 animated WebP 會被偵測出來，並在目前 product scope �
 - 左鍵點選圖片只更新 visual selection，不顯示 bottom action bar；一般點選會切換為單選，按住 Ctrl 可加選或取消選取，按住 Shift 可選取區間。多選仍保留。選取圖片後按 Enter 會開啟 inline image viewer；多選時優先開啟 selection order 中的第一張圖片。
 - 圖片右鍵選單比照 Explorer selection scope：右鍵已選圖片時作用於目前 selection，右鍵未選圖片時先改成只選該圖片；選單可用 command-backed「在檔案管理器中顯示」。Windows 會開啟 Explorer 並選取該圖片；Linux 只保證透過 `xdg-open` 開啟所在資料夾。資料夾 tile 不提供圖片 rename/trash 選單。
 - Rename 僅允許單張圖片；trash 可處理一張或多張 selected images。
-- Clear selection 必須同時清除 visual `LibraryTileItem.IsSelected` 與 ViewModel selection state。
+- Clear selection 必須同時清除 `LibraryItemModel` 的 selected role 與 controller selection state。
 - Drag/drop rename 只支援 app 內圖片拖到另一張圖片；按下 tile 時不可立即 capture pointer，必須等移動超過拖曳門檻才 capture，避免阻擋內建 selection。拖拉開始後應顯示跟隨 pointer 的 drag preview overlay，並 highlight 目前可放下的 target。拖曳到圖庫上緣或下緣時，thumbnail grid 應以低速自動垂直捲動，讓使用者能把圖片拖到目前 viewport 外的目標。Pointer cancel/capture-lost 必須清掉 drag state，並在執行前顯示 rename preview confirmation；dialog service implementations 必須明確實作 drop-rename confirmation，不可依賴 auto-confirm default。Pointer、selection、loaded/unloaded 與 folder expanding handlers 是保留的 view lifecycle glue，不應改成 ViewModel state。
 
 ## Inline Image Viewer
@@ -62,6 +62,7 @@ Animated GIF 與 animated WebP 會被偵測出來，並在目前 product scope �
 - Escape 或 viewer close button 關閉預覽，並回到 main gallery focus。
 - Viewer command strip 不顯示位置或 zoom percentage 文字。
 - Animated GIF/WebP 顯示 unsupported feedback，不嘗試播放。
+- Viewer 可在檔案管理器中顯示目前圖片；Windows 使用 Explorer 選取檔案，Linux 至少透過 `xdg-open` 開啟所在資料夾。失敗時保留 viewer state、顯示狀態回饋並寫入診斷。
 
 ## Thumbnail Behavior
 

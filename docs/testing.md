@@ -18,13 +18,14 @@ CTest discovers 15 gates covering product rules, filesystem scanning, persistenc
 
 Runtime tests and scripts set `PICLENS_DATA_ROOT` to a disposable directory. Settings, thumbnail cache and logs must never target the real user profile unless the user explicitly authorizes a copied-profile verification. File mutation tests operate only inside temporary workspaces.
 
-## Windows cutover gate
+## Windows release gate
 
 ```powershell
-pwsh -NoProfile -File scripts/run-windows-cutover-gate.ps1
+pwsh -NoProfile -File scripts/run-windows-cutover-gate.ps1 `
+  -PerformanceFolder <representative-folder>
 ```
 
-This validates Release build/tests, deployed portable smoke, performance thresholds and data continuity. The performance-only command is documented in [performance.md](performance.md).
+The local gate validates Release build/tests, deployed portable smoke, performance thresholds against the caller-provided representative folder, and data continuity. The hosted Windows workflow separately creates the 10,000-path scale fixture. The performance-only command and dataset requirements are documented in [performance.md](performance.md).
 
 ## Package lifecycle
 

@@ -9,7 +9,7 @@ Without `PICLENS_DATA_ROOT`, PicLens uses the platform local application data ro
 
 ## Settings
 
-The Qt store reads the existing `settings.json` field names and numeric sort enums used by pre-cutover versions. Missing/default values are normalized; corrupt JSON is quarantined; updates are atomic. Deprecated `favoriteFolders` and `version` fields are ignored and removed on the next write.
+The production store is `piclens-settings.json`. It continues to read the historical JSON field names and numeric sort enums used by pre-cutover versions. Missing/default values are normalized; corrupt JSON is quarantined; updates are atomic. Deprecated `favoriteFolders` and `version` fields are ignored and removed on the next write. The obsolete filename `settings.json` is not the production settings path.
 
 Qt persistence tests include fixtures for the historical schema so installed users do not need a conversion step. This is forward continuity, not a rollback dependency.
 

@@ -1,6 +1,6 @@
 # Installer release
 
-The package version comes from root `VERSION` unless explicitly overridden.
+Root `VERSION` is the formal release version authority. The optional `-Version` parameter is reserved for local WiX rehearsal or diagnostics; it must not be used to publish a release because it can label the MSI independently from the executable built from `VERSION`.
 
 ## Windows MSI
 
@@ -24,7 +24,7 @@ an RFC 3161 timestamp, and the final audit requires both signatures to verify:
 ```powershell
 pwsh -NoProfile -File scripts/build-msi.ps1 -Sign `
   -CertificateThumbprint <thumbprint> `
-  -TimestampUrl https://timestamp.digicert.com
+  -TimestampUrl http://timestamp.digicert.com
 ```
 
 Lifecycle testing is opt-in because it installs and uninstalls PicLens and
@@ -79,3 +79,5 @@ Changing or pushing the root `VERSION` file does not run a Release build by itse
 - `SHA256SUMS.txt` for every uploaded download.
 
 The tag must exactly match the root `VERSION` file (for example, `VERSION=2.1.0` requires tag `v2.1.0`). To rebuild an existing release, run **Qt release gates** with **Run workflow**, enter its existing tag in `release_tag`, and the workflow builds from that tagged source before replacing assets with the same names.
+
+The repository workflow currently does not pass `-Sign` to the Windows MSI build. Artifacts published directly by that workflow are therefore unsigned unless an external release-operations stage signs and re-audits them before publication.
