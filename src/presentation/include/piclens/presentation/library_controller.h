@@ -1,6 +1,8 @@
 #pragma once
 
-#include <piclens/core/models.h>
+#include <piclens/core/library_items.h>
+#include <piclens/core/settings.h>
+#include <piclens/core/viewer_state.h>
 #include <piclens/presentation/library_item_model.h>
 
 #include <QObject>

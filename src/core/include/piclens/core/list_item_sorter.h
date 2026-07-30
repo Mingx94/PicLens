@@ -1,6 +1,6 @@
 #pragma once
 
-#include <piclens/core/models.h>
+#include <piclens/core/library_items.h>
 
 namespace piclens::core::list_item_sorter {
 

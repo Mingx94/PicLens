@@ -1,6 +1,6 @@
 #pragma once
 
-#include <piclens/core/models.h>
+#include <piclens/core/viewer_state.h>
 
 #include <QObject>
 #include <QUrl>

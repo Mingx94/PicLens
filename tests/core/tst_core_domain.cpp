@@ -2,7 +2,10 @@
 #include <piclens/core/drag_interaction_rules.h>
 #include <piclens/core/image_format_rules.h>
 #include <piclens/core/list_item_sorter.h>
-#include <piclens/core/models.h>
+#include <piclens/core/file_operations.h>
+#include <piclens/core/library_items.h>
+#include <piclens/core/settings.h>
+#include <piclens/core/viewer_state.h>
 #include <piclens/core/path_rules.h>
 #include <piclens/core/settings_rules.h>
 #include <piclens/core/zoom_math.h>
@@ -229,7 +232,7 @@ void CoreDomainTests::settingsPatchMergesValues()
     patch.sort = SortState{.key = SortKey::ModifiedAt, .direction = SortDirection::Desc};
     patch.includeSubfolders = true;
 
-    const AppSettings merged = settings_rules::mergeSettingsPatch(AppSettings::createDefault(), patch);
+    const AppSettings merged = settings_rules::mergeSettingsPatch(AppSettings{}, patch);
 
     QCOMPARE(merged.lastFolderPath.value_or(QString()), QStringLiteral("D:\\Manual"));
     QCOMPARE(merged.sort, SortState({.key = SortKey::ModifiedAt, .direction = SortDirection::Desc}));
@@ -255,7 +258,7 @@ void CoreDomainTests::settingsPatchNormalizesThumbnailSize()
 
     AppSettingsPatch patch;
     patch.thumbnailSize = requested;
-    const AppSettings merged = settings_rules::mergeSettingsPatch(AppSettings::createDefault(), patch);
+    const AppSettings merged = settings_rules::mergeSettingsPatch(AppSettings{}, patch);
     QCOMPARE(merged.thumbnailSize, expected);
 }
 

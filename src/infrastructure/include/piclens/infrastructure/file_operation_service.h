@@ -1,6 +1,7 @@
 #pragma once
 
-#include <piclens/core/models.h>
+#include <piclens/core/file_operations.h>
+#include <piclens/core/library_items.h>
 
 #include <functional>
 #include <stdexcept>

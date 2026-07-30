@@ -40,7 +40,7 @@ core::SortDirection sortDirectionFromJson(int value)
 
 core::AppSettings settingsFromJson(const QJsonObject &object)
 {
-    core::AppSettings settings = core::AppSettings::createDefault();
+    core::AppSettings settings = core::AppSettings{};
     const QJsonValue lastFolder = object.value(QStringLiteral("lastFolderPath"));
     if (lastFolder.isString()) {
         settings.lastFolderPath = lastFolder.toString();
@@ -103,13 +103,13 @@ JsonSettingsStore::LoadResult JsonSettingsStore::loadWithRecovery()
 {
     QFile file(m_settingsPath);
     if (!file.exists()) {
-        return {.settings = core::AppSettings::createDefault()};
+        return {.settings = core::AppSettings{}};
     }
 
     if (!file.open(QIODevice::ReadOnly)) {
         const bool quarantined = quarantineSettingsFile();
         return {
-            .settings = core::AppSettings::createDefault(),
+            .settings = core::AppSettings{},
             .readFailed = true,
             .quarantined = quarantined,
         };
@@ -121,7 +121,7 @@ JsonSettingsStore::LoadResult JsonSettingsStore::loadWithRecovery()
     if (error.error != QJsonParseError::NoError || !document.isObject()) {
         const bool quarantined = quarantineSettingsFile();
         return {
-            .settings = core::AppSettings::createDefault(),
+            .settings = core::AppSettings{},
             .readFailed = true,
             .quarantined = quarantined,
         };

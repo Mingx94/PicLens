@@ -1,6 +1,6 @@
 #pragma once
 
-#include <piclens/core/models.h>
+#include <piclens/core/settings.h>
 
 #include <QString>
 

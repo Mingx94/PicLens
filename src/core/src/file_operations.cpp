@@ -1,13 +1,8 @@
-#include <piclens/core/models.h>
+#include <piclens/core/file_operations.h>
 
 #include <algorithm>
 
 namespace piclens::core {
-
-AppSettings AppSettings::createDefault()
-{
-    return {};
-}
 
 int FileOperationBatchResult::total() const
 {

@@ -123,7 +123,7 @@ void PersistenceTests::missingSettingsReturnDefaults()
     QTemporaryDir root;
     QVERIFY(root.isValid());
     JsonSettingsStore store(childPath(root.path(), QStringLiteral("settings.json")));
-    compareSettings(AppSettings::createDefault(), store.load());
+    compareSettings(AppSettings{}, store.load());
 }
 
 void PersistenceTests::invalidSettingsAreQuarantined()
@@ -137,7 +137,7 @@ void PersistenceTests::invalidSettingsAreQuarantined()
     file.close();
 
     JsonSettingsStore store(settingsPath);
-    compareSettings(AppSettings::createDefault(), store.load());
+    compareSettings(AppSettings{}, store.load());
     QVERIFY(!QFileInfo::exists(settingsPath));
 
     const QStringList quarantined = QDir(root.path()).entryList(
@@ -148,7 +148,7 @@ void PersistenceTests::invalidSettingsAreQuarantined()
     QVERIFY(quarantinedFile.open(QIODevice::ReadOnly));
     QCOMPARE(quarantinedFile.readAll(), QByteArray("{ invalid json"));
 
-    compareSettings(AppSettings::createDefault(), store.load());
+    compareSettings(AppSettings{}, store.load());
     QCOMPARE(
         QDir(root.path()).entryList({QStringLiteral("settings.json.corrupt.*")}, QDir::Files).size(),
         1);

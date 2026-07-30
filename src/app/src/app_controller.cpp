@@ -18,7 +18,7 @@ namespace piclens::app {
 namespace {
 
 struct SettingsLoadResult {
-    core::AppSettings settings = core::AppSettings::createDefault();
+    core::AppSettings settings = core::AppSettings{};
     QString errorDetails;
 };
 
@@ -341,7 +341,7 @@ void AppController::initialize()
             };
         } catch (const std::exception &exception) {
             return SettingsLoadResult{
-                .settings = core::AppSettings::createDefault(),
+                .settings = core::AppSettings{},
                 .errorDetails = QString::fromUtf8(exception.what()),
             };
         }
