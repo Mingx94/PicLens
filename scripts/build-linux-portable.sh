@@ -83,9 +83,21 @@ if [[ ! -f "$controls_plugin" && -n "${QT_ROOT_DIR:-}" ]]; then
             cp -a -- "$source_module" "$target_module"
         fi
     done
+    mkdir -p -- "$output_dir/lib"
+    shopt -s nullglob
+    for qt_library in \
+        "$QT_ROOT_DIR"/lib/libQt6QuickControls2*.so* \
+        "$QT_ROOT_DIR"/lib/libQt6QuickTemplates2*.so*; do
+        cp -a -- "$qt_library" "$output_dir/lib/"
+    done
+    shopt -u nullglob
 fi
 if [[ ! -f "$controls_plugin" ]]; then
     echo "Required Qt Quick Controls plugin was not deployed: $controls_plugin" >&2
+    exit 5
+fi
+if [[ ! -f "$output_dir/lib/libQt6QuickControls2Impl.so.6" ]]; then
+    echo "Required Qt Quick Controls implementation library was not deployed." >&2
     exit 5
 fi
 
