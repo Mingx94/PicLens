@@ -55,17 +55,27 @@ public:
         std::stop_token stopToken = {}) const;
 
 private:
+    enum class ConversionFormat {
+        Jpeg,
+        Webp,
+    };
+
     static void throwIfCanceled(std::stop_token stopToken);
+    [[nodiscard]] static QString conversionTargetPath(
+        const core::ImageListItem &image,
+        ConversionFormat format);
+    [[nodiscard]] static bool mayRequireEncoding(
+        const core::ImageListItem &image,
+        ConversionFormat format);
+    [[nodiscard]] const ImageEncoder &encoderFor(ConversionFormat format) const;
     [[nodiscard]] core::FileOperationBatchResult convertBatch(
         const QVector<core::ImageListItem> &visibleImages,
         std::stop_token stopToken,
-        bool convertToWebp) const;
-    [[nodiscard]] core::FileOperationResult convertOneToJpg(
+        ConversionFormat format) const;
+    [[nodiscard]] core::FileOperationResult convertOne(
         const core::ImageListItem &image,
-        std::stop_token stopToken) const;
-    [[nodiscard]] core::FileOperationResult convertOneToWebp(
-        const core::ImageListItem &image,
-        std::stop_token stopToken) const;
+        std::stop_token stopToken,
+        ConversionFormat format) const;
 
     ImageEncoder m_jpegEncoder;
     ImageEncoder m_webpEncoder;

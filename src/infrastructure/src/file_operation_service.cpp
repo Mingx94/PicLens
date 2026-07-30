@@ -109,32 +109,6 @@ QString basenameKey(const QString &path)
         QDir(info.absolutePath()).filePath(info.completeBaseName()));
 }
 
-QString conversionTargetPath(const core::ImageListItem &image, bool convertToWebp)
-{
-    const QFileInfo source(image.path);
-    return QDir(source.absolutePath()).filePath(
-        source.completeBaseName()
-        + (convertToWebp ? QStringLiteral(".webp") : QStringLiteral(".jpg")));
-}
-
-QString conversionTargetKey(const core::ImageListItem &image, bool convertToWebp)
-{
-    return core::path_rules::pathKey(conversionTargetPath(image, convertToWebp));
-}
-
-bool mayRequireEncoding(const core::ImageListItem &image, bool convertToWebp)
-{
-    if (!QFileInfo(image.path).isFile() || image.isAnimated
-        || !core::image_format_rules::supportedImageExtension(image.path).has_value()) {
-        return false;
-    }
-    if (convertToWebp ? (isJpgExtension(image.extension) || isWebpExtension(image.extension))
-                      : isJpgExtension(image.extension)) {
-        return false;
-    }
-    return !QFileInfo::exists(conversionTargetPath(image, convertToWebp));
-}
-
 QString exceptionMessage(const std::exception &exception)
 {
     return QString::fromUtf8(exception.what());
@@ -311,20 +285,54 @@ core::FileOperationBatchResult FileOperationService::convertVisibleToJpg(
     const QVector<core::ImageListItem> &visibleImages,
     std::stop_token stopToken) const
 {
-    return convertBatch(visibleImages, stopToken, false);
+    return convertBatch(visibleImages, stopToken, ConversionFormat::Jpeg);
 }
 
 core::FileOperationBatchResult FileOperationService::convertVisibleToWebp(
     const QVector<core::ImageListItem> &visibleImages,
     std::stop_token stopToken) const
 {
-    return convertBatch(visibleImages, stopToken, true);
+    return convertBatch(visibleImages, stopToken, ConversionFormat::Webp);
+}
+
+QString FileOperationService::conversionTargetPath(
+    const core::ImageListItem &image,
+    ConversionFormat format)
+{
+    const QFileInfo source(image.path);
+    return QDir(source.absolutePath()).filePath(
+        source.completeBaseName()
+        + (format == ConversionFormat::Webp
+               ? QStringLiteral(".webp")
+               : QStringLiteral(".jpg")));
+}
+
+bool FileOperationService::mayRequireEncoding(
+    const core::ImageListItem &image,
+    ConversionFormat format)
+{
+    if (!QFileInfo(image.path).isFile() || image.isAnimated
+        || !core::image_format_rules::supportedImageExtension(image.path).has_value()) {
+        return false;
+    }
+    if (format == ConversionFormat::Webp
+            ? (isJpgExtension(image.extension) || isWebpExtension(image.extension))
+            : isJpgExtension(image.extension)) {
+        return false;
+    }
+    return !QFileInfo::exists(conversionTargetPath(image, format));
+}
+
+const FileOperationService::ImageEncoder &FileOperationService::encoderFor(
+    ConversionFormat format) const
+{
+    return format == ConversionFormat::Webp ? m_webpEncoder : m_jpegEncoder;
 }
 
 core::FileOperationBatchResult FileOperationService::convertBatch(
     const QVector<core::ImageListItem> &visibleImages,
     std::stop_token stopToken,
-    bool convertToWebp) const
+    ConversionFormat format) const
 {
     throwIfCanceled(stopToken);
     if (visibleImages.isEmpty()) {
@@ -335,7 +343,8 @@ core::FileOperationBatchResult FileOperationService::convertBatch(
     QHash<QString, qsizetype> groupByTarget;
     groupByTarget.reserve(visibleImages.size());
     for (qsizetype index = 0; index < visibleImages.size(); ++index) {
-        const QString key = conversionTargetKey(visibleImages.at(index), convertToWebp);
+        const QString key = core::path_rules::pathKey(
+            conversionTargetPath(visibleImages.at(index), format));
         auto group = groupByTarget.constFind(key);
         if (group == groupByTarget.cend()) {
             const qsizetype newGroup = static_cast<qsizetype>(targetGroups.size());
@@ -375,18 +384,14 @@ core::FileOperationBatchResult FileOperationService::convertBatch(
                         }
                         throwIfCanceled(stopToken);
                         const auto &image = visibleImages.at(static_cast<qsizetype>(index));
-                        if (mayRequireEncoding(image, convertToWebp)) {
+                        if (mayRequireEncoding(image, format)) {
                             ConversionBudgetLease lease(
                                 conversionBudget,
                                 conversionBudgetPermits(image.path),
                                 stopToken);
-                            results.at(index) = convertToWebp
-                                ? convertOneToWebp(image, stopToken)
-                                : convertOneToJpg(image, stopToken);
+                            results.at(index) = convertOne(image, stopToken, format);
                         } else {
-                            results.at(index) = convertToWebp
-                                ? convertOneToWebp(image, stopToken)
-                                : convertOneToJpg(image, stopToken);
+                            results.at(index) = convertOne(image, stopToken, format);
                         }
                     }
                 }
@@ -598,9 +603,10 @@ void FileOperationService::throwIfCanceled(std::stop_token stopToken)
     }
 }
 
-core::FileOperationResult FileOperationService::convertOneToJpg(
+core::FileOperationResult FileOperationService::convertOne(
     const core::ImageListItem &image,
-    std::stop_token stopToken) const
+    std::stop_token stopToken,
+    ConversionFormat format) const
 {
     if (!QFileInfo(image.path).isFile()) {
         return makeResult(
@@ -614,71 +620,11 @@ core::FileOperationResult FileOperationService::convertOneToJpg(
             image.path,
             core::FileOperationStatus::Skipped,
             std::nullopt,
-            QStringLiteral("already_jpg"));
+            format == ConversionFormat::Webp
+                ? QStringLiteral("jpg_source_skipped")
+                : QStringLiteral("already_jpg"));
     }
-    if (image.isAnimated) {
-        return makeResult(
-            image.path,
-            core::FileOperationStatus::Skipped,
-            std::nullopt,
-            QStringLiteral("animated_unsupported"));
-    }
-    if (!core::image_format_rules::supportedImageExtension(image.path).has_value()) {
-        return makeResult(
-            image.path,
-            core::FileOperationStatus::Skipped,
-            std::nullopt,
-            QStringLiteral("unsupported_extension"));
-    }
-
-    const QFileInfo sourceInfo(image.path);
-    const QString targetPath = QDir(sourceInfo.absolutePath()).filePath(
-        sourceInfo.completeBaseName() + QStringLiteral(".jpg"));
-    if (QFileInfo::exists(targetPath)) {
-        return makeResult(
-            image.path,
-            core::FileOperationStatus::Skipped,
-            targetPath,
-            QStringLiteral("target_exists"));
-    }
-
-    try {
-        m_jpegEncoder(image.path, targetPath, stopToken);
-        throwIfCanceled(stopToken);
-        return makeResult(image.path, core::FileOperationStatus::Converted, targetPath);
-    } catch (const FileOperationCanceledError &) {
-        QFile::remove(targetPath);
-        throw;
-    } catch (const std::exception &exception) {
-        QFile::remove(targetPath);
-        return makeResult(
-            image.path,
-            core::FileOperationStatus::Failed,
-            targetPath,
-            QStringLiteral("conversion_failed"),
-            exceptionMessage(exception));
-    }
-}
-
-core::FileOperationResult FileOperationService::convertOneToWebp(
-    const core::ImageListItem &image,
-    std::stop_token stopToken) const
-{
-    if (!QFileInfo(image.path).isFile()) {
-        return makeResult(
-            image.path,
-            core::FileOperationStatus::Failed,
-            std::nullopt,
-            QStringLiteral("source_missing"));
-    }
-    if (isJpgExtension(image.extension)) {
-        return makeResult(
-            image.path,
-            core::FileOperationStatus::Skipped,
-            std::nullopt,
-            QStringLiteral("jpg_source_skipped"));
-    }
-    if (isWebpExtension(image.extension)) {
+    if (format == ConversionFormat::Webp && isWebpExtension(image.extension)) {
         return makeResult(
             image.path,
             core::FileOperationStatus::Skipped,
@@ -700,9 +646,7 @@ core::FileOperationResult FileOperationService::convertOneToWebp(
             QStringLiteral("unsupported_extension"));
     }
 
-    const QFileInfo sourceInfo(image.path);
-    const QString targetPath = QDir(sourceInfo.absolutePath()).filePath(
-        sourceInfo.completeBaseName() + QStringLiteral(".webp"));
+    const QString targetPath = conversionTargetPath(image, format);
     if (QFileInfo::exists(targetPath)) {
         return makeResult(
             image.path,
@@ -712,7 +656,7 @@ core::FileOperationResult FileOperationService::convertOneToWebp(
     }
 
     try {
-        m_webpEncoder(image.path, targetPath, stopToken);
+        encoderFor(format)(image.path, targetPath, stopToken);
         throwIfCanceled(stopToken);
         return makeResult(image.path, core::FileOperationStatus::Converted, targetPath);
     } catch (const FileOperationCanceledError &) {
