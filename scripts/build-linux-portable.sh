@@ -72,6 +72,23 @@ ctest --test-dir "$build_dir" --output-on-failure
 rm -rf -- "$output_dir"
 cmake --install "$build_dir" --prefix "$output_dir"
 
+controls_plugin="$output_dir/qml/QtQuick/Controls/libqtquickcontrols2plugin.so"
+if [[ ! -f "$controls_plugin" && -n "${QT_ROOT_DIR:-}" ]]; then
+    qt_qml_root="$QT_ROOT_DIR/qml"
+    for qml_module in QtQuick/Controls QtQuick/Templates; do
+        source_module="$qt_qml_root/$qml_module"
+        target_module="$output_dir/qml/$qml_module"
+        if [[ -d "$source_module" ]]; then
+            mkdir -p -- "$(dirname -- "$target_module")"
+            cp -a -- "$source_module" "$target_module"
+        fi
+    done
+fi
+if [[ ! -f "$controls_plugin" ]]; then
+    echo "Required Qt Quick Controls plugin was not deployed: $controls_plugin" >&2
+    exit 5
+fi
+
 for qt_module in qtbase qtdeclarative qtimageformats; do
     license_dir="$output_dir/share/licenses/Qt/$qt_module"
     if [[ ! -d "$license_dir" ]] || ! find "$license_dir" -type f -print -quit | grep -q .; then
