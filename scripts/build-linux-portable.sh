@@ -72,10 +72,23 @@ ctest --test-dir "$build_dir" --output-on-failure
 rm -rf -- "$output_dir"
 cmake --install "$build_dir" --prefix "$output_dir"
 
-controls_plugin="$output_dir/qml/QtQuick/Controls/libqtquickcontrols2plugin.so"
-if [[ ! -f "$controls_plugin" && -n "${QT_ROOT_DIR:-}" ]]; then
+required_qml_modules=(
+    QtQuick/Controls
+    QtQuick/Templates
+    QtQuick/Dialogs
+    QtQuick/Layouts
+    QtQuick/Shapes
+    QtQuick/Window
+)
+missing_qml_module="false"
+for qml_module in "${required_qml_modules[@]}"; do
+    if [[ ! -d "$output_dir/qml/$qml_module" ]]; then
+        missing_qml_module="true"
+    fi
+done
+if [[ "$missing_qml_module" == "true" && -n "${QT_ROOT_DIR:-}" ]]; then
     qt_qml_root="$QT_ROOT_DIR/qml"
-    for qml_module in QtQuick/Controls QtQuick/Templates; do
+    for qml_module in "${required_qml_modules[@]}"; do
         source_module="$qt_qml_root/$qml_module"
         target_module="$output_dir/qml/$qml_module"
         if [[ -d "$source_module" ]]; then
@@ -87,11 +100,13 @@ if [[ ! -f "$controls_plugin" && -n "${QT_ROOT_DIR:-}" ]]; then
     shopt -s nullglob
     for qt_library in \
         "$QT_ROOT_DIR"/lib/libQt6QuickControls2*.so* \
-        "$QT_ROOT_DIR"/lib/libQt6QuickTemplates2*.so*; do
+        "$QT_ROOT_DIR"/lib/libQt6QuickTemplates2*.so* \
+        "$QT_ROOT_DIR"/lib/libQt6QuickDialogs2*.so*; do
         cp -a -- "$qt_library" "$output_dir/lib/"
     done
     shopt -u nullglob
 fi
+controls_plugin="$output_dir/qml/QtQuick/Controls/libqtquickcontrols2plugin.so"
 if [[ ! -f "$controls_plugin" ]]; then
     echo "Required Qt Quick Controls plugin was not deployed: $controls_plugin" >&2
     exit 5
@@ -100,6 +115,12 @@ if [[ ! -f "$output_dir/lib/libQt6QuickControls2Impl.so.6" ]]; then
     echo "Required Qt Quick Controls implementation library was not deployed." >&2
     exit 5
 fi
+for qml_module in "${required_qml_modules[@]}"; do
+    if [[ ! -d "$output_dir/qml/$qml_module" ]]; then
+        echo "Required Qt QML module was not deployed: $output_dir/qml/$qml_module" >&2
+        exit 5
+    fi
+done
 
 for qt_module in qtbase qtdeclarative qtimageformats; do
     license_dir="$output_dir/share/licenses/Qt/$qt_module"
