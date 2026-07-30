@@ -98,10 +98,7 @@ if [[ "$missing_qml_module" == "true" && -n "${QT_ROOT_DIR:-}" ]]; then
     done
     mkdir -p -- "$output_dir/lib"
     shopt -s nullglob
-    for qt_library in \
-        "$QT_ROOT_DIR"/lib/libQt6QuickControls2*.so* \
-        "$QT_ROOT_DIR"/lib/libQt6QuickTemplates2*.so* \
-        "$QT_ROOT_DIR"/lib/libQt6QuickDialogs2*.so*; do
+    for qt_library in "$QT_ROOT_DIR"/lib/libQt6Quick*.so*; do
         cp -a -- "$qt_library" "$output_dir/lib/"
     done
     shopt -u nullglob
