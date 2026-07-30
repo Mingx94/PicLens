@@ -1,8 +1,8 @@
 #pragma once
 
 #include <piclens/core/file_operations.h>
-#include <piclens/core/file_rename_planner.h>
 #include <piclens/core/library_items.h>
+#include <piclens/presentation/drop_rename_controller.h>
 
 #include <QObject>
 #include <QThreadPool>
@@ -24,12 +24,7 @@ class FileOperationController final : public QObject
     Q_PROPERTY(QString selectedBaseName READ selectedBaseName NOTIFY commandAvailabilityChanged)
     Q_PROPERTY(bool canProcessVisible READ canProcessVisible NOTIFY commandAvailabilityChanged)
     Q_PROPERTY(int visibleImageCount READ visibleImageCount NOTIFY commandAvailabilityChanged)
-    Q_PROPERTY(bool dragActive READ dragActive NOTIFY dragStateChanged)
-    Q_PROPERTY(int dragSourceCount READ dragSourceCount NOTIFY dragStateChanged)
-    Q_PROPERTY(bool dropRenamePreviewVisible READ dropRenamePreviewVisible NOTIFY dropRenamePreviewChanged)
-    Q_PROPERTY(QString dropRenamePreviewText READ dropRenamePreviewText NOTIFY dropRenamePreviewChanged)
-    Q_PROPERTY(int dropRenameCount READ dropRenameCount NOTIFY dropRenamePreviewChanged)
-    Q_PROPERTY(int dropRenameSkippedCount READ dropRenameSkippedCount NOTIFY dropRenamePreviewChanged)
+    Q_PROPERTY(piclens::presentation::DropRenameController *dropRename READ dropRename CONSTANT)
 
 public:
     using RenameFunction = std::function<core::FileOperationResult(
@@ -40,7 +35,7 @@ public:
     using RevealFunction = std::function<void(const QString &)>;
     using DropRenameFunction = std::function<core::FileOperationBatchResult(
         const QVector<QString> &, const QString &, std::stop_token)>;
-    using ExistingPathsFunction = std::function<QVector<QString>(const QString &)>;
+    using ExistingPathsFunction = DropRenameController::ExistingPathsFunction;
 
     FileOperationController(
         LibraryController *library,
@@ -61,12 +56,7 @@ public:
     [[nodiscard]] QString selectedBaseName() const;
     [[nodiscard]] bool canProcessVisible() const;
     [[nodiscard]] int visibleImageCount() const;
-    [[nodiscard]] bool dragActive() const;
-    [[nodiscard]] int dragSourceCount() const;
-    [[nodiscard]] bool dropRenamePreviewVisible() const;
-    [[nodiscard]] QString dropRenamePreviewText() const;
-    [[nodiscard]] int dropRenameCount() const;
-    [[nodiscard]] int dropRenameSkippedCount() const;
+    [[nodiscard]] DropRenameController *dropRename();
 
     Q_INVOKABLE void renameSelected(const QString &newBaseName);
     Q_INVOKABLE void trashSelected();
@@ -75,18 +65,10 @@ public:
     Q_INVOKABLE void convertVisibleToWebp();
     Q_INVOKABLE void clearSameBasenameExtras();
     Q_INVOKABLE void cancel();
-    Q_INVOKABLE void beginImageDrag(const QString &sourcePath);
-    Q_INVOKABLE void cancelImageDrag();
-    Q_INVOKABLE void requestDropRenamePreview(const QString &targetPath);
-    Q_INVOKABLE void confirmDropRename();
-    Q_INVOKABLE void cancelDropRenamePreview();
 
 signals:
     void busyChanged();
     void commandAvailabilityChanged();
-    void dragStateChanged();
-    void dropRenamePreviewChanged();
-    void dropRenamePreviewReady();
     void operationFailed(
         const QString &operation,
         const QString &sourcePath,
@@ -121,7 +103,7 @@ private:
         QString statusName,
         QString inProgressStatus,
         const BatchFunction &function);
-    void clearDropRenameState();
+    void startDropRename(const QVector<QString> &sources, const QString &targetPath);
 
     LibraryController *m_library;
     RenameFunction m_rename;
@@ -131,14 +113,10 @@ private:
     BatchFunction m_clearSameBasenameExtras;
     RevealFunction m_reveal;
     DropRenameFunction m_dropRename;
-    ExistingPathsFunction m_existingPaths;
+    DropRenameController m_dropRenameController;
     QThreadPool m_workerPool;
     std::shared_ptr<std::stop_source> m_activeStop;
     bool m_busy = false;
-    QVector<QString> m_dragSources;
-    QString m_dragOriginPath;
-    QString m_dropTargetPath;
-    core::DropTargetBatchRenamePlan m_dropRenamePlan;
 };
 
 } // namespace piclens::presentation

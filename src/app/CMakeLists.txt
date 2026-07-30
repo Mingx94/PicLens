@@ -30,7 +30,9 @@ set(PICLENS_QML_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/GalleryTile.qml
     ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/HistoryMouseHandler.qml
     ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/FolderTreePane.qml
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/LibraryFileActions.qml
     ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/LibraryPane.qml
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/ViewerImageCanvas.qml
     ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/ViewerPointerSurface.qml
     ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/ViewerOverlay.qml
     ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/Main.qml

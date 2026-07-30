@@ -1,6 +1,7 @@
 #pragma once
 
 #include <piclens/app/app_controller.h>
+#include <piclens/presentation/drop_rename_controller.h>
 #include <piclens/presentation/folder_tree_model.h>
 #include <piclens/presentation/file_operation_controller.h>
 #include <piclens/presentation/library_controller.h>
@@ -58,6 +59,14 @@ struct FileOperationControllerForeign
     QML_FOREIGN(piclens::presentation::FileOperationController)
     QML_NAMED_ELEMENT(FileOperationController)
     QML_UNCREATABLE("Use AppController.fileOperations.")
+};
+
+struct DropRenameControllerForeign
+{
+    Q_GADGET
+    QML_FOREIGN(piclens::presentation::DropRenameController)
+    QML_NAMED_ELEMENT(DropRenameController)
+    QML_UNCREATABLE("Use FileOperationController.dropRename.")
 };
 
 struct ViewerControllerForeign

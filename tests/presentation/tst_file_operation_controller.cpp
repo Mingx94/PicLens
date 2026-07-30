@@ -276,20 +276,21 @@ void FileOperationControllerTests::dropRenameRequiresPreviewAndPreservesSelectio
                 QStringLiteral("gallery/one.png"),
                 QStringLiteral("gallery/two.jpg")};
         });
-    QSignalSpy previewReady(&operations, &FileOperationController::dropRenamePreviewReady);
+    DropRenameController *dropRename = operations.dropRename();
+    QSignalSpy previewReady(dropRename, &DropRenameController::previewReady);
 
-    operations.beginImageDrag(QStringLiteral("gallery/one.png"));
-    QCOMPARE(operations.dragSourceCount(), 2);
-    operations.requestDropRenamePreview(QStringLiteral("gallery/two.jpg"));
+    dropRename->beginImageDrag(QStringLiteral("gallery/one.png"));
+    QCOMPARE(dropRename->dragSourceCount(), 2);
+    dropRename->requestPreview(QStringLiteral("gallery/two.jpg"));
 
     QCOMPARE(previewReady.count(), 1);
-    QVERIFY(operations.dropRenamePreviewVisible());
-    QCOMPARE(operations.dropRenameCount(), 1);
-    QCOMPARE(operations.dropRenameSkippedCount(), 0);
-    QVERIFY(operations.dropRenamePreviewText().contains(QStringLiteral("one.png → two-01.png")));
+    QVERIFY(dropRename->previewVisible());
+    QCOMPARE(dropRename->renameCount(), 1);
+    QCOMPARE(dropRename->skippedCount(), 0);
+    QVERIFY(dropRename->previewText().contains(QStringLiteral("one.png → two-01.png")));
     QVERIFY(receivedSources.isEmpty());
 
-    operations.confirmDropRename();
+    dropRename->confirm();
     QTRY_VERIFY_WITH_TIMEOUT(!operations.busy(), 5000);
     QTRY_VERIFY_WITH_TIMEOUT(!library.busy(), 5000);
     QCOMPARE(receivedSources, QVector<QString>({
@@ -323,13 +324,14 @@ void FileOperationControllerTests::cancelDropRenamePreviewSkipsExecution()
                 QStringLiteral("gallery/two.jpg")};
         });
 
-    operations.beginImageDrag(QStringLiteral("gallery/one.png"));
-    operations.requestDropRenamePreview(QStringLiteral("gallery/two.jpg"));
-    QVERIFY(operations.dropRenamePreviewVisible());
-    operations.cancelDropRenamePreview();
+    DropRenameController *dropRename = operations.dropRename();
+    dropRename->beginImageDrag(QStringLiteral("gallery/one.png"));
+    dropRename->requestPreview(QStringLiteral("gallery/two.jpg"));
+    QVERIFY(dropRename->previewVisible());
+    dropRename->cancelPreview();
 
-    QVERIFY(!operations.dropRenamePreviewVisible());
-    QVERIFY(!operations.dragActive());
+    QVERIFY(!dropRename->previewVisible());
+    QVERIFY(!dropRename->dragActive());
     QCOMPARE(calls.load(), 0);
     QCOMPARE(scans.load(), 1);
     QVERIFY(library.statusText().contains(QStringLiteral("已取消拖放重新命名")));

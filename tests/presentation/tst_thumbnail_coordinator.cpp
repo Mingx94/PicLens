@@ -23,15 +23,6 @@ ThumbnailLoadResult readyResult(const QString &path)
     };
 }
 
-ThumbnailLoadResult canceledResult()
-{
-    return {
-        .cachePath = std::nullopt,
-        .errorDetails = std::nullopt,
-        .canceled = true,
-    };
-}
-
 } // namespace
 
 class ThumbnailCoordinatorTests final : public QObject
@@ -44,6 +35,7 @@ private slots:
     void automaticConcurrencyIsBoundedAndExplicitOverrideWins();
     void animatedAndDuplicateRequestsDoNotScheduleExtraWork();
     void cancellationSuppressesLateResultAndReleasesSlot();
+    void activeCountCallbackCanCancelCompletedDelivery();
     void sizeChangeSuppressesOldGeneration();
     void timedOutStallsDoNotBlockFifthVisibleRequest();
 };
@@ -145,7 +137,7 @@ void ThumbnailCoordinatorTests::cancellationSuppressesLateResultAndReleasesSlot(
             while (!stopToken.stop_requested()) {
                 std::this_thread::yield();
             }
-            return canceledResult();
+            return readyResult(QStringLiteral("late.png"));
         });
     QSignalSpy ready(&coordinator, &ThumbnailCoordinator::thumbnailReady);
 
@@ -156,6 +148,33 @@ void ThumbnailCoordinatorTests::cancellationSuppressesLateResultAndReleasesSlot(
     QTRY_COMPARE_WITH_TIMEOUT(coordinator.activeRequestCount(), 0, 5000);
     QTest::qWait(50);
     QCOMPARE(ready.count(), 0);
+}
+
+void ThumbnailCoordinatorTests::activeCountCallbackCanCancelCompletedDelivery()
+{
+    ThumbnailCoordinator coordinator(
+        [](const QString &path, int, std::stop_token) {
+            return readyResult(path + QStringLiteral(".png"));
+        });
+    QSignalSpy ready(&coordinator, &ThumbnailCoordinator::thumbnailReady);
+    bool canceled = false;
+    connect(
+        &coordinator,
+        &ThumbnailCoordinator::activeRequestCountChanged,
+        &coordinator,
+        [&] {
+            if (!canceled && coordinator.activeRequestCount() == 0) {
+                canceled = true;
+                coordinator.cancelAll();
+            }
+        });
+
+    coordinator.requestThumbnail(QStringLiteral("photo.jpg"), false);
+    QTRY_VERIFY_WITH_TIMEOUT(canceled, 5000);
+    QTest::qWait(50);
+
+    QCOMPARE(ready.count(), 0);
+    QCOMPARE(coordinator.completedRequestCount(), 0);
 }
 
 void ThumbnailCoordinatorTests::sizeChangeSuppressesOldGeneration()
@@ -213,6 +232,7 @@ void ThumbnailCoordinatorTests::timedOutStallsDoNotBlockFifthVisibleRequest()
         std::condition_variable condition;
         int calls = 0;
         int stalled = 0;
+        std::atomic_int completed = 0;
         bool release = false;
     } state;
     ThumbnailCoordinator coordinator(
@@ -228,6 +248,7 @@ void ThumbnailCoordinatorTests::timedOutStallsDoNotBlockFifthVisibleRequest()
                 state.condition.notify_all();
                 state.condition.wait(lock, [&] { return state.release; });
             }
+            ++state.completed;
             return readyResult(path + QStringLiteral(".png"));
         },
         4,
@@ -254,7 +275,9 @@ void ThumbnailCoordinatorTests::timedOutStallsDoNotBlockFifthVisibleRequest()
         state.release = true;
     }
     state.condition.notify_all();
-    QTRY_COMPARE_WITH_TIMEOUT(coordinator.activeRequestCount(), 0, 5000);
+    QTRY_COMPARE_WITH_TIMEOUT(state.completed.load(), 5, 5000);
+    QCOMPARE(coordinator.activeRequestCount(), 0);
+    QCOMPARE(ready.count(), 1);
 }
 
 QTEST_GUILESS_MAIN(ThumbnailCoordinatorTests)

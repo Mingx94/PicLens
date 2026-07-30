@@ -1,10 +1,12 @@
 qt_add_library(piclens_presentation STATIC
+    include/piclens/presentation/drop_rename_controller.h
     include/piclens/presentation/file_operation_controller.h
     include/piclens/presentation/folder_tree_model.h
     include/piclens/presentation/library_controller.h
     include/piclens/presentation/library_item_model.h
     include/piclens/presentation/thumbnail_coordinator.h
     include/piclens/presentation/viewer_controller.h
+    src/drop_rename_controller.cpp
     src/file_operation_controller.cpp
     src/folder_tree_model.cpp
     src/library_controller.cpp

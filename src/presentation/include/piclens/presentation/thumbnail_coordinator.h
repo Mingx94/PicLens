@@ -58,11 +58,18 @@ signals:
     void thumbnailFailed(const QString &sourcePath, const QString &details, int requestedSize);
 
 private:
+    enum class RequestState {
+        Pending,
+        Active,
+        Canceled,
+        TimedOut,
+        Completed,
+    };
     struct Request;
 
     void schedule();
     void startRequest(const std::shared_ptr<Request> &request);
-    void releaseLogicalSlot(const std::shared_ptr<Request> &request);
+    void setRequestState(const std::shared_ptr<Request> &request, RequestState state);
     void removeIfCurrent(const std::shared_ptr<Request> &request);
 
     LoadFunction m_load;

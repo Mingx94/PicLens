@@ -34,10 +34,7 @@ struct ThumbnailCoordinator::Request {
     quint64 generation = 0;
     std::shared_ptr<std::stop_source> stop = std::make_shared<std::stop_source>();
     QTimer *timer = nullptr;
-    bool started = false;
-    bool canceled = false;
-    bool timedOut = false;
-    bool logicalSlotReleased = false;
+    RequestState state = RequestState::Pending;
 };
 
 ThumbnailCoordinator::ThumbnailCoordinator(
@@ -108,8 +105,8 @@ void ThumbnailCoordinator::requestThumbnail(const QString &sourcePath, bool anim
     const auto existing = m_requests.constFind(key);
     if (existing != m_requests.cend()
         && (*existing)->requestedSize == m_requestedSize
-        && !(*existing)->canceled
-        && !(*existing)->timedOut) {
+        && ((*existing)->state == RequestState::Pending
+            || (*existing)->state == RequestState::Active)) {
         return;
     }
     cancel(sourcePath);
@@ -132,14 +129,13 @@ void ThumbnailCoordinator::cancel(const QString &sourcePath)
         return;
     }
     const auto request = *iterator;
-    request->canceled = true;
+    setRequestState(request, RequestState::Canceled);
     request->stop->request_stop();
     if (request->timer) {
         request->timer->stop();
         request->timer->deleteLater();
         request->timer = nullptr;
     }
-    releaseLogicalSlot(request);
     m_requests.erase(iterator);
     schedule();
 }
@@ -151,14 +147,13 @@ void ThumbnailCoordinator::cancelAll()
     m_requests.clear();
     m_pending.clear();
     for (const auto &request : requests) {
-        request->canceled = true;
+        setRequestState(request, RequestState::Canceled);
         request->stop->request_stop();
         if (request->timer) {
             request->timer->stop();
             request->timer->deleteLater();
             request->timer = nullptr;
         }
-        releaseLogicalSlot(request);
     }
 }
 
@@ -166,7 +161,8 @@ void ThumbnailCoordinator::schedule()
 {
     while (m_activeRequests < m_maxConcurrent && !m_pending.isEmpty()) {
         const auto request = m_pending.takeFirst();
-        if (request->canceled || request->generation != m_generation) {
+        if (request->state != RequestState::Pending
+            || request->generation != m_generation) {
             continue;
         }
         startRequest(request);
@@ -175,22 +171,20 @@ void ThumbnailCoordinator::schedule()
 
 void ThumbnailCoordinator::startRequest(const std::shared_ptr<Request> &request)
 {
-    request->started = true;
-    ++m_activeRequests;
-    emit activeRequestCountChanged();
+    setRequestState(request, RequestState::Active);
 
     request->timer = new QTimer(this);
     request->timer->setSingleShot(true);
     connect(request->timer, &QTimer::timeout, this, [this, request] {
         request->timer->deleteLater();
         request->timer = nullptr;
-        if (request->canceled || request->generation != m_generation) {
+        if (request->state != RequestState::Active
+            || request->generation != m_generation) {
             return;
         }
-        request->timedOut = true;
+        setRequestState(request, RequestState::TimedOut);
         request->stop->request_stop();
         removeIfCurrent(request);
-        releaseLogicalSlot(request);
         emit thumbnailFailed(
             request->sourcePath,
             QStringLiteral("thumbnail_timeout"),
@@ -209,28 +203,28 @@ void ThumbnailCoordinator::startRequest(const std::shared_ptr<Request> &request)
             request->timer->deleteLater();
             request->timer = nullptr;
         }
-        releaseLogicalSlot(request);
-        removeIfCurrent(request);
-        if (!request->canceled
-            && !request->timedOut
+        if (request->state == RequestState::Active) {
+            setRequestState(request, RequestState::Completed);
+        }
+        const bool shouldDeliver = request->state == RequestState::Completed
             && request->generation == m_generation
-            && !result.canceled) {
-            if (result.cachePath.has_value()) {
-                ++m_completedRequests;
-                if (result.cacheHit) {
-                    ++m_cacheHits;
-                }
-                emit statisticsChanged();
-                emit thumbnailReady(
-                    request->sourcePath,
-                    *result.cachePath,
-                    request->requestedSize);
-            } else if (result.errorDetails.has_value()) {
-                emit thumbnailFailed(
-                    request->sourcePath,
-                    *result.errorDetails,
-                    request->requestedSize);
+            && !result.canceled;
+        removeIfCurrent(request);
+        if (shouldDeliver && result.cachePath.has_value()) {
+            ++m_completedRequests;
+            if (result.cacheHit) {
+                ++m_cacheHits;
             }
+            emit statisticsChanged();
+            emit thumbnailReady(
+                request->sourcePath,
+                *result.cachePath,
+                request->requestedSize);
+        } else if (shouldDeliver && result.errorDetails.has_value()) {
+            emit thumbnailFailed(
+                request->sourcePath,
+                *result.errorDetails,
+                request->requestedSize);
         }
         schedule();
     });
@@ -256,13 +250,20 @@ void ThumbnailCoordinator::startRequest(const std::shared_ptr<Request> &request)
     }));
 }
 
-void ThumbnailCoordinator::releaseLogicalSlot(const std::shared_ptr<Request> &request)
+void ThumbnailCoordinator::setRequestState(
+    const std::shared_ptr<Request> &request,
+    RequestState state)
 {
-    if (!request->started || request->logicalSlotReleased) {
+    if (request->state == state) {
         return;
     }
-    request->logicalSlotReleased = true;
-    m_activeRequests = std::max(0, m_activeRequests - 1);
+    const bool wasActive = request->state == RequestState::Active;
+    const bool isActive = state == RequestState::Active;
+    request->state = state;
+    if (wasActive == isActive) {
+        return;
+    }
+    m_activeRequests += isActive ? 1 : -1;
     emit activeRequestCountChanged();
 }
 

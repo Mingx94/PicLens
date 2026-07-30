@@ -7,22 +7,11 @@
 #include <QFutureWatcher>
 #include <QtConcurrentRun>
 
-#include <algorithm>
 #include <exception>
 #include <stdexcept>
 #include <utility>
 
 namespace piclens::presentation {
-namespace {
-
-QString dropRenameReasonText(const std::optional<QString> &reason)
-{
-    return reason == core::file_rename_planner::AlreadyTargetSequenceReason
-        ? QStringLiteral("已符合目標序列")
-        : QStringLiteral("略過");
-}
-
-} // namespace
 
 FileOperationController::FileOperationController(
     LibraryController *library,
@@ -44,7 +33,7 @@ FileOperationController::FileOperationController(
     , m_clearSameBasenameExtras(std::move(clearSameBasenameExtras))
     , m_reveal(std::move(reveal))
     , m_dropRename(std::move(dropRename))
-    , m_existingPaths(std::move(existingPaths))
+    , m_dropRenameController(library, std::move(existingPaths), this)
 {
     if (!m_library || !m_rename || !m_trash || !m_convertVisible || !m_convertVisibleToWebp
         || !m_clearSameBasenameExtras || !m_reveal) {
@@ -55,9 +44,23 @@ FileOperationController::FileOperationController(
             return core::FileOperationBatchResult{};
         };
     }
-    if (!m_existingPaths) {
-        m_existingPaths = [](const QString &) { return QVector<QString>{}; };
-    }
+    connect(
+        &m_dropRenameController,
+        &DropRenameController::executionRequested,
+        this,
+        &FileOperationController::startDropRename);
+    connect(
+        &m_dropRenameController,
+        &DropRenameController::previewFailed,
+        this,
+        [this](const QString &targetPath, const QString &details) {
+            emit operationFailed(
+                QStringLiteral("drop_rename_preview"),
+                {},
+                targetPath,
+                QStringLiteral("exception"),
+                details);
+        });
     m_workerPool.setMaxThreadCount(1);
     m_workerPool.setExpiryTimeout(30'000);
     connect(m_library, &LibraryController::selectionChanged, this, [this] {
@@ -94,38 +97,9 @@ int FileOperationController::visibleImageCount() const
 {
     return m_library->visibleImages().size();
 }
-bool FileOperationController::dragActive() const { return !m_dragSources.isEmpty(); }
-int FileOperationController::dragSourceCount() const { return m_dragSources.size(); }
-bool FileOperationController::dropRenamePreviewVisible() const
+DropRenameController *FileOperationController::dropRename()
 {
-    return !m_dropTargetPath.isEmpty() && m_dropRenamePlan.total > 0;
-}
-int FileOperationController::dropRenameCount() const
-{
-    return static_cast<int>(std::count_if(
-        m_dropRenamePlan.items.cbegin(),
-        m_dropRenamePlan.items.cend(),
-        [](const auto &item) { return !item.shouldSkip; }));
-}
-int FileOperationController::dropRenameSkippedCount() const
-{
-    return m_dropRenamePlan.items.size() - dropRenameCount();
-}
-QString FileOperationController::dropRenamePreviewText() const
-{
-    QStringList lines;
-    const int previewCount = std::min(12, static_cast<int>(m_dropRenamePlan.items.size()));
-    for (int index = 0; index < previewCount; ++index) {
-        const auto &item = m_dropRenamePlan.items.at(index);
-        const QString sourceName = QFileInfo(item.sourcePath).fileName();
-        lines.append(item.shouldSkip
-            ? QStringLiteral("%1：%2").arg(sourceName, dropRenameReasonText(item.reason))
-            : QStringLiteral("%1 → %2").arg(sourceName, QFileInfo(item.targetPath).fileName()));
-    }
-    if (m_dropRenamePlan.items.size() > previewCount) {
-        lines.append(QStringLiteral("另有 %1 個項目…").arg(m_dropRenamePlan.items.size() - previewCount));
-    }
-    return lines.join(QLatin1Char('\n'));
+    return &m_dropRenameController;
 }
 
 void FileOperationController::renameSelected(const QString &newBaseName)
@@ -267,83 +241,14 @@ void FileOperationController::cancel()
     }
 }
 
-void FileOperationController::beginImageDrag(const QString &sourcePath)
+void FileOperationController::startDropRename(
+    const QVector<QString> &sources,
+    const QString &targetPath)
 {
-    if (m_busy || !m_library->containsImagePath(sourcePath)) {
+    if (m_busy) {
         return;
     }
-    const QStringList selected = m_library->selectedPaths();
-    const bool sourceSelected = std::any_of(selected.cbegin(), selected.cend(), [&](const QString &path) {
-        return core::path_rules::pathEquals(path, sourcePath);
-    });
-    m_dragSources = sourceSelected ? QVector<QString>(selected.cbegin(), selected.cend())
-                                   : QVector<QString>{sourcePath};
-    m_dragOriginPath = sourcePath;
-    emit dragStateChanged();
-}
-
-void FileOperationController::cancelImageDrag()
-{
-    if (m_dragSources.isEmpty()) {
-        return;
-    }
-    m_dragSources.clear();
-    m_dragOriginPath.clear();
-    emit dragStateChanged();
-}
-
-void FileOperationController::requestDropRenamePreview(const QString &targetPath)
-{
-    if (m_busy || m_dragSources.isEmpty() || !m_library->containsImagePath(targetPath)
-        || core::path_rules::pathEquals(m_dragOriginPath, targetPath)) {
-        cancelImageDrag();
-        return;
-    }
-    const QVector<QString> sources = m_dragSources;
-    const QString dragOriginPath = m_dragOriginPath;
-    m_dragSources.clear();
-    m_dragOriginPath.clear();
-    emit dragStateChanged();
-    try {
-        m_dropRenamePlan = core::file_rename_planner::planDropTargetBatchRename(
-            sources, targetPath, m_existingPaths(targetPath));
-        m_dragSources = sources;
-        m_dragOriginPath = dragOriginPath;
-        m_dropTargetPath = targetPath;
-        if (m_dropRenamePlan.total <= 0) {
-            clearDropRenameState();
-            m_library->setExternalStatus(QStringLiteral("沒有可拖放重新命名的圖片。"));
-            return;
-        }
-        emit dropRenamePreviewChanged();
-        emit dropRenamePreviewReady();
-    } catch (const std::exception &exception) {
-        clearDropRenameState();
-        emit operationFailed(
-            QStringLiteral("drop_rename_preview"), {}, targetPath,
-            QStringLiteral("exception"), QString::fromUtf8(exception.what()));
-        m_library->setExternalStatus(QStringLiteral("建立拖放重新命名預覽時發生錯誤，已寫入診斷記錄。"));
-    }
-}
-
-void FileOperationController::cancelDropRenamePreview()
-{
-    if (!dropRenamePreviewVisible() && m_dragSources.isEmpty()) {
-        return;
-    }
-    clearDropRenameState();
-    m_library->setExternalStatus(QStringLiteral("已取消拖放重新命名。"));
-}
-
-void FileOperationController::confirmDropRename()
-{
-    if (m_busy || !dropRenamePreviewVisible()) {
-        return;
-    }
-    const QVector<QString> sources = m_dragSources;
-    const QString targetPath = m_dropTargetPath;
     const QString folderPath = m_library->currentFolderPath();
-    clearDropRenameState();
     runOperation(
         QStringLiteral("正在套用拖放重新命名…"),
         [dropRename = m_dropRename, sources, targetPath](std::stop_token stopToken) {
@@ -373,28 +278,13 @@ void FileOperationController::confirmDropRename()
         });
 }
 
-void FileOperationController::clearDropRenameState()
-{
-    const bool hadDrag = !m_dragSources.isEmpty();
-    const bool hadPreview = dropRenamePreviewVisible();
-    m_dragSources.clear();
-    m_dragOriginPath.clear();
-    m_dropTargetPath.clear();
-    m_dropRenamePlan = {};
-    if (hadDrag) {
-        emit dragStateChanged();
-    }
-    if (hadPreview) {
-        emit dropRenamePreviewChanged();
-    }
-}
-
 void FileOperationController::setBusy(bool busy)
 {
     if (m_busy == busy) {
         return;
     }
     m_busy = busy;
+    m_dropRenameController.setOperationBusy(busy);
     emit busyChanged();
     emit commandAvailabilityChanged();
 }
