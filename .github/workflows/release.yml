@@ -187,7 +187,7 @@ jobs:
       - name: Build, test, deploy, and run sanitized smoke
         run: xvfb-run -a bash scripts/build-linux-portable.sh
       - name: Exercise gio trash and xdg-open adapters
-        run: xvfb-run -a dbus-run-session -- build/release/bin/piclens_platform_file_manager_smoke
+        run: xvfb-run -a dbus-run-session -- build/linux-portable-release/bin/piclens_platform_file_manager_smoke
       - name: Build Debian candidate
         run: bash scripts/build-deb.sh
       - name: Install, launch, and remove Debian package

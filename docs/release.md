@@ -66,7 +66,7 @@ bash scripts/build-linux-portable.sh
 
 Output: `artifacts/qt-portable/PicLens-linux-x64/`.
 
-The script builds/tests, deploys required libraries/plugins and performs a sanitized smoke. The output is a complete directory, not a single-file executable.
+The script configures the isolated `build/linux-portable-release` tree, builds/tests, deploys required libraries/plugins and performs a sanitized smoke. The output is a complete directory, not a single-file executable. `--build-dir` and `--output-dir` provide explicit overrides; the legacy `PICLENS_QT_BUILD_DIR` and `PICLENS_QT_OUTPUT_DIR` environment defaults remain supported.
 
 ## Debian / Ubuntu DEB
 
@@ -84,7 +84,7 @@ bash scripts/build-rpm.sh
 
 Output: `artifacts/installer/piclens-<version>-<release>.<architecture>.rpm`.
 
-The Linux package wrappers use the shared `build-linux-package.sh`, run the configured build and tests unless explicitly disabled, generate a package through CPack, verify package metadata and print SHA-256.
+The Linux package wrappers use the shared `build-linux-package.sh`, run the configured build and tests unless explicitly disabled, generate a package through CPack, verify package metadata and print SHA-256. DEB defaults to `build/linux-deb-release`; RPM defaults to `build/fedora-rpm-release`, so portable、DEB and RPM no longer exchange policy through one CMake cache.
 
 ```bash
 bash scripts/build-deb.sh --dry-run

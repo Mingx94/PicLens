@@ -24,6 +24,39 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
+    },
+    {
+      "name": "linux-portable-release",
+      "displayName": "Linux portable Release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-portable-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PICLENS_SYSTEM_PACKAGE": "OFF",
+        "PICLENS_USE_SYSTEM_QT": "OFF"
+      }
+    },
+    {
+      "name": "linux-deb-release",
+      "displayName": "Linux DEB Release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-deb-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PICLENS_SYSTEM_PACKAGE": "ON",
+        "PICLENS_USE_SYSTEM_QT": "OFF"
+      }
+    },
+    {
+      "name": "fedora-rpm-release",
+      "displayName": "Fedora RPM Release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/fedora-rpm-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PICLENS_SYSTEM_PACKAGE": "ON",
+        "PICLENS_USE_SYSTEM_QT": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -34,6 +67,18 @@
     {
       "name": "release",
       "configurePreset": "release"
+    },
+    {
+      "name": "linux-portable-release",
+      "configurePreset": "linux-portable-release"
+    },
+    {
+      "name": "linux-deb-release",
+      "configurePreset": "linux-deb-release"
+    },
+    {
+      "name": "fedora-rpm-release",
+      "configurePreset": "fedora-rpm-release"
     }
   ],
   "testPresets": [
@@ -47,6 +92,27 @@
     {
       "name": "release",
       "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-portable-release",
+      "configurePreset": "linux-portable-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-deb-release",
+      "configurePreset": "linux-deb-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "fedora-rpm-release",
+      "configurePreset": "fedora-rpm-release",
       "output": {
         "outputOnFailure": true
       }

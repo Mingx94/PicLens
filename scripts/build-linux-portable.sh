@@ -1,17 +1,52 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+usage() {
+    cat <<'EOF'
+Usage: build-linux-portable.sh [options]
+
+Options:
+  --build-dir PATH   Override the CMake build directory.
+  --output-dir PATH  Override the portable artifact directory.
+  -h, --help         Show this help.
+
+PICLENS_QT_BUILD_DIR and PICLENS_QT_OUTPUT_DIR remain supported as environment defaults.
+EOF
+}
+
 if [[ "$(uname -s)" != "Linux" ]]; then
     echo "Linux portable builds must run on Linux." >&2
     exit 2
 fi
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-qt_root="$(cd -- "$script_dir/.." && pwd)"
-repo_root="$qt_root"
-build_dir="${PICLENS_QT_BUILD_DIR:-$qt_root/build/release}"
+repo_root="$(cd -- "$script_dir/.." && pwd)"
 artifact_root="$repo_root/artifacts/qt-portable"
+build_dir="${PICLENS_QT_BUILD_DIR:-$repo_root/build/linux-portable-release}"
 output_dir="${PICLENS_QT_OUTPUT_DIR:-$artifact_root/PicLens-linux-x64}"
+
+while (($#)); do
+    case "$1" in
+        --build-dir)
+            build_dir="${2:?A build directory is required}"
+            shift 2
+            ;;
+        --output-dir)
+            output_dir="${2:?An output directory is required}"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown argument: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
 qt_source_root=""
 if [[ -n "${QT_ROOT_DIR:-}" ]]; then
     qt_source_root="$(dirname -- "$QT_ROOT_DIR")/Src"
@@ -25,10 +60,11 @@ case "$(realpath -m -- "$output_dir")" in
         ;;
 esac
 
-(cd -- "$qt_root" && cmake --preset release \
+cmake -S "$repo_root" -B "$build_dir" -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
     -DPICLENS_SYSTEM_PACKAGE=OFF \
     -DPICLENS_USE_SYSTEM_QT=OFF \
-    -DPICLENS_QT_SOURCE_ROOT="$qt_source_root")
+    -DPICLENS_QT_SOURCE_ROOT="$qt_source_root"
 cmake --build "$build_dir"
 ctest --test-dir "$build_dir" --output-on-failure
 

@@ -84,9 +84,9 @@ fi
 
 if [[ -z "$build_dir" ]]; then
     if [[ "$package_kind" == "deb" ]]; then
-        build_dir="$repo_root/build/release"
+        build_dir="$repo_root/build/linux-deb-release"
     else
-        build_dir="$repo_root/build/fedora"
+        build_dir="$repo_root/build/fedora-rpm-release"
     fi
 fi
 if [[ -z "$output_dir" ]]; then
