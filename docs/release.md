@@ -106,7 +106,7 @@ bash scripts/test-linux-package-lifecycle.sh --rpm <package.rpm>
 
 Changing `VERSION` alone does not start a release. A tag named `v<version>` runs Windows、Ubuntu and Fedora release gates. The tag must exactly match `VERSION`.
 
-A successful release publishes the Windows MSI and portable archive, Linux portable archive, DEB, RPM and `SHA256SUMS.txt`. To rebuild an existing tag, run **Qt release gates** manually with that tag in `release_tag`.
+A preflight job validates `VERSION`, the requested tag and the exact checkout ref before any platform build starts. Manual runs without `release_tag` execute gates against the selected commit but do not publish. A successful tagged release publishes the Windows MSI and portable archive, Linux portable archive, DEB, RPM and `SHA256SUMS.txt`. To rebuild an existing tag, run **Qt release gates** manually with that tag in `release_tag`.
 
 The workflow implementation is authoritative for exact runner versions, filenames and publication behavior. Current release automation still has known cleanup work around build-tree isolation, exact artifact manifests, signing and fail-closed license-source validation; do not infer stronger guarantees than the scripts actually enforce.
 
