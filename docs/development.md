@@ -35,7 +35,7 @@ git rev-parse --short HEAD
 
 新增 `.cpp`、`.h` 或 QML 檔時要同步更新對應 `CMakeLists.txt`；專案刻意使用明確 source lists，不使用自動 glob。
 
-`src/app/src/main.cpp` 除了正式啟動，也承擔 CLI smoke、screenshot、viewer launch 與 performance metrics。修改啟動流程時必須驗證這些診斷入口，不能只手動開啟 GUI。
+啟動責任分散於 `src/app/src/main.cpp`、`launch_options.cpp`、`application_bootstrap.cpp` 與 `runtime_diagnostics.cpp`。修改其中任何一項時，必須同時驗證 CLI smoke、screenshot、viewer launch、performance scroll 與 metrics，而不能只手動開啟 GUI。
 
 ## 安全界線
 

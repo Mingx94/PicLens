@@ -62,7 +62,13 @@ set_source_files_properties(
 
 qt_add_executable(piclens
     include/piclens/app/qml_registration.h
+    src/application_bootstrap.cpp
+    src/application_bootstrap.h
+    src/launch_options.cpp
+    src/launch_options.h
     src/main.cpp
+    src/runtime_diagnostics.cpp
+    src/runtime_diagnostics.h
 )
 
 if(WIN32)
