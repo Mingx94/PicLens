@@ -28,8 +28,4 @@ target_link_libraries(piclens_presentation
         Qt6::Concurrent
 )
 
-if(MSVC)
-    target_compile_options(piclens_presentation PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(piclens_presentation PRIVATE -Wall -Wextra -Wpedantic)
-endif()
+piclens_enable_warnings(piclens_presentation)

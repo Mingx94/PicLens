@@ -33,8 +33,4 @@ target_link_libraries(piclens_infrastructure
         Qt6::Gui
 )
 
-if(MSVC)
-    target_compile_options(piclens_infrastructure PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(piclens_infrastructure PRIVATE -Wall -Wextra -Wpedantic)
-endif()
+piclens_enable_warnings(piclens_infrastructure)

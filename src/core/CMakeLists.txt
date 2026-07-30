@@ -26,8 +26,4 @@ target_include_directories(piclens_core
 
 target_link_libraries(piclens_core PUBLIC Qt6::Core)
 
-if(MSVC)
-    target_compile_options(piclens_core PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(piclens_core PRIVATE -Wall -Wextra -Wpedantic)
-endif()
+piclens_enable_warnings(piclens_core)

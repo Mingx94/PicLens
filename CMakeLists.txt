@@ -46,6 +46,7 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Concurrent Core Gui Qml Quick QuickCont
 qt_standard_project_setup(REQUIRES 6.5)
 
 include(CTest)
+include(cmake/PicLensWarnings.cmake)
 
 add_subdirectory(src/core)
 add_subdirectory(src/infrastructure)
@@ -54,11 +55,8 @@ add_subdirectory(src/app)
 
 if(BUILD_TESTING)
     find_package(Qt6 6.5 REQUIRED COMPONENTS QuickTest Test)
-    add_subdirectory(tests/core)
-    add_subdirectory(tests/infrastructure)
-    add_subdirectory(tests/presentation)
-    add_subdirectory(tests/app)
-    add_subdirectory(tests/qml)
+    include(cmake/PicLensTesting.cmake)
+    add_subdirectory(tests)
 endif()
 
 set(CPACK_PACKAGE_NAME "PicLens")

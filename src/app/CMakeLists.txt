@@ -19,11 +19,7 @@ target_link_libraries(piclens_app
         Qt6::Concurrent
 )
 
-if(MSVC)
-    target_compile_options(piclens_app PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(piclens_app PRIVATE -Wall -Wextra -Wpedantic)
-endif()
+piclens_enable_warnings(piclens_app)
 
 set(PICLENS_QML_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/PicLens/Theme.qml
@@ -116,11 +112,7 @@ if(UNIX AND NOT APPLE)
     set_target_properties(piclens PROPERTIES INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
 endif()
 
-if(MSVC)
-    target_compile_options(piclens PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(piclens PRIVATE -Wall -Wextra -Wpedantic)
-endif()
+piclens_enable_warnings(piclens)
 
 install(TARGETS piclens
     BUNDLE DESTINATION .
@@ -186,33 +178,4 @@ elseif(EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtbase/LICENSES" AND
             RENAME libwebp-COPYING
         )
     endif()
-endif()
-
-if(BUILD_TESTING)
-    set(PICLENS_RUNTIME_DATA_ROOT "${CMAKE_BINARY_DIR}/Testing/runtime-data")
-    add_test(
-        NAME qml_runtime_data_prepare
-        COMMAND ${CMAKE_COMMAND} -E rm -rf ${PICLENS_RUNTIME_DATA_ROOT}
-    )
-    add_test(
-        NAME qml_runtime_smoke
-        COMMAND piclens
-            --smoke-ms 750
-            --data-root ${PICLENS_RUNTIME_DATA_ROOT}
-            --folder ${CMAKE_SOURCE_DIR}/assets
-    )
-    set_tests_properties(qml_runtime_smoke PROPERTIES
-        DEPENDS qml_runtime_data_prepare
-        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
-        TIMEOUT 20
-    )
-    add_test(
-        NAME qml_runtime_data_contract
-        COMMAND ${CMAKE_COMMAND}
-            -DROOT=${PICLENS_RUNTIME_DATA_ROOT}
-            -P ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/app/check_runtime_data.cmake
-    )
-    set_tests_properties(qml_runtime_data_contract PROPERTIES
-        DEPENDS qml_runtime_smoke
-    )
 endif()

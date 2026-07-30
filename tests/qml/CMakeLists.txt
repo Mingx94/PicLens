@@ -11,6 +11,7 @@ target_link_libraries(
         Qt6::QuickTest
 )
 set_target_properties(piclens_qml_tests PROPERTIES WIN32_EXECUTABLE FALSE)
+piclens_enable_warnings(piclens_qml_tests)
 target_compile_definitions(
     piclens_qml_tests
     PRIVATE QUICK_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
@@ -71,5 +72,6 @@ add_test(
 )
 set_tests_properties(qml_components PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "qml;unit;gui"
     TIMEOUT 20
 )
