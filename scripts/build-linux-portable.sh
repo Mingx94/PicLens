@@ -64,6 +64,7 @@ cmake -S "$repo_root" -B "$build_dir" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DPICLENS_SYSTEM_PACKAGE=OFF \
     -DPICLENS_USE_SYSTEM_QT=OFF \
+    -DPICLENS_REQUIRE_BUNDLED_LICENSES=ON \
     -DPICLENS_QT_SOURCE_ROOT="$qt_source_root"
 cmake --build "$build_dir"
 ctest --test-dir "$build_dir" --output-on-failure

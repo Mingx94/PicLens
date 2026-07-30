@@ -14,6 +14,7 @@ endif()
 
 option(PICLENS_SYSTEM_PACKAGE "Install desktop integration into system locations for DEB/RPM" OFF)
 option(PICLENS_USE_SYSTEM_QT "Use distribution Qt packages instead of deploying Qt libraries" OFF)
+option(PICLENS_REQUIRE_BUNDLED_LICENSES "Fail configuration when bundled Qt license sources are unavailable" OFF)
 set(PICLENS_QT_SOURCE_ROOT "" CACHE PATH "Optional Qt source root used to package license texts")
 if(UNIX AND PICLENS_SYSTEM_PACKAGE)
     set(

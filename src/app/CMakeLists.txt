@@ -151,14 +151,11 @@ install(
     DESTINATION ${PICLENS_DESKTOP_DESTINATION}
 )
 get_filename_component(PICLENS_QT_INSTALL_PREFIX "${Qt6_DIR}/../../.." ABSOLUTE)
-if(EXISTS "${PICLENS_QT_INSTALL_PREFIX}/LICENSES")
-    install(
-        DIRECTORY "${PICLENS_QT_INSTALL_PREFIX}/LICENSES/"
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/Qt
-    )
-elseif(EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtbase/LICENSES" AND
-       EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtdeclarative/LICENSES" AND
-       EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtimageformats/LICENSES")
+set(PICLENS_BUNDLED_LICENSES_CONFIGURED OFF)
+if(EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtbase/LICENSES" AND
+   EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtdeclarative/LICENSES" AND
+   EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtimageformats/LICENSES" AND
+   EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtimageformats/src/3rdparty/libwebp/COPYING")
     install(
         DIRECTORY "${PICLENS_QT_SOURCE_ROOT}/qtbase/LICENSES/"
         DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/Qt/qtbase
@@ -171,11 +168,22 @@ elseif(EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtbase/LICENSES" AND
         DIRECTORY "${PICLENS_QT_SOURCE_ROOT}/qtimageformats/LICENSES/"
         DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/Qt/qtimageformats
     )
-    if(EXISTS "${PICLENS_QT_SOURCE_ROOT}/qtimageformats/src/3rdparty/libwebp/COPYING")
-        install(
-            FILES "${PICLENS_QT_SOURCE_ROOT}/qtimageformats/src/3rdparty/libwebp/COPYING"
-            DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/Qt/qtimageformats
-            RENAME libwebp-COPYING
-        )
-    endif()
+    install(
+        FILES "${PICLENS_QT_SOURCE_ROOT}/qtimageformats/src/3rdparty/libwebp/COPYING"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/Qt/qtimageformats
+        RENAME libwebp-COPYING
+    )
+    set(PICLENS_BUNDLED_LICENSES_CONFIGURED ON)
+elseif(NOT PICLENS_REQUIRE_BUNDLED_LICENSES AND EXISTS "${PICLENS_QT_INSTALL_PREFIX}/LICENSES")
+    install(
+        DIRECTORY "${PICLENS_QT_INSTALL_PREFIX}/LICENSES/"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/Qt
+    )
+    set(PICLENS_BUNDLED_LICENSES_CONFIGURED ON)
+endif()
+if(PICLENS_REQUIRE_BUNDLED_LICENSES AND NOT PICLENS_BUNDLED_LICENSES_CONFIGURED)
+    message(FATAL_ERROR
+        "Bundled release requires Qt base/declarative/imageformats and libwebp license sources. "
+        "Set PICLENS_QT_SOURCE_ROOT to a matching Qt source tree."
+    )
 endif()

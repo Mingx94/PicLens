@@ -88,6 +88,8 @@ The Linux package wrappers use the shared `build-linux-package.sh`, run the conf
 
 Each package run clears its own `package-output/<kind>` staging directory and requires exactly one generated package. It writes `piclens-deb-manifest.json` or `piclens-rpm-manifest.json` beside the copied artifact with schema version、package version、architecture、filename、byte count and SHA-256. Lifecycle and publish jobs resolve the exact package from that manifest instead of choosing by mtime or a broad wildcard.
 
+Bundled Linux releases configure `PICLENS_REQUIRE_BUNDLED_LICENSES=ON`. Configuration fails unless matching Qt base、declarative、imageformats and libwebp license sources can be installed from the Qt installation or `PICLENS_QT_SOURCE_ROOT`. System-Qt RPM builds keep this requirement disabled because Fedora packages own those runtime licenses.
+
 ```bash
 bash scripts/build-deb.sh --dry-run
 bash scripts/build-deb.sh --no-test

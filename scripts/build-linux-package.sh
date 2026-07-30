@@ -81,6 +81,10 @@ if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     echo "VERSION must contain a semantic version: $version" >&2
     exit 3
 fi
+qt_source_root="${PICLENS_QT_SOURCE_ROOT:-}"
+if [[ -z "$qt_source_root" && -n "${QT_ROOT_DIR:-}" ]]; then
+    qt_source_root="$(dirname -- "$QT_ROOT_DIR")/Src"
+fi
 
 if [[ -z "$build_dir" ]]; then
     if [[ "$package_kind" == "deb" ]]; then
@@ -124,11 +128,13 @@ if [[ "$package_kind" == "deb" ]]; then
     require_command dpkg-deb
     package_extension="deb"
     use_system_qt="OFF"
+    require_bundled_licenses="ON"
 else
     require_command rpm
     require_command rpmbuild
     package_extension="rpm"
     use_system_qt="ON"
+    require_bundled_licenses="OFF"
 fi
 
 echo "PicLens $package_kind installer version: $version"
@@ -139,7 +145,9 @@ if [[ "$no_build" == false ]]; then
     run cmake -S "$repo_root" -B "$build_dir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DPICLENS_SYSTEM_PACKAGE=ON \
-        -DPICLENS_USE_SYSTEM_QT="$use_system_qt"
+        -DPICLENS_USE_SYSTEM_QT="$use_system_qt" \
+        -DPICLENS_REQUIRE_BUNDLED_LICENSES="$require_bundled_licenses" \
+        -DPICLENS_QT_SOURCE_ROOT="$qt_source_root"
     run cmake --build "$build_dir"
     if [[ "$no_test" == false ]]; then
         run ctest --test-dir "$build_dir" --output-on-failure

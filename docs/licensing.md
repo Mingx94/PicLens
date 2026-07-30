@@ -27,7 +27,7 @@ For every release candidate:
 
 1. Record the actual Qt edition, version, source and target platform.
 2. Generate the runtime/dependency inventory from the final staged artifact.
-3. Confirm PicLens MIT license and third-party notices are present at the documented package locations.
+3. Confirm PicLens MIT license and third-party notices are present at the documented package locations. Bundled Linux package configuration must use `PICLENS_REQUIRE_BUNDLED_LICENSES=ON` so missing Qt/libwebp license sources fail before packaging.
 4. Confirm bundled Qt modules/plugins have matching license sources or distribution-provided notices.
 5. Review compiler runtimes、image codecs、fonts and dynamically loaded plugins.
 6. Re-run the review after signing or any operation that changes the final artifact.
