@@ -95,7 +95,25 @@ signals:
         const QString &details);
 
 private:
+    struct OperationTaskResult {
+        std::optional<core::FileOperationResult> result;
+        core::FileOperationBatchResult batch;
+        QString exceptionDetails;
+        bool canceled = false;
+    };
+    using OperationFunction = std::function<OperationTaskResult(std::stop_token)>;
+    using OperationCompletion = std::function<void(const OperationTaskResult &)>;
+
     void setBusy(bool busy);
+    void runOperation(
+        QString inProgressStatus,
+        OperationFunction function,
+        OperationCompletion completion);
+    [[nodiscard]] bool handleOperationInterruption(
+        const OperationTaskResult &task,
+        const QString &operation,
+        const QString &canceledStatus,
+        const QString &errorStatus);
     void finishForFolder(const QString &folderPath);
     void reportFailure(const QString &operation, const core::FileOperationResult &result);
     void startBatch(
