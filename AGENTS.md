@@ -1,9 +1,20 @@
-專案文件入口放在 `docs/README.md`
+- Delete obsolete paths. Ship only current code.
+- Use simplest code that meets needs now.
+- Build in layers. Ship smallest working version first. Add on top of working product.
+- Keep modules separate with clear concerns.
+- Prefer mature libraries that simplify or stabilize.
+- Check existing deps, docs, and types first.
+- Design for the long term.
+- Study proven products. Adopt their patterns.
 
-Every implementation task that changes files MUST end with a git commit before the final response.
+---
 
-- Inspect `git status` before editing and treat pre-existing or concurrent changes as user-owned.
-- Review the final diff and run proportionate verification before committing.
-- Stage only files or hunks that belong to the current task. Never bundle unrelated changes unless the user explicitly asks.
-- Use a concise descriptive commit message on `main`, report the commit hash, and do not push, amend, or rewrite history unless asked.
-- Read-only tasks and tasks with no file changes do not create empty commits.
+File changes:
+
+1. `git status`. Preserve existing work.
+2. Change and stage task work only.
+3. Review the diff. Run fitting checks.
+4. Commit on `main`. Short message. Report hash.
+
+Push/amend/rewrite need explicit request.
+Read-only work: report.
