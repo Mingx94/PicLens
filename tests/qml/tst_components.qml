@@ -13,7 +13,7 @@ TestCase {
         id: toolbarButtonComponent
         ToolbarButton {
             text: "開啟資料夾"
-            iconName: "plus"
+            iconName: "folder-open"
         }
     }
 
@@ -110,6 +110,7 @@ TestCase {
         compare(button.implicitHeight, Theme.controlHeight)
         compare(button.Accessible.name, button.text)
         compare(button.Accessible.role, Accessible.Button)
+        compare(button.iconName, "folder-open")
         button.click()
         compare(clickedSpy.count, 1)
     }

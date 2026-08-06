@@ -225,7 +225,7 @@ ApplicationWindow {
                     font.pixelSize: 12
                 }
                 ToolbarButton {
-                    iconName: "plus"
+                    iconName: "folder-open"
                     text: "開啟資料夾"
                     primary: true
                     onClicked: folderDialog.open()
