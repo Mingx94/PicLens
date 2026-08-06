@@ -200,9 +200,9 @@ jobs:
           cp "release-assets/PicLens-Windows/installer/PicLens-${version}-win-x64.msi" \
             release-assets/publish/
           deb_name="$(python3 -c 'import json; print(json.load(open("release-assets/PicLens-Linux/installer/piclens-deb-manifest.json"))["file"])')"
-          rpm_name="$(python3 -c 'import json; print(json.load(open("release-assets/PicLens-Fedora-RPM/installer/piclens-rpm-manifest.json"))["file"])')"
+          rpm_name="$(python3 -c 'import json; print(json.load(open("release-assets/PicLens-Fedora-RPM/piclens-rpm-manifest.json"))["file"])')"
           cp "release-assets/PicLens-Linux/installer/$deb_name" release-assets/publish/
-          cp "release-assets/PicLens-Fedora-RPM/installer/$rpm_name" release-assets/publish/
+          cp "release-assets/PicLens-Fedora-RPM/$rpm_name" release-assets/publish/
           (
             cd release-assets/publish
             sha256sum * > SHA256SUMS.txt
