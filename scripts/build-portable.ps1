@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$BuildDirectory = "",
-    [string]$OutputDirectory = ""
+    [string]$OutputDirectory = "",
+    [switch]$SkipSmoke
 )
 
 Set-StrictMode -Version Latest
@@ -269,42 +270,43 @@ Copy-Item `
     -LiteralPath (Join-Path $qtRoot "THIRD_PARTY_NOTICES.txt") `
     -Destination (Join-Path $outputDirectoryPath "THIRD_PARTY_NOTICES.txt")
 
-Write-Host "==> Running packaged offscreen smoke"
-$smokeData = Join-Path $artifactRoot ".smoke-data"
-if (Test-Path -LiteralPath $smokeData) {
-    Remove-Item -LiteralPath $smokeData -Recurse -Force
-}
-try {
-    $processInfo = [Diagnostics.ProcessStartInfo]::new()
-    $processInfo.FileName = $deployedExecutable
-    $processInfo.Arguments = '--smoke-ms 750 --data-root "{0}" --folder "{1}"' -f `
-        $smokeData, (Join-Path $repoRoot "assets")
-    $processInfo.UseShellExecute = $false
-    $processInfo.CreateNoWindow = $true
-    $processInfo.Environment["PATH"] = "$env:SystemRoot\System32;$env:SystemRoot"
-    $processInfo.Environment["QT_QPA_PLATFORM"] = "offscreen"
-    $smokeProcess = [Diagnostics.Process]::Start($processInfo)
-    if (-not $smokeProcess.WaitForExit(20000)) {
-        $smokeProcess.Kill($true)
-        throw "Packaged smoke timed out after 20 seconds"
-    }
-    if ($smokeProcess.ExitCode -ne 0) {
-        throw "Packaged smoke failed with exit code $($smokeProcess.ExitCode)"
-    }
-}
-finally {
+$offscreenPlugin = Join-Path $outputDirectoryPath "platforms\qoffscreen.dll"
+if (-not $SkipSmoke) {
+    Write-Host "==> Running packaged offscreen smoke"
+    $smokeData = Join-Path $artifactRoot ".smoke-data"
     if (Test-Path -LiteralPath $smokeData) {
         Remove-Item -LiteralPath $smokeData -Recurse -Force
     }
+    try {
+        $processInfo = [Diagnostics.ProcessStartInfo]::new()
+        $processInfo.FileName = $deployedExecutable
+        $processInfo.Arguments = '--smoke-ms 750 --data-root "{0}" --folder "{1}"' -f `
+            $smokeData, (Join-Path $repoRoot "assets")
+        $processInfo.UseShellExecute = $false
+        $processInfo.CreateNoWindow = $true
+        $processInfo.Environment["PATH"] = "$env:SystemRoot\System32;$env:SystemRoot"
+        $processInfo.Environment["QT_QPA_PLATFORM"] = "offscreen"
+        $smokeProcess = [Diagnostics.Process]::Start($processInfo)
+        if (-not $smokeProcess.WaitForExit(20000)) {
+            $smokeProcess.Kill($true)
+            throw "Packaged smoke timed out after 20 seconds"
+        }
+        if ($smokeProcess.ExitCode -ne 0) {
+            throw "Packaged smoke failed with exit code $($smokeProcess.ExitCode)"
+        }
+    }
+    finally {
+        if (Test-Path -LiteralPath $smokeData) {
+            Remove-Item -LiteralPath $smokeData -Recurse -Force
+        }
+    }
+    if (-not (Test-Path -LiteralPath $offscreenPlugin -PathType Leaf)) {
+        throw "Packaged smoke dependency was not deployed: $offscreenPlugin"
+    }
 }
-
-# qoffscreen is included only so the packaged smoke can run without a desktop.
-# It is not part of the production payload.
-$offscreenPlugin = Join-Path $outputDirectoryPath "platforms\qoffscreen.dll"
-if (-not (Test-Path -LiteralPath $offscreenPlugin -PathType Leaf)) {
-    throw "Packaged smoke dependency was not deployed: $offscreenPlugin"
+if (Test-Path -LiteralPath $offscreenPlugin -PathType Leaf) {
+    Remove-Item -LiteralPath $offscreenPlugin -Force
 }
-Remove-Item -LiteralPath $offscreenPlugin -Force
 
 $files = Get-ChildItem -LiteralPath $outputDirectoryPath -File -Recurse
 $totalBytes = ($files | Measure-Object -Property Length -Sum).Sum

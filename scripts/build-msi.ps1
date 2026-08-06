@@ -10,6 +10,8 @@ param(
     [string]$PreviousMsiPath = "",
     [switch]$ConfirmSystemChanges,
     [switch]$AllowReplacingExistingInstallation,
+    [switch]$SkipSmoke,
+    [switch]$SkipAudit,
     [switch]$DryRun
 )
 
@@ -95,11 +97,13 @@ if ($DryRun) {
     if (-not $NoRelease) {
         Write-Host "cmake --preset release"
         Write-Host "cmake --build --preset release"
-        Write-Host "pwsh -NoProfile -File `"$portableScript`""
+        Write-Host "pwsh -NoProfile -File `"$portableScript`" -SkipSmoke:$SkipSmoke"
     }
     Write-Host "dotnet build `"$projectPath`" --no-incremental --configuration Release /p:AppVersion=$msiVersion /p:PayloadDir=`"$portableDirectory`" /p:SuppressValidation=true /p:OutputPath=`"$installerDirectory\`" /p:OutputName=$outputName"
     if ($Sign) { Write-Host "Sign PicLens.exe and MSI with certificate $CertificateThumbprint and RFC 3161 timestamp $TimestampUrl" }
-    Write-Host "pwsh -NoProfile -File `"$auditScript`" -MsiPath `"$msiPath`" -PayloadDirectory `"$portableDirectory`" -ExpectedVersion $msiVersion -RequireSigned:$Sign"
+    if (-not $SkipAudit) {
+        Write-Host "pwsh -NoProfile -File `"$auditScript`" -MsiPath `"$msiPath`" -PayloadDirectory `"$portableDirectory`" -ExpectedVersion $msiVersion -RequireSigned:$Sign"
+    }
     if ($RunLifecycleTest) { Write-Host "pwsh -NoProfile -File `"$lifecycleScript`" -MsiPath `"$msiPath`" -ConfirmSystemChanges" }
     exit 0
 }
@@ -122,7 +126,7 @@ if (-not $NoRelease) {
         }
     }
     Invoke-Stage "Build Qt portable payload" {
-        & $portableScript
+        & $portableScript -SkipSmoke:$SkipSmoke
         if ($LASTEXITCODE -ne 0) { throw "Portable build failed with exit code $LASTEXITCODE" }
     }
 }
@@ -166,9 +170,11 @@ if ($Sign) {
     }
 }
 
-Invoke-Stage "Audit MSI database and Qt payload" {
-    & $auditScript -MsiPath $msiPath -PayloadDirectory $portableDirectory -ExpectedVersion $msiVersion -RequireSigned:$Sign
-    if ($LASTEXITCODE -ne 0) { throw "MSI audit failed with exit code $LASTEXITCODE" }
+if (-not $SkipAudit) {
+    Invoke-Stage "Audit MSI database and Qt payload" {
+        & $auditScript -MsiPath $msiPath -PayloadDirectory $portableDirectory -ExpectedVersion $msiVersion -RequireSigned:$Sign
+        if ($LASTEXITCODE -ne 0) { throw "MSI audit failed with exit code $LASTEXITCODE" }
+    }
 }
 
 

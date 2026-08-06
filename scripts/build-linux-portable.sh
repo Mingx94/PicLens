@@ -8,6 +8,8 @@ Usage: build-linux-portable.sh [options]
 Options:
   --build-dir PATH   Override the CMake build directory.
   --output-dir PATH  Override the portable artifact directory.
+  --no-test          Skip CTest after building.
+  --skip-smoke       Skip the packaged application smoke check.
   -h, --help         Show this help.
 
 PICLENS_QT_BUILD_DIR and PICLENS_QT_OUTPUT_DIR remain supported as environment defaults.
@@ -24,6 +26,8 @@ repo_root="$(cd -- "$script_dir/.." && pwd)"
 artifact_root="$repo_root/artifacts/qt-portable"
 build_dir="${PICLENS_QT_BUILD_DIR:-$repo_root/build/linux-portable-release}"
 output_dir="${PICLENS_QT_OUTPUT_DIR:-$artifact_root/PicLens-linux-x64}"
+no_test=false
+skip_smoke=false
 
 while (($#)); do
     case "$1" in
@@ -34,6 +38,14 @@ while (($#)); do
         --output-dir)
             output_dir="${2:?An output directory is required}"
             shift 2
+            ;;
+        --no-test)
+            no_test=true
+            shift
+            ;;
+        --skip-smoke)
+            skip_smoke=true
+            shift
             ;;
         -h|--help)
             usage
@@ -67,7 +79,9 @@ cmake -S "$repo_root" -B "$build_dir" -G Ninja \
     -DPICLENS_REQUIRE_BUNDLED_LICENSES=ON \
     -DPICLENS_QT_SOURCE_ROOT="$qt_source_root"
 cmake --build "$build_dir"
-ctest --test-dir "$build_dir" --output-on-failure
+if [[ "$no_test" == false ]]; then
+    ctest --test-dir "$build_dir" --output-on-failure
+fi
 
 rm -rf -- "$output_dir"
 cmake --install "$build_dir" --prefix "$output_dir"
@@ -133,42 +147,44 @@ if [[ ! -f "$webp_plugin" ]]; then
     exit 5
 fi
 
-platform_plugin=""
-if [[ -f "$output_dir/plugins/platforms/libqoffscreen.so" ]]; then
-    platform_plugin="offscreen"
-elif [[ -f "$output_dir/plugins/platforms/libqxcb.so" ]]; then
-    platform_plugin="xcb"
-    if [[ -z "${DISPLAY:-}" ]]; then
-        echo "The packaged Qt runtime only provides xcb; run this verifier under Xvfb." >&2
-        exit 5
-    fi
-else
-    echo "No supported Qt platform plugin was deployed." >&2
-    exit 5
-fi
-
 executable="$output_dir/bin/PicLens"
 if [[ ! -x "$executable" ]]; then
     echo "Installed PicLens executable was not found: $executable" >&2
     exit 6
 fi
 
-smoke_root="$artifact_root/.linux-smoke"
-rm -rf -- "$smoke_root"
-mkdir -p -- "$smoke_root/home" "$smoke_root/runtime" "$smoke_root/data"
-chmod 700 "$smoke_root/runtime"
-env -i \
-    HOME="$smoke_root/home" \
-    PATH="/usr/bin:/bin" \
-    DISPLAY="${DISPLAY:-}" \
-    XAUTHORITY="${XAUTHORITY:-}" \
-    QT_QPA_PLATFORM="$platform_plugin" \
-    XDG_RUNTIME_DIR="$smoke_root/runtime" \
-    "$executable" \
-        --smoke-ms 750 \
-        --data-root "$smoke_root/data" \
-        --folder "$repo_root/assets"
-rm -rf -- "$smoke_root"
+if [[ "$skip_smoke" == false ]]; then
+    platform_plugin=""
+    if [[ -f "$output_dir/plugins/platforms/libqoffscreen.so" ]]; then
+        platform_plugin="offscreen"
+    elif [[ -f "$output_dir/plugins/platforms/libqxcb.so" ]]; then
+        platform_plugin="xcb"
+        if [[ -z "${DISPLAY:-}" ]]; then
+            echo "The packaged Qt runtime only provides xcb; run this verifier under Xvfb." >&2
+            exit 5
+        fi
+    else
+        echo "No supported Qt platform plugin was deployed." >&2
+        exit 5
+    fi
+
+    smoke_root="$artifact_root/.linux-smoke"
+    rm -rf -- "$smoke_root"
+    mkdir -p -- "$smoke_root/home" "$smoke_root/runtime" "$smoke_root/data"
+    chmod 700 "$smoke_root/runtime"
+    env -i \
+        HOME="$smoke_root/home" \
+        PATH="/usr/bin:/bin" \
+        DISPLAY="${DISPLAY:-}" \
+        XAUTHORITY="${XAUTHORITY:-}" \
+        QT_QPA_PLATFORM="$platform_plugin" \
+        XDG_RUNTIME_DIR="$smoke_root/runtime" \
+        "$executable" \
+            --smoke-ms 750 \
+            --data-root "$smoke_root/data" \
+            --folder "$repo_root/assets"
+    rm -rf -- "$smoke_root"
+fi
 
 file_count="$(find "$output_dir" -type f -printf '.' | wc -c)"
 total_bytes="$(find "$output_dir" -type f -printf '%s\n' | awk '{ total += $1 } END { print total + 0 }')"

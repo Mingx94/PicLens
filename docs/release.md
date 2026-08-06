@@ -16,6 +16,8 @@ The script uses an existing Release build, verifies the native application icon,
 
 The current script does not claim a general scan for absolute build-machine paths embedded inside artifact contents.
 
+`-SkipSmoke` builds the portable payload without its packaged smoke. Release automation uses it for packaging-only jobs.
+
 ## Windows MSI
 
 ```powershell
@@ -35,6 +37,8 @@ pwsh -NoProfile -File scripts/build-msi.ps1 -NoClean
 ```
 
 `-NoRelease` requires an existing portable payload. The optional `-Version` parameter is reserved for local WiX rehearsal; it must not be used to publish a release because it can label the MSI independently from the executable built from `VERSION`.
+
+`-SkipSmoke -SkipAudit` keeps a packaging-only CI job to build work; local release validation should retain the defaults.
 
 ### Signing
 
@@ -68,7 +72,7 @@ bash scripts/build-linux-portable.sh
 
 Output: `artifacts/qt-portable/PicLens-linux-x64/`.
 
-The script configures the isolated `build/linux-portable-release` tree, builds/tests, deploys required libraries/plugins and performs a sanitized smoke. The output is a complete directory, not a single-file executable. `--build-dir` and `--output-dir` provide explicit overrides; the legacy `PICLENS_QT_BUILD_DIR` and `PICLENS_QT_OUTPUT_DIR` environment defaults remain supported.
+The script configures the isolated `build/linux-portable-release` tree, builds/tests, deploys required libraries/plugins and performs a sanitized smoke. The output is a complete directory, not a single-file executable. `--build-dir` and `--output-dir` provide explicit overrides; the legacy `PICLENS_QT_BUILD_DIR` and `PICLENS_QT_OUTPUT_DIR` environment defaults remain supported. `--no-test --skip-smoke` produces the portable artifact without test or smoke execution for packaging-only CI.
 
 ## Debian / Ubuntu DEB
 

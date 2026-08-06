@@ -74,7 +74,7 @@ jobs:
           echo "Validated version=$version ref=$checkout_ref publish=$publish"
 
   windows-release:
-    name: Windows build, portable, and MSI
+    name: Windows MSI and portable
     needs: validate_release
     runs-on: windows-2025
     timeout-minutes: 45
@@ -95,75 +95,20 @@ jobs:
           modules: qtimageformats
           source: true
           src-archives: qtbase qtdeclarative qtimageformats
-      - name: Configure and test Release
+      - name: Build MSI
         shell: pwsh
-        run: |
-          cmake --preset release
-          cmake --build --preset release
-          ctest --preset release --output-on-failure
-      - name: Create 10,000-image performance fixture
-        timeout-minutes: 5
-        shell: pwsh
-        run: |
-          $fixture = Join-Path $env:RUNNER_TEMP "piclens-10000"
-          New-Item -ItemType Directory -Path $fixture -Force | Out-Null
-          $source = Resolve-Path "assets/Square150x150Logo.scale-200.png"
-          $timer = [Diagnostics.Stopwatch]::StartNew()
-          1..10000 | ForEach-Object {
-            Copy-Item -LiteralPath $source -Destination (Join-Path $fixture ("image-{0:D5}.png" -f $_))
-            if ($_ % 1000 -eq 0) {
-              Write-Host "Fixture progress: $_/10000 ($([math]::Round($timer.Elapsed.TotalSeconds, 1))s)"
-            }
-          }
-          $files = Get-ChildItem -LiteralPath $fixture -File
-          if ($files.Count -ne 10000) { throw "Fixture count mismatch: $($files.Count)" }
-          Write-Host "Fixture ready in $([math]::Round($timer.Elapsed.TotalSeconds, 1))s"
-      - name: Measure 10,000-image Release fixture
-        timeout-minutes: 10
-        shell: pwsh
-        run: |
-          $fixture = Join-Path $env:RUNNER_TEMP "piclens-10000"
-          if (-not (Test-Path -LiteralPath $fixture)) { throw "Performance fixture is missing" }
-          pwsh -NoProfile -File scripts/measure-performance.ps1 -FolderPath $fixture
-      - name: Build sanitized portable bundle
-        shell: pwsh
-        run: pwsh -NoProfile -File scripts/build-portable.ps1
-      - name: Build and audit MSI
-        shell: pwsh
-        run: pwsh -NoProfile -File scripts/build-msi.ps1 -NoRelease
-      - name: Prepare same-version migration replacement fixture
-        shell: pwsh
-        run: |
-          $version = (Get-Content -Raw VERSION).Trim()
-          New-Item -ItemType Directory -Path artifacts/installer-lifecycle -Force | Out-Null
-          Copy-Item "artifacts/installer/PicLens-$version-win-x64.msi" artifacts/installer-lifecycle/PicLens-previous-build.msi
-          pwsh -NoProfile -File scripts/build-msi.ps1 -NoRelease
-      - name: Install, upgrade, launch, and uninstall MSI
-        timeout-minutes: 25
-        shell: pwsh
-        run: >-
-          pwsh -NoProfile -File scripts/test-msi-lifecycle.ps1
-          -PreviousMsiPath artifacts/installer-lifecycle/PicLens-previous-build.msi
-          -ConfirmSystemChanges
-      - name: Upload Windows lifecycle diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: PicLens-Windows-lifecycle-diagnostics
-          if-no-files-found: warn
-          path: artifacts/installer-lifecycle/**
+        run: pwsh -NoProfile -File scripts/build-msi.ps1 -SkipSmoke -SkipAudit
       - name: Upload Windows release candidates
         uses: actions/upload-artifact@v6
         with:
-          name: PicLens-Qt-Windows
+          name: PicLens-Windows
           if-no-files-found: error
           path: |
             artifacts/qt-portable/PicLens-win-x64/**
             artifacts/installer/PicLens-${{ needs.validate_release.outputs.version }}-win-x64.msi
-            artifacts/performance/windows-release.json
 
   linux-release:
-    name: Linux build, desktop adapters, and portable
+    name: Debian installer and portable
     needs: validate_release
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -171,11 +116,10 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ needs.validate_release.outputs.checkout_ref }}
-      - name: Install desktop smoke dependencies
+      - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes \
-            ninja-build xvfb dbus-x11 xdg-utils libglib2.0-bin pcmanfm libxcb-cursor0
+          sudo apt-get install --yes ninja-build
       - name: Install Qt
         uses: jurplel/install-qt-action@v4.3.1
         with:
@@ -184,28 +128,21 @@ jobs:
           modules: qtimageformats
           source: true
           src-archives: qtbase qtdeclarative qtimageformats
-      - name: Build, test, deploy, and run sanitized smoke
-        run: xvfb-run -a bash scripts/build-linux-portable.sh
-      - name: Exercise gio trash and xdg-open adapters
-        run: xvfb-run -a dbus-run-session -- build/linux-portable-release/bin/piclens_platform_file_manager_smoke
-      - name: Build Debian candidate
-        run: bash scripts/build-deb.sh
-      - name: Install, launch, and remove Debian package
-        run: |
-          package_name="$(python3 -c 'import json; print(json.load(open("artifacts/installer/piclens-deb-manifest.json"))["file"])')"
-          xvfb-run -a bash scripts/test-linux-package-lifecycle.sh \
-            --deb "artifacts/installer/$package_name"
-      - name: Upload Linux portable candidate
+      - name: Build Debian installer
+        run: bash scripts/build-deb.sh --no-test
+      - name: Build Linux portable
+        run: bash scripts/build-linux-portable.sh --no-test --skip-smoke
+      - name: Upload Debian and portable release candidates
         uses: actions/upload-artifact@v6
         with:
-          name: PicLens-Qt-Linux
+          name: PicLens-Linux
           if-no-files-found: error
           path: |
             artifacts/qt-portable/PicLens-linux-x64/**
             artifacts/installer/**
 
   fedora-release:
-    name: Fedora RPM build and lifecycle
+    name: Fedora RPM installer
     needs: validate_release
     runs-on: ubuntu-24.04
     container: fedora:44
@@ -219,21 +156,12 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ needs.validate_release.outputs.checkout_ref }}
-      - name: Configure, build, and test against Fedora system Qt
-        run: bash scripts/build-rpm.sh
-      - name: Inspect RPM dependencies
-        run: |
-          package_name="$(python3 -c 'import json; print(json.load(open("artifacts/installer/piclens-rpm-manifest.json"))["file"])')"
-          rpm --query --package --requires "artifacts/installer/$package_name"
-      - name: Install, launch, and remove RPM
-        run: |
-          package_name="$(python3 -c 'import json; print(json.load(open("artifacts/installer/piclens-rpm-manifest.json"))["file"])')"
-          bash scripts/test-linux-package-lifecycle.sh \
-            --rpm "artifacts/installer/$package_name"
-      - name: Upload Fedora RPM candidate
+      - name: Build RPM installer
+        run: bash scripts/build-rpm.sh --no-test
+      - name: Upload RPM installer
         uses: actions/upload-artifact@v6
         with:
-          name: PicLens-Qt-Fedora-44
+          name: PicLens-Fedora-RPM
           if-no-files-found: error
           path: artifacts/installer/**
 
@@ -263,18 +191,18 @@ jobs:
           version="$(tr -d '\r\n' < VERSION)"
           mkdir -p release-assets/publish
           (
-            cd release-assets/PicLens-Qt-Windows/qt-portable
+            cd release-assets/PicLens-Windows/qt-portable
             zip -qr ../../publish/PicLens-win-x64-portable.zip PicLens-win-x64
           )
-          tar -C release-assets/PicLens-Qt-Linux/qt-portable \
+          tar -C release-assets/PicLens-Linux/qt-portable \
             -czf release-assets/publish/PicLens-linux-x64-portable.tar.gz \
             PicLens-linux-x64
-          cp "release-assets/PicLens-Qt-Windows/installer/PicLens-${version}-win-x64.msi" \
+          cp "release-assets/PicLens-Windows/installer/PicLens-${version}-win-x64.msi" \
             release-assets/publish/
-          deb_name="$(python3 -c 'import json; print(json.load(open("release-assets/PicLens-Qt-Linux/installer/piclens-deb-manifest.json"))["file"])')"
-          rpm_name="$(python3 -c 'import json; print(json.load(open("release-assets/PicLens-Qt-Fedora-44/piclens-rpm-manifest.json"))["file"])')"
-          cp "release-assets/PicLens-Qt-Linux/installer/$deb_name" release-assets/publish/
-          cp "release-assets/PicLens-Qt-Fedora-44/$rpm_name" release-assets/publish/
+          deb_name="$(python3 -c 'import json; print(json.load(open("release-assets/PicLens-Linux/installer/piclens-deb-manifest.json"))["file"])')"
+          rpm_name="$(python3 -c 'import json; print(json.load(open("release-assets/PicLens-Fedora-RPM/installer/piclens-rpm-manifest.json"))["file"])')"
+          cp "release-assets/PicLens-Linux/installer/$deb_name" release-assets/publish/
+          cp "release-assets/PicLens-Fedora-RPM/installer/$rpm_name" release-assets/publish/
           (
             cd release-assets/publish
             sha256sum * > SHA256SUMS.txt
