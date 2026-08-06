@@ -20,9 +20,22 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 if ([string]::IsNullOrWhiteSpace($Version)) {
     $Version = (Get-Content -Raw (Join-Path $repoRoot "VERSION")).Trim()
 }
-if ($Version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') {
-    throw "Installer version must contain three or four dot-separated numbers: $Version"
+if ($Version -notmatch '^(?<year>\d{2})\.(?<month>\d{2})(?<day>\d{2})\.(?<hour>\d{2})(?<minute>\d{2})$') {
+    throw "Installer version must use the UTC timestamp format YY.MMDD.HHmm: $Version"
 }
+$year = [int]$Matches['year']
+$month = [int]$Matches['month']
+$day = [int]$Matches['day']
+$hour = [int]$Matches['hour']
+$minute = [int]$Matches['minute']
+try {
+    [void][DateTime]::new(2000 + $year, $month, $day, $hour, $minute, 0)
+}
+catch {
+    throw "Installer version contains an invalid UTC timestamp: $Version"
+}
+$msiBuild = (($day - 1) * 1440) + ($hour * 60) + $minute
+$msiVersion = "$year.$month.$msiBuild"
 
 $portableDirectory = Join-Path $repoRoot "artifacts\qt-portable\PicLens-win-x64"
 $installerDirectory = Join-Path $repoRoot "artifacts\installer"
@@ -67,7 +80,8 @@ function Invoke-Stage([string]$Name, [scriptblock]$Action) {
     }
 }
 
-Write-Host "Windows MSI version: $Version"
+Write-Host "Windows release version: $Version"
+Write-Host "Windows MSI ProductVersion: $msiVersion"
 Write-Host "Portable payload: $portableDirectory"
 
 if ($Sign -and [string]::IsNullOrWhiteSpace($CertificateThumbprint)) {
@@ -83,9 +97,9 @@ if ($DryRun) {
         Write-Host "cmake --build --preset release"
         Write-Host "pwsh -NoProfile -File `"$portableScript`""
     }
-    Write-Host "dotnet build `"$projectPath`" --no-incremental --configuration Release /p:AppVersion=$Version /p:PayloadDir=`"$portableDirectory`" /p:SuppressValidation=true /p:OutputPath=`"$installerDirectory\`" /p:OutputName=$outputName"
+    Write-Host "dotnet build `"$projectPath`" --no-incremental --configuration Release /p:AppVersion=$msiVersion /p:PayloadDir=`"$portableDirectory`" /p:SuppressValidation=true /p:OutputPath=`"$installerDirectory\`" /p:OutputName=$outputName"
     if ($Sign) { Write-Host "Sign PicLens.exe and MSI with certificate $CertificateThumbprint and RFC 3161 timestamp $TimestampUrl" }
-    Write-Host "pwsh -NoProfile -File `"$auditScript`" -MsiPath `"$msiPath`" -PayloadDirectory `"$portableDirectory`" -ExpectedVersion $Version -RequireSigned:$Sign"
+    Write-Host "pwsh -NoProfile -File `"$auditScript`" -MsiPath `"$msiPath`" -PayloadDirectory `"$portableDirectory`" -ExpectedVersion $msiVersion -RequireSigned:$Sign"
     if ($RunLifecycleTest) { Write-Host "pwsh -NoProfile -File `"$lifecycleScript`" -MsiPath `"$msiPath`" -ConfirmSystemChanges" }
     exit 0
 }
@@ -133,7 +147,7 @@ if (-not $NoClean) {
 
 Invoke-Stage "Build WiX MSI" {
     & dotnet build $projectPath --no-incremental --configuration Release `
-        "/p:AppVersion=$Version" `
+        "/p:AppVersion=$msiVersion" `
         "/p:PayloadDir=$portableDirectory" `
         "/p:SuppressValidation=true" `
         "/p:OutputPath=$installerDirectory\" `
@@ -153,7 +167,7 @@ if ($Sign) {
 }
 
 Invoke-Stage "Audit MSI database and Qt payload" {
-    & $auditScript -MsiPath $msiPath -PayloadDirectory $portableDirectory -ExpectedVersion $Version -RequireSigned:$Sign
+    & $auditScript -MsiPath $msiPath -PayloadDirectory $portableDirectory -ExpectedVersion $msiVersion -RequireSigned:$Sign
     if ($LASTEXITCODE -ne 0) { throw "MSI audit failed with exit code $LASTEXITCODE" }
 }
 

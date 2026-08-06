@@ -77,8 +77,8 @@ fi
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "$script_dir/.." && pwd)"
 version="$(tr -d '[:space:]' < "$repo_root/VERSION")"
-if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "VERSION must contain a semantic version: $version" >&2
+if [[ ! "$version" =~ ^[0-9]{2}\.[0-9]{4}\.[0-9]{4}$ ]]; then
+    echo "VERSION must use the UTC timestamp format YY.MMDD.HHmm: $version" >&2
     exit 3
 fi
 qt_source_root="${PICLENS_QT_SOURCE_ROOT:-}"
