@@ -141,6 +141,8 @@ ApplicationWindow {
                 }
                 ToolbarButton {
                     iconName: "refresh"
+                    iconSize: 24
+                    iconStrokeWidth: 2
                     accessibleName: "重新整理圖庫"
                     enabled: window.appController.library.currentFolderPath.length > 0
                     ToolTip.text: "重新整理"
@@ -193,9 +195,10 @@ ApplicationWindow {
                     anchors.left: parent.left
                     anchors.leftMargin: 14
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 18
-                    height: 18
+                    width: 24
+                    height: 24
                     name: "search"
+                    strokeWidth: 2
                     color: Theme.secondaryText
                 }
                 ToolbarButton {

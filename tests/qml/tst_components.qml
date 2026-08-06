@@ -31,6 +31,15 @@ TestCase {
     }
 
     Component {
+        id: refreshButtonComponent
+        ToolbarButton {
+            iconName: "refresh"
+            iconSize: 24
+            iconStrokeWidth: 2
+        }
+    }
+
+    Component {
         id: appIconComponent
         AppIcon { }
     }
@@ -132,6 +141,24 @@ TestCase {
         compare(combo.leftPadding, Theme.space3)
         compare(combo.contentItem.leftPadding, 0)
         compare(combo.contentItem.rightPadding, 0)
+    }
+
+    function test_curveIconsUseNativePixelGrid() {
+        const refreshButton = createTemporaryObject(refreshButtonComponent, testCase)
+        verify(refreshButton !== null)
+        compare(refreshButton.iconSize, 24)
+        compare(refreshButton.iconStrokeWidth, 2)
+
+        const searchIcon = createTemporaryObject(appIconComponent, testCase, {
+            name: "search",
+            width: 24,
+            height: 24,
+            strokeWidth: 2
+        })
+        verify(searchIcon !== null)
+        compare(searchIcon.width, 24)
+        compare(searchIcon.height, 24)
+        compare(searchIcon.strokeWidth, 2)
     }
 
     function test_sidebarIconsExpressOppositeActions() {
