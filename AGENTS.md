@@ -7,6 +7,7 @@
 - Design for the long term.
 - Study proven products. Adopt their patterns.
 - Use the UTC release date and two-digit serial as every release version: `YY.MMDD.NN` (for example, `26.0806.01`).
+- Release: verify packages, push the matching `v<version>` tag to GitHub, and confirm the release Action succeeds.
 
 ---
 
