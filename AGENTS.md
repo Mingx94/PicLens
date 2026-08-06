@@ -6,7 +6,7 @@
 - Check existing deps, docs, and types first.
 - Design for the long term.
 - Study proven products. Adopt their patterns.
-- Use the build date as every release version: `YYYY.M.D` (for example, `2026.8.6`).
+- Use the UTC build timestamp as every release version: `YYYYMMDD.HHmm.ss` (for example, `20260806.1530.42`). Keep three numeric dot-separated fields.
 
 ---
 
