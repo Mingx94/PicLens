@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.21)
 
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" PICLENS_VERSION LIMIT_COUNT 1)
 string(STRIP "${PICLENS_VERSION}" PICLENS_VERSION)
-if(NOT PICLENS_VERSION MATCHES "^[0-9][0-9]\\.[0-9][0-9][0-9][0-9]\\.[0-9][0-9][0-9][0-9]$")
-    message(FATAL_ERROR "VERSION must use the UTC timestamp format YY.MMDD.HHmm, got: ${PICLENS_VERSION}")
+if(NOT PICLENS_VERSION MATCHES "^[0-9][0-9]\\.[0-9][0-9][0-9][0-9]\\.(0[1-9]|[1-9][0-9])$")
+    message(FATAL_ERROR "VERSION must use the UTC release format YY.MMDD.NN, got: ${PICLENS_VERSION}")
 endif()
 
 project(PicLensQt VERSION ${PICLENS_VERSION} LANGUAGES CXX)

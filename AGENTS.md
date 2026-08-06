@@ -6,7 +6,7 @@
 - Check existing deps, docs, and types first.
 - Design for the long term.
 - Study proven products. Adopt their patterns.
-- Use the UTC build timestamp as every release version: `YY.MMDD.HHmm` (for example, `26.0806.0252`).
+- Use the UTC release date and two-digit serial as every release version: `YY.MMDD.NN` (for example, `26.0806.01`).
 
 ---
 

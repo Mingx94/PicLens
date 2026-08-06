@@ -1,8 +1,8 @@
 # Release and packaging
 
-Root `VERSION` is the formal release version authority. Each release uses the UTC build timestamp format `YY.MMDD.HHmm`. Scripts、CMake install rules、WiX and `.github/workflows/release.yml` are the executable authorities; this document explains how to invoke them and which operations modify the host system.
+Root `VERSION` is the formal release version authority. Each release uses the UTC release date and two-digit serial format `YY.MMDD.NN`, starting at `01` each day. Scripts、CMake install rules、WiX and `.github/workflows/release.yml` are the executable authorities; this document explains how to invoke them and which operations modify the host system.
 
-The Windows MSI keeps the release timestamp in its filename, while its internal `ProductVersion` uses the legal numeric mapping `YY.MM.((DD - 1) * 1440 + HH * 60 + mm)`. This preserves chronological upgrades without exceeding the Windows Installer major/minor limits.
+The Windows MSI keeps the release version in its filename, while its internal `ProductVersion` uses the legal numeric mapping `YY.MM.((DD - 1) * 1440 + 1340 + NN)`. This reserves the last 100 build values of each day for serials `01` through `99`, preserves upgrades from the previous timestamp-based MSI and stays within Windows Installer limits.
 
 ## Windows portable
 

@@ -22,21 +22,20 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 if ([string]::IsNullOrWhiteSpace($Version)) {
     $Version = (Get-Content -Raw (Join-Path $repoRoot "VERSION")).Trim()
 }
-if ($Version -notmatch '^(?<year>\d{2})\.(?<month>\d{2})(?<day>\d{2})\.(?<hour>\d{2})(?<minute>\d{2})$') {
-    throw "Installer version must use the UTC timestamp format YY.MMDD.HHmm: $Version"
+if ($Version -notmatch '^(?<year>\d{2})\.(?<month>\d{2})(?<day>\d{2})\.(?<sequence>0[1-9]|[1-9]\d)$') {
+    throw "Installer version must use the UTC release format YY.MMDD.NN: $Version"
 }
 $year = [int]$Matches['year']
 $month = [int]$Matches['month']
 $day = [int]$Matches['day']
-$hour = [int]$Matches['hour']
-$minute = [int]$Matches['minute']
+$sequence = [int]$Matches['sequence']
 try {
-    [void][DateTime]::new(2000 + $year, $month, $day, $hour, $minute, 0)
+    [void][DateTime]::new(2000 + $year, $month, $day)
 }
 catch {
-    throw "Installer version contains an invalid UTC timestamp: $Version"
+    throw "Installer version contains an invalid UTC release date: $Version"
 }
-$msiBuild = (($day - 1) * 1440) + ($hour * 60) + $minute
+$msiBuild = (($day - 1) * 1440) + 1340 + $sequence
 $msiVersion = "$year.$month.$msiBuild"
 
 $portableDirectory = Join-Path $repoRoot "artifacts\qt-portable\PicLens-win-x64"
