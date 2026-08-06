@@ -54,8 +54,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Microsoft Fluent System Icons
 -----------------------------
-PicLens derives two 20px icon paths from Microsoft Fluent System Icons:
-arrow_sync_20_filled.svg and search_20_filled.svg.
+PicLens derives its application interface icon paths from Microsoft Fluent
+System Icons 20px variants.
 
 Copyright (c) 2020 Microsoft Corporation
 

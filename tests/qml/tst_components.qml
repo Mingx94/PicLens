@@ -31,10 +31,9 @@ TestCase {
     }
 
     Component {
-        id: multisampledIconButtonComponent
+        id: fluentIconButtonComponent
         ToolbarButton {
-            iconName: "refresh-filled"
-            iconMultisampled: true
+            iconName: "refresh"
         }
     }
 
@@ -142,11 +141,10 @@ TestCase {
         compare(combo.contentItem.rightPadding, 0)
     }
 
-    function test_filledIconsUseNative20pxCanvas() {
+    function test_fluentIconsUseNative20pxCanvas() {
         const icon = createTemporaryObject(appIconComponent, testCase, {
             width: 20,
-            height: 20,
-            multisampled: true
+            height: 20
         })
         verify(icon !== null)
 
@@ -155,19 +153,21 @@ TestCase {
         compare(shape.layer.enabled, true)
         compare(shape.layer.samples, 4)
 
-        icon.name = "refresh-filled"
-        compare(icon.pathSize, 20)
-        compare(icon.pathScale, 1)
-        verify(icon.pathForName().length > 0)
-
-        icon.name = "search-filled"
-        compare(icon.pathSize, 20)
-        compare(icon.pathScale, 1)
-        verify(icon.pathForName().length > 0)
+        const names = [
+            "chevron-left", "chevron-right", "chevron-down", "refresh", "search",
+            "zoom-in", "zoom-out", "fit", "close", "grid", "grid-filled", "list",
+            "more", "image", "folder-open", "sidebar-collapse", "sidebar-expand"
+        ]
+        for (const name of names) {
+            icon.name = name
+            compare(icon.pathSize, 20)
+            compare(icon.pathScale, 1)
+            verify(icon.pathForName().length > 0, name)
+        }
     }
 
-    function test_toolbarButtonPassesLocalMultisamplingToItsIcon() {
-        const button = createTemporaryObject(multisampledIconButtonComponent, testCase)
+    function test_toolbarButtonUsesAppIconMultisampling() {
+        const button = createTemporaryObject(fluentIconButtonComponent, testCase)
         verify(button !== null)
 
         const icon = findChild(button, "toolbarIcon")

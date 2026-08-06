@@ -140,8 +140,7 @@ ApplicationWindow {
                     }
                 }
                 ToolbarButton {
-                    iconName: "refresh-filled"
-                    iconMultisampled: true
+                    iconName: "refresh"
                     accessibleName: "重新整理圖庫"
                     enabled: window.appController.library.currentFolderPath.length > 0
                     ToolTip.text: "重新整理"
@@ -196,8 +195,7 @@ ApplicationWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 20
                     height: 20
-                    name: "search-filled"
-                    multisampled: true
+                    name: "search"
                     color: Theme.secondaryText
                 }
                 ToolbarButton {
