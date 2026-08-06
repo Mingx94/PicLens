@@ -6,6 +6,7 @@
 - Check existing deps, docs, and types first.
 - Design for the long term.
 - Study proven products. Adopt their patterns.
+- Use the build date as every release version: `YYYY.M.D` (for example, `2026.8.6`).
 
 ---
 
