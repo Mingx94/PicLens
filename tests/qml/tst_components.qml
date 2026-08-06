@@ -31,11 +31,10 @@ TestCase {
     }
 
     Component {
-        id: refreshButtonComponent
+        id: multisampledIconButtonComponent
         ToolbarButton {
-            iconName: "refresh"
-            iconSize: 24
-            iconStrokeWidth: 2
+            iconName: "refresh-filled"
+            iconMultisampled: true
         }
     }
 
@@ -143,22 +142,37 @@ TestCase {
         compare(combo.contentItem.rightPadding, 0)
     }
 
-    function test_curveIconsUseNativePixelGrid() {
-        const refreshButton = createTemporaryObject(refreshButtonComponent, testCase)
-        verify(refreshButton !== null)
-        compare(refreshButton.iconSize, 24)
-        compare(refreshButton.iconStrokeWidth, 2)
-
-        const searchIcon = createTemporaryObject(appIconComponent, testCase, {
-            name: "search",
-            width: 24,
-            height: 24,
-            strokeWidth: 2
+    function test_filledIconsUseNative20pxCanvas() {
+        const icon = createTemporaryObject(appIconComponent, testCase, {
+            width: 20,
+            height: 20,
+            multisampled: true
         })
-        verify(searchIcon !== null)
-        compare(searchIcon.width, 24)
-        compare(searchIcon.height, 24)
-        compare(searchIcon.strokeWidth, 2)
+        verify(icon !== null)
+
+        const shape = findChild(icon, "appIconShape")
+        verify(shape !== null)
+        compare(shape.layer.enabled, true)
+        compare(shape.layer.samples, 4)
+
+        icon.name = "refresh-filled"
+        compare(icon.pathSize, 20)
+        compare(icon.pathScale, 1)
+        verify(icon.pathForName().length > 0)
+
+        icon.name = "search-filled"
+        compare(icon.pathSize, 20)
+        compare(icon.pathScale, 1)
+        verify(icon.pathForName().length > 0)
+    }
+
+    function test_toolbarButtonPassesLocalMultisamplingToItsIcon() {
+        const button = createTemporaryObject(multisampledIconButtonComponent, testCase)
+        verify(button !== null)
+
+        const icon = findChild(button, "toolbarIcon")
+        verify(icon !== null)
+        compare(icon.multisampled, true)
     }
 
     function test_sidebarIconsExpressOppositeActions() {

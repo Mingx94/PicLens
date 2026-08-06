@@ -7,8 +7,7 @@ Button {
     property string accessibleName: text
     property bool primary: false
     property bool outlined: false
-    property int iconSize: 20
-    property real iconStrokeWidth: 1.8
+    property bool iconMultisampled: false
 
     Accessible.role: Accessible.Button
     Accessible.name: accessibleName
@@ -36,11 +35,12 @@ Button {
             spacing: 7
 
             AppIcon {
+                objectName: "toolbarIcon"
                 visible: control.iconName.length > 0
                 name: control.iconName
-                width: control.iconSize
-                height: control.iconSize
-                strokeWidth: control.iconStrokeWidth
+                width: 20
+                height: 20
+                multisampled: control.iconMultisampled
                 color: !control.enabled ? Theme.mutedText
                      : control.primary ? "white" : Theme.primaryText
             }

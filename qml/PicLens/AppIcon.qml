@@ -6,8 +6,16 @@ Item {
     property string name: ""
     property color color: Theme.primaryText
     property real strokeWidth: 1.8
+    property bool multisampled: false
     implicitWidth: 20
     implicitHeight: 20
+    readonly property bool usesFilledPath: name === "grid-filled"
+                                        || name === "refresh-filled"
+                                        || name === "search-filled"
+    readonly property int pathSize: name === "refresh-filled" || name === "search-filled"
+                                   ? 20 : 24
+    readonly property real pathScale: Math.min(icon.width / icon.pathSize,
+                                               icon.height / icon.pathSize)
 
     function pathForName() {
         switch (name) {
@@ -19,8 +27,12 @@ Item {
             return "M6 9 L12 15 L18 9"
         case "refresh":
             return "M20 11 C19.5 7 16.1 4 12 4 C7.6 4 4 7.6 4 12 C4 16.4 7.6 20 12 20 C15.4 20 18.3 17.9 19.4 14.8 M20 4 L20 11 L13 11"
+        case "refresh-filled":
+            return "M9.89 3.75a6.25 6.25 0 0 0-3.63 11.26.75.75 0 0 1-.9 1.2 7.75 7.75 0 0 1 4-13.93l-.6-.59A.75.75 0 0 1 9.82.63l2.12 2.12c.3.3.3.77 0 1.06L9.82 5.93a.75.75 0 0 1-1.06-1.06L9.9 3.75Zm.22 12.5a6.25 6.25 0 0 0 3.63-11.26.75.75 0 0 1 .9-1.2 7.75 7.75 0 0 1-4 13.93l.6.59a.75.75 0 1 1-1.06 1.06l-2.12-2.12a.75.75 0 0 1 0-1.06l2.12-2.13a.75.75 0 1 1 1.06 1.07l-1.13 1.12Z"
         case "search":
             return "M11 19 A8 8 0 1 1 19 11 A8 8 0 0 1 11 19 M17 17 L21 21"
+        case "search-filled":
+            return "M12.54 13.6a6.5 6.5 0 1 1 1.06-1.06l3.43 3.43a.75.75 0 0 1-.98 1.13l-.08-.07-3.43-3.43Zm.96-5.1a5 5 0 1 0-10 0 5 5 0 0 0 10 0Z"
         case "plus":
             return "M12 5 L12 19 M5 12 L19 12"
         case "zoom-in":
@@ -52,15 +64,18 @@ Item {
     }
 
     Shape {
-        width: 24
-        height: 24
+        objectName: "appIconShape"
+        width: icon.pathSize
+        height: icon.pathSize
         anchors.centerIn: parent
-        scale: Math.min(icon.width / 24, icon.height / 24)
+        scale: icon.pathScale
+        layer.enabled: icon.multisampled
+        layer.samples: 4
 
         ShapePath {
-            strokeColor: icon.name === "grid-filled" ? "transparent" : icon.color
-            strokeWidth: icon.strokeWidth
-            fillColor: icon.name === "grid-filled" ? icon.color : "transparent"
+            strokeColor: icon.usesFilledPath ? "transparent" : icon.color
+            strokeWidth: icon.usesFilledPath ? 0 : icon.strokeWidth
+            fillColor: icon.usesFilledPath ? icon.color : "transparent"
             capStyle: ShapePath.RoundCap
             joinStyle: ShapePath.RoundJoin
 
