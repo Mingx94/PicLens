@@ -11,8 +11,6 @@ Item {
 
     function pathForName() {
         switch (name) {
-        case "menu":
-            return "M4 6.5 L20 6.5 M4 12 L20 12 M4 17.5 L20 17.5"
         case "chevron-left":
             return "M15 18 L9 12 L15 6"
         case "chevron-right":
@@ -44,8 +42,10 @@ Item {
             return "M3 5 L21 5 L21 19 L3 19 Z M3 16 L8.5 10.5 L13 15 L16 12 L21 17 M16 8.5 L16.01 8.5"
         case "folder-open":
             return "M3 7 L10 7 L12 9 L21 9 L19 19 L3 19 Z M3 7 L3 5 L9 5 L11 7"
-        case "sidebar":
-            return "M4 4 L20 4 L20 20 L4 20 Z M9 4 L9 20"
+        case "sidebar-collapse":
+            return "M3 4 L21 4 L21 20 L3 20 Z M9 4 L9 20 M17 8 L13 12 L17 16"
+        case "sidebar-expand":
+            return "M3 4 L21 4 L21 20 L3 20 Z M9 4 L9 20 M13 8 L17 12 L13 16"
         default:
             return ""
         }

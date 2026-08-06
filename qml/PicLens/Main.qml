@@ -92,7 +92,8 @@ ApplicationWindow {
                     }
                 }
                 ToolbarButton {
-                    iconName: "menu"
+                    iconName: window.appController.sidebarOpen
+                              ? "sidebar-collapse" : "sidebar-expand"
                     outlined: true
                     accessibleName: window.appController.sidebarOpen ? "收合側欄" : "展開側欄"
                     ToolTip.text: window.appController.sidebarOpen ? "收合側欄" : "展開側欄"

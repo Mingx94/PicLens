@@ -25,9 +25,14 @@ TestCase {
     Component {
         id: iconButtonComponent
         ToolbarButton {
-            iconName: "menu"
-            accessibleName: "選單"
+            iconName: "sidebar-collapse"
+            accessibleName: "收合側欄"
         }
+    }
+
+    Component {
+        id: appIconComponent
+        AppIcon { }
     }
 
     Component {
@@ -127,6 +132,20 @@ TestCase {
         compare(combo.leftPadding, Theme.space3)
         compare(combo.contentItem.leftPadding, 0)
         compare(combo.contentItem.rightPadding, 0)
+    }
+
+    function test_sidebarIconsExpressOppositeActions() {
+        const icon = createTemporaryObject(appIconComponent, testCase)
+        verify(icon !== null)
+
+        icon.name = "sidebar-collapse"
+        const collapsePath = icon.pathForName()
+        verify(collapsePath.length > 0)
+
+        icon.name = "sidebar-expand"
+        const expandPath = icon.pathForName()
+        verify(expandPath.length > 0)
+        verify(expandPath !== collapsePath)
     }
 
     function test_historyMouseButtonsAreIsolated() {
