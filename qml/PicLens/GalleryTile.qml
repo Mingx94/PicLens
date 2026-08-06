@@ -336,6 +336,9 @@ Item {
     }
 
     Component.onCompleted: requestVisibleThumbnail()
+    onPathChanged: requestVisibleThumbnail()
+    onModifiedAtMsChanged: requestVisibleThumbnail()
+    onSizeBytesChanged: requestVisibleThumbnail()
     onThumbnailSizeChanged: requestVisibleThumbnail()
     Component.onDestruction: cancelThumbnail()
     GridView.onPooled: cancelThumbnail()

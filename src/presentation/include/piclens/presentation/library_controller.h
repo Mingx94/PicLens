@@ -122,8 +122,8 @@ private:
         QString rootPath;
     };
 
-    void requestScan();
-    void applySearchFilter(bool preserveThumbnails = true);
+    void requestScan(bool preserveViewState = false);
+    void applySearchFilter(bool preserveViewState = true);
     void recordHistory(HistoryEntry entry, bool replaceHistory);
     void setCurrentFolderPath(QString folderPath);
     void setNavigationRootPath(QString rootPath);

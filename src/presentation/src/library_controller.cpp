@@ -263,7 +263,7 @@ void LibraryController::navigateToFolder(
 
 void LibraryController::reload()
 {
-    requestScan();
+    requestScan(true);
 }
 
 void LibraryController::goBack()
@@ -451,7 +451,7 @@ void LibraryController::clearSelection()
 
 void LibraryController::refreshAfterFileOperation()
 {
-    requestScan();
+    requestScan(true);
 }
 
 void LibraryController::setExternalStatus(QString statusText)
@@ -459,9 +459,11 @@ void LibraryController::setExternalStatus(QString statusText)
     setStatusText(std::move(statusText));
 }
 
-void LibraryController::requestScan()
+void LibraryController::requestScan(bool preserveViewState)
 {
-    clearSelection();
+    if (!preserveViewState) {
+        clearSelection();
+    }
     if (m_activeScanStop) {
         m_activeScanStop->request_stop();
     }
@@ -470,7 +472,7 @@ void LibraryController::requestScan()
     if (m_currentFolderPath.isEmpty()) {
         m_currentItems.clear();
         m_visibleItems.clear();
-        m_items.replaceItems({});
+        m_items.resetItems({});
         setBusy(false);
         return;
     }
@@ -487,7 +489,8 @@ void LibraryController::requestScan()
     setBusy(true);
 
     auto *watcher = new QFutureWatcher<ScanTaskResult>(this);
-    connect(watcher, &QFutureWatcher<ScanTaskResult>::finished, this, [this, watcher, generation] {
+    connect(watcher, &QFutureWatcher<ScanTaskResult>::finished, this,
+            [this, watcher, generation, preserveViewState] {
         ScanTaskResult result = watcher->result();
         watcher->deleteLater();
         if (generation != m_scanGeneration) {
@@ -501,7 +504,8 @@ void LibraryController::requestScan()
         if (!result.errorMessage.isEmpty()) {
             m_currentItems.clear();
             m_visibleItems.clear();
-            m_items.replaceItems({});
+            m_items.resetItems({});
+            setSelectedPaths(m_selectedPaths);
             setErrorMessage(QStringLiteral("無法載入資料夾：%1").arg(result.errorMessage));
             setStatusText(m_errorMessage);
             emit scanFailed(m_currentFolderPath, result.errorMessage);
@@ -510,7 +514,10 @@ void LibraryController::requestScan()
         }
 
         m_currentItems = std::move(result.items);
-        applySearchFilter(false);
+        applySearchFilter(preserveViewState);
+        if (preserveViewState) {
+            setSelectedPaths(m_selectedPaths);
+        }
         setStatusText(hasSearchQuery()
             ? QStringLiteral("搜尋「%1」：%2 個項目。")
                   .arg(m_searchQuery.trimmed())
@@ -542,7 +549,7 @@ void LibraryController::requestScan()
     }));
 }
 
-void LibraryController::applySearchFilter(bool preserveThumbnails)
+void LibraryController::applySearchFilter(bool preserveViewState)
 {
     const QString query = m_searchQuery.trimmed();
     if (query.isEmpty()) {
@@ -559,7 +566,11 @@ void LibraryController::applySearchFilter(bool preserveThumbnails)
             }
         }
     }
-    m_items.replaceItems(m_visibleItems, preserveThumbnails);
+    if (preserveViewState) {
+        m_items.replaceItems(m_visibleItems);
+    } else {
+        m_items.resetItems(m_visibleItems);
+    }
 }
 
 void LibraryController::recordHistory(HistoryEntry entry, bool replaceHistory)

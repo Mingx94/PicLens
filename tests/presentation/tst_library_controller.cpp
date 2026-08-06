@@ -68,8 +68,9 @@ private slots:
     void recursiveModePersistsReloadsAndClearsSelection();
     void staleScanCannotOverwriteNewerFolder();
     void sortChangeDuringScanRejectsOldOrdering();
-    void largeLibraryUsesSingleModelResetOffGuiThread();
-    void reloadAndFileOperationRefreshClearSelection();
+    void largeLibraryUpdatesIncrementallyOffGuiThread();
+    void reloadAndFileOperationRefreshPreserveExistingSelection();
+    void modelReconcilesRowsWithoutReset();
     void scanFailureUsesTraditionalChineseErrorState();
     void invalidFolderDoesNotMutateHistory();
     void modelExposesStableRoles();
@@ -269,7 +270,7 @@ void LibraryControllerTests::sortChangeDuringScanRejectsOldOrdering()
     QCOMPARE(modelName(controller.items(), 0), QStringLiteral("newer.jpg"));
 }
 
-void LibraryControllerTests::largeLibraryUsesSingleModelResetOffGuiThread()
+void LibraryControllerTests::largeLibraryUpdatesIncrementallyOffGuiThread()
 {
     std::thread::id scanThread;
     const std::thread::id guiThread = std::this_thread::get_id();
@@ -294,6 +295,7 @@ void LibraryControllerTests::largeLibraryUsesSingleModelResetOffGuiThread()
         }
     });
     QSignalSpy reset(controller.items(), &QAbstractItemModel::modelReset);
+    QSignalSpy inserted(controller.items(), &QAbstractItemModel::rowsInserted);
 
     controller.navigateToFolder(QStringLiteral("large"), true);
     QTRY_VERIFY_WITH_TIMEOUT(!controller.busy(), 5000);
@@ -301,39 +303,87 @@ void LibraryControllerTests::largeLibraryUsesSingleModelResetOffGuiThread()
     QCOMPARE(controller.items()->rowCount(), 10'000);
     QCOMPARE(rowCountWhenReadySignaled, 10'000);
     QCOMPARE(reset.count(), 1);
+    QCOMPARE(inserted.count(), 0);
     QVERIFY(scanThread != guiThread);
 
     controller.setSearchQuery(QStringLiteral("09999"));
     QCOMPARE(controller.items()->rowCount(), 1);
     QCOMPARE(modelName(controller.items(), 0), QStringLiteral("image-09999.jpg"));
-    QCOMPARE(reset.count(), 2);
+    QCOMPARE(reset.count(), 1);
     controller.setSearchQuery({});
     QCOMPARE(controller.items()->rowCount(), 10'000);
-    QCOMPARE(reset.count(), 3);
+    QCOMPARE(reset.count(), 1);
 }
 
-void LibraryControllerTests::reloadAndFileOperationRefreshClearSelection()
+void LibraryControllerTests::reloadAndFileOperationRefreshPreserveExistingSelection()
 {
     std::atomic_int scans = 0;
+    std::atomic_bool includePhoto = true;
     LibraryController controller(
         [&](const ListQuery &query, std::stop_token) {
             ++scans;
-            return QVector<ListItem>{imageItem(query.folderPath, QStringLiteral("photo.jpg"))};
+            return includePhoto.load()
+                ? QVector<ListItem>{imageItem(query.folderPath, QStringLiteral("photo.jpg"))}
+                : QVector<ListItem>{};
         },
         resolver());
 
     controller.navigateToFolder(QStringLiteral("gallery"), true);
     QTRY_VERIFY_WITH_TIMEOUT(!controller.busy(), 5000);
+    QSignalSpy reset(controller.items(), &QAbstractItemModel::modelReset);
     controller.setSelectedPaths({QStringLiteral("gallery/photo.jpg")});
     controller.reload();
-    QCOMPARE(controller.selectedCount(), 0);
     QTRY_VERIFY_WITH_TIMEOUT(!controller.busy(), 5000);
+    QCOMPARE(controller.selectedCount(), 1);
 
-    controller.setSelectedPaths({QStringLiteral("gallery/photo.jpg")});
     controller.refreshAfterFileOperation();
-    QCOMPARE(controller.selectedCount(), 0);
     QTRY_VERIFY_WITH_TIMEOUT(!controller.busy(), 5000);
-    QCOMPARE(scans.load(), 3);
+    QCOMPARE(controller.selectedCount(), 1);
+
+    includePhoto = false;
+    controller.refreshAfterFileOperation();
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.busy(), 5000);
+    QCOMPARE(controller.selectedCount(), 0);
+    QCOMPARE(scans.load(), 4);
+    QCOMPARE(reset.count(), 0);
+}
+
+void LibraryControllerTests::modelReconcilesRowsWithoutReset()
+{
+    LibraryItemModel model;
+    model.replaceItems({
+        imageItem(QStringLiteral("gallery"), QStringLiteral("one.jpg")),
+        imageItem(QStringLiteral("gallery"), QStringLiteral("two.jpg")),
+        imageItem(QStringLiteral("gallery"), QStringLiteral("three.jpg")),
+    });
+    model.setThumbnailPath(
+        QStringLiteral("gallery/two.jpg"), QStringLiteral("C:/cache/two.png"), 160);
+    model.setThumbnailPath(
+        QStringLiteral("gallery/three.jpg"), QStringLiteral("C:/cache/three.png"), 160);
+    QSignalSpy reset(&model, &QAbstractItemModel::modelReset);
+    QSignalSpy removed(&model, &QAbstractItemModel::rowsRemoved);
+    QSignalSpy inserted(&model, &QAbstractItemModel::rowsInserted);
+    QSignalSpy layoutChanged(&model, &QAbstractItemModel::layoutChanged);
+
+    ImageListItem changedTwo = imageItem(QStringLiteral("gallery"), QStringLiteral("two.jpg"));
+    changedTwo.sizeBytes = 2048;
+    model.replaceItems({
+        imageItem(QStringLiteral("gallery"), QStringLiteral("three.jpg")),
+        changedTwo,
+        imageItem(QStringLiteral("gallery"), QStringLiteral("four.jpg")),
+    });
+
+    QCOMPARE(reset.count(), 0);
+    QCOMPARE(removed.count(), 1);
+    QCOMPARE(inserted.count(), 1);
+    QCOMPARE(layoutChanged.count(), 1);
+    QCOMPARE(model.rowCount(), 3);
+    QCOMPARE(modelName(&model, 0), QStringLiteral("three.jpg"));
+    QCOMPARE(modelName(&model, 2), QStringLiteral("four.jpg"));
+    QCOMPARE(
+        model.data(model.index(0), LibraryItemModel::ThumbnailPathRole).toString(),
+        QStringLiteral("C:/cache/three.png"));
+    QVERIFY(!model.data(model.index(1), LibraryItemModel::ThumbnailPathRole).isValid());
 }
 
 void LibraryControllerTests::scanFailureUsesTraditionalChineseErrorState()
