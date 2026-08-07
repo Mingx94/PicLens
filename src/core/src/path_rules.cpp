@@ -32,6 +32,29 @@ bool pathEquals(const QString &left, const QString &right)
         && pathKey(left) == pathKey(right);
 }
 
+bool hasLinkOrJunctionComponent(const QString &path)
+{
+    if (path.trimmed().isEmpty()) {
+        return false;
+    }
+
+    const QFileInfo file(path);
+    if (file.isSymLink() || file.isJunction()) {
+        return true;
+    }
+
+    QDir directory(file.absolutePath());
+    while (true) {
+        const QFileInfo component(directory.absolutePath());
+        if (component.isSymLink() || component.isJunction()) {
+            return true;
+        }
+        if (directory.isRoot() || !directory.cdUp()) {
+            return false;
+        }
+    }
+}
+
 bool hasSameDirectoryAndBasenameWithoutExtension(const QString &left, const QString &right)
 {
     const QFileInfo leftInfo(left);

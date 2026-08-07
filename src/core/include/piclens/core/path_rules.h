@@ -8,6 +8,7 @@ namespace piclens::core::path_rules {
 [[nodiscard]] Qt::CaseSensitivity pathCaseSensitivity();
 [[nodiscard]] QString pathKey(const QString &path);
 [[nodiscard]] bool pathEquals(const QString &left, const QString &right);
+[[nodiscard]] bool hasLinkOrJunctionComponent(const QString &path);
 [[nodiscard]] bool hasSameDirectoryAndBasenameWithoutExtension(
     const QString &left,
     const QString &right);

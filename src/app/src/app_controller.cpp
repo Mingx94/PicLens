@@ -550,7 +550,10 @@ std::optional<QString> AppController::resolveFolder(const QString &folderPath)
     if (!info.exists() || !info.isDir()) {
         return std::nullopt;
     }
-    return QDir::cleanPath(info.absoluteFilePath());
+    const QString canonicalPath = info.canonicalFilePath();
+    return canonicalPath.isEmpty()
+        ? std::nullopt
+        : std::optional<QString>{QDir::cleanPath(canonicalPath)};
 }
 
 } // namespace piclens::app

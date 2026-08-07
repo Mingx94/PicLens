@@ -123,7 +123,7 @@ private slots:
     void childFolderScanDoesNotInspectImageBodies();
     void canceledScanThrowsCancellationError();
     void missingDirectoryThrowsDirectoryError();
-    void recursiveModeVisitsCanonicalDirectoriesOnce();
+    void recursiveModeSkipsDirectoryAliases();
 };
 
 void FolderScannerTests::directModeReturnsFoldersAndSupportedImagesOnly()
@@ -289,17 +289,20 @@ void FolderScannerTests::missingDirectoryThrowsDirectoryError()
     QVERIFY_EXCEPTION_THROWN(missingScan(), DirectoryNotFoundError);
 }
 
-void FolderScannerTests::recursiveModeVisitsCanonicalDirectoriesOnce()
+void FolderScannerTests::recursiveModeSkipsDirectoryAliases()
 {
     QTemporaryDir root;
+    QTemporaryDir external;
     QVERIFY(root.isValid());
+    QVERIFY(external.isValid());
     const QString realFolder = childPath(root.path(), QStringLiteral("Real"));
     const QString aliasFolder = childPath(root.path(), QStringLiteral("Alias"));
     QDir().mkpath(realFolder);
-    writeFile(childPath(realFolder, QStringLiteral("photo.jpg")), QByteArray("\x01\x02\x03", 3));
+    writeFile(childPath(realFolder, QStringLiteral("inside.jpg")), QByteArray("\x01\x02\x03", 3));
+    writeFile(childPath(external.path(), QStringLiteral("outside.jpg")), QByteArray("\x01\x02\x03", 3));
 
     QString aliasError;
-    QVERIFY2(createDirectoryAlias(aliasFolder, realFolder, aliasError), qPrintable(aliasError));
+    QVERIFY2(createDirectoryAlias(aliasFolder, external.path(), aliasError), qPrintable(aliasError));
 
     const auto items = FolderScanner().scan({
         .folderPath = root.path(),
@@ -307,7 +310,7 @@ void FolderScannerTests::recursiveModeVisitsCanonicalDirectoriesOnce()
         .sort = {},
     });
     QVERIFY(removeDirectoryAlias(aliasFolder));
-    QCOMPARE(itemNames(items), QStringList({QStringLiteral("photo.jpg")}));
+    QCOMPARE(itemNames(items), QStringList({QStringLiteral("inside.jpg")}));
 }
 
 QTEST_GUILESS_MAIN(FolderScannerTests)

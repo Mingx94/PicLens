@@ -17,6 +17,15 @@
 #include <stdexcept>
 #include <stop_token>
 
+#ifdef Q_OS_WIN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
+#include <filesystem>
+#endif
+
 using namespace piclens::core;
 using namespace piclens::infrastructure;
 
@@ -74,6 +83,43 @@ const FileOperationResult *findResult(
     return item == result.items.cend() ? nullptr : &*item;
 }
 
+bool createDirectoryAlias(const QString &aliasPath, const QString &targetPath, QString &errorMessage)
+{
+#ifdef Q_OS_WIN
+    constexpr DWORD AllowUnprivilegedCreate = 0x2;
+    const DWORD flags = SYMBOLIC_LINK_FLAG_DIRECTORY | AllowUnprivilegedCreate;
+    if (CreateSymbolicLinkW(
+            reinterpret_cast<LPCWSTR>(aliasPath.utf16()),
+            reinterpret_cast<LPCWSTR>(targetPath.utf16()),
+            flags)) {
+        return true;
+    }
+    errorMessage = QStringLiteral("CreateSymbolicLinkW failed with error %1").arg(GetLastError());
+    return false;
+#else
+    std::error_code error;
+    std::filesystem::create_directory_symlink(
+        QFileInfo(targetPath).filesystemAbsoluteFilePath(),
+        QFileInfo(aliasPath).filesystemAbsoluteFilePath(),
+        error);
+    if (!error) {
+        return true;
+    }
+    errorMessage = QString::fromStdString(error.message());
+    return false;
+#endif
+}
+
+bool removeDirectoryAlias(const QString &aliasPath)
+{
+#ifdef Q_OS_WIN
+    return RemoveDirectoryW(reinterpret_cast<LPCWSTR>(aliasPath.utf16()));
+#else
+    std::error_code error;
+    return std::filesystem::remove(QFileInfo(aliasPath).filesystemAbsoluteFilePath(), error) && !error;
+#endif
+}
+
 } // namespace
 
 class FileOperationTests final : public QObject
@@ -94,8 +140,10 @@ private slots:
     void singleRenameRejectsInvalidRequests();
     void dropRenameUsesSelectionOrderAndSequenceGaps();
     void dropRenameContinuesAfterMissingSource();
+    void linkedPathsAreRejectedBeforeFileOperations();
     void cancellationStopsBeforeSideEffects();
     void revealBuildsPlatformRequestAndUsesLauncher();
+    void revealRejectsLinkedPath();
 };
 
 void FileOperationTests::conversionPreservesOriginalsAndSkipsConservatively()
@@ -500,6 +548,43 @@ void FileOperationTests::dropRenameContinuesAfterMissingSource()
     QVERIFY(QFileInfo::exists(childPath(root.path(), QStringLiteral("Album-02.webp"))));
 }
 
+void FileOperationTests::linkedPathsAreRejectedBeforeFileOperations()
+{
+    QTemporaryDir root;
+    QTemporaryDir external;
+    QVERIFY(root.isValid());
+    QVERIFY(external.isValid());
+    const QString externalSource = childPath(external.path(), QStringLiteral("photo.png"));
+    const QString alias = childPath(root.path(), QStringLiteral("Alias"));
+    writeFile(externalSource, QByteArrayLiteral("photo"));
+
+    QString aliasError;
+    QVERIFY2(createDirectoryAlias(alias, external.path(), aliasError), qPrintable(aliasError));
+    const QString linkedSource = childPath(alias, QStringLiteral("photo.png"));
+    int encodeCalls = 0;
+    int trashCalls = 0;
+    FileOperationService service(
+        [&](const QString &, const QString &, std::stop_token) { ++encodeCalls; },
+        [&](const QString &, std::stop_token) { ++trashCalls; });
+
+    const auto renamed = service.rename(linkedSource, QStringLiteral("renamed.png"));
+    const auto trashed = service.trash(linkedSource);
+    const auto converted = service.convertVisibleToJpg({image(linkedSource)});
+    const auto dropRename = service.renameByDropTarget(
+        {linkedSource}, childPath(alias, QStringLiteral("target.png")));
+
+    QCOMPARE(renamed.reason, std::optional<QString>{QStringLiteral("linked_path")});
+    QCOMPARE(trashed.reason, std::optional<QString>{QStringLiteral("linked_path")});
+    QCOMPARE(converted.items.constFirst().reason, std::optional<QString>{QStringLiteral("linked_path")});
+    QCOMPARE(dropRename.items.constFirst().reason, std::optional<QString>{QStringLiteral("linked_path")});
+    QCOMPARE(encodeCalls, 0);
+    QCOMPARE(trashCalls, 0);
+    QVERIFY(QFileInfo::exists(externalSource));
+    QVERIFY(!QFileInfo::exists(childPath(external.path(), QStringLiteral("renamed.png"))));
+    QVERIFY(!QFileInfo::exists(childPath(external.path(), QStringLiteral("photo.jpg"))));
+    QVERIFY(removeDirectoryAlias(alias));
+}
+
 void FileOperationTests::cancellationStopsBeforeSideEffects()
 {
     QTemporaryDir root;
@@ -549,6 +634,31 @@ void FileOperationTests::revealBuildsPlatformRequestAndUsesLauncher()
     QVERIFY_EXCEPTION_THROWN(
         manager.reveal(childPath(root.path(), QStringLiteral("missing.jpg"))),
         std::runtime_error);
+}
+
+void FileOperationTests::revealRejectsLinkedPath()
+{
+    QTemporaryDir root;
+    QTemporaryDir external;
+    QVERIFY(root.isValid());
+    QVERIFY(external.isValid());
+    const QString externalSource = childPath(external.path(), QStringLiteral("photo.jpg"));
+    const QString alias = childPath(root.path(), QStringLiteral("Alias"));
+    writeFile(externalSource, QByteArrayLiteral("photo"));
+
+    QString aliasError;
+    QVERIFY2(createDirectoryAlias(alias, external.path(), aliasError), qPrintable(aliasError));
+    int launchCalls = 0;
+    PlatformFileManager manager([&](const ProcessLaunchRequest &) {
+        ++launchCalls;
+        return true;
+    });
+
+    QVERIFY_EXCEPTION_THROWN(
+        manager.reveal(childPath(alias, QStringLiteral("photo.jpg"))),
+        std::runtime_error);
+    QCOMPARE(launchCalls, 0);
+    QVERIFY(removeDirectoryAlias(alias));
 }
 
 QTEST_GUILESS_MAIN(FileOperationTests)

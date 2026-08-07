@@ -14,12 +14,13 @@ namespace {
 
 QDir::Filters directoryFilters()
 {
-    return QDir::Dirs | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot;
+    return QDir::Dirs | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot
+        | QDir::NoSymLinks;
 }
 
 QDir::Filters fileFilters()
 {
-    return QDir::Files | QDir::Hidden | QDir::System;
+    return QDir::Files | QDir::Hidden | QDir::System | QDir::NoSymLinks;
 }
 
 QString canonicalDirectoryKey(const QString &path)
@@ -144,6 +145,9 @@ QVector<core::FolderListItem> FolderScanner::directFolders(
     folders.reserve(entries.size());
     for (const QFileInfo &entry : entries) {
         throwIfCanceled(stopToken);
+        if (entry.isSymLink() || entry.isJunction()) {
+            continue;
+        }
         folders.append({
             .path = entry.absoluteFilePath(),
             .name = entry.fileName(),
@@ -160,6 +164,9 @@ QVector<QFileInfo> FolderScanner::directFiles(const QString &folderPath)
 
 std::optional<core::ImageListItem> FolderScanner::createImageItem(const QFileInfo &file)
 {
+    if (file.isSymLink() || file.isJunction()) {
+        return std::nullopt;
+    }
     const auto extension = core::image_format_rules::supportedImageExtension(file.absoluteFilePath());
     if (!extension.has_value()) {
         return std::nullopt;

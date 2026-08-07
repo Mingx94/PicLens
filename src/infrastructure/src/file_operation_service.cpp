@@ -144,6 +144,18 @@ core::FileOperationResult invalidRenameRequest(
             : QStringLiteral("檔名必須是不含路徑分隔符號的單一檔名。"));
 }
 
+core::FileOperationResult linkedPathRequest(
+    const QString &sourcePath,
+    std::optional<QString> targetPath = std::nullopt)
+{
+    return makeResult(
+        sourcePath,
+        core::FileOperationStatus::Failed,
+        std::move(targetPath),
+        QStringLiteral("linked_path"),
+        QStringLiteral("圖片路徑不可包含符號連結或 junction。"));
+}
+
 QVector<QString> existingTargetDirectoryFiles(const QString &targetPath)
 {
     const QDir directory(QFileInfo(targetPath).absolutePath());
@@ -311,7 +323,8 @@ bool FileOperationService::mayRequireEncoding(
     const core::ImageListItem &image,
     ConversionFormat format)
 {
-    if (!QFileInfo(image.path).isFile() || image.isAnimated
+    if (core::path_rules::hasLinkOrJunctionComponent(image.path)
+        || !QFileInfo(image.path).isFile() || image.isAnimated
         || !core::image_format_rules::supportedImageExtension(image.path).has_value()) {
         return false;
     }
@@ -466,6 +479,9 @@ core::FileOperationResult FileOperationService::trash(
     std::stop_token stopToken) const
 {
     throwIfCanceled(stopToken);
+    if (core::path_rules::hasLinkOrJunctionComponent(path)) {
+        return linkedPathRequest(path);
+    }
     if (!QFileInfo(path).exists()) {
         return makeResult(
             path,
@@ -509,6 +525,10 @@ core::FileOperationResult FileOperationService::rename(
             QStringLiteral("路徑必須指向支援的圖片檔案。"));
     }
 
+    if (core::path_rules::hasLinkOrJunctionComponent(sourcePath)) {
+        return linkedPathRequest(sourcePath);
+    }
+
     const QFileInfo sourceInfo(sourcePath);
     if (!sourceInfo.exists() || !sourceInfo.isFile()) {
         return makeResult(
@@ -519,6 +539,9 @@ core::FileOperationResult FileOperationService::rename(
     }
 
     const QString targetPath = QDir(sourceInfo.absolutePath()).filePath(newFileName);
+    if (core::path_rules::hasLinkOrJunctionComponent(targetPath)) {
+        return linkedPathRequest(sourcePath, targetPath);
+    }
     if (core::path_rules::pathEquals(sourcePath, targetPath)) {
         return makeResult(
             sourcePath,
@@ -552,6 +575,15 @@ core::FileOperationBatchResult FileOperationService::renameByDropTarget(
     const QString &targetPath,
     std::stop_token stopToken) const
 {
+    if (core::path_rules::hasLinkOrJunctionComponent(targetPath)) {
+        core::FileOperationBatchResult result;
+        result.items.reserve(sourcePaths.size());
+        for (const QString &sourcePath : sourcePaths) {
+            result.items.append(linkedPathRequest(sourcePath, targetPath));
+        }
+        return result;
+    }
+
     const auto plan = core::file_rename_planner::planDropTargetBatchRename(
         sourcePaths,
         targetPath,
@@ -561,6 +593,11 @@ core::FileOperationBatchResult FileOperationService::renameByDropTarget(
 
     for (const auto &item : plan.items) {
         throwIfCanceled(stopToken);
+        if (core::path_rules::hasLinkOrJunctionComponent(item.sourcePath)
+            || core::path_rules::hasLinkOrJunctionComponent(item.targetPath)) {
+            result.items.append(linkedPathRequest(item.sourcePath, item.targetPath));
+            continue;
+        }
         if (item.shouldSkip) {
             result.items.append(makeResult(
                 item.sourcePath,
@@ -608,6 +645,9 @@ core::FileOperationResult FileOperationService::convertOne(
     std::stop_token stopToken,
     ConversionFormat format) const
 {
+    if (core::path_rules::hasLinkOrJunctionComponent(image.path)) {
+        return linkedPathRequest(image.path);
+    }
     if (!QFileInfo(image.path).isFile()) {
         return makeResult(
             image.path,
@@ -647,6 +687,9 @@ core::FileOperationResult FileOperationService::convertOne(
     }
 
     const QString targetPath = conversionTargetPath(image, format);
+    if (core::path_rules::hasLinkOrJunctionComponent(targetPath)) {
+        return linkedPathRequest(image.path, targetPath);
+    }
     if (QFileInfo::exists(targetPath)) {
         return makeResult(
             image.path,

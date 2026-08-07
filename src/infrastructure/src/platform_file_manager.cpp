@@ -1,5 +1,7 @@
 #include <piclens/infrastructure/platform_file_manager.h>
 
+#include <piclens/core/path_rules.h>
+
 #include <QDir>
 #include <QFileInfo>
 #include <QProcess>
@@ -32,6 +34,9 @@ PlatformFileManager::PlatformFileManager(ProcessLauncher launcher)
 
 void PlatformFileManager::moveToTrash(const QString &path) const
 {
+    if (core::path_rules::hasLinkOrJunctionComponent(path)) {
+        throw std::runtime_error("Trash path cannot contain a symbolic link or junction.");
+    }
     const QFileInfo info(path);
     if (!info.exists()) {
         throw std::runtime_error("Source path does not exist.");
@@ -72,6 +77,9 @@ void PlatformFileManager::moveToTrash(const QString &path) const
 
 ProcessLaunchRequest PlatformFileManager::revealRequest(const QString &path)
 {
+    if (core::path_rules::hasLinkOrJunctionComponent(path)) {
+        throw std::runtime_error("Reveal path cannot contain a symbolic link or junction.");
+    }
     const QFileInfo info(path);
     if (!info.exists() || !info.isFile()) {
         throw std::runtime_error("Reveal path must be an existing file.");
