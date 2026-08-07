@@ -1,3 +1,7 @@
+Talk in ASD-STE100 Simplified Technical English, and use the ubiquitous language from this project.
+
+---
+
 - Delete obsolete paths. Ship only current code.
 - Use simplest code that meets needs now.
 - Build in layers. Ship smallest working version first. Add on top of working product.
