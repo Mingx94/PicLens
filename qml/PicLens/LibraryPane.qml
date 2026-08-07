@@ -256,6 +256,7 @@ Rectangle {
 
             GridView {
                 id: gallery
+                objectName: "galleryView"
                 anchors.fill: parent
                 anchors.leftMargin: Theme.space7
                 anchors.rightMargin: Theme.space7
@@ -272,6 +273,10 @@ Rectangle {
                 property real dragPointerX: 0
                 property real dragPointerY: 0
                 property string dropTargetPath: ""
+                property bool dropRenameScrollCaptured: false
+                property bool dropRenameRefreshPending: false
+                property real dropRenameSavedContentY: 0
+                property string dropRenameFolderPath: ""
 
                 SequentialAnimation {
                     id: performanceScroll
@@ -298,6 +303,35 @@ Rectangle {
                         return ""
                     const target = itemAt(x + contentX, y + contentY)
                     return target ? target.objectName : ""
+                }
+
+                function captureDropRenameScrollPosition() {
+                    dropRenameSavedContentY = contentY
+                    dropRenameFolderPath = pane.appController.library.currentFolderPath
+                    dropRenameScrollCaptured = true
+                    dropRenameRefreshPending = false
+                }
+
+                function clearDropRenameScrollPosition() {
+                    dropRenameScrollCaptured = false
+                    dropRenameRefreshPending = false
+                    dropRenameSavedContentY = 0
+                    dropRenameFolderPath = ""
+                }
+
+                function restoreDropRenameScrollPosition() {
+                    if (!dropRenameScrollCaptured || !dropRenameRefreshPending)
+                        return
+                    const savedContentY = dropRenameSavedContentY
+                    const folderPath = dropRenameFolderPath
+                    clearDropRenameScrollPosition()
+                    Qt.callLater(function() {
+                        if (folderPath !== pane.appController.library.currentFolderPath)
+                            return
+                        gallery.forceLayout()
+                        const maximum = Math.max(0, gallery.contentHeight - gallery.height)
+                        gallery.contentY = Math.max(0, Math.min(maximum, savedContentY))
+                    })
                 }
 
                 function beginInternalDrag(sourcePath, x, y) {
@@ -327,10 +361,14 @@ Rectangle {
                     internalDragActive = false
                     dropTargetPath = ""
                     dragAutoScroll.stop()
-                    if (targetPath.length > 0)
+                    if (targetPath.length > 0) {
+                        captureDropRenameScrollPosition()
                         pane.appController.fileOperations.dropRename.requestPreview(targetPath)
-                    else
+                        if (!pane.appController.fileOperations.dropRename.previewVisible)
+                            clearDropRenameScrollPosition()
+                    } else {
                         pane.appController.fileOperations.dropRename.cancelImageDrag()
+                    }
                 }
 
                 function cancelInternalDrag() {
@@ -352,6 +390,55 @@ Rectangle {
                         gallery.contentY = Math.max(0, Math.min(maximum, gallery.contentY + delta))
                         gallery.dropTargetPath = gallery.targetPathAt(
                             gallery.dragPointerX, gallery.dragPointerY)
+                    }
+                }
+
+                Connections {
+                    target: pane.appController.fileOperations.dropRename
+
+                    function onExecutionRequested() {
+                        if (gallery.dropRenameScrollCaptured)
+                            gallery.dropRenameRefreshPending = true
+                    }
+
+                    function onPreviewChanged() {
+                        if (pane.appController.fileOperations.dropRename.previewVisible)
+                            return
+                        Qt.callLater(function() {
+                            if (!gallery.dropRenameRefreshPending
+                                    && !pane.appController.fileOperations.dropRename.previewVisible)
+                                gallery.clearDropRenameScrollPosition()
+                        })
+                    }
+                }
+
+                Connections {
+                    target: pane.appController.fileOperations
+
+                    function onBusyChanged() {
+                        if (pane.appController.fileOperations.busy
+                                || !gallery.dropRenameRefreshPending)
+                            return
+                        Qt.callLater(function() {
+                            if (gallery.dropRenameRefreshPending
+                                    && !pane.appController.fileOperations.busy
+                                    && !pane.appController.library.busy)
+                                gallery.clearDropRenameScrollPosition()
+                        })
+                    }
+                }
+
+                Connections {
+                    target: pane.appController.library
+
+                    function onBusyChanged() {
+                        if (!pane.appController.library.busy
+                                && !pane.appController.fileOperations.busy)
+                            gallery.restoreDropRenameScrollPosition()
+                    }
+
+                    function onCurrentFolderPathChanged() {
+                        gallery.clearDropRenameScrollPosition()
                     }
                 }
 

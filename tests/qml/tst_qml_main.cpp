@@ -1,6 +1,7 @@
 #include <piclens/app/app_controller.h>
 
 #include <QDir>
+#include <QImage>
 #include <QQmlContext>
 #include <QQmlEngine>
 #include <QtQuickTest/quicktest.h>
@@ -31,6 +32,14 @@ public slots:
             const QString name = QStringLiteral("Folder-%1").arg(index, 2, 10, QLatin1Char('0'));
             if (!workspace.mkdir(name)) {
                 qFatal("Failed to create QML folder-tree fixture.");
+            }
+        }
+        QImage image(1, 1, QImage::Format_RGB32);
+        image.fill(Qt::black);
+        for (int index = 1; index <= 12; ++index) {
+            const QString name = QStringLiteral("Z-Image-%1.bmp").arg(index, 2, 10, QLatin1Char('0'));
+            if (!image.save(workspace.filePath(name), "BMP")) {
+                qFatal("Failed to create QML image fixture.");
             }
         }
 

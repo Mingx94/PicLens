@@ -73,6 +73,15 @@ TestCase {
         }
     }
 
+    Component {
+        id: libraryPaneComponent
+        LibraryPane {
+            width: 640
+            height: 420
+            appController: testAppController
+        }
+    }
+
     SignalSpy {
         id: clickedSpy
         signalName: "clicked"
@@ -227,6 +236,45 @@ TestCase {
 
         verify(tree.isExpanded(0))
         verify(tree.rows > 40)
+    }
+
+    function test_dropRenameKeepsLastScrollPosition() {
+        const pane = createTemporaryObject(libraryPaneComponent, testCase)
+        verify(pane !== null)
+        tryCompare(testAppController.library, "busy", false)
+
+        const gallery = findChild(pane, "galleryView")
+        verify(gallery !== null)
+        tryVerify(() => gallery.count >= 92)
+        gallery.forceLayout()
+        const maximum = Math.max(0, gallery.contentHeight - gallery.height)
+        verify(maximum > gallery.height)
+        gallery.contentY = maximum
+        wait(0)
+        gallery.forceLayout()
+
+        const source = gallery.itemAtIndex(gallery.count - 1)
+        const target = gallery.itemAtIndex(gallery.count - 2)
+        verify(source !== null)
+        verify(target !== null)
+        verify(source.objectName.length > 0)
+        verify(target.objectName.length > 0)
+
+        const sourcePoint = source.mapToItem(gallery, source.width / 2, source.height / 2)
+        gallery.beginInternalDrag(source.objectName, sourcePoint.x, sourcePoint.y)
+        compare(gallery.internalDragActive, true)
+        const targetPoint = target.mapToItem(gallery, target.width / 2, target.height / 2)
+        gallery.endInternalDrag(targetPoint.x, targetPoint.y, false)
+        compare(testAppController.fileOperations.dropRename.previewVisible, true)
+        const savedContentY = gallery.dropRenameSavedContentY
+        verify(savedContentY > 0)
+
+        testAppController.fileOperations.dropRename.confirm()
+        compare(testAppController.fileOperations.busy, true)
+        tryCompare(testAppController.fileOperations, "busy", false, 5000)
+        tryCompare(testAppController.library, "busy", false, 5000)
+        tryVerify(() => Math.abs(gallery.contentY - savedContentY) < 0.5)
+        compare(gallery.dropRenameScrollCaptured, false)
     }
 
     function test_viewerPointerSurfaceBlocksGalleryAndStillPans() {
