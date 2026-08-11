@@ -1,0 +1,26 @@
+[package]
+name = "piclens-infra"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+piclens-domain = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+directories = { workspace = true }
+hex = { workspace = true }
+image = { workspace = true }
+log = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+walkdir = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_UI_Shell",
+    "Win32_Storage_FileSystem",
+] }

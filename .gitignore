@@ -57,3 +57,8 @@ Generated\ Files/
 # Production Qt build outputs and local presets
 build/
 CMakeUserPresets.json
+
+# Rust / GPUI experiment
+/target/
+**/*.rs.bk
+.cargo-ok
