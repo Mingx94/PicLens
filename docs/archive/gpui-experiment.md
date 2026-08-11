@@ -25,12 +25,19 @@ cargo run -p piclens-gpui -- --folder D:\Photos
 | `piclens-infra` | scan, settings store, trash/reveal, convert, thumbs, log |
 | `piclens-gpui` | library UI, sidebar, viewer, file ops |
 
+## Current UI
+
+- Grid / list gallery with async disk-cache thumbnails (`ensure_thumbnail` + `img`)
+- Viewer shows real image via `img` (zoom scales layout size; pan still light)
+- Drop-rename plan/confirm: multi-select sources then last item as target → preview → apply
+- Search, selection, sidebar children, file ops (trash, convert, rename, cleanup)
+
 ## Gaps vs product-spec (still open)
 
-- Grid gallery with real decoded image tiles (async thumbs in UI)
-- Drop-target batch rename UX
+- Visible-only thumb scheduling (current queue is visible list order, not true viewport culling)
+- Pointer pan in viewer; wheel zoom anchor
 - Full folder-tree expand/collapse depth
+- Native drag-and-drop rename (selection-based plan is the interim UX)
 - MSI/DEB packaging for the Rust binary
-- Viewer pixel canvas pan/zoom (logic exists; display is path/status based for now)
 
 Close gaps in layers. Keep the app building after each layer.

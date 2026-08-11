@@ -1,6 +1,6 @@
-//! Main window: library, sidebar, selection, viewer, file operations.
+//! Main window: library, thumbs, sidebar, selection, viewer, file operations.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -9,15 +9,25 @@ use gpui_component::button::{Button, ButtonVariants as _};
 use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::{h_flex, v_flex, ActiveTheme, Disableable, Icon, IconName, Root};
 use piclens_domain::{
-    path_equals, AppSettings, ImageListItem, ImageSequenceSnapshot, ListItem, ListQuery,
-    SortDirection, SortKey, SortState, ZoomState, clamp_zoom, reset_zoom_state,
+    path_equals, AppSettings, DropTargetBatchRenamePlan, ImageListItem, ImageSequenceSnapshot,
+    ListItem, ListQuery, SortDirection, SortKey, SortState, ZoomState, clamp_zoom,
+    reset_zoom_state, DEFAULT_THUMBNAIL_SIZE,
 };
 use piclens_infra::{
-    cleanup_same_basename, convert_to_jpg, convert_to_lossless_webp, info, rename_image,
-    reveal_in_file_manager, scan_child_folders, scan_folder, trash_paths, warn, JsonSettingsStore,
+    apply_drop_rename, cleanup_same_basename, convert_to_jpg, convert_to_lossless_webp,
+    ensure_thumbnail, info, plan_drop_rename, rename_image, reveal_in_file_manager,
+    scan_child_folders, scan_folder, trash_paths, warn, JsonSettingsStore,
 };
 
 use crate::history::FolderHistory;
+
+const MAX_THUMB_IN_FLIGHT: usize = 8;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum GalleryMode {
+    Grid,
+    List,
+}
 
 pub struct PicLensApp {
     settings_store: Arc<JsonSettingsStore>,
@@ -33,8 +43,15 @@ pub struct PicLensApp {
     search: Entity<InputState>,
     search_text: String,
     sidebar_collapsed: bool,
+    gallery_mode: GalleryMode,
     viewer: Option<ViewerState>,
     rename: Option<RenameState>,
+    drop_rename: Option<DropTargetBatchRenamePlan>,
+    generation: u64,
+    /// Source path -> cached PNG path for tiles.
+    thumbs: HashMap<String, PathBuf>,
+    thumb_pending: HashSet<String>,
+    thumb_failed: HashSet<String>,
 }
 
 struct ViewerState {
@@ -68,14 +85,21 @@ impl PicLensApp {
             search: search.clone(),
             search_text: String::new(),
             sidebar_collapsed: false,
+            gallery_mode: GalleryMode::Grid,
             viewer: None,
             rename: None,
+            drop_rename: None,
+            generation: 0,
+            thumbs: HashMap::new(),
+            thumb_pending: HashSet::new(),
+            thumb_failed: HashSet::new(),
         };
 
         cx.subscribe_in(&search, window, |this, state, event, _window, cx| {
             if matches!(event, InputEvent::Change) {
                 this.search_text = state.read(cx).value().to_string();
                 this.recompute_visible();
+                this.schedule_thumbs(cx);
                 cx.notify();
             }
         })
@@ -117,6 +141,73 @@ impl PicLensApp {
             .collect();
     }
 
+    fn thumb_size(&self) -> u32 {
+        self.settings
+            .thumbnail_size
+            .max(DEFAULT_THUMBNAIL_SIZE)
+            .max(80) as u32
+    }
+
+    /// Queue background thumbnail work for visible static images (bounded).
+    fn schedule_thumbs(&mut self, cx: &mut Context<Self>) {
+        let size = self.thumb_size();
+        let gen = self.generation;
+        let mut slots = MAX_THUMB_IN_FLIGHT.saturating_sub(self.thumb_pending.len());
+        if slots == 0 {
+            return;
+        }
+
+        let candidates: Vec<String> = self
+            .visible
+            .iter()
+            .filter_map(|item| {
+                let img = item.as_image()?;
+                if img.is_animated {
+                    return None;
+                }
+                Some(img.path.clone())
+            })
+            .filter(|path| {
+                !self.thumbs.contains_key(path)
+                    && !self.thumb_pending.contains(path)
+                    && !self.thumb_failed.contains(path)
+            })
+            .collect();
+
+        for path in candidates {
+            if slots == 0 {
+                break;
+            }
+            slots -= 1;
+            self.thumb_pending.insert(path.clone());
+            let path_for_bg = path.clone();
+            cx.spawn(async move |this, cx| {
+                let result = cx
+                    .background_spawn(async move { ensure_thumbnail(&path_for_bg, size) })
+                    .await;
+                this.update(cx, |this, cx| {
+                    this.thumb_pending.remove(&path);
+                    if this.generation != gen {
+                        return;
+                    }
+                    match result {
+                        Ok(cache_path) => {
+                            this.thumbs.insert(path, cache_path);
+                        }
+                        Err(err) => {
+                            this.thumb_failed.insert(path.clone());
+                            warn(format!("thumb failed for {path}: {err}"));
+                        }
+                    }
+                    this.schedule_thumbs(cx);
+                    cx.notify();
+                })
+                .ok();
+            })
+            .detach();
+        }
+    }
+
     fn open_folder(
         &mut self,
         path: String,
@@ -131,11 +222,16 @@ impl PicLensApp {
         };
         match scan_folder(&query) {
             Ok(items) => {
+                self.generation = self.generation.wrapping_add(1);
                 self.folder_path = Some(path.clone());
                 self.items = items;
                 self.clear_selection();
                 self.viewer = None;
                 self.rename = None;
+                self.drop_rename = None;
+                self.thumbs.clear();
+                self.thumb_pending.clear();
+                self.thumb_failed.clear();
                 self.recompute_visible();
                 self.child_folders = scan_child_folders(&path)
                     .unwrap_or_default()
@@ -151,6 +247,7 @@ impl PicLensApp {
                 }
                 self.status = format!("已載入 {} 個項目", self.visible.len());
                 info(format!("opened folder: {path}"));
+                self.schedule_thumbs(cx);
             }
             Err(err) => {
                 self.status = format!("無法開啟資料夾：{err}");
@@ -222,6 +319,18 @@ impl PicLensApp {
         }
     }
 
+    fn adjust_thumb_size(&mut self, delta: i32, cx: &mut Context<Self>) {
+        let next = self.settings.thumbnail_size + delta;
+        self.settings.thumbnail_size = piclens_domain::normalize_thumbnail_size(f64::from(next));
+        self.persist_settings();
+        self.generation = self.generation.wrapping_add(1);
+        self.thumbs.clear();
+        self.thumb_pending.clear();
+        self.thumb_failed.clear();
+        self.schedule_thumbs(cx);
+        cx.notify();
+    }
+
     fn select_path(&mut self, path: &str, additive: bool) {
         if !additive {
             self.clear_selection();
@@ -275,15 +384,13 @@ impl PicLensApp {
         if current_index < 0 {
             return;
         }
-        let message = images
-            .get(current_index as usize)
-            .and_then(|img| {
-                if img.is_animated {
-                    Some("此動畫圖片目前不支援預覽。".into())
-                } else {
-                    None
-                }
-            });
+        let message = images.get(current_index as usize).and_then(|img| {
+            if img.is_animated {
+                Some("此動畫圖片目前不支援預覽。".into())
+            } else {
+                None
+            }
+        });
         self.viewer = Some(ViewerState {
             sequence: ImageSequenceSnapshot {
                 source_folder_path: self.folder_path.clone().unwrap_or_default(),
@@ -314,17 +421,13 @@ impl PicLensApp {
         let next = (viewer.sequence.current_index + delta).rem_euclid(len);
         viewer.sequence.current_index = next;
         viewer.zoom = reset_zoom_state();
-        viewer.message = viewer
-            .sequence
-            .images
-            .get(next as usize)
-            .and_then(|img| {
-                if img.is_animated {
-                    Some("此動畫圖片目前不支援預覽。".into())
-                } else {
-                    None
-                }
-            });
+        viewer.message = viewer.sequence.images.get(next as usize).and_then(|img| {
+            if img.is_animated {
+                Some("此動畫圖片目前不支援預覽。".into())
+            } else {
+                None
+            }
+        });
         cx.notify();
     }
 
@@ -358,15 +461,51 @@ impl PicLensApp {
         self.refresh(cx);
     }
 
+    /// Last selected image is the drop target; earlier selections are sources.
+    fn plan_drop_rename_from_selection(&mut self, cx: &mut Context<Self>) {
+        let images = self.selected_images();
+        if images.len() < 2 {
+            self.status = "請選取來源圖片，最後一張為目標圖片。".into();
+            cx.notify();
+            return;
+        }
+        let target = images.last().unwrap().path.clone();
+        let sources: Vec<String> = images[..images.len() - 1]
+            .iter()
+            .map(|i| i.path.clone())
+            .collect();
+        let plan = plan_drop_rename(&sources, &target);
+        if plan.items.is_empty() {
+            self.status = "沒有可重新命名的項目。".into();
+            cx.notify();
+            return;
+        }
+        self.drop_rename = Some(plan);
+        cx.notify();
+    }
+
+    fn commit_drop_rename(&mut self, cx: &mut Context<Self>) {
+        let Some(plan) = self.drop_rename.take() else {
+            return;
+        };
+        let batch = apply_drop_rename(&plan);
+        self.apply_batch("拖放重新命名", &batch);
+        self.refresh(cx);
+    }
+
     fn reveal_focus(&mut self, cx: &mut Context<Self>) {
-        let path = self.selected_images().first().map(|i| i.path.clone()).or_else(|| {
-            self.viewer.as_ref().and_then(|v| {
-                v.sequence
-                    .images
-                    .get(v.sequence.current_index as usize)
-                    .map(|i| i.path.clone())
-            })
-        });
+        let path = self
+            .selected_images()
+            .first()
+            .map(|i| i.path.clone())
+            .or_else(|| {
+                self.viewer.as_ref().and_then(|v| {
+                    v.sequence
+                        .images
+                        .get(v.sequence.current_index as usize)
+                        .map(|i| i.path.clone())
+                })
+            });
         match path {
             Some(path) => match reveal_in_file_manager(&path) {
                 Ok(()) => self.status = "已在檔案管理器中顯示。".into(),
@@ -379,10 +518,70 @@ impl PicLensApp {
         }
         cx.notify();
     }
+
+    fn tile_preview(&self, path: &str, is_folder: bool, animated: bool, size: f32) -> AnyElement {
+        if is_folder {
+            return div()
+                .size(px(size))
+                .flex()
+                .items_center()
+                .justify_center()
+                .bg(self_theme_muted())
+                .child(Icon::new(IconName::Folder))
+                .into_any_element();
+        }
+        if animated {
+            return div()
+                .size(px(size))
+                .flex()
+                .items_center()
+                .justify_center()
+                .bg(self_theme_muted())
+                .child(
+                    div()
+                        .text_xs()
+                        .child("動畫"),
+                )
+                .into_any_element();
+        }
+        if let Some(cache) = self.thumbs.get(path) {
+            return img(cache.clone())
+                .object_fit(ObjectFit::Cover)
+                .size(px(size))
+                .into_any_element();
+        }
+        if self.thumb_pending.contains(path) {
+            return div()
+                .size(px(size))
+                .flex()
+                .items_center()
+                .justify_center()
+                .bg(self_theme_muted())
+                .child(div().text_xs().child("…"))
+                .into_any_element();
+        }
+        div()
+            .size(px(size))
+            .flex()
+            .items_center()
+            .justify_center()
+            .bg(self_theme_muted())
+            .child(Icon::new(IconName::File))
+            .into_any_element()
+    }
+}
+
+/// Placeholder muted color when theme access needs a static fallback in pure helpers.
+/// Prefer `cx.theme().secondary` in render paths.
+fn self_theme_muted() -> Hsla {
+    hsla(0.0, 0.0, 0.5, 0.15)
 }
 
 impl Render for PicLensApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // Keep thumb queue warm while scrolling / after loads.
+        self.schedule_thumbs(cx);
+
         let folder_title = self
             .folder_path
             .as_deref()
@@ -395,67 +594,132 @@ impl Render for PicLensApp {
             })
             .unwrap_or_else(|| "未選擇資料夾".into());
 
-        let rows: Vec<_> = self
-            .visible
-            .iter()
-            .enumerate()
-            .map(|(idx, item)| {
-                let path = item.path().to_string();
-                let name = item.name().to_string();
-                let is_folder = item.is_folder();
-                let selected = self.selected.contains(&path);
-                let animated = item.as_image().map(|i| i.is_animated).unwrap_or(false);
-                h_flex()
-                    .id(("row", idx))
-                    .w_full()
-                    .gap_2()
-                    .p_2()
-                    .items_center()
-                    .border_b_1()
-                    .border_color(if selected {
-                        cx.theme().primary
-                    } else {
-                        cx.theme().border
-                    })
-                    .bg(if selected {
-                        cx.theme().secondary
-                    } else {
-                        cx.theme().background
-                    })
-                    .hover(|s| s.bg(cx.theme().secondary))
-                    .cursor_pointer()
-                    .child(if is_folder {
-                        Icon::new(IconName::Folder)
-                    } else {
-                        Icon::new(IconName::File)
-                    })
-                    .child(div().flex_1().child(name))
-                    .child(if animated {
-                        div()
-                            .text_xs()
-                            .text_color(cx.theme().muted_foreground)
-                            .child("動畫")
-                            .into_any_element()
-                    } else {
-                        div().into_any_element()
-                    })
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, event: &MouseDownEvent, _, cx| {
-                            let additive = event.modifiers.control || event.modifiers.shift;
-                            if is_folder {
-                                this.open_folder(path.clone(), false, true, cx);
-                            } else if event.click_count >= 2 {
-                                this.select_path(&path, false);
-                                this.open_viewer(&path, cx);
-                            } else {
-                                this.select_path(&path, additive);
-                                cx.notify();
-                            }
-                        }),
-                    )
-            })
-            .collect();
+        let tile_size = self.thumb_size() as f32;
+        let gallery_mode = self.gallery_mode;
+
+        let gallery_body: AnyElement = if self.visible.is_empty() {
+            v_flex()
+                .size_full()
+                .items_center()
+                .justify_center()
+                .gap_3()
+                .child(div().text_lg().child(if self.folder_path.is_some() {
+                    "此資料夾沒有符合的項目"
+                } else {
+                    "請選擇圖片資料夾以開始"
+                }))
+                .child(
+                    Button::new("empty-open")
+                        .primary()
+                        .label("選擇資料夾")
+                        .on_click(cx.listener(|this, _, _, cx| this.pick_folder(cx))),
+                )
+                .into_any_element()
+        } else if gallery_mode == GalleryMode::Grid {
+            div()
+                .flex()
+                .flex_row()
+                .flex_wrap()
+                .gap_2()
+                .p_2()
+                .children(self.visible.iter().enumerate().map(|(idx, item)| {
+                    let path = item.path().to_string();
+                    let name = item.name().to_string();
+                    let is_folder = item.is_folder();
+                    let animated = item.as_image().map(|i| i.is_animated).unwrap_or(false);
+                    let selected = self.selected.contains(&path);
+                    let preview = self.tile_preview(&path, is_folder, animated, tile_size);
+                    v_flex()
+                        .id(("tile", idx))
+                        .w(px(tile_size + 8.0))
+                        .gap_1()
+                        .p_1()
+                        .rounded(cx.theme().radius)
+                        .border_1()
+                        .border_color(if selected {
+                            cx.theme().primary
+                        } else {
+                            cx.theme().border
+                        })
+                        .bg(if selected {
+                            cx.theme().secondary
+                        } else {
+                            cx.theme().background
+                        })
+                        .cursor_pointer()
+                        .child(preview)
+                        .child(
+                            div()
+                                .text_xs()
+                                .overflow_hidden()
+                                .whitespace_nowrap()
+                                .child(name),
+                        )
+                        .on_mouse_down(
+                            MouseButton::Left,
+                            cx.listener(move |this, event: &MouseDownEvent, _, cx| {
+                                let additive = event.modifiers.control || event.modifiers.shift;
+                                if is_folder {
+                                    this.open_folder(path.clone(), false, true, cx);
+                                } else if event.click_count >= 2 {
+                                    this.select_path(&path, false);
+                                    this.open_viewer(&path, cx);
+                                } else {
+                                    this.select_path(&path, additive);
+                                    cx.notify();
+                                }
+                            }),
+                        )
+                }))
+                .into_any_element()
+        } else {
+            v_flex()
+                .w_full()
+                .children(self.visible.iter().enumerate().map(|(idx, item)| {
+                    let path = item.path().to_string();
+                    let name = item.name().to_string();
+                    let is_folder = item.is_folder();
+                    let animated = item.as_image().map(|i| i.is_animated).unwrap_or(false);
+                    let selected = self.selected.contains(&path);
+                    let preview = self.tile_preview(&path, is_folder, animated, 48.0);
+                    h_flex()
+                        .id(("row", idx))
+                        .w_full()
+                        .gap_2()
+                        .p_2()
+                        .items_center()
+                        .border_b_1()
+                        .border_color(if selected {
+                            cx.theme().primary
+                        } else {
+                            cx.theme().border
+                        })
+                        .bg(if selected {
+                            cx.theme().secondary
+                        } else {
+                            cx.theme().background
+                        })
+                        .cursor_pointer()
+                        .child(preview)
+                        .child(div().flex_1().child(name))
+                        .on_mouse_down(
+                            MouseButton::Left,
+                            cx.listener(move |this, event: &MouseDownEvent, _, cx| {
+                                let additive = event.modifiers.control || event.modifiers.shift;
+                                if is_folder {
+                                    this.open_folder(path.clone(), false, true, cx);
+                                } else if event.click_count >= 2 {
+                                    this.select_path(&path, false);
+                                    this.open_viewer(&path, cx);
+                                } else {
+                                    this.select_path(&path, additive);
+                                    cx.notify();
+                                }
+                            }),
+                        )
+                }))
+                .into_any_element()
+        };
 
         let sidebar = if self.sidebar_collapsed {
             div().id("sidebar-off").into_any_element()
@@ -509,10 +773,9 @@ impl Render for PicLensApp {
                 .get(idx)
                 .map(|i| i.path.clone())
                 .unwrap_or_default();
-            let message = viewer
-                .message
-                .clone()
-                .unwrap_or_else(|| format!("路徑：{path}\n縮放 {:.0}%", viewer.zoom.zoom * 100.0));
+            let zoom = viewer.zoom.zoom;
+            let message = viewer.message.clone();
+            let animated_block = message.is_some();
 
             div()
                 .id("viewer")
@@ -580,7 +843,7 @@ impl Render for PicLensApp {
                                 .on_click(cx.listener(|this, _, _, cx| this.reveal_focus(cx))),
                         )
                         .child(div().flex_1())
-                        .child(div().child(name)),
+                        .child(div().child(format!("{name} · {:.0}%", zoom * 100.0))),
                 )
                 .child(
                     div()
@@ -588,13 +851,25 @@ impl Render for PicLensApp {
                         .flex()
                         .items_center()
                         .justify_center()
-                        .p_4()
-                        .child(
+                        .overflow_hidden()
+                        .p_2()
+                        .child(if animated_block {
                             div()
-                                .text_sm()
-                                .text_color(cx.theme().muted_foreground)
-                                .child(message),
-                        ),
+                                .text_lg()
+                                .text_color(cx.theme().danger)
+                                .child(message.unwrap_or_default())
+                                .into_any_element()
+                        } else if path.is_empty() {
+                            div().child("無圖片").into_any_element()
+                        } else {
+                            // Scale via fixed logical size driven by zoom.
+                            let base = 640.0 * zoom as f32;
+                            img(PathBuf::from(path))
+                                .object_fit(ObjectFit::Contain)
+                                .w(px(base))
+                                .h(px(base))
+                                .into_any_element()
+                        }),
                 )
         });
 
@@ -606,7 +881,7 @@ impl Render for PicLensApp {
                 .flex()
                 .items_center()
                 .justify_center()
-                .bg(gpui::black().opacity(0.4))
+                .bg(black().opacity(0.4))
                 .child(
                     v_flex()
                         .w_96()
@@ -642,6 +917,90 @@ impl Render for PicLensApp {
                 )
         });
 
+        let drop_layer = self.drop_rename.as_ref().map(|plan| {
+            let lines: Vec<AnyElement> = plan
+                .items
+                .iter()
+                .take(12)
+                .map(|item| {
+                    let src = PathBuf::from(&item.source_path)
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("?")
+                        .to_string();
+                    let dst = PathBuf::from(&item.target_path)
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("?")
+                        .to_string();
+                    let line = if item.should_skip {
+                        format!("略過 {src}")
+                    } else {
+                        format!("{src} → {dst}")
+                    };
+                    div().text_sm().child(line).into_any_element()
+                })
+                .collect();
+            let more = if plan.items.len() > 12 {
+                format!("…共 {} 項", plan.total)
+            } else {
+                format!("共 {} 項", plan.total)
+            };
+
+            div()
+                .id("drop-rename")
+                .absolute()
+                .inset_0()
+                .flex()
+                .items_center()
+                .justify_center()
+                .bg(black().opacity(0.4))
+                .child(
+                    v_flex()
+                        .w(px(520.))
+                        .max_h(px(480.))
+                        .gap_2()
+                        .p_4()
+                        .rounded(cx.theme().radius)
+                        .bg(cx.theme().background)
+                        .border_1()
+                        .border_color(cx.theme().border)
+                        .child(div().child("拖放重新命名預覽"))
+                        .child(div().text_xs().text_color(cx.theme().muted_foreground).child(
+                            "選取順序：來源在前，最後一張為目標。取消不會改檔。",
+                        ))
+                        .child(
+                            div()
+                                .id("drop-plan-list")
+                                .flex_1()
+                                .overflow_y_scroll()
+                                .child(v_flex().gap_1().children(lines)),
+                        )
+                        .child(div().text_xs().child(more))
+                        .child(
+                            h_flex()
+                                .gap_2()
+                                .justify_end()
+                                .child(
+                                    Button::new("dr-cancel").label("取消").on_click(cx.listener(
+                                        |this, _, _, cx| {
+                                            this.drop_rename = None;
+                                            cx.notify();
+                                        },
+                                    )),
+                                )
+                                .child(
+                                    Button::new("dr-ok")
+                                        .primary()
+                                        .label("確認重新命名")
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.commit_drop_rename(cx);
+                                        })),
+                                ),
+                        ),
+                )
+        });
+
         div()
             .id("piclens-root")
             .size_full()
@@ -652,7 +1011,10 @@ impl Render for PicLensApp {
             .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| {
                 let key = event.keystroke.key.as_str();
                 if key == "escape" {
-                    if this.rename.is_some() {
+                    if this.drop_rename.is_some() {
+                        this.drop_rename = None;
+                        cx.notify();
+                    } else if this.rename.is_some() {
                         this.rename = None;
                         cx.notify();
                     } else if this.viewer.is_some() {
@@ -712,6 +1074,21 @@ impl Render for PicLensApp {
                             })),
                     )
                     .child(
+                        Button::new("mode")
+                            .label(if self.gallery_mode == GalleryMode::Grid {
+                                "格狀"
+                            } else {
+                                "列表"
+                            })
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.gallery_mode = match this.gallery_mode {
+                                    GalleryMode::Grid => GalleryMode::List,
+                                    GalleryMode::List => GalleryMode::Grid,
+                                };
+                                cx.notify();
+                            })),
+                    )
+                    .child(
                         Button::new("sort")
                             .label(self.sort_label())
                             .on_click(cx.listener(|this, _, _, cx| this.cycle_sort(cx))),
@@ -744,6 +1121,16 @@ impl Render for PicLensApp {
                     .border_b_1()
                     .border_color(cx.theme().border)
                     .child(div().w_64().child(Input::new(&self.search)))
+                    .child(
+                        Button::new("thumb-")
+                            .label("縮圖-")
+                            .on_click(cx.listener(|this, _, _, cx| this.adjust_thumb_size(-20, cx))),
+                    )
+                    .child(
+                        Button::new("thumb+")
+                            .label("縮圖+")
+                            .on_click(cx.listener(|this, _, _, cx| this.adjust_thumb_size(20, cx))),
+                    )
                     .child(
                         Button::new("to-jpg")
                             .label("轉 JPG")
@@ -779,6 +1166,13 @@ impl Render for PicLensApp {
                             .label("重新命名")
                             .on_click(cx.listener(|this, _, window, cx| {
                                 this.start_rename(window, cx)
+                            })),
+                    )
+                    .child(
+                        Button::new("drop-rename")
+                            .label("依目標重新命名")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.plan_drop_rename_from_selection(cx)
                             })),
                     )
                     .child(
@@ -838,31 +1232,7 @@ impl Render for PicLensApp {
                             .flex_1()
                             .h_full()
                             .overflow_y_scroll()
-                            .child(if self.visible.is_empty() {
-                                v_flex()
-                                    .size_full()
-                                    .items_center()
-                                    .justify_center()
-                                    .gap_3()
-                                    .child(div().text_lg().child(
-                                        if self.folder_path.is_some() {
-                                            "此資料夾沒有符合的項目"
-                                        } else {
-                                            "請選擇圖片資料夾以開始"
-                                        },
-                                    ))
-                                    .child(
-                                        Button::new("empty-open")
-                                            .primary()
-                                            .label("選擇資料夾")
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.pick_folder(cx)
-                                            })),
-                                    )
-                                    .into_any_element()
-                            } else {
-                                v_flex().w_full().children(rows).into_any_element()
-                            }),
+                            .child(gallery_body),
                     ),
             )
             .child(
@@ -883,14 +1253,17 @@ impl Render for PicLensApp {
                             .text_sm()
                             .text_color(cx.theme().muted_foreground)
                             .child(format!(
-                                "{} 項 · 選取 {}",
+                                "{} 項 · 選取 {} · 縮圖佇列 {} · 尺寸 {}",
                                 self.visible.len(),
-                                self.selected.len()
+                                self.selected.len(),
+                                self.thumb_pending.len(),
+                                self.settings.thumbnail_size
                             )),
                     ),
             )
             .children(viewer_layer)
             .children(rename_layer)
+            .children(drop_layer)
             .children(Root::render_dialog_layer(window, cx))
             .children(Root::render_sheet_layer(window, cx))
             .children(Root::render_notification_layer(window, cx))
