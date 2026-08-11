@@ -1,4 +1,5 @@
-Talk in ASD-STE100 Simplified Technical English, and use the ubiquitous language from this project.
+Always use ASD-STE100 Simplified Technical English. 
+Follow Zinsser's four principles of quality writing: 1. Simplicity, 2. Brevity, 3. Clarity, 4. Humanity
 
 ---
 
