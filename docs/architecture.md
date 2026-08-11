@@ -1,33 +1,28 @@
 # Architecture
 
-PicLens production runtime 使用 Qt 6、C++20 與 Qt Quick。Repository root 同時是標準 CMake/Qt project root，可直接由 Qt Creator 開啟。
+PicLens on the GPUI migration branch is a Rust workspace.
 
 ```text
-src/core/                 framework-light product rules and value models
-src/infrastructure/       filesystem, settings, logging, thumbnails, OS adapters
-src/presentation/         typed models and controllers exposed to QML
-src/app/                  composition root, QML registration and executable
-qml/PicLens/              Qt Quick shell and reusable controls
-tests/                    C++ Qt Test and QML Quick Test suites
-scripts/                  portable, installer, lifecycle and performance gates
-assets/                   application icons, logos and unpackaged font sources
-installer/                WiX definition for the Qt Windows payload
+crates/piclens-domain/     framework-light product rules and value models
+crates/piclens-infra/      filesystem, settings, logging, thumbnails, OS adapters
+crates/piclens-gpui/       GPUI shell, controllers, and composition root
+.agents/skills/            agent skills for GPUI / gpui-component
+docs/                      product contracts and engineering notes
+assets/                    application icons and fonts
 ```
 
 ## Dependency direction
 
-`app -> presentation -> core` and `app -> infrastructure -> core`. Core does not depend on QML, filesystem implementations, platform commands, or image codecs. Presentation owns UI-facing state and orchestration; QML owns visual layout and direct interaction wiring.
+`piclens-gpui -> piclens-infra -> piclens-domain`. Domain does not depend on GPUI, filesystem codecs, or platform UI.
 
 ## Runtime composition
 
-`src/app/src/main.cpp` is the minimal executable entry point. `launch_options.cpp` owns CLI parsing, `application_bootstrap.cpp` configures the application/controller/QML engine, and `runtime_diagnostics.cpp` owns metrics、scroll exercise、viewer launch、screenshot and smoke timeout wiring. `AppController` composes settings, logging, scanner, thumbnail, file-operation, viewer and folder-tree services. `piclens_qml` is the single static `PicLens` QML module consumed by both the executable and QuickTest; `Main.qml` is its production shell.
-
-The gallery and folder tree use lazy/virtualized models. The library model indexes path identity for constant-time thumbnail delivery, preserves thumbnail state across search/sort projections and limits role notifications to affected rows. Thumbnail work is bounded and coordinated asynchronously; stale requests are discarded when search, folder or navigation generation changes. Cache capacity is maintained incrementally and pruned only after exceeding its bound. A bounded decoded-image cache and forced-asynchronous Qt Quick image provider deliver generated thumbnails without a cold-path PNG reload. The viewer requests viewport-sized decode tiers instead of unconditional original-size textures. Settings writes are normalized and atomic. OS-specific trash and reveal behavior are isolated behind `PlatformFileManager`.
+`crates/piclens-gpui/src/main.rs` starts `gpui_platform`, calls `gpui_component::init`, and opens a window wrapped in `Root`. `PicLensApp` owns settings, folder history, library scan results, selection, viewer snapshot, and file-operation commands. Infrastructure implements scan, settings JSON, trash/reveal, convert, and thumbnail cache helpers.
 
 ## Data and diagnostics
 
-Without `PICLENS_DATA_ROOT`, platform local application data under `PicLens` remains the authority for settings, cache and logs. Tests, smoke runs and installers set an isolated root so they never modify the user's profile. See [data continuity](data-continuity.md).
+Without `PICLENS_DATA_ROOT`, platform local application data under `PicLens` is the authority for settings, cache, and logs. See [data continuity](data-continuity.md).
 
-## Packaging
+## Qt history
 
-Windows portable deployment uses `windeployqt`; WiX packages that exact audited payload. Linux portable deployment copies Qt runtime dependencies and plugins; system DEB/RPM packages are generated from the same CMake install graph through CPack. No legacy runtime or packaging builder remains.
+The Qt 6 / QML production tree was removed on this migration branch. Product contracts in `docs/` remain the authority for behavior. Older Qt packaging notes may remain under `docs/archive/` as history only.

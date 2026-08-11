@@ -1,82 +1,52 @@
 # PicLens
 
-PicLens 是使用 Qt 6、C++20 與 Qt Quick 建置的跨平台圖片整理與檢視應用程式，支援 Windows 與主流 Linux。
+PicLens is a desktop image library and viewer for Windows and mainstream Linux.
 
-## Repository layout
+**This branch (`experiment/gpui`) is the GPUI migration.** The runtime is Rust + [GPUI](https://github.com/zed-industries/zed) + [gpui-component](https://github.com/longbridge/gpui-component). Product behavior stays under [docs/product-spec.md](docs/product-spec.md).
+
+## Layout
 
 ```text
-src/                production C++ libraries and application composition
-qml/                Qt Quick shell and reusable controls
-tests/              Qt Test and Qt Quick Test suites
-scripts/            release, lifecycle and performance automation
-packaging/          Linux desktop integration
-assets/             application icons、logos 與未打包的字型來源檔
-installer/          Windows WiX MSI definition
-docs/               product、architecture、development、testing、release 與 archived evidence
-LICENSE             MIT license
-VERSION             package version authority
+crates/piclens-domain/   product rules (no I/O UI)
+crates/piclens-infra/    filesystem, settings, thumbs, OS adapters
+crates/piclens-gpui/     application UI
+.agents/skills/          GPUI agent skills
+docs/                    product and engineering docs
+assets/                  icons and fonts
 ```
 
-文件入口：[docs/README.md](docs/README.md)。
+## Requirements
 
-## Build and test
+- Rust **nightly** (`rust-toolchain.toml` pins the channel; current Zed GPUI needs unstable APIs)
+- Windows or Linux desktop stack suitable for GPUI
 
-需要 CMake 3.21+、Ninja、C++20 compiler 與 Qt 6.5+（Core、Gui、Qml、Quick、QuickControls2、Concurrent、Test、QuickTest）。
+## Build and run
 
-以下命令都從 repo root 執行，PowerShell 需使用 PowerShell 7（`pwsh`）。
-
-常用單行建置命令：
+From the repo root:
 
 ```powershell
-# Debug -> build/debug/bin/PicLens.exe
-cmake --preset debug && cmake --build --preset debug
-
-# Release -> build/release/bin/PicLens.exe
-cmake --preset release && cmake --build --preset release
-
-# Windows Installer -> artifacts/installer/PicLens-<version>-win-x64.msi
-pwsh -NoProfile -File scripts/build-msi.ps1
+cargo run -p piclens-gpui --release
+cargo run -p piclens-gpui -- --folder D:\Photos
 ```
 
-執行完整測試：
+Isolate profile data:
 
 ```powershell
-ctest --preset debug --output-on-failure
-ctest --preset release --output-on-failure
+$env:PICLENS_DATA_ROOT = "F:\PicLens\artifacts\gpui-profile"
+cargo run -p piclens-gpui
 ```
 
-## Run
-
-Windows：`build\debug\bin\PicLens.exe`
-
-Linux：`./build/debug/bin/PicLens`
-
-可用 `--folder <path>` 直接開啟圖片資料夾；測試或診斷時可用 `PICLENS_DATA_ROOT` 隔離 profile。
-
-## Release
+Domain tests:
 
 ```powershell
-# Windows portable
-pwsh -NoProfile -File scripts/build-portable.ps1
-
-# Windows MSI（.NET SDK 僅供 WiX Toolset）
-pwsh -NoProfile -File scripts/build-msi.ps1
+cargo test -p piclens-domain
 ```
 
-Linux installers：
+## Data
 
-```bash
-bash scripts/build-deb.sh
-bash scripts/build-rpm.sh
-```
+Without `PICLENS_DATA_ROOT`, settings and logs use local app data under `PicLens` (`piclens-settings.json`, `Logs/PicLens.log`, `Thumbnails/`).
 
-```bash
-# Linux portable
-bash scripts/build-linux-portable.sh
-```
+## Docs
 
-DEB/RPM 使用 CPack，完整 portable、installer、lifecycle 與 signing 說明見 [release and packaging](docs/release.md)。Windows、Ubuntu 與 Fedora clean-runner gates 位於 `.github/workflows/release.yml`。
-
-## Project state
-
-Current product behavior and engineering invariants are documented under [`docs/`](docs/README.md). Historical Qt cutover and performance evidence is archived and does not replace verification of the current checkout.
+- [docs/README.md](docs/README.md)
+- [docs/archive/gpui-experiment.md](docs/archive/gpui-experiment.md)

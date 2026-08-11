@@ -1,9 +1,0 @@
-piclens_add_qt_test(piclens_core_tests
-    SOURCES
-        tst_core_domain.cpp
-    LIBRARIES
-        PicLens::Core
-    LABELS
-        core
-        unit
-)
