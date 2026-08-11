@@ -27,6 +27,8 @@ From the repo root:
 ```powershell
 cargo run -p piclens-gpui --release
 cargo run -p piclens-gpui -- --folder D:\Photos
+# Optional smoke: open folder then quit (CI)
+cargo run -p piclens-gpui -- --folder D:\Photos --smoke-ms 4000
 ```
 
 Isolate profile data:

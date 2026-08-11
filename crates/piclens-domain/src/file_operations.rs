@@ -54,3 +54,48 @@ impl FileOperationBatchResult {
             .count()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn batch_counters_split_status() {
+        let batch = FileOperationBatchResult {
+            items: vec![
+                FileOperationResult {
+                    path: "a".into(),
+                    status: FileOperationStatus::Converted,
+                    target_path: None,
+                    reason: None,
+                    message: None,
+                },
+                FileOperationResult {
+                    path: "b".into(),
+                    status: FileOperationStatus::Skipped,
+                    target_path: None,
+                    reason: None,
+                    message: None,
+                },
+                FileOperationResult {
+                    path: "c".into(),
+                    status: FileOperationStatus::Failed,
+                    target_path: None,
+                    reason: None,
+                    message: None,
+                },
+                FileOperationResult {
+                    path: "d".into(),
+                    status: FileOperationStatus::Trashed,
+                    target_path: None,
+                    reason: None,
+                    message: None,
+                },
+            ],
+        };
+        assert_eq!(batch.total(), 4);
+        assert_eq!(batch.succeeded(), 2);
+        assert_eq!(batch.skipped(), 1);
+        assert_eq!(batch.failed(), 1);
+    }
+}

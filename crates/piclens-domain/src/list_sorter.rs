@@ -105,7 +105,7 @@ pub fn sort_items(items: &[ListItem], sort_state: SortState, keep_folders_first:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{FolderListItem, ImageListItem};
+    use crate::models::{FolderListItem, ImageListItem, SortDirection, SortKey};
 
     #[test]
     fn natural_order_puts_2_before_10() {
@@ -131,5 +131,36 @@ mod tests {
         ];
         let sorted = sort_items(&items, SortState::default(), true);
         assert!(sorted[0].is_folder());
+    }
+
+    #[test]
+    fn modified_sort_descending() {
+        let items = vec![
+            ListItem::Image(ImageListItem {
+                path: "old.jpg".into(),
+                name: "old.jpg".into(),
+                extension: "jpg".into(),
+                modified_at_ms: Some(10),
+                size_bytes: 1,
+                is_animated: false,
+            }),
+            ListItem::Image(ImageListItem {
+                path: "new.jpg".into(),
+                name: "new.jpg".into(),
+                extension: "jpg".into(),
+                modified_at_ms: Some(99),
+                size_bytes: 1,
+                is_animated: false,
+            }),
+        ];
+        let sorted = sort_items(
+            &items,
+            SortState {
+                key: SortKey::ModifiedAt,
+                direction: SortDirection::Desc,
+            },
+            false,
+        );
+        assert_eq!(sorted[0].name(), "new.jpg");
     }
 }

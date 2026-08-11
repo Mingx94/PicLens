@@ -124,4 +124,31 @@ mod tests {
             "/tmp/a/photo.png"
         ));
     }
+
+    #[test]
+    fn target_name_exists_skips_source() {
+        let existing = vec![
+            "/tmp/a/photo.jpg".into(),
+            "/tmp/a/other.png".into(),
+        ];
+        assert!(!target_name_exists(
+            &existing,
+            "/tmp/a/photo.webp",
+            "/tmp/a/photo.jpg"
+        ));
+        assert!(target_name_exists(
+            &existing,
+            "/tmp/a/photo.webp",
+            "/tmp/a/different.jpg"
+        ));
+    }
+
+    #[test]
+    fn path_key_normalizes_slashes() {
+        let a = path_key(r"C:\Pics\a");
+        let b = path_key("C:/Pics/a");
+        if path_case_insensitive() {
+            assert_eq!(a, b);
+        }
+    }
 }

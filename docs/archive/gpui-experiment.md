@@ -32,12 +32,19 @@ cargo run -p piclens-gpui -- --folder D:\Photos
 - Drop-rename plan/confirm: multi-select sources then last item as target → preview → apply
 - Search, selection, sidebar children, file ops (trash, convert, rename, cleanup)
 
-## Gaps vs product-spec (still open)
+## Stability notes
 
-- Visible-only thumb scheduling (current queue is visible list order, not true viewport culling)
-- Pointer pan in viewer; wheel zoom anchor
-- Full folder-tree expand/collapse depth
-- Native drag-and-drop rename (selection-based plan is the interim UX)
-- MSI/DEB packaging for the Rust binary
+- Thumbs are **not** scheduled from `render` (avoids RefCell / stack faults).
+- Decode uses content-type guessing + panic isolation; corrupt files warn and skip.
+- Viewer only feeds `img()` with successfully decoded PNG cache paths.
+- Smoke: `--smoke-ms N` quits after N ms for automated launch checks.
+
+## Gaps vs product-spec (non-goals for packaging cutover)
+
+- Visible-only viewport culling
+- Pointer pan / wheel zoom anchor polish
+- Deep folder-tree expand
+- Native OS drag-drop rename
+- MSI/DEB packaging
 
 Close gaps in layers. Keep the app building after each layer.

@@ -52,12 +52,16 @@ pub struct PicLensApp {
     thumbs: HashMap<String, PathBuf>,
     thumb_pending: HashSet<String>,
     thumb_failed: HashSet<String>,
+    /// Prevents stacking concurrent thumb pump tasks.
+    thumbs_pump_scheduled: bool,
 }
 
 struct ViewerState {
     sequence: ImageSequenceSnapshot,
     zoom: ZoomState,
     message: Option<String>,
+    /// Safe on-disk image for `img()` (always a decoded PNG path when present).
+    display_path: Option<PathBuf>,
 }
 
 struct RenameState {
@@ -93,13 +97,14 @@ impl PicLensApp {
             thumbs: HashMap::new(),
             thumb_pending: HashSet::new(),
             thumb_failed: HashSet::new(),
+            thumbs_pump_scheduled: false,
         };
 
         cx.subscribe_in(&search, window, |this, state, event, _window, cx| {
             if matches!(event, InputEvent::Change) {
                 this.search_text = state.read(cx).value().to_string();
                 this.recompute_visible();
-                this.schedule_thumbs(cx);
+                this.request_thumbs(cx);
                 cx.notify();
             }
         })
@@ -148,8 +153,25 @@ impl PicLensApp {
             .max(80) as u32
     }
 
+    /// Schedule a thumb pump after the current update stack unwinds.
+    /// Never call from `render` — that re-enters entity locks and floods RefCell errors.
+    fn request_thumbs(&mut self, cx: &mut Context<Self>) {
+        if self.thumbs_pump_scheduled {
+            return;
+        }
+        self.thumbs_pump_scheduled = true;
+        cx.spawn(async move |this, cx| {
+            this.update(cx, |this, cx| {
+                this.thumbs_pump_scheduled = false;
+                this.pump_thumbs(cx);
+            })
+            .ok();
+        })
+        .detach();
+    }
+
     /// Queue background thumbnail work for visible static images (bounded).
-    fn schedule_thumbs(&mut self, cx: &mut Context<Self>) {
+    fn pump_thumbs(&mut self, cx: &mut Context<Self>) {
         let size = self.thumb_size();
         let gen = self.generation;
         let mut slots = MAX_THUMB_IN_FLIGHT.saturating_sub(self.thumb_pending.len());
@@ -199,7 +221,8 @@ impl PicLensApp {
                             warn(format!("thumb failed for {path}: {err}"));
                         }
                     }
-                    this.schedule_thumbs(cx);
+                    // Queue next batch outside this update via a fresh spawn.
+                    this.request_thumbs(cx);
                     cx.notify();
                 })
                 .ok();
@@ -247,7 +270,7 @@ impl PicLensApp {
                 }
                 self.status = format!("已載入 {} 個項目", self.visible.len());
                 info(format!("opened folder: {path}"));
-                self.schedule_thumbs(cx);
+                self.request_thumbs(cx);
             }
             Err(err) => {
                 self.status = format!("無法開啟資料夾：{err}");
@@ -327,7 +350,7 @@ impl PicLensApp {
         self.thumbs.clear();
         self.thumb_pending.clear();
         self.thumb_failed.clear();
-        self.schedule_thumbs(cx);
+        self.request_thumbs(cx);
         cx.notify();
     }
 
@@ -384,13 +407,20 @@ impl PicLensApp {
         if current_index < 0 {
             return;
         }
-        let message = images.get(current_index as usize).and_then(|img| {
-            if img.is_animated {
-                Some("此動畫圖片目前不支援預覽。".into())
-            } else {
-                None
-            }
-        });
+        let is_animated = images
+            .get(current_index as usize)
+            .map(|img| img.is_animated)
+            .unwrap_or(false);
+        let message = if is_animated {
+            Some("此動畫圖片目前不支援預覽。".into())
+        } else {
+            None
+        };
+        let display_path = if is_animated {
+            None
+        } else {
+            self.thumbs.get(path).cloned()
+        };
         self.viewer = Some(ViewerState {
             sequence: ImageSequenceSnapshot {
                 source_folder_path: self.folder_path.clone().unwrap_or_default(),
@@ -401,8 +431,56 @@ impl PicLensApp {
             },
             zoom: reset_zoom_state(),
             message,
+            display_path,
         });
+        if !is_animated {
+            self.load_viewer_display(path.to_string(), cx);
+        }
         cx.notify();
+    }
+
+    /// Decode a bounded safe PNG for the viewer (never feed raw corrupt files to `img`).
+    fn load_viewer_display(&mut self, path: String, cx: &mut Context<Self>) {
+        let gen = self.generation;
+        let path_for_bg = path.clone();
+        let path_for_ui = path;
+        cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_spawn(async move { ensure_thumbnail(&path_for_bg, 1024) })
+                .await;
+            this.update(cx, |this, cx| {
+                if this.generation != gen {
+                    return;
+                }
+                let Some(viewer) = this.viewer.as_mut() else {
+                    return;
+                };
+                let idx = viewer.sequence.current_index as usize;
+                let current = viewer
+                    .sequence
+                    .images
+                    .get(idx)
+                    .map(|i| i.path.as_str())
+                    .unwrap_or("");
+                if !path_equals(current, &path_for_ui) {
+                    return;
+                }
+                match result {
+                    Ok(cache) => {
+                        viewer.display_path = Some(cache);
+                        viewer.message = None;
+                    }
+                    Err(err) => {
+                        viewer.display_path = None;
+                        viewer.message = Some(format!("無法載入圖片：{err}"));
+                        warn(format!("viewer decode failed for {path_for_ui}: {err}"));
+                    }
+                }
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
     }
 
     fn close_viewer(&mut self, cx: &mut Context<Self>) {
@@ -421,13 +499,27 @@ impl PicLensApp {
         let next = (viewer.sequence.current_index + delta).rem_euclid(len);
         viewer.sequence.current_index = next;
         viewer.zoom = reset_zoom_state();
-        viewer.message = viewer.sequence.images.get(next as usize).and_then(|img| {
-            if img.is_animated {
-                Some("此動畫圖片目前不支援預覽。".into())
-            } else {
-                None
-            }
-        });
+        let (message, path) = viewer
+            .sequence
+            .images
+            .get(next as usize)
+            .map(|img| {
+                if img.is_animated {
+                    (Some("此動畫圖片目前不支援預覽。".into()), img.path.clone())
+                } else {
+                    (None, img.path.clone())
+                }
+            })
+            .unwrap_or((None, String::new()));
+        viewer.message = message.clone();
+        viewer.display_path = if message.is_some() {
+            None
+        } else {
+            self.thumbs.get(&path).cloned()
+        };
+        if message.is_none() && !path.is_empty() {
+            self.load_viewer_display(path, cx);
+        }
         cx.notify();
     }
 
@@ -579,8 +671,7 @@ fn self_theme_muted() -> Hsla {
 
 impl Render for PicLensApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // Keep thumb queue warm while scrolling / after loads.
-        self.schedule_thumbs(cx);
+        // Do not schedule thumbs or update entities here — causes RefCell / stack faults.
 
         let folder_title = self
             .folder_path
@@ -767,15 +858,9 @@ impl Render for PicLensApp {
                 .get(idx)
                 .map(|i| i.name.clone())
                 .unwrap_or_default();
-            let path = viewer
-                .sequence
-                .images
-                .get(idx)
-                .map(|i| i.path.clone())
-                .unwrap_or_default();
             let zoom = viewer.zoom.zoom;
             let message = viewer.message.clone();
-            let animated_block = message.is_some();
+            let display = viewer.display_path.clone();
 
             div()
                 .id("viewer")
@@ -853,21 +938,24 @@ impl Render for PicLensApp {
                         .justify_center()
                         .overflow_hidden()
                         .p_2()
-                        .child(if animated_block {
+                        .child(if let Some(msg) = message {
                             div()
                                 .text_lg()
                                 .text_color(cx.theme().danger)
-                                .child(message.unwrap_or_default())
+                                .child(msg)
                                 .into_any_element()
-                        } else if path.is_empty() {
-                            div().child("無圖片").into_any_element()
-                        } else {
-                            // Scale via fixed logical size driven by zoom.
+                        } else if let Some(display_path) = display {
                             let base = 640.0 * zoom as f32;
-                            img(PathBuf::from(path))
+                            img(display_path)
                                 .object_fit(ObjectFit::Contain)
                                 .w(px(base))
                                 .h(px(base))
+                                .into_any_element()
+                        } else {
+                            div()
+                                .text_sm()
+                                .text_color(cx.theme().muted_foreground)
+                                .child("載入中…")
                                 .into_any_element()
                         }),
                 )

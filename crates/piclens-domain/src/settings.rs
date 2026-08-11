@@ -82,11 +82,39 @@ pub fn merge_settings_patch(current: &AppSettings, patch: &AppSettingsPatch) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::{SortDirection, SortKey, SortState};
 
     #[test]
     fn clamps_thumbnail_size() {
         assert_eq!(normalize_thumbnail_size(10.0), MIN_THUMBNAIL_SIZE);
         assert_eq!(normalize_thumbnail_size(400.0), MAX_THUMBNAIL_SIZE);
         assert_eq!(normalize_thumbnail_size(165.0), 160);
+    }
+
+    #[test]
+    fn merge_patch_updates_fields() {
+        let current = AppSettings::default();
+        let patch = AppSettingsPatch {
+            last_folder_path: Some(Some("/photos".into())),
+            sort: Some(SortState {
+                key: SortKey::ModifiedAt,
+                direction: SortDirection::Desc,
+            }),
+            include_subfolders: Some(true),
+            thumbnail_size: Some(200),
+        };
+        let merged = merge_settings_patch(&current, &patch);
+        assert_eq!(merged.last_folder_path.as_deref(), Some("/photos"));
+        assert_eq!(merged.sort.key, SortKey::ModifiedAt);
+        assert!(merged.include_subfolders);
+        assert_eq!(merged.thumbnail_size, 200);
+    }
+
+    #[test]
+    fn zero_thumbnail_size_becomes_default() {
+        let mut settings = AppSettings::default();
+        settings.thumbnail_size = 0;
+        let normalized = normalize_settings(&settings);
+        assert_eq!(normalized.thumbnail_size, DEFAULT_THUMBNAIL_SIZE);
     }
 }
