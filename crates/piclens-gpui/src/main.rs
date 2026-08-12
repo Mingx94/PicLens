@@ -1,6 +1,7 @@
 mod actions;
 mod app;
 mod history;
+mod theme;
 
 use std::time::Duration;
 
