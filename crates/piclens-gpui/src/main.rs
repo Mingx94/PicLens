@@ -1,3 +1,4 @@
+mod actions;
 mod app;
 mod history;
 
@@ -44,6 +45,7 @@ fn main() {
     let app = gpui_platform::application().with_assets(gpui_component_assets::Assets);
     app.run(move |cx| {
         gpui_component::init(cx);
+        actions::init(cx);
         cx.activate(true);
 
         let mut window_size = size(px(1280.), px(800.));

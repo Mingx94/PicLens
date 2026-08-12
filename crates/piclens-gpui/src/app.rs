@@ -19,6 +19,13 @@ use piclens_infra::{
     scan_child_folders, scan_folder, trash_paths, warn, JsonSettingsStore,
 };
 
+use crate::actions::{
+    CleanupSameBasename, CloseOverlay, ConvertJpg, ConvertWebp, CycleSort, DropRenamePlan,
+    FocusSearch, HistoryBack, HistoryForward, MoveSelectionDown, MoveSelectionLeft,
+    MoveSelectionRight, MoveSelectionUp, OpenFolder, OpenViewer, Refresh, RenameSelection,
+    RevealInFileManager, SelectAll, ToggleGalleryMode, ToggleIncludeSubfolders, ToggleSidebar,
+    TrashSelection, ViewerNext, ViewerPrev, ZoomIn, ZoomOut, ZoomReset, CONTEXT,
+};
 use crate::history::FolderHistory;
 
 const MAX_THUMB_IN_FLIGHT: usize = 8;
@@ -54,6 +61,7 @@ pub struct PicLensApp {
     thumb_failed: HashSet<String>,
     /// Prevents stacking concurrent thumb pump tasks.
     thumbs_pump_scheduled: bool,
+    focus_handle: FocusHandle,
 }
 
 struct ViewerState {
@@ -98,7 +106,11 @@ impl PicLensApp {
             thumb_pending: HashSet::new(),
             thumb_failed: HashSet::new(),
             thumbs_pump_scheduled: false,
+            focus_handle: cx.focus_handle(),
         };
+
+        // Keep shell focused so global keybindings work after open.
+        app.focus_handle.focus(window, cx);
 
         cx.subscribe_in(&search, window, |this, state, event, _window, cx| {
             if matches!(event, InputEvent::Change) {
@@ -611,6 +623,338 @@ impl PicLensApp {
         cx.notify();
     }
 
+    // --- Keyboard action handlers ---
+
+    fn on_open_folder(&mut self, _: &OpenFolder, _: &mut Window, cx: &mut Context<Self>) {
+        self.pick_folder(cx);
+    }
+
+    fn on_refresh(&mut self, _: &Refresh, _: &mut Window, cx: &mut Context<Self>) {
+        self.refresh(cx);
+    }
+
+    fn on_history_back(&mut self, _: &HistoryBack, _: &mut Window, cx: &mut Context<Self>) {
+        if self.viewer.is_some() {
+            return;
+        }
+        self.navigate_history(true, cx);
+    }
+
+    fn on_history_forward(&mut self, _: &HistoryForward, _: &mut Window, cx: &mut Context<Self>) {
+        if self.viewer.is_some() {
+            return;
+        }
+        self.navigate_history(false, cx);
+    }
+
+    fn on_toggle_sidebar(&mut self, _: &ToggleSidebar, _: &mut Window, cx: &mut Context<Self>) {
+        self.sidebar_collapsed = !self.sidebar_collapsed;
+        cx.notify();
+    }
+
+    fn on_toggle_gallery_mode(
+        &mut self,
+        _: &ToggleGalleryMode,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.gallery_mode = match self.gallery_mode {
+            GalleryMode::Grid => GalleryMode::List,
+            GalleryMode::List => GalleryMode::Grid,
+        };
+        cx.notify();
+    }
+
+    fn on_cycle_sort(&mut self, _: &CycleSort, _: &mut Window, cx: &mut Context<Self>) {
+        self.cycle_sort(cx);
+    }
+
+    fn on_toggle_include_subfolders(
+        &mut self,
+        _: &ToggleIncludeSubfolders,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.toggle_include_subfolders(cx);
+    }
+
+    fn on_focus_search(&mut self, _: &FocusSearch, window: &mut Window, cx: &mut Context<Self>) {
+        if self.viewer.is_some() || self.rename.is_some() || self.drop_rename.is_some() {
+            return;
+        }
+        self.search.update(cx, |state, cx| {
+            state.focus(window, cx);
+        });
+    }
+
+    fn on_close_overlay(&mut self, _: &CloseOverlay, window: &mut Window, cx: &mut Context<Self>) {
+        if self.drop_rename.is_some() {
+            self.drop_rename = None;
+            self.focus_handle.focus(window, cx);
+            cx.notify();
+        } else if self.rename.is_some() {
+            self.rename = None;
+            self.focus_handle.focus(window, cx);
+            cx.notify();
+        } else if self.viewer.is_some() {
+            self.close_viewer(cx);
+            self.focus_handle.focus(window, cx);
+        } else if !self.selected.is_empty() {
+            self.clear_selection();
+            cx.notify();
+        } else if !self.search_text.is_empty() {
+            self.search_text.clear();
+            self.search.update(cx, |state, cx| {
+                state.set_value("", window, cx);
+            });
+            self.recompute_visible();
+            self.request_thumbs(cx);
+            self.focus_handle.focus(window, cx);
+            cx.notify();
+        }
+    }
+
+    fn on_select_all(&mut self, _: &SelectAll, _: &mut Window, cx: &mut Context<Self>) {
+        if self.viewer.is_some() {
+            return;
+        }
+        self.clear_selection();
+        for item in &self.visible {
+            if let ListItem::Image(img) = item {
+                self.selected.insert(img.path.clone());
+                self.selection_order.push(img.path.clone());
+            }
+        }
+        self.status = format!("已選取 {} 張圖片", self.selected.len());
+        cx.notify();
+    }
+
+    fn on_open_viewer(&mut self, _: &OpenViewer, window: &mut Window, cx: &mut Context<Self>) {
+        if self.viewer.is_some() || self.rename.is_some() || self.drop_rename.is_some() {
+            return;
+        }
+        // Enter on a selected folder navigates into it.
+        if let Some(path) = self.selection_order.last().cloned() {
+            if self
+                .visible
+                .iter()
+                .any(|item| item.is_folder() && path_equals(item.path(), &path))
+            {
+                self.open_folder(path, false, true, cx);
+                self.focus_handle.focus(window, cx);
+                return;
+            }
+        }
+        if let Some(img) = self.selected_images().first() {
+            let path = img.path.clone();
+            self.open_viewer(&path, cx);
+            self.focus_handle.focus(window, cx);
+        } else if let Some(item) = self.visible.iter().find_map(|i| i.as_image()) {
+            let path = item.path.clone();
+            self.select_path(&path, false);
+            self.open_viewer(&path, cx);
+            self.focus_handle.focus(window, cx);
+        } else {
+            self.status = "請先選取圖片。".into();
+            cx.notify();
+        }
+    }
+
+    fn viewer_zoom_is_fit(&self) -> bool {
+        self.viewer
+            .as_ref()
+            .map(|v| v.zoom.zoom <= 1.01)
+            .unwrap_or(true)
+    }
+
+    fn on_viewer_prev(&mut self, _: &ViewerPrev, _: &mut Window, cx: &mut Context<Self>) {
+        if self.viewer.is_some() && self.viewer_zoom_is_fit() {
+            self.viewer_step(-1, cx);
+        }
+    }
+
+    fn on_viewer_next(&mut self, _: &ViewerNext, _: &mut Window, cx: &mut Context<Self>) {
+        if self.viewer.is_some() && self.viewer_zoom_is_fit() {
+            self.viewer_step(1, cx);
+        }
+    }
+
+    fn on_zoom_in(&mut self, _: &ZoomIn, _: &mut Window, cx: &mut Context<Self>) {
+        if let Some(v) = self.viewer.as_mut() {
+            v.zoom.zoom = clamp_zoom(v.zoom.zoom * 1.2);
+            cx.notify();
+        } else {
+            self.adjust_thumb_size(20, cx);
+        }
+    }
+
+    fn on_zoom_out(&mut self, _: &ZoomOut, _: &mut Window, cx: &mut Context<Self>) {
+        if let Some(v) = self.viewer.as_mut() {
+            v.zoom.zoom = clamp_zoom(v.zoom.zoom / 1.2);
+            cx.notify();
+        } else {
+            self.adjust_thumb_size(-20, cx);
+        }
+    }
+
+    fn on_zoom_reset(&mut self, _: &ZoomReset, _: &mut Window, cx: &mut Context<Self>) {
+        if let Some(v) = self.viewer.as_mut() {
+            v.zoom = reset_zoom_state();
+            cx.notify();
+        }
+    }
+
+    fn on_trash(&mut self, _: &TrashSelection, _: &mut Window, cx: &mut Context<Self>) {
+        if self.viewer.is_some() {
+            // Trash current viewer image
+            if let Some(viewer) = self.viewer.as_ref() {
+                let idx = viewer.sequence.current_index as usize;
+                if let Some(img) = viewer.sequence.images.get(idx) {
+                    let paths = vec![img.path.clone()];
+                    let batch = trash_paths(&paths);
+                    self.apply_batch("移至回收筒", &batch);
+                    self.close_viewer(cx);
+                    self.refresh(cx);
+                    return;
+                }
+            }
+        }
+        let paths: Vec<String> = self.selected_images().into_iter().map(|i| i.path).collect();
+        if paths.is_empty() {
+            self.status = "請先選取圖片。".into();
+            cx.notify();
+            return;
+        }
+        let batch = trash_paths(&paths);
+        self.apply_batch("移至回收筒", &batch);
+        self.refresh(cx);
+    }
+
+    fn on_rename(&mut self, _: &RenameSelection, window: &mut Window, cx: &mut Context<Self>) {
+        if self.viewer.is_some() {
+            return;
+        }
+        self.start_rename(window, cx);
+    }
+
+    fn on_drop_rename(&mut self, _: &DropRenamePlan, _: &mut Window, cx: &mut Context<Self>) {
+        if self.viewer.is_some() {
+            return;
+        }
+        self.plan_drop_rename_from_selection(cx);
+    }
+
+    fn on_convert_jpg(&mut self, _: &ConvertJpg, _: &mut Window, cx: &mut Context<Self>) {
+        let paths = self.visible_image_paths();
+        let batch = convert_to_jpg(&paths);
+        self.apply_batch("轉 JPG", &batch);
+        self.refresh(cx);
+    }
+
+    fn on_convert_webp(&mut self, _: &ConvertWebp, _: &mut Window, cx: &mut Context<Self>) {
+        let paths = self.visible_image_paths();
+        let batch = convert_to_lossless_webp(&paths);
+        self.apply_batch("轉 WebP", &batch);
+        self.refresh(cx);
+    }
+
+    fn on_cleanup(&mut self, _: &CleanupSameBasename, _: &mut Window, cx: &mut Context<Self>) {
+        let paths = self.visible_image_paths();
+        let batch = cleanup_same_basename(&paths);
+        self.apply_batch("清除同名格式", &batch);
+        self.refresh(cx);
+    }
+
+    fn on_reveal(&mut self, _: &RevealInFileManager, _: &mut Window, cx: &mut Context<Self>) {
+        self.reveal_focus(cx);
+    }
+
+    fn move_selection(&mut self, delta: i32, cx: &mut Context<Self>) {
+        if self.viewer.is_some() || self.visible.is_empty() {
+            return;
+        }
+        let current = self
+            .selection_order
+            .last()
+            .and_then(|p| {
+                self.visible
+                    .iter()
+                    .position(|item| path_equals(item.path(), p))
+            })
+            .unwrap_or(usize::MAX);
+        let len = self.visible.len() as i32;
+        let next = if current == usize::MAX {
+            if delta >= 0 {
+                0
+            } else {
+                len - 1
+            }
+        } else {
+            (current as i32 + delta).clamp(0, len - 1)
+        } as usize;
+        let path = self.visible[next].path().to_string();
+        self.clear_selection();
+        if self.visible[next].is_folder() {
+            // Highlight folder by selecting path in order only for navigation feedback
+            self.selected.insert(path.clone());
+            self.selection_order.push(path);
+        } else {
+            self.select_path(&path, false);
+        }
+        cx.notify();
+    }
+
+    fn on_move_up(&mut self, _: &MoveSelectionUp, _: &mut Window, cx: &mut Context<Self>) {
+        if self.viewer.is_some() {
+            return;
+        }
+        let step = if self.gallery_mode == GalleryMode::Grid {
+            self.grid_columns_estimate().max(1) as i32
+        } else {
+            1
+        };
+        self.move_selection(-step, cx);
+    }
+
+    fn on_move_down(&mut self, _: &MoveSelectionDown, _: &mut Window, cx: &mut Context<Self>) {
+        if self.viewer.is_some() {
+            return;
+        }
+        let step = if self.gallery_mode == GalleryMode::Grid {
+            self.grid_columns_estimate().max(1) as i32
+        } else {
+            1
+        };
+        self.move_selection(step, cx);
+    }
+
+    fn on_move_left(&mut self, _: &MoveSelectionLeft, _: &mut Window, cx: &mut Context<Self>) {
+        if self.viewer.is_some() {
+            if self.viewer_zoom_is_fit() {
+                self.viewer_step(-1, cx);
+            }
+            return;
+        }
+        self.move_selection(-1, cx);
+    }
+
+    fn on_move_right(&mut self, _: &MoveSelectionRight, _: &mut Window, cx: &mut Context<Self>) {
+        if self.viewer.is_some() {
+            if self.viewer_zoom_is_fit() {
+                self.viewer_step(1, cx);
+            }
+            return;
+        }
+        self.move_selection(1, cx);
+    }
+
+    fn grid_columns_estimate(&self) -> usize {
+        let tile = self.thumb_size() as usize + 16;
+        // Assume ~960px gallery width when sidebar open
+        let width = if self.sidebar_collapsed { 1200 } else { 960 };
+        (width / tile).max(1)
+    }
+
     fn tile_preview(&self, path: &str, is_folder: bool, animated: bool, size: f32) -> AnyElement {
         if is_folder {
             return div()
@@ -667,6 +1011,12 @@ impl PicLensApp {
 /// Prefer `cx.theme().secondary` in render paths.
 fn self_theme_muted() -> Hsla {
     hsla(0.0, 0.0, 0.5, 0.15)
+}
+
+impl Focusable for PicLensApp {
+    fn focus_handle(&self, _: &App) -> FocusHandle {
+        self.focus_handle.clone()
+    }
 }
 
 impl Render for PicLensApp {
@@ -1091,31 +1441,41 @@ impl Render for PicLensApp {
 
         div()
             .id("piclens-root")
+            .key_context(CONTEXT)
+            .track_focus(&self.focus_handle)
             .size_full()
             .flex()
             .flex_col()
             .bg(cx.theme().background)
             .text_color(cx.theme().foreground)
-            .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| {
-                let key = event.keystroke.key.as_str();
-                if key == "escape" {
-                    if this.drop_rename.is_some() {
-                        this.drop_rename = None;
-                        cx.notify();
-                    } else if this.rename.is_some() {
-                        this.rename = None;
-                        cx.notify();
-                    } else if this.viewer.is_some() {
-                        this.close_viewer(cx);
-                    }
-                } else if this.viewer.is_some() {
-                    match key {
-                        "left" | "arrowleft" => this.viewer_step(-1, cx),
-                        "right" | "arrowright" => this.viewer_step(1, cx),
-                        _ => {}
-                    }
-                }
-            }))
+            .on_action(cx.listener(Self::on_open_folder))
+            .on_action(cx.listener(Self::on_refresh))
+            .on_action(cx.listener(Self::on_history_back))
+            .on_action(cx.listener(Self::on_history_forward))
+            .on_action(cx.listener(Self::on_toggle_sidebar))
+            .on_action(cx.listener(Self::on_toggle_gallery_mode))
+            .on_action(cx.listener(Self::on_cycle_sort))
+            .on_action(cx.listener(Self::on_toggle_include_subfolders))
+            .on_action(cx.listener(Self::on_focus_search))
+            .on_action(cx.listener(Self::on_close_overlay))
+            .on_action(cx.listener(Self::on_select_all))
+            .on_action(cx.listener(Self::on_open_viewer))
+            .on_action(cx.listener(Self::on_viewer_prev))
+            .on_action(cx.listener(Self::on_viewer_next))
+            .on_action(cx.listener(Self::on_zoom_in))
+            .on_action(cx.listener(Self::on_zoom_out))
+            .on_action(cx.listener(Self::on_zoom_reset))
+            .on_action(cx.listener(Self::on_trash))
+            .on_action(cx.listener(Self::on_rename))
+            .on_action(cx.listener(Self::on_drop_rename))
+            .on_action(cx.listener(Self::on_convert_jpg))
+            .on_action(cx.listener(Self::on_convert_webp))
+            .on_action(cx.listener(Self::on_cleanup))
+            .on_action(cx.listener(Self::on_reveal))
+            .on_action(cx.listener(Self::on_move_up))
+            .on_action(cx.listener(Self::on_move_down))
+            .on_action(cx.listener(Self::on_move_left))
+            .on_action(cx.listener(Self::on_move_right))
             .child(
                 h_flex()
                     .w_full()
@@ -1341,7 +1701,7 @@ impl Render for PicLensApp {
                             .text_sm()
                             .text_color(cx.theme().muted_foreground)
                             .child(format!(
-                                "{} 項 · 選取 {} · 縮圖佇列 {} · 尺寸 {}",
+                                "{} 項 · 選取 {} · 縮圖佇列 {} · 尺寸 {} · ←→選擇/檢視 · Enter 開啟 · Esc 關閉 · Del 回收 · F2 重新命名 · Ctrl+O 資料夾",
                                 self.visible.len(),
                                 self.selected.len(),
                                 self.thumb_pending.len(),
