@@ -1096,6 +1096,8 @@ impl Render for PicLensApp {
         let folder_path = self.folder_path_label();
         let tile_size = self.thumb_size() as f32;
         let gallery_mode = self.gallery_mode;
+        let visible_count = self.visible.len();
+        let selected_count = self.selected.len();
         let radius = cx.theme().radius;
 
         let gallery_body: AnyElement = if self.visible.is_empty() {
@@ -1699,7 +1701,7 @@ impl Render for PicLensApp {
                     .id("command-bar")
                     .w_full()
                     .h(px(theme::COMMAND_BAR_H))
-                    .px_4()
+                    .px_5()
                     .gap_2()
                     .items_center()
                     .bg(theme::command_bar())
@@ -1711,7 +1713,7 @@ impl Render for PicLensApp {
                             .items_center()
                             .child(
                                 div()
-                                    .size(px(28.))
+                                    .size(px(34.))
                                     .rounded(px(8.))
                                     .bg(theme::accent_soft())
                                     .flex()
@@ -1724,8 +1726,8 @@ impl Render for PicLensApp {
                             )
                             .child(
                                 div()
-                                    .text_sm()
-                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_lg()
+                                    .font_weight(FontWeight::BOLD)
                                     .text_color(theme::primary_text())
                                     .child("PicLens"),
                             ),
@@ -1734,11 +1736,18 @@ impl Render for PicLensApp {
                         h_flex()
                             .gap_1()
                             .child(
-                                Button::new("open")
-                                    .primary()
-                                    .icon(IconName::FolderOpen)
-                                    .label("開啟資料夾")
-                                    .on_click(cx.listener(|this, _, _, cx| this.pick_folder(cx))),
+                                Button::new("sidebar")
+                                    .outline()
+                                    .icon(if self.sidebar_collapsed {
+                                        IconName::PanelLeftOpen
+                                    } else {
+                                        IconName::PanelLeftClose
+                                    })
+                                    .tooltip("側欄")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.sidebar_collapsed = !this.sidebar_collapsed;
+                                        cx.notify();
+                                    })),
                             )
                             .child(
                                 Button::new("back")
@@ -1766,69 +1775,22 @@ impl Render for PicLensApp {
                                     .icon(IconName::ArrowDown)
                                     .tooltip("重新整理")
                                     .on_click(cx.listener(|this, _, _, cx| this.refresh(cx))),
-                            )
-                            .child(
-                                Button::new("sidebar")
-                                    .ghost()
-                                    .icon(if self.sidebar_collapsed {
-                                        IconName::PanelLeftOpen
-                                    } else {
-                                        IconName::PanelLeftClose
-                                    })
-                                    .tooltip("側欄")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.sidebar_collapsed = !this.sidebar_collapsed;
-                                        cx.notify();
-                                    })),
                             ),
                     )
                     .child(
                         div()
                             .flex_1()
                             .max_w(px(420.))
-                            .mx_4()
+                            .mx_5()
                             .child(Input::new(&self.search)),
                     )
                     .child(div().flex_1())
                     .child(
-                        h_flex()
-                            .gap_1()
-                            .child(
-                                Button::new("mode")
-                                    .ghost()
-                                    .selected(self.gallery_mode == GalleryMode::Grid)
-                                    .label(if self.gallery_mode == GalleryMode::Grid {
-                                        "格狀"
-                                    } else {
-                                        "列表"
-                                    })
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.gallery_mode = match this.gallery_mode {
-                                            GalleryMode::Grid => GalleryMode::List,
-                                            GalleryMode::List => GalleryMode::Grid,
-                                        };
-                                        cx.notify();
-                                    })),
-                            )
-                            .child(
-                                Button::new("sort")
-                                    .outline()
-                                    .label(self.sort_label())
-                                    .on_click(cx.listener(|this, _, _, cx| this.cycle_sort(cx))),
-                            )
-                            .child(
-                                Button::new("recursive")
-                                    .outline()
-                                    .selected(self.settings.include_subfolders)
-                                    .label(if self.settings.include_subfolders {
-                                        "含子資料夾"
-                                    } else {
-                                        "僅目前"
-                                    })
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.toggle_include_subfolders(cx)
-                                    })),
-                            ),
+                        Button::new("open")
+                            .primary()
+                            .icon(IconName::FolderOpen)
+                            .label("開啟資料夾")
+                            .on_click(cx.listener(|this, _, _, cx| this.pick_folder(cx))),
                     ),
             )
             .child(
@@ -1852,7 +1814,7 @@ impl Render for PicLensApp {
                             .child(
                                 h_flex()
                                     .w_full()
-                                    .px_5()
+                                    .px(px(28.))
                                     .pt_4()
                                     .pb_3()
                                     .gap_3()
@@ -1870,6 +1832,18 @@ impl Render for PicLensApp {
                                             )
                                             .child(
                                                 div()
+                                                    .px_2()
+                                                    .py_1()
+                                                    .rounded_full()
+                                                    .bg(theme::app_background())
+                                                    .border_1()
+                                                    .border_color(theme::line())
+                                                    .text_xs()
+                                                    .text_color(theme::secondary_text())
+                                                    .child(format!("共 {visible_count} 個項目")),
+                                            )
+                                            .child(
+                                                div()
                                                     .text_xs()
                                                     .text_color(theme::muted_text())
                                                     .child(folder_path),
@@ -1880,6 +1854,40 @@ impl Render for PicLensApp {
                                             .gap_1()
                                             .flex_wrap()
                                             .justify_end()
+                                            .child(
+                                                Button::new("recursive")
+                                                    .outline()
+                                                    .selected(self.settings.include_subfolders)
+                                                    .label("含子資料夾")
+                                                    .on_click(cx.listener(|this, _, _, cx| {
+                                                        this.toggle_include_subfolders(cx)
+                                                    })),
+                                            )
+                                            .child(
+                                                Button::new("sort")
+                                                    .outline()
+                                                    .label(self.sort_label())
+                                                    .on_click(cx.listener(|this, _, _, cx| {
+                                                        this.cycle_sort(cx)
+                                                    })),
+                                            )
+                                            .child(
+                                                Button::new("mode")
+                                                    .outline()
+                                                    .selected(self.gallery_mode == GalleryMode::Grid)
+                                                    .label(if self.gallery_mode == GalleryMode::Grid {
+                                                        "格狀"
+                                                    } else {
+                                                        "列表"
+                                                    })
+                                                    .on_click(cx.listener(|this, _, _, cx| {
+                                                        this.gallery_mode = match this.gallery_mode {
+                                                            GalleryMode::Grid => GalleryMode::List,
+                                                            GalleryMode::List => GalleryMode::Grid,
+                                                        };
+                                                        cx.notify();
+                                                    })),
+                                            )
                                             .child(
                                                 Button::new("open-view")
                                                     .outline()
@@ -2053,8 +2061,8 @@ impl Render for PicLensApp {
                             .text_color(theme::muted_text())
                             .child(format!(
                                 "{} 項 · 選取 {} · Esc 關閉 · Del 回收",
-                                self.visible.len(),
-                                self.selected.len()
+                                visible_count,
+                                selected_count
                             )),
                     ),
             )

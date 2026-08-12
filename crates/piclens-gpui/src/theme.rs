@@ -77,6 +77,7 @@ pub fn viewer_canvas() -> Hsla {
     rgb(0x11141a).into()
 }
 
-pub const COMMAND_BAR_H: f32 = 56.0;
-pub const STATUS_BAR_H: f32 = 44.0;
-pub const SIDEBAR_W: f32 = 240.0;
+/// Match the established Qt shell geometry.
+pub const COMMAND_BAR_H: f32 = 64.0;
+pub const STATUS_BAR_H: f32 = 48.0;
+pub const SIDEBAR_W: f32 = 228.0;
