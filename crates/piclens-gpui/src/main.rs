@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use app::PicLensApp;
 use gpui::*;
-use gpui_component::{Root, TitleBar};
+use gpui_component::Root;
 use piclens_infra::{info, init_file_logger};
 
 struct LaunchArgs {
@@ -71,11 +71,18 @@ fn main() {
         }
 
         cx.spawn(async move |cx| {
+            // Use the system title bar so Windows shows minimize / maximize / close.
+            // TitleBar::window_options() is for client-drawn bars and hides those buttons.
             let options = WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(window_bounds)),
                 window_min_size: Some(size(px(480.), px(320.))),
                 kind: WindowKind::Normal,
-                ..TitleBar::window_options()
+                titlebar: Some(TitlebarOptions {
+                    title: Some("PicLens".into()),
+                    appears_transparent: false,
+                    ..Default::default()
+                }),
+                ..Default::default()
             };
 
             cx.open_window(options, move |window, cx| {
