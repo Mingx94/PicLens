@@ -85,11 +85,25 @@ fn main() {
                 ..Default::default()
             };
 
-            cx.open_window(options, move |window, cx| {
-                let view = cx.new(|cx| PicLensApp::new(window, cx, initial_folder.clone()));
-                cx.new(|cx| Root::new(view, window, cx))
-            })
-            .expect("Failed to open PicLens window");
+            let window = cx
+                .open_window(options, move |window, cx| {
+                    let view = cx.new(|cx| PicLensApp::new(window, cx, initial_folder.clone()));
+                    cx.new(|cx| Root::new(view, window, cx))
+                })
+                .expect("Failed to open PicLens window");
+
+            // When the user closes the last window, quit without leaving
+            // background work that would log "window not found".
+            let window_id = window.window_id();
+            cx.update(|cx| {
+                cx.on_window_closed(move |cx, closed_id| {
+                    if closed_id == window_id {
+                        info("main window closed; quitting");
+                        cx.quit();
+                    }
+                })
+                .detach();
+            });
         })
         .detach();
     });

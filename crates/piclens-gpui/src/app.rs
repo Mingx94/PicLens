@@ -62,6 +62,11 @@ pub struct PicLensApp {
     /// Prevents stacking concurrent thumb pump tasks.
     thumbs_pump_scheduled: bool,
     focus_handle: FocusHandle,
+    /// Held so tasks cancel on drop / generation bump (do not detach).
+    async_tasks: Vec<Task<()>>,
+    _subscriptions: Vec<Subscription>,
+    /// Set on release so late callbacks skip UI updates.
+    shutting_down: bool,
 }
 
 struct ViewerState {
@@ -107,20 +112,35 @@ impl PicLensApp {
             thumb_failed: HashSet::new(),
             thumbs_pump_scheduled: false,
             focus_handle: cx.focus_handle(),
+            async_tasks: Vec::new(),
+            _subscriptions: Vec::new(),
+            shutting_down: false,
         };
 
         // Keep shell focused so global keybindings work after open.
         app.focus_handle.focus(window, cx);
 
-        cx.subscribe_in(&search, window, |this, state, event, _window, cx| {
+        let search_sub = cx.subscribe_in(&search, window, |this, state, event, _window, cx| {
+            if this.shutting_down {
+                return;
+            }
             if matches!(event, InputEvent::Change) {
                 this.search_text = state.read(cx).value().to_string();
                 this.recompute_visible();
                 this.request_thumbs(cx);
                 cx.notify();
             }
-        })
-        .detach();
+        });
+        app._subscriptions.push(search_sub);
+
+        // Cancel async work when this view is released (window close).
+        let release = cx.on_release(|this, _cx| {
+            this.shutting_down = true;
+            this.generation = this.generation.wrapping_add(1);
+            this.async_tasks.clear();
+            this.thumb_pending.clear();
+        });
+        app._subscriptions.push(release);
 
         let restore = initial_folder.or(settings.last_folder_path.clone());
         if let Some(path) = restore {
@@ -129,6 +149,21 @@ impl PicLensApp {
             }
         }
         app
+    }
+
+    fn cancel_async_work(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
+        self.async_tasks.clear();
+        self.thumbs_pump_scheduled = false;
+        self.thumb_pending.clear();
+    }
+
+    fn spawn_task(&mut self, task: Task<()>) {
+        // Bound growth; completed tasks drop when replaced by generation cancel.
+        if self.async_tasks.len() > 64 {
+            self.async_tasks.drain(0..32);
+        }
+        self.async_tasks.push(task);
     }
 
     fn persist_settings(&mut self) {
@@ -168,22 +203,27 @@ impl PicLensApp {
     /// Schedule a thumb pump after the current update stack unwinds.
     /// Never call from `render` — that re-enters entity locks and floods RefCell errors.
     fn request_thumbs(&mut self, cx: &mut Context<Self>) {
-        if self.thumbs_pump_scheduled {
+        if self.shutting_down || self.thumbs_pump_scheduled {
             return;
         }
         self.thumbs_pump_scheduled = true;
-        cx.spawn(async move |this, cx| {
-            this.update(cx, |this, cx| {
+        let task = cx.spawn(async move |this, cx| {
+            let _ = this.update(cx, |this, cx| {
+                if this.shutting_down {
+                    return;
+                }
                 this.thumbs_pump_scheduled = false;
                 this.pump_thumbs(cx);
-            })
-            .ok();
-        })
-        .detach();
+            });
+        });
+        self.spawn_task(task);
     }
 
     /// Queue background thumbnail work for visible static images (bounded).
     fn pump_thumbs(&mut self, cx: &mut Context<Self>) {
+        if self.shutting_down {
+            return;
+        }
         let size = self.thumb_size();
         let gen = self.generation;
         let mut slots = MAX_THUMB_IN_FLIGHT.saturating_sub(self.thumb_pending.len());
@@ -215,11 +255,14 @@ impl PicLensApp {
             slots -= 1;
             self.thumb_pending.insert(path.clone());
             let path_for_bg = path.clone();
-            cx.spawn(async move |this, cx| {
+            let task = cx.spawn(async move |this, cx| {
                 let result = cx
                     .background_spawn(async move { ensure_thumbnail(&path_for_bg, size) })
                     .await;
-                this.update(cx, |this, cx| {
+                let _ = this.update(cx, |this, cx| {
+                    if this.shutting_down {
+                        return;
+                    }
                     this.thumb_pending.remove(&path);
                     if this.generation != gen {
                         return;
@@ -233,13 +276,11 @@ impl PicLensApp {
                             warn(format!("thumb failed for {path}: {err}"));
                         }
                     }
-                    // Queue next batch outside this update via a fresh spawn.
                     this.request_thumbs(cx);
                     cx.notify();
-                })
-                .ok();
-            })
-            .detach();
+                });
+            });
+            self.spawn_task(task);
         }
     }
 
@@ -257,7 +298,7 @@ impl PicLensApp {
         };
         match scan_folder(&query) {
             Ok(items) => {
-                self.generation = self.generation.wrapping_add(1);
+                self.cancel_async_work();
                 self.folder_path = Some(path.clone());
                 self.items = items;
                 self.clear_selection();
@@ -265,7 +306,6 @@ impl PicLensApp {
                 self.rename = None;
                 self.drop_rename = None;
                 self.thumbs.clear();
-                self.thumb_pending.clear();
                 self.thumb_failed.clear();
                 self.recompute_visible();
                 self.child_folders = scan_child_folders(&path)
@@ -358,9 +398,8 @@ impl PicLensApp {
         let next = self.settings.thumbnail_size + delta;
         self.settings.thumbnail_size = piclens_domain::normalize_thumbnail_size(f64::from(next));
         self.persist_settings();
-        self.generation = self.generation.wrapping_add(1);
+        self.cancel_async_work();
         self.thumbs.clear();
-        self.thumb_pending.clear();
         self.thumb_failed.clear();
         self.request_thumbs(cx);
         cx.notify();
@@ -453,15 +492,18 @@ impl PicLensApp {
 
     /// Decode a bounded safe PNG for the viewer (never feed raw corrupt files to `img`).
     fn load_viewer_display(&mut self, path: String, cx: &mut Context<Self>) {
+        if self.shutting_down {
+            return;
+        }
         let gen = self.generation;
         let path_for_bg = path.clone();
         let path_for_ui = path;
-        cx.spawn(async move |this, cx| {
+        let task = cx.spawn(async move |this, cx| {
             let result = cx
                 .background_spawn(async move { ensure_thumbnail(&path_for_bg, 1024) })
                 .await;
-            this.update(cx, |this, cx| {
-                if this.generation != gen {
+            let _ = this.update(cx, |this, cx| {
+                if this.shutting_down || this.generation != gen {
                     return;
                 }
                 let Some(viewer) = this.viewer.as_mut() else {
@@ -489,10 +531,9 @@ impl PicLensApp {
                     }
                 }
                 cx.notify();
-            })
-            .ok();
-        })
-        .detach();
+            });
+        });
+        self.spawn_task(task);
     }
 
     fn close_viewer(&mut self, cx: &mut Context<Self>) {
