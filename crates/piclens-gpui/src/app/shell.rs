@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use gpui::*;
 use gpui_component::button::{Button, ButtonVariants as _};
 use gpui_component::input::Input;
-use gpui_component::{h_flex, v_flex, Disableable, Icon, IconName, Selectable};
+use gpui_component::{h_flex, v_flex, Disableable, IconName, Selectable};
 use piclens_domain::path_equals;
 use piclens_infra::{cleanup_same_basename, convert_to_jpg, convert_to_lossless_webp, trash_paths};
 use crate::folder_tree::TreeRow;
@@ -56,11 +56,16 @@ impl PicLensApp {
                         div()
                             .size(px(34.))
                             .rounded(px(8.))
+                            .overflow_hidden()
                             .bg(theme.accent_soft)
                             .flex()
                             .items_center()
                             .justify_center()
-                            .child(Icon::new(IconName::GalleryVerticalEnd).text_color(theme.accent)),
+                            .child(
+                                img(crate::assets::app_icon())
+                                    .size(px(34.))
+                                    .object_fit(ObjectFit::Contain),
+                            ),
                     )
                     .child(
                         div()
