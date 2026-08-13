@@ -3,7 +3,9 @@
 use gpui::*;
 use gpui_component::button::{Button, ButtonVariants as _};
 use gpui_component::menu::ContextMenuExt;
+use gpui_component::scroll::Scrollbar;
 use gpui_component::{h_flex, v_flex, Icon, IconName};
+use crate::drag_rename::{drag_target, is_dragging};
 
 use super::{GalleryMode, PicLensApp};
 use crate::actions::{OpenViewer, RenameSelection, RevealInFileManager, TrashSelection};
@@ -120,16 +122,28 @@ impl PicLensApp {
         }
 
         let entity = cx.entity().downgrade();
-        list(self.gallery_list.clone(), move |row, _window, cx| {
-            entity
-                .upgrade()
-                .map(|entity| {
-                    entity.update(cx, |this, cx| this.render_gallery_row(row, theme, cx))
+        div()
+            .id("gallery-scroll")
+            .relative()
+            .size_full()
+            .child(
+                list(self.gallery_list.clone(), move |row, _window, cx| {
+                    entity
+                        .upgrade()
+                        .map(|entity| {
+                            entity.update(cx, |this, cx| this.render_gallery_row(row, theme, cx))
+                        })
+                        .unwrap_or_else(|| div().into_any_element())
                 })
-                .unwrap_or_else(|| div().into_any_element())
-        })
-        .size_full()
-        .into_any_element()
+                .size_full(),
+            )
+            .child(
+                div()
+                    .absolute()
+                    .inset_0()
+                    .child(Scrollbar::vertical(&self.gallery_list)),
+            )
+            .into_any_element()
     }
 
     fn render_gallery_row(
@@ -254,21 +268,47 @@ impl PicLensApp {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let path_left = path.clone();
+        let path_hover = path.clone();
         let path_right = path;
         let rename_disabled = selected && selected_count != 1;
+        let drop_target = drag_target(&self.drag).is_some_and(|target| target == path_left);
+        let dragging = is_dragging(&self.drag);
 
         div()
             .id(id)
             .rounded(px(10.))
             .border_1()
-            .border_color(if selected { theme.accent } else { theme.line })
-            .bg(if selected { theme.selected } else { theme.surface })
+            .border_color(if drop_target {
+                theme.accent
+            } else if selected {
+                theme.accent
+            } else {
+                theme.line
+            })
+            .bg(if drop_target {
+                theme.accent_soft
+            } else if selected {
+                theme.selected
+            } else {
+                theme.surface
+            })
             .overflow_hidden()
             .cursor_pointer()
             .hover(|s| s.border_color(theme.strong_line).bg(theme.hover))
+            .on_mouse_move(cx.listener(move |this, _, _, cx| {
+                if this.hover_path.as_deref() != Some(path_hover.as_str()) {
+                    this.hover_path = Some(path_hover.clone());
+                    if is_dragging(&this.drag) {
+                        cx.notify();
+                    }
+                }
+            }))
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(move |this, event: &MouseDownEvent, window, cx| {
+                    if dragging {
+                        return;
+                    }
                     let additive = event.modifiers.control || event.modifiers.shift;
                     if is_folder {
                         this.open_folder(path_left.clone(), false, true, cx);
@@ -277,6 +317,10 @@ impl PicLensApp {
                         this.open_viewer(&path_left, window, cx);
                     } else {
                         this.select_path(&path_left, additive);
+                        this.begin_image_drag(
+                            &path_left,
+                            (f64::from(event.position.x), f64::from(event.position.y)),
+                        );
                         cx.notify();
                     }
                 }),

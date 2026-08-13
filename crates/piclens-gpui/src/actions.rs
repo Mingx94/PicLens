@@ -35,6 +35,8 @@ actions!(
         MoveSelectionDown,
         MoveSelectionLeft,
         MoveSelectionRight,
+        GalleryHome,
+        GalleryEnd,
     ]
 );
 
@@ -72,6 +74,8 @@ pub fn init(cx: &mut App) {
         KeyBinding::new("down", MoveSelectionDown, Some(CONTEXT)),
         KeyBinding::new("left", MoveSelectionLeft, Some(CONTEXT)),
         KeyBinding::new("right", MoveSelectionRight, Some(CONTEXT)),
+        KeyBinding::new("home", GalleryHome, Some(CONTEXT)),
+        KeyBinding::new("end", GalleryEnd, Some(CONTEXT)),
         KeyBinding::new("enter", OpenViewer, Some(CONTEXT)),
         KeyBinding::new("space", OpenViewer, Some(CONTEXT)),
         // File ops

@@ -18,6 +18,12 @@ pub struct AppSettings {
     pub include_subfolders: bool,
     #[serde(default = "default_thumbnail_size")]
     pub thumbnail_size: i32,
+    #[serde(default)]
+    pub sidebar_collapsed: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub window_width: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub window_height: Option<u32>,
 }
 
 fn default_thumbnail_size() -> i32 {
@@ -31,6 +37,9 @@ impl Default for AppSettings {
             sort: SortState::default(),
             include_subfolders: false,
             thumbnail_size: DEFAULT_THUMBNAIL_SIZE,
+            sidebar_collapsed: false,
+            window_width: None,
+            window_height: None,
         }
     }
 }
@@ -41,6 +50,9 @@ pub struct AppSettingsPatch {
     pub sort: Option<SortState>,
     pub include_subfolders: Option<bool>,
     pub thumbnail_size: Option<i32>,
+    pub sidebar_collapsed: Option<bool>,
+    pub window_width: Option<u32>,
+    pub window_height: Option<u32>,
 }
 
 pub fn normalize_thumbnail_size(thumbnail_size: f64) -> i32 {
@@ -52,6 +64,13 @@ pub fn normalize_thumbnail_size(thumbnail_size: f64) -> i32 {
     stepped.clamp(MIN_THUMBNAIL_SIZE, MAX_THUMBNAIL_SIZE)
 }
 
+pub const MIN_WINDOW_WIDTH: u32 = 480;
+pub const MIN_WINDOW_HEIGHT: u32 = 320;
+
+pub fn normalize_window_size(width: u32, height: u32) -> (u32, u32) {
+    (width.max(MIN_WINDOW_WIDTH), height.max(MIN_WINDOW_HEIGHT))
+}
+
 pub fn normalize_settings(settings: &AppSettings) -> AppSettings {
     let mut normalized = settings.clone();
     normalized.thumbnail_size = if settings.thumbnail_size == 0 {
@@ -59,7 +78,34 @@ pub fn normalize_settings(settings: &AppSettings) -> AppSettings {
     } else {
         normalize_thumbnail_size(f64::from(settings.thumbnail_size))
     };
+    match (settings.window_width, settings.window_height) {
+        (Some(w), Some(h)) => {
+            let (w, h) = normalize_window_size(w, h);
+            normalized.window_width = Some(w);
+            normalized.window_height = Some(h);
+        }
+        _ => {
+            normalized.window_width = None;
+            normalized.window_height = None;
+        }
+    }
     normalized
+}
+
+/// Persist sidebar / window size without touching last-picker-folder authority.
+pub fn apply_layout_persist(
+    current: &AppSettings,
+    sidebar_collapsed: Option<bool>,
+    window: Option<(u32, u32)>,
+) -> AppSettings {
+    let mut patch = AppSettingsPatch::default();
+    patch.sidebar_collapsed = sidebar_collapsed;
+    if let Some((width, height)) = window {
+        let (width, height) = normalize_window_size(width, height);
+        patch.window_width = Some(width);
+        patch.window_height = Some(height);
+    }
+    merge_settings_patch(current, &patch)
 }
 
 pub fn merge_settings_patch(current: &AppSettings, patch: &AppSettingsPatch) -> AppSettings {
@@ -75,6 +121,21 @@ pub fn merge_settings_patch(current: &AppSettings, patch: &AppSettingsPatch) -> 
     }
     if let Some(size) = patch.thumbnail_size {
         merged.thumbnail_size = normalize_thumbnail_size(f64::from(size));
+    }
+    if let Some(collapsed) = patch.sidebar_collapsed {
+        merged.sidebar_collapsed = collapsed;
+    }
+    if patch.window_width.is_some() || patch.window_height.is_some() {
+        let width = patch.window_width.or(merged.window_width);
+        let height = patch.window_height.or(merged.window_height);
+        match (width, height) {
+            (Some(w), Some(h)) => {
+                let (w, h) = normalize_window_size(w, h);
+                merged.window_width = Some(w);
+                merged.window_height = Some(h);
+            }
+            _ => {}
+        }
     }
     merged
 }
@@ -102,12 +163,28 @@ mod tests {
             }),
             include_subfolders: Some(true),
             thumbnail_size: Some(200),
+            sidebar_collapsed: None,
+            window_width: None,
+            window_height: None,
         };
         let merged = merge_settings_patch(&current, &patch);
         assert_eq!(merged.last_folder_path.as_deref(), Some("/photos"));
         assert_eq!(merged.sort.key, SortKey::ModifiedAt);
         assert!(merged.include_subfolders);
         assert_eq!(merged.thumbnail_size, 200);
+    }
+
+    #[test]
+    fn layout_persist_keeps_last_folder_authority() {
+        let mut current = AppSettings::default();
+        current.last_folder_path = Some("/picker".into());
+        current.include_subfolders = true;
+        let merged = apply_layout_persist(&current, Some(true), Some((900, 700)));
+        assert_eq!(merged.last_folder_path.as_deref(), Some("/picker"));
+        assert!(merged.sidebar_collapsed);
+        assert_eq!(merged.window_width, Some(900));
+        assert_eq!(merged.window_height, Some(700));
+        assert!(merged.include_subfolders);
     }
 
     #[test]

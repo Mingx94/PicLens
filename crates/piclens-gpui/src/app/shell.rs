@@ -8,6 +8,7 @@ use gpui_component::input::Input;
 use gpui_component::{h_flex, v_flex, Disableable, Icon, IconName, Selectable};
 use piclens_domain::path_equals;
 use piclens_infra::{cleanup_same_basename, convert_to_jpg, convert_to_lossless_webp, trash_paths};
+use crate::folder_tree::TreeRow;
 
 use super::{GalleryMode, PicLensApp};
 use crate::theme::{self, Theme};
@@ -83,6 +84,7 @@ impl PicLensApp {
                             .tooltip("側欄")
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.sidebar_collapsed = !this.sidebar_collapsed;
+                                this.persist_sidebar();
                                 this.sync_gallery_list();
                                 this.request_thumbs(cx);
                                 cx.notify();
@@ -166,28 +168,8 @@ impl PicLensApp {
                     .p_3()
                     .overflow_y_scroll()
                     .child(
-                        v_flex().gap_1().children(self.child_folders.iter().enumerate().map(
-                            |(idx, path)| {
-                                let path = path.clone();
-                                let name = PathBuf::from(&path)
-                                    .file_name()
-                                    .and_then(|n| n.to_str())
-                                    .unwrap_or(path.as_str())
-                                    .to_string();
-                                let active = self
-                                    .folder_path
-                                    .as_ref()
-                                    .map(|p| path_equals(p, &path))
-                                    .unwrap_or(false);
-                                Button::new(("child", idx))
-                                    .ghost()
-                                    .selected(active)
-                                    .icon(IconName::Folder)
-                                    .label(name)
-                                    .on_click(cx.listener(move |this, _, _, cx| {
-                                        this.open_folder(path.clone(), false, true, cx);
-                                    }))
-                            },
+                        v_flex().gap_1().children(self.tree_rows().into_iter().enumerate().map(
+                            |(idx, row)| self.render_tree_row(idx, row, theme, cx),
                         )),
                     )
                     .child(if root.is_empty() {
@@ -203,6 +185,56 @@ impl PicLensApp {
                     }),
             )
             .into_any_element()
+    }
+
+    fn render_tree_row(
+        &self,
+        idx: usize,
+        row: TreeRow,
+        _theme: Theme,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let path = row.path.clone();
+        let open_path = row.path.clone();
+        let name = PathBuf::from(&row.path)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(row.path.as_str())
+            .to_string();
+        let active = self
+            .folder_path
+            .as_ref()
+            .map(|p| path_equals(p, &row.path))
+            .unwrap_or(false);
+        let chevron = if row.expanded {
+            IconName::ChevronDown
+        } else {
+            IconName::ChevronRight
+        };
+        h_flex()
+            .id(("tree-row", idx))
+            .w_full()
+            .pl(px(8.0 + row.depth as f32 * 14.0))
+            .gap_1()
+            .items_center()
+            .child(
+                Button::new(("tree-exp", idx))
+                    .ghost()
+                    .icon(chevron)
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.toggle_tree_path(path.clone(), cx);
+                    })),
+            )
+            .child(
+                Button::new(("tree-open", idx))
+                    .ghost()
+                    .selected(active)
+                    .icon(IconName::Folder)
+                    .label(name)
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.open_folder(open_path.clone(), false, true, cx);
+                    })),
+            )
     }
 
     pub(super) fn render_library_header(
@@ -323,10 +355,10 @@ impl PicLensApp {
                         Button::new("to-jpg")
                             .outline()
                             .label("轉 JPG")
-                            .on_click(cx.listener(|this, _, _, cx| {
+                            .on_click(cx.listener(|this, _, window, cx| {
                                 let paths = this.visible_image_paths();
                                 let batch = convert_to_jpg(&paths);
-                                this.apply_batch("轉 JPG", &batch);
+                                this.apply_batch("轉 JPG", &batch, window, cx);
                                 this.refresh(cx);
                             })),
                     )
@@ -334,10 +366,10 @@ impl PicLensApp {
                         Button::new("to-webp")
                             .outline()
                             .label("轉 WebP")
-                            .on_click(cx.listener(|this, _, _, cx| {
+                            .on_click(cx.listener(|this, _, window, cx| {
                                 let paths = this.visible_image_paths();
                                 let batch = convert_to_lossless_webp(&paths);
-                                this.apply_batch("轉 WebP", &batch);
+                                this.apply_batch("轉 WebP", &batch, window, cx);
                                 this.refresh(cx);
                             })),
                     )
@@ -345,10 +377,10 @@ impl PicLensApp {
                         Button::new("cleanup")
                             .outline()
                             .label("清除同名格式")
-                            .on_click(cx.listener(|this, _, _, cx| {
+                            .on_click(cx.listener(|this, _, window, cx| {
                                 let paths = this.visible_image_paths();
                                 let batch = cleanup_same_basename(&paths);
-                                this.apply_batch("清除同名格式", &batch);
+                                this.apply_batch("清除同名格式", &batch, window, cx);
                                 this.refresh(cx);
                             })),
                     )
@@ -372,7 +404,7 @@ impl PicLensApp {
                             .danger()
                             .icon(IconName::Delete)
                             .label("回收筒")
-                            .on_click(cx.listener(|this, _, _, cx| {
+                            .on_click(cx.listener(|this, _, window, cx| {
                                 let paths: Vec<String> = this
                                     .selected_images()
                                     .into_iter()
@@ -384,7 +416,7 @@ impl PicLensApp {
                                     return;
                                 }
                                 let batch = trash_paths(&paths);
-                                this.apply_batch("移至回收筒", &batch);
+                                this.apply_batch("移至回收筒", &batch, window, cx);
                                 this.refresh(cx);
                             })),
                     ),

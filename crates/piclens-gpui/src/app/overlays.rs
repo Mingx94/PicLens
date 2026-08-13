@@ -23,8 +23,10 @@ impl PicLensApp {
             .map(|i| i.name.clone())
             .unwrap_or_default();
         let zoom = viewer.zoom.zoom;
+        let offset = viewer.zoom.offset;
         let message = viewer.message.clone();
         let display = viewer.display_path.clone();
+        let entity = cx.entity().downgrade();
         let pos = format!(
             "{}/{}",
             idx.saturating_add(1),
@@ -138,12 +140,48 @@ impl PicLensApp {
                 )
                 .child(
                     div()
+                        .id("viewer-canvas")
                         .flex_1()
                         .flex()
                         .items_center()
                         .justify_center()
                         .overflow_hidden()
                         .p_4()
+                        .occlude()
+                        .on_scroll_wheel(cx.listener(|this, event: &ScrollWheelEvent, _, cx| {
+                            cx.stop_propagation();
+                            this.apply_viewer_wheel(event, cx);
+                        }))
+                        .on_mouse_down(
+                            MouseButton::Left,
+                            cx.listener(|this, event: &MouseDownEvent, _, cx| {
+                                cx.stop_propagation();
+                                this.begin_viewer_pan(event);
+                            }),
+                        )
+                        .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, _, cx| {
+                            this.move_viewer_pan(event, cx);
+                        }))
+                        .on_mouse_up(
+                            MouseButton::Left,
+                            cx.listener(|this, _, _, _| {
+                                this.end_viewer_pan();
+                            }),
+                        )
+                        .child(
+                            canvas(
+                                move |bounds, _, cx| {
+                                    if let Some(entity) = entity.upgrade() {
+                                        entity.update(cx, |this, _| {
+                                            this.viewer_canvas_bounds = Some(bounds);
+                                        });
+                                    }
+                                },
+                                |_bounds, _, _, _| {},
+                            )
+                            .absolute()
+                            .inset_0(),
+                        )
                         .child(if let Some(msg) = message {
                             div()
                                 .px_4()
@@ -159,6 +197,8 @@ impl PicLensApp {
                                 .object_fit(ObjectFit::Contain)
                                 .w(px(base))
                                 .h(px(base))
+                                .ml(px(offset.x as f32))
+                                .mt(px(offset.y as f32))
                                 .into_any_element()
                         } else {
                             div()
@@ -325,8 +365,8 @@ impl PicLensApp {
                                     Button::new("dr-ok")
                                         .primary()
                                         .label("確認重新命名")
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.commit_drop_rename(cx);
+                                        .on_click(cx.listener(|this, _, window, cx| {
+                                            this.commit_drop_rename(window, cx);
                                         })),
                                 ),
                         ),

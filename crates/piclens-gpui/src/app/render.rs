@@ -5,7 +5,41 @@ use gpui_component::{h_flex, v_flex, ActiveTheme, Root};
 
 use super::PicLensApp;
 use crate::actions::CONTEXT;
+use crate::drag_rename::{drag_preview_count, is_dragging};
 use crate::theme::{self, Theme};
+
+impl PicLensApp {
+    fn render_drag_preview(&self, theme: Theme) -> Option<impl IntoElement> {
+        if !is_dragging(&self.drag) {
+            return None;
+        }
+        let count = drag_preview_count(&self.drag);
+        let (x, y) = match &self.drag {
+            crate::drag_rename::DragPhase::Dragging { pointer, .. } => *pointer,
+            _ => return None,
+        };
+        Some(
+            div()
+                .id("drag-preview")
+                .absolute()
+                .left(px(x as f32 + 12.0))
+                .top(px(y as f32 + 12.0))
+                .px_3()
+                .py_2()
+                .rounded(px(8.))
+                .bg(theme.surface)
+                .border_1()
+                .border_color(theme.accent)
+                .occlude()
+                .child(
+                    div()
+                        .text_sm()
+                        .text_color(theme.primary_text)
+                        .child(format!("重新命名 {count} 張")),
+                ),
+        )
+    }
+}
 
 impl Focusable for PicLensApp {
     fn focus_handle(&self, _: &App) -> FocusHandle {
@@ -80,6 +114,10 @@ impl Render for PicLensApp {
             .on_action(cx.listener(Self::on_move_down))
             .on_action(cx.listener(Self::on_move_left))
             .on_action(cx.listener(Self::on_move_right))
+            .on_action(cx.listener(Self::on_gallery_home))
+            .on_action(cx.listener(Self::on_gallery_end))
+            .on_mouse_move(cx.listener(Self::on_shell_mouse_move))
+            .on_mouse_up(MouseButton::Left, cx.listener(Self::on_shell_mouse_up))
             .child(self.render_command_bar(theme, cx))
             .child(
                 h_flex()
@@ -119,6 +157,7 @@ impl Render for PicLensApp {
                     ),
             )
             .child(self.render_status_bar(theme, visible_count, selected_count, cx))
+            .children(self.render_drag_preview(theme))
             .children(viewer_layer)
             .children(rename_layer)
             .children(drop_layer)

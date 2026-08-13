@@ -1,7 +1,10 @@
 mod actions;
 mod app;
 mod assets;
+mod drag_rename;
+mod folder_tree;
 mod history;
+mod interaction;
 mod scan_apply;
 mod theme;
 mod thumbs;
@@ -11,7 +14,8 @@ use std::time::Duration;
 use app::PicLensApp;
 use gpui::*;
 use gpui_component::Root;
-use piclens_infra::{info, init_file_logger};
+use piclens_domain::normalize_window_size;
+use piclens_infra::{info, init_file_logger, JsonSettingsStore};
 
 struct LaunchArgs {
     folder: Option<String>,
@@ -57,7 +61,14 @@ fn main() {
         cx.on_action(|_: &actions::Quit, cx| cx.quit());
         cx.activate(true);
 
-        let mut window_size = size(px(1280.), px(800.));
+        let stored = JsonSettingsStore::new().load();
+        let mut window_size = match (stored.window_width, stored.window_height) {
+            (Some(w), Some(h)) => {
+                let (w, h) = normalize_window_size(w, h);
+                size(px(w as f32), px(h as f32))
+            }
+            _ => size(px(1280.), px(800.)),
+        };
         if let Some(display) = cx.primary_display() {
             let display_size = display.bounds().size;
             window_size.width = window_size.width.min(display_size.width * 0.85);

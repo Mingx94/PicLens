@@ -15,10 +15,12 @@ use std::sync::Arc;
 
 use gpui::*;
 use gpui_component::input::{InputEvent, InputState};
+use gpui_component::notification::Notification;
+use gpui_component::WindowExt;
 use piclens_domain::{
-    path_equals, AppSettings, DropTargetBatchRenamePlan, ImageListItem, ImageSequenceSnapshot,
-    ListItem, ListQuery, SortDirection, SortKey, SortState, ZoomState, clamp_zoom,
-    reset_zoom_state, DEFAULT_THUMBNAIL_SIZE,
+    apply_layout_persist, path_equals, AppSettings, DropTargetBatchRenamePlan, ImageListItem,
+    ImageSequenceSnapshot, ListItem, ListQuery, Point, SortDirection, SortKey, SortState,
+    ZoomState, clamp_zoom, pan_offset, reset_zoom_state, zoom_at_point, DEFAULT_THUMBNAIL_SIZE,
 };
 use piclens_infra::{
     apply_drop_rename, cleanup_same_basename, convert_to_jpg, convert_to_lossless_webp,
@@ -28,12 +30,25 @@ use piclens_infra::{
 
 use crate::actions::{
     CleanupSameBasename, ClearSelection, CloseOverlay, ConvertJpg, ConvertWebp, CycleSort,
-    DropRenamePlan, FocusSearch, HistoryBack, HistoryForward, MoveSelectionDown,
-    MoveSelectionLeft, MoveSelectionRight, MoveSelectionUp, OpenFolder, OpenViewer, Refresh,
-    RenameSelection, RevealInFileManager, SelectAll, ToggleGalleryMode, ToggleIncludeSubfolders,
-    ToggleSidebar, TrashSelection, ViewerNext, ViewerPrev, ZoomIn, ZoomOut, ZoomReset,
+    DropRenamePlan, FocusSearch, GalleryEnd, GalleryHome, HistoryBack, HistoryForward,
+    MoveSelectionDown, MoveSelectionLeft, MoveSelectionRight, MoveSelectionUp, OpenFolder,
+    OpenViewer, Refresh, RenameSelection, RevealInFileManager, SelectAll, ToggleGalleryMode,
+    ToggleIncludeSubfolders, ToggleSidebar, TrashSelection, ViewerNext, ViewerPrev, ZoomIn,
+    ZoomOut, ZoomReset,
+};
+use crate::drag_rename::{
+    drag_begin, drag_cancel, drag_finish, drag_move, is_dragging, DragFinish,
+    DragPhase,
+};
+use crate::folder_tree::{
+    apply_tree_children, toggle_expand, visible_tree_rows, ExpandAction, TreeRow,
 };
 use crate::history::FolderHistory;
+use crate::interaction::{
+    apply_selection, batch_notice_kind, batch_result_message, clear_selection, gallery_jump_index,
+    next_escape_target, page_key_outcome, BatchNoticeKind, EscapeTarget, GalleryJump,
+    PageKeyOutcome,
+};
 use crate::scan_apply::{apply_folder_scan, FolderScanPayload};
 use crate::thumbs::{item_range_for_rows, thumb_queue_update};
 
@@ -52,6 +67,8 @@ pub struct PicLensApp {
     items: Vec<ListItem>,
     visible: Vec<ListItem>,
     child_folders: Vec<String>,
+    tree_children: HashMap<String, Vec<String>>,
+    tree_expanded: HashSet<String>,
     selected: BTreeSet<String>,
     selection_order: Vec<String>,
     history: FolderHistory,
@@ -63,6 +80,10 @@ pub struct PicLensApp {
     viewer: Option<ViewerState>,
     rename: Option<RenameState>,
     drop_rename: Option<DropTargetBatchRenamePlan>,
+    drag: DragPhase,
+    hover_path: Option<String>,
+    viewer_canvas_bounds: Option<Bounds<Pixels>>,
+    viewer_panning: Option<Point>,
     generation: u64,
     /// Source path -> cached PNG path for tiles.
     thumbs: HashMap<String, PathBuf>,
@@ -109,17 +130,23 @@ impl PicLensApp {
             items: Vec::new(),
             visible: Vec::new(),
             child_folders: Vec::new(),
+            tree_children: HashMap::new(),
+            tree_expanded: HashSet::new(),
             selected: BTreeSet::new(),
             selection_order: Vec::new(),
             history: FolderHistory::default(),
             status: "請選擇資料夾".into(),
             search: search.clone(),
             search_text: String::new(),
-            sidebar_collapsed: false,
+            sidebar_collapsed: settings.sidebar_collapsed,
             gallery_mode: GalleryMode::Grid,
             viewer: None,
             rename: None,
             drop_rename: None,
+            drag: DragPhase::Idle,
+            hover_path: None,
+            viewer_canvas_bounds: None,
+            viewer_panning: None,
             generation: 0,
             thumbs: HashMap::new(),
             thumb_pending: HashSet::new(),
@@ -139,6 +166,13 @@ impl PicLensApp {
         // Keep shell focused so global keybindings work after open.
         app.focus_handle.focus(window, cx);
         app.bind_gallery_scroll(cx);
+        let bounds_sub = cx.observe_window_bounds(window, |this, window, _cx| {
+            if this.shutting_down {
+                return;
+            }
+            this.persist_window_size(window.bounds().size);
+        });
+        app._subscriptions.push(bounds_sub);
 
         let search_sub = cx.subscribe_in(&search, window, |this, state, event, _window, cx| {
             if this.shutting_down {
@@ -270,9 +304,70 @@ impl PicLensApp {
         }
     }
 
+    fn persist_sidebar(&mut self) {
+        self.settings = apply_layout_persist(&self.settings, Some(self.sidebar_collapsed), None);
+        self.persist_settings();
+    }
+
+    fn persist_window_size(&mut self, size: Size<Pixels>) {
+        let width = f32::from(size.width).round().max(0.0) as u32;
+        let height = f32::from(size.height).round().max(0.0) as u32;
+        if self.settings.window_width == Some(width) && self.settings.window_height == Some(height)
+        {
+            return;
+        }
+        self.settings = apply_layout_persist(&self.settings, None, Some((width, height)));
+        self.persist_settings();
+    }
+
     fn clear_selection(&mut self) {
-        self.selected.clear();
-        self.selection_order.clear();
+        clear_selection(&mut self.selected, &mut self.selection_order);
+    }
+
+    fn tree_roots_from_children(&mut self) {
+        self.tree_children.clear();
+        self.tree_expanded.clear();
+    }
+
+    fn tree_rows(&self) -> Vec<TreeRow> {
+        visible_tree_rows(&self.child_folders, &self.tree_children, &self.tree_expanded)
+    }
+
+    fn toggle_tree_path(&mut self, path: String, cx: &mut Context<Self>) {
+        match toggle_expand(&mut self.tree_expanded, &path) {
+            ExpandAction::Collapse => cx.notify(),
+            ExpandAction::NeedChildren => {
+                if self.tree_children.contains_key(&path) {
+                    cx.notify();
+                    return;
+                }
+                self.load_tree_children(path, cx);
+            }
+        }
+    }
+
+    fn load_tree_children(&mut self, path: String, cx: &mut Context<Self>) {
+        let gen = self.generation;
+        let path_for_bg = path.clone();
+        let task = cx.spawn(async move |this, cx| {
+            let children = cx
+                .background_spawn(async move {
+                    scan_child_folders(&path_for_bg)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(|folder| folder.path)
+                        .collect::<Vec<_>>()
+                })
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                if this.shutting_down || this.generation != gen {
+                    return;
+                }
+                apply_tree_children(&mut this.tree_children, &path, children);
+                cx.notify();
+            });
+        });
+        self.spawn_task(task);
     }
 
     fn recompute_visible(&mut self) {
@@ -377,6 +472,8 @@ impl PicLensApp {
         self.items.clear();
         self.visible.clear();
         self.child_folders.clear();
+        self.tree_children.clear();
+        self.tree_expanded.clear();
         self.clear_selection();
         self.viewer = None;
         self.rename = None;
@@ -433,6 +530,7 @@ impl PicLensApp {
                         if !applied {
                             return;
                         }
+                        this.tree_roots_from_children();
                         this.recompute_visible();
                         this.sync_gallery_list();
                         this.status = format!("已載入 {} 個項目", this.visible.len());
@@ -544,12 +642,12 @@ impl PicLensApp {
     }
 
     fn select_path(&mut self, path: &str, additive: bool) {
-        if !additive {
-            self.clear_selection();
-        }
-        if self.selected.insert(path.to_string()) {
-            self.selection_order.push(path.to_string());
-        }
+        apply_selection(
+            &mut self.selected,
+            &mut self.selection_order,
+            path,
+            additive,
+        );
     }
 
     fn selected_images(&self) -> Vec<ImageListItem> {
@@ -571,15 +669,30 @@ impl PicLensApp {
             .collect()
     }
 
-    fn apply_batch(&mut self, label: &str, batch: &piclens_domain::FileOperationBatchResult) {
-        self.status = format!(
-            "{label}：成功 {}，略過 {}，失敗 {}（共 {}）",
-            batch.succeeded(),
-            batch.skipped(),
-            batch.failed(),
-            batch.total()
-        );
-        info(self.status.clone());
+    fn apply_batch(
+        &mut self,
+        label: &str,
+        batch: &piclens_domain::FileOperationBatchResult,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match batch_result_message(label, batch) {
+            Some(message) => {
+                self.status = message.clone();
+                info(message.clone());
+                if let Some(kind) = batch_notice_kind(batch) {
+                    let note = match kind {
+                        BatchNoticeKind::Success => Notification::success(message),
+                        BatchNoticeKind::Warning => Notification::warning(message),
+                        BatchNoticeKind::Error => Notification::error(message),
+                    };
+                    window.push_notification(note, cx);
+                }
+            }
+            None => {
+                self.status = format!("{label}：沒有可處理的項目");
+            }
+        }
     }
 
     fn open_viewer(&mut self, path: &str, window: &mut Window, cx: &mut Context<Self>) {
@@ -780,12 +893,12 @@ impl PicLensApp {
         cx.notify();
     }
 
-    fn commit_drop_rename(&mut self, cx: &mut Context<Self>) {
+    fn commit_drop_rename(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(plan) = self.drop_rename.take() else {
             return;
         };
         let batch = apply_drop_rename(&plan);
-        self.apply_batch("拖放重新命名", &batch);
+        self.apply_batch("拖放重新命名", &batch, window, cx);
         self.refresh(cx);
     }
 
@@ -841,6 +954,7 @@ impl PicLensApp {
 
     fn on_toggle_sidebar(&mut self, _: &ToggleSidebar, _: &mut Window, cx: &mut Context<Self>) {
         self.sidebar_collapsed = !self.sidebar_collapsed;
+        self.persist_sidebar();
         self.sync_gallery_list();
         self.request_thumbs(cx);
         cx.notify();
@@ -884,20 +998,36 @@ impl PicLensApp {
     }
 
     fn on_close_overlay(&mut self, _: &CloseOverlay, window: &mut Window, cx: &mut Context<Self>) {
-        if self.drop_rename.is_some() {
-            self.drop_rename = None;
-            self.focus_handle.focus(window, cx);
-            cx.notify();
-        } else if self.rename.is_some() {
-            self.rename = None;
-            self.restore_overlay_focus(window, cx);
-            cx.notify();
-        } else if self.viewer.is_some() {
-            self.close_viewer(window, cx);
-        } else if !self.selected.is_empty() {
-            self.clear_selection();
-            cx.notify();
-        } else if !self.search_text.is_empty() {
+        match next_escape_target(
+            is_dragging(&self.drag) || !matches!(self.drag, DragPhase::Idle),
+            self.drop_rename.is_some(),
+            self.rename.is_some(),
+            self.viewer.is_some(),
+            !self.selected.is_empty(),
+            !self.search_text.is_empty(),
+        ) {
+            EscapeTarget::Drag => {
+                let _ = drag_cancel(std::mem::replace(&mut self.drag, DragPhase::Idle));
+                cx.notify();
+            }
+            EscapeTarget::DropRename => {
+                self.drop_rename = None;
+                self.focus_handle.focus(window, cx);
+                cx.notify();
+            }
+            EscapeTarget::Rename => {
+                self.rename = None;
+                self.restore_overlay_focus(window, cx);
+                cx.notify();
+            }
+            EscapeTarget::Viewer => {
+                self.close_viewer(window, cx);
+            }
+            EscapeTarget::Selection => {
+                self.clear_selection();
+                cx.notify();
+            }
+            EscapeTarget::Search => {
             self.search_text.clear();
             self.search.update(cx, |state, cx| {
                 state.set_value("", window, cx);
@@ -907,6 +1037,8 @@ impl PicLensApp {
             self.request_thumbs(cx);
             self.focus_handle.focus(window, cx);
             cx.notify();
+            }
+            EscapeTarget::None => {}
         }
     }
 
@@ -970,15 +1102,92 @@ impl PicLensApp {
     }
 
     fn on_viewer_prev(&mut self, _: &ViewerPrev, _: &mut Window, cx: &mut Context<Self>) {
-        if self.viewer.is_some() && self.viewer_zoom_is_fit() {
-            self.viewer_step(-1, cx);
+        match page_key_outcome(
+            self.viewer.is_some(),
+            self.visible.len(),
+            self.current_visible_index(),
+            self.gallery_columns(),
+            self.page_rows(),
+            false,
+        ) {
+            PageKeyOutcome::ViewerStep(delta) => {
+                if self.viewer_zoom_is_fit() {
+                    self.viewer_step(delta, cx);
+                }
+            }
+            PageKeyOutcome::Gallery(index) => self.select_visible_index(index, cx),
         }
     }
 
     fn on_viewer_next(&mut self, _: &ViewerNext, _: &mut Window, cx: &mut Context<Self>) {
-        if self.viewer.is_some() && self.viewer_zoom_is_fit() {
-            self.viewer_step(1, cx);
+        match page_key_outcome(
+            self.viewer.is_some(),
+            self.visible.len(),
+            self.current_visible_index(),
+            self.gallery_columns(),
+            self.page_rows(),
+            true,
+        ) {
+            PageKeyOutcome::ViewerStep(delta) => {
+                if self.viewer_zoom_is_fit() {
+                    self.viewer_step(delta, cx);
+                }
+            }
+            PageKeyOutcome::Gallery(index) => self.select_visible_index(index, cx),
         }
+    }
+
+    fn current_visible_index(&self) -> Option<usize> {
+        self.selection_order.last().and_then(|path| {
+            self.visible
+                .iter()
+                .position(|item| path_equals(item.path(), path))
+        })
+    }
+
+    fn page_rows(&self) -> usize {
+        self.viewport_rows.len().max(1)
+    }
+
+    fn select_visible_index(&mut self, index: Option<usize>, cx: &mut Context<Self>) {
+        let Some(index) = index else {
+            return;
+        };
+        let Some(item) = self.visible.get(index) else {
+            return;
+        };
+        let path = item.path().to_string();
+        self.select_path(&path, false);
+        self.gallery_list.scroll_to_reveal_item(index / self.gallery_columns().max(1));
+        cx.notify();
+    }
+
+    fn on_gallery_home(&mut self, _: &GalleryHome, _: &mut Window, cx: &mut Context<Self>) {
+        if self.viewer.is_some() {
+            return;
+        }
+        let index = gallery_jump_index(
+            self.visible.len(),
+            self.current_visible_index(),
+            self.gallery_columns(),
+            self.page_rows(),
+            GalleryJump::Home,
+        );
+        self.select_visible_index(index, cx);
+    }
+
+    fn on_gallery_end(&mut self, _: &GalleryEnd, _: &mut Window, cx: &mut Context<Self>) {
+        if self.viewer.is_some() {
+            return;
+        }
+        let index = gallery_jump_index(
+            self.visible.len(),
+            self.current_visible_index(),
+            self.gallery_columns(),
+            self.page_rows(),
+            GalleryJump::End,
+        );
+        self.select_visible_index(index, cx);
     }
 
     fn on_zoom_in(&mut self, _: &ZoomIn, _: &mut Window, cx: &mut Context<Self>) {
@@ -1014,7 +1223,7 @@ impl PicLensApp {
                 if let Some(img) = viewer.sequence.images.get(idx) {
                     let paths = vec![img.path.clone()];
                     let batch = trash_paths(&paths);
-                    self.apply_batch("移至回收筒", &batch);
+                    self.apply_batch("移至回收筒", &batch, window, cx);
                     self.close_viewer(window, cx);
                     self.refresh(cx);
                     return;
@@ -1028,7 +1237,7 @@ impl PicLensApp {
             return;
         }
         let batch = trash_paths(&paths);
-        self.apply_batch("移至回收筒", &batch);
+        self.apply_batch("移至回收筒", &batch, window, cx);
         self.refresh(cx);
     }
 
@@ -1046,24 +1255,24 @@ impl PicLensApp {
         self.plan_drop_rename_from_selection(cx);
     }
 
-    fn on_convert_jpg(&mut self, _: &ConvertJpg, _: &mut Window, cx: &mut Context<Self>) {
+    fn on_convert_jpg(&mut self, _: &ConvertJpg, window: &mut Window, cx: &mut Context<Self>) {
         let paths = self.visible_image_paths();
         let batch = convert_to_jpg(&paths);
-        self.apply_batch("轉 JPG", &batch);
+        self.apply_batch("轉 JPG", &batch, window, cx);
         self.refresh(cx);
     }
 
-    fn on_convert_webp(&mut self, _: &ConvertWebp, _: &mut Window, cx: &mut Context<Self>) {
+    fn on_convert_webp(&mut self, _: &ConvertWebp, window: &mut Window, cx: &mut Context<Self>) {
         let paths = self.visible_image_paths();
         let batch = convert_to_lossless_webp(&paths);
-        self.apply_batch("轉 WebP", &batch);
+        self.apply_batch("轉 WebP", &batch, window, cx);
         self.refresh(cx);
     }
 
-    fn on_cleanup(&mut self, _: &CleanupSameBasename, _: &mut Window, cx: &mut Context<Self>) {
+    fn on_cleanup(&mut self, _: &CleanupSameBasename, window: &mut Window, cx: &mut Context<Self>) {
         let paths = self.visible_image_paths();
         let batch = cleanup_same_basename(&paths);
-        self.apply_batch("清除同名格式", &batch);
+        self.apply_batch("清除同名格式", &batch, window, cx);
         self.refresh(cx);
     }
 
@@ -1148,6 +1357,144 @@ impl PicLensApp {
             return;
         }
         self.move_selection(1, cx);
+    }
+
+    fn begin_image_drag(&mut self, path: &str, origin: (f64, f64)) {
+        let sources = if self.selected.contains(path) {
+            self.selected_images()
+                .into_iter()
+                .map(|image| image.path)
+                .collect()
+        } else {
+            vec![path.to_string()]
+        };
+        self.drag = drag_begin(origin, sources);
+    }
+
+    fn on_shell_mouse_move(
+        &mut self,
+        event: &MouseMoveEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if matches!(self.drag, DragPhase::Idle) {
+            return;
+        }
+        let pointer = (
+            f64::from(event.position.x),
+            f64::from(event.position.y),
+        );
+        self.drag = drag_move(self.drag.clone(), pointer, self.hover_path.clone());
+        cx.notify();
+    }
+
+    fn on_shell_mouse_up(
+        &mut self,
+        _: &MouseUpEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let finish = drag_finish(std::mem::replace(&mut self.drag, DragPhase::Idle));
+        match finish {
+            DragFinish::Confirm { sources, target } => {
+                let plan = plan_drop_rename(&sources, &target);
+                if plan.items.is_empty() {
+                    self.status = "沒有可重新命名的項目。".into();
+                } else {
+                    self.drop_rename = Some(plan);
+                }
+                cx.notify();
+            }
+            DragFinish::Cancel => cx.notify(),
+            DragFinish::Ignore => {}
+        }
+    }
+
+    fn apply_viewer_wheel(
+        &mut self,
+        event: &ScrollWheelEvent,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(viewer) = self.viewer.as_mut() else {
+            return;
+        };
+        let delta = match event.delta {
+            ScrollDelta::Lines(lines) => {
+                if lines.y == 0.0 {
+                    return;
+                }
+                if lines.y > 0.0 {
+                    1
+                } else {
+                    -1
+                }
+            }
+            ScrollDelta::Pixels(pixels) => {
+                let y = f32::from(pixels.y);
+                if y == 0.0 {
+                    return;
+                }
+                if y > 0.0 {
+                    1
+                } else {
+                    -1
+                }
+            }
+        };
+        let pointer = Point {
+            x: f64::from(event.position.x),
+            y: f64::from(event.position.y),
+        };
+        let viewport_center = self
+            .viewer_canvas_bounds
+            .map(|bounds| Point {
+                x: f64::from(bounds.origin.x + bounds.size.width / 2.),
+                y: f64::from(bounds.origin.y + bounds.size.height / 2.),
+            })
+            .unwrap_or(pointer);
+        viewer.zoom = zoom_at_point(
+            viewer.zoom.zoom,
+            viewer.zoom.offset,
+            viewport_center,
+            pointer,
+            delta,
+        );
+        cx.notify();
+    }
+
+    fn begin_viewer_pan(&mut self, event: &MouseDownEvent) {
+        if self.viewer.as_ref().map(|v| v.zoom.zoom > 1.01).unwrap_or(false) {
+            self.viewer_panning = Some(Point {
+                x: f64::from(event.position.x),
+                y: f64::from(event.position.y),
+            });
+        }
+    }
+
+    fn move_viewer_pan(&mut self, event: &MouseMoveEvent, cx: &mut Context<Self>) {
+        let Some(last) = self.viewer_panning else {
+            return;
+        };
+        let Some(viewer) = self.viewer.as_mut() else {
+            return;
+        };
+        let now = Point {
+            x: f64::from(event.position.x),
+            y: f64::from(event.position.y),
+        };
+        viewer.zoom.offset = pan_offset(
+            viewer.zoom.offset,
+            Point {
+                x: now.x - last.x,
+                y: now.y - last.y,
+            },
+        );
+        self.viewer_panning = Some(now);
+        cx.notify();
+    }
+
+    fn end_viewer_pan(&mut self) {
+        self.viewer_panning = None;
     }
 
     fn grid_columns_estimate(&self) -> usize {

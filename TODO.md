@@ -21,15 +21,15 @@ Do in this order. Keep the app building after each item.
 
 ## Later
 
-- [ ] Show batch file-op results as notifications (`Root::render_notification_layer` is already mounted).
-- [ ] Gallery keys: Home, End, PageUp, PageDown.
-- [ ] Persist sidebar collapsed state and window size.
-- [ ] Add GPUI-layer unit tests for navigation, escape, and selection (no window).
-- [ ] Viewer pointer pan and wheel zoom with pointer anchor.
-- [ ] In-app drag-drop rename (preview, drop target, confirm). Follow Zed / former Qt drag session, not Waku attachments.
-- [ ] Deep folder-tree expand.
-- [ ] Overlay scrollbar for long galleries (gpui-component first).
-- [ ] Honor `reduce_motion` if viewer or overlay animation is added.
+- [x] Show batch file-op results as notifications (`Root::render_notification_layer` is already mounted).
+- [x] Gallery keys: Home, End, PageUp, PageDown.
+- [x] Persist sidebar collapsed state and window size.
+- [x] Add GPUI-layer unit tests for navigation, escape, and selection (no window).
+- [x] Viewer pointer pan and wheel zoom with pointer anchor.
+- [x] In-app drag-drop rename (preview, drop target, confirm). Follow Zed / former Qt drag session, not Waku attachments.
+- [x] Deep folder-tree expand.
+- [x] Overlay scrollbar for long galleries (gpui-component first).
+- [x] Honor `reduce_motion` if viewer or overlay animation is added.
 
 ## Not planned
 
