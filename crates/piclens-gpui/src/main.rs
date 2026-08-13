@@ -2,7 +2,9 @@ mod actions;
 mod app;
 mod assets;
 mod history;
+mod scan_apply;
 mod theme;
+mod thumbs;
 
 use std::time::Duration;
 

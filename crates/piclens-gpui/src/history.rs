@@ -49,4 +49,41 @@ impl FolderHistory {
         self.index = Some(i + 1);
         self.current()
     }
+
+    /// Same step used by Alt+← / Alt+→ and `MouseButton::Navigate`.
+    pub fn step(&mut self, back: bool) -> Option<&str> {
+        if back {
+            self.back()
+        } else {
+            self.forward()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FolderHistory;
+
+    #[test]
+    fn back_forward_after_push_is_the_same_state_change_for_keyboard_and_mouse() {
+        let mut history = FolderHistory::default();
+        history.push("/a".into());
+        history.push("/b".into());
+        history.push("/c".into());
+        assert_eq!(history.current(), Some("/c"));
+
+        assert_eq!(history.step(true), Some("/b"));
+        assert_eq!(history.current(), Some("/b"));
+        assert!(history.can_back());
+        assert!(history.can_forward());
+
+        assert_eq!(history.step(true), Some("/a"));
+        assert_eq!(history.current(), Some("/a"));
+        assert!(!history.can_back());
+
+        assert_eq!(history.step(false), Some("/b"));
+        assert_eq!(history.step(false), Some("/c"));
+        assert_eq!(history.current(), Some("/c"));
+        assert!(!history.can_forward());
+    }
 }

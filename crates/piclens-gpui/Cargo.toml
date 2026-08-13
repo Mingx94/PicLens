@@ -14,7 +14,6 @@ piclens-infra = { workspace = true }
 anyhow = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
-rfd = { workspace = true }
 image = { workspace = true }
 
 gpui = { git = "https://github.com/zed-industries/zed" }

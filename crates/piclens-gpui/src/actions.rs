@@ -38,8 +38,12 @@ actions!(
     ]
 );
 
-/// Key context for the main PicLens shell (library + overlays handled in one tree).
+/// Key context for the main PicLens shell.
 pub const CONTEXT: &str = "PicLens";
+/// Key context for the full-image viewer overlay.
+pub const VIEWER_CONTEXT: &str = "PicLensViewer";
+/// Key context for the single-image rename overlay.
+pub const RENAME_CONTEXT: &str = "PicLensRename";
 
 pub fn init(cx: &mut App) {
     cx.bind_keys([
@@ -78,13 +82,26 @@ pub fn init(cx: &mut App) {
         KeyBinding::new("ctrl-w", ConvertWebp, Some(CONTEXT)),
         KeyBinding::new("ctrl-shift-c", CleanupSameBasename, Some(CONTEXT)),
         KeyBinding::new("ctrl-shift-e", RevealInFileManager, Some(CONTEXT)),
-        // Viewer (same context; handlers no-op when viewer closed)
+        // Viewer (shell context still matches as an ancestor; overlay has its own too)
         KeyBinding::new("pageup", ViewerPrev, Some(CONTEXT)),
         KeyBinding::new("pagedown", ViewerNext, Some(CONTEXT)),
         KeyBinding::new("=", ZoomIn, Some(CONTEXT)),
         KeyBinding::new("plus", ZoomIn, Some(CONTEXT)),
         KeyBinding::new("-", ZoomOut, Some(CONTEXT)),
         KeyBinding::new("0", ZoomReset, Some(CONTEXT)),
+        // Overlay contexts: bindings after the overlay joins the dispatch tree
+        KeyBinding::new("escape", CloseOverlay, Some(VIEWER_CONTEXT)),
+        KeyBinding::new("pageup", ViewerPrev, Some(VIEWER_CONTEXT)),
+        KeyBinding::new("pagedown", ViewerNext, Some(VIEWER_CONTEXT)),
+        KeyBinding::new("left", ViewerPrev, Some(VIEWER_CONTEXT)),
+        KeyBinding::new("right", ViewerNext, Some(VIEWER_CONTEXT)),
+        KeyBinding::new("=", ZoomIn, Some(VIEWER_CONTEXT)),
+        KeyBinding::new("plus", ZoomIn, Some(VIEWER_CONTEXT)),
+        KeyBinding::new("-", ZoomOut, Some(VIEWER_CONTEXT)),
+        KeyBinding::new("0", ZoomReset, Some(VIEWER_CONTEXT)),
+        KeyBinding::new("delete", TrashSelection, Some(VIEWER_CONTEXT)),
+        KeyBinding::new("ctrl-shift-e", RevealInFileManager, Some(VIEWER_CONTEXT)),
+        KeyBinding::new("escape", CloseOverlay, Some(RENAME_CONTEXT)),
     ]);
 
     set_app_menus(cx);

@@ -83,6 +83,8 @@ impl PicLensApp {
                             .tooltip("側欄")
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.sidebar_collapsed = !this.sidebar_collapsed;
+                                this.sync_gallery_list();
+                                this.request_thumbs(cx);
                                 cx.notify();
                             })),
                     )
@@ -125,7 +127,7 @@ impl PicLensApp {
                     .primary()
                     .icon(IconName::FolderOpen)
                     .label("開啟資料夾")
-                    .on_click(cx.listener(|this, _, _, cx| this.pick_folder(cx))),
+                    .on_click(cx.listener(|this, _, window, cx| this.pick_folder(window, cx))),
             )
     }
 
@@ -282,6 +284,8 @@ impl PicLensApp {
                                     GalleryMode::Grid => GalleryMode::List,
                                     GalleryMode::List => GalleryMode::Grid,
                                 };
+                                this.sync_gallery_list();
+                                this.request_thumbs(cx);
                                 cx.notify();
                             })),
                     )
@@ -289,10 +293,10 @@ impl PicLensApp {
                         Button::new("open-view")
                             .outline()
                             .label("開啟檢視")
-                            .on_click(cx.listener(|this, _, _, cx| {
+                            .on_click(cx.listener(|this, _, window, cx| {
                                 if let Some(img) = this.selected_images().first() {
                                     let path = img.path.clone();
-                                    this.open_viewer(&path, cx);
+                                    this.open_viewer(&path, window, cx);
                                 } else {
                                     this.status = "請先選取圖片。".into();
                                     cx.notify();

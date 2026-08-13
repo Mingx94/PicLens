@@ -73,10 +73,6 @@ impl PicLensApp {
         theme: Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let tile_size = self.thumb_size() as f32;
-        let selected_count = self.selected.len();
-        let focus = self.focus_handle.clone();
-
         if self.visible.is_empty() {
             return v_flex()
                 .size_full()
@@ -118,19 +114,48 @@ impl PicLensApp {
                     Button::new("empty-open")
                         .primary()
                         .label("開啟資料夾")
-                        .on_click(cx.listener(|this, _, _, cx| this.pick_folder(cx))),
+                        .on_click(cx.listener(|this, _, window, cx| this.pick_folder(window, cx))),
                 )
                 .into_any_element();
         }
 
+        let entity = cx.entity().downgrade();
+        list(self.gallery_list.clone(), move |row, _window, cx| {
+            entity
+                .upgrade()
+                .map(|entity| {
+                    entity.update(cx, |this, cx| this.render_gallery_row(row, theme, cx))
+                })
+                .unwrap_or_else(|| div().into_any_element())
+        })
+        .size_full()
+        .into_any_element()
+    }
+
+    fn render_gallery_row(
+        &self,
+        row: usize,
+        theme: Theme,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let tile_size = self.thumb_size() as f32;
+        let selected_count = self.selected.len();
+        let focus = self.focus_handle.clone();
+        let cols = self.gallery_columns();
+        let start = row.saturating_mul(cols);
+        if start >= self.visible.len() {
+            return div().into_any_element();
+        }
+        let end = (start + cols).min(self.visible.len());
+
         if self.gallery_mode == GalleryMode::Grid {
-            return div()
-                .flex()
-                .flex_row()
-                .flex_wrap()
+            return h_flex()
+                .id(("grid-row", row))
+                .w_full()
                 .gap_3()
                 .p_1()
-                .children(self.visible.iter().enumerate().map(|(idx, item)| {
+                .children((start..end).map(|idx| {
+                    let item = &self.visible[idx];
                     let path = item.path().to_string();
                     let name = item.name().to_string();
                     let is_folder = item.is_folder();
@@ -168,56 +193,52 @@ impl PicLensApp {
                 .into_any_element();
         }
 
-        v_flex()
-            .w_full()
-            .gap_1()
-            .children(self.visible.iter().enumerate().map(|(idx, item)| {
-                let path = item.path().to_string();
-                let name = item.name().to_string();
-                let is_folder = item.is_folder();
-                let animated = item.as_image().map(|i| i.is_animated).unwrap_or(false);
-                let selected = self.selected.contains(&path);
-                let preview = self.tile_preview(theme, &path, is_folder, animated, 48.0);
-                let badge = if animated {
-                    "動畫"
-                } else if is_folder {
-                    "資料夾"
-                } else {
-                    ""
-                };
-                self.item_surface(
-                    theme,
-                    ("row", idx),
-                    selected,
-                    is_folder,
-                    selected_count,
-                    path,
-                    h_flex()
-                        .w_full()
-                        .gap_3()
-                        .px_3()
-                        .py_2()
-                        .items_center()
-                        .child(preview)
-                        .child(
-                            div()
-                                .flex_1()
-                                .text_sm()
-                                .text_color(theme.primary_text)
-                                .child(name),
-                        )
-                        .child(
-                            div()
-                                .text_xs()
-                                .text_color(theme.muted_text)
-                                .child(badge),
-                        )
-                        .into_any_element(),
-                    focus.clone(),
-                    cx,
+        let item = &self.visible[start];
+        let path = item.path().to_string();
+        let name = item.name().to_string();
+        let is_folder = item.is_folder();
+        let animated = item.as_image().map(|i| i.is_animated).unwrap_or(false);
+        let selected = self.selected.contains(&path);
+        let preview = self.tile_preview(theme, &path, is_folder, animated, 48.0);
+        let badge = if animated {
+            "動畫"
+        } else if is_folder {
+            "資料夾"
+        } else {
+            ""
+        };
+        self.item_surface(
+            theme,
+            ("row", start),
+            selected,
+            is_folder,
+            selected_count,
+            path,
+            h_flex()
+                .w_full()
+                .gap_3()
+                .px_3()
+                .py_2()
+                .items_center()
+                .child(preview)
+                .child(
+                    div()
+                        .flex_1()
+                        .text_sm()
+                        .text_color(theme.primary_text)
+                        .child(name),
                 )
-            }))
-            .into_any_element()
+                .child(
+                    div()
+                        .text_xs()
+                        .text_color(theme.muted_text)
+                        .child(badge),
+                )
+                .into_any_element(),
+            focus,
+            cx,
+        )
+        .into_any_element()
     }
 
     fn item_surface(
@@ -247,13 +268,13 @@ impl PicLensApp {
             .hover(|s| s.border_color(theme.strong_line).bg(theme.hover))
             .on_mouse_down(
                 MouseButton::Left,
-                cx.listener(move |this, event: &MouseDownEvent, _, cx| {
+                cx.listener(move |this, event: &MouseDownEvent, window, cx| {
                     let additive = event.modifiers.control || event.modifiers.shift;
                     if is_folder {
                         this.open_folder(path_left.clone(), false, true, cx);
                     } else if event.click_count >= 2 {
                         this.select_path(&path_left, false);
-                        this.open_viewer(&path_left, cx);
+                        this.open_viewer(&path_left, window, cx);
                     } else {
                         this.select_path(&path_left, additive);
                         cx.notify();

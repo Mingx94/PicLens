@@ -41,6 +41,20 @@ impl Render for PicLensApp {
             .on_action(cx.listener(Self::on_refresh))
             .on_action(cx.listener(Self::on_history_back))
             .on_action(cx.listener(Self::on_history_forward))
+            .on_mouse_down(
+                MouseButton::Navigate(NavigationDirection::Back),
+                cx.listener(|this, _, window, cx| {
+                    cx.stop_propagation();
+                    this.on_history_back(&crate::actions::HistoryBack, window, cx);
+                }),
+            )
+            .on_mouse_down(
+                MouseButton::Navigate(NavigationDirection::Forward),
+                cx.listener(|this, _, window, cx| {
+                    cx.stop_propagation();
+                    this.on_history_forward(&crate::actions::HistoryForward, window, cx);
+                }),
+            )
             .on_action(cx.listener(Self::on_toggle_sidebar))
             .on_action(cx.listener(Self::on_toggle_gallery_mode))
             .on_action(cx.listener(Self::on_cycle_sort))
@@ -96,10 +110,10 @@ impl Render for PicLensApp {
                                 div()
                                     .id("gallery")
                                     .flex_1()
+                                    .min_h_0()
                                     .w_full()
                                     .px_5()
                                     .pb_4()
-                                    .overflow_y_scroll()
                                     .child(gallery_body),
                             ),
                     ),

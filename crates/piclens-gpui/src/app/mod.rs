@@ -9,6 +9,7 @@ mod render;
 mod shell;
 
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -33,6 +34,8 @@ use crate::actions::{
     ToggleSidebar, TrashSelection, ViewerNext, ViewerPrev, ZoomIn, ZoomOut, ZoomReset,
 };
 use crate::history::FolderHistory;
+use crate::scan_apply::{apply_folder_scan, FolderScanPayload};
+use crate::thumbs::{item_range_for_rows, thumb_queue_update};
 
 const MAX_THUMB_IN_FLIGHT: usize = 8;
 
@@ -67,7 +70,12 @@ pub struct PicLensApp {
     thumb_failed: HashSet<String>,
     /// Prevents stacking concurrent thumb pump tasks.
     thumbs_pump_scheduled: bool,
+    gallery_list: ListState,
+    viewport_rows: Range<usize>,
     focus_handle: FocusHandle,
+    viewer_focus: FocusHandle,
+    rename_focus: FocusHandle,
+    overlay_restore_focus: Option<FocusHandle>,
     /// Held so tasks cancel on drop / generation bump (do not detach).
     async_tasks: Vec<Task<()>>,
     _subscriptions: Vec<Subscription>,
@@ -117,7 +125,12 @@ impl PicLensApp {
             thumb_pending: HashSet::new(),
             thumb_failed: HashSet::new(),
             thumbs_pump_scheduled: false,
+            gallery_list: ListState::new(0, ListAlignment::Top, px(256.0)),
+            viewport_rows: 0..0,
             focus_handle: cx.focus_handle(),
+            viewer_focus: cx.focus_handle(),
+            rename_focus: cx.focus_handle(),
+            overlay_restore_focus: None,
             async_tasks: Vec::new(),
             _subscriptions: Vec::new(),
             shutting_down: false,
@@ -125,6 +138,7 @@ impl PicLensApp {
 
         // Keep shell focused so global keybindings work after open.
         app.focus_handle.focus(window, cx);
+        app.bind_gallery_scroll(cx);
 
         let search_sub = cx.subscribe_in(&search, window, |this, state, event, _window, cx| {
             if this.shutting_down {
@@ -133,6 +147,7 @@ impl PicLensApp {
             if matches!(event, InputEvent::Change) {
                 this.search_text = state.read(cx).value().to_string();
                 this.recompute_visible();
+                this.sync_gallery_list();
                 this.request_thumbs(cx);
                 cx.notify();
             }
@@ -170,6 +185,83 @@ impl PicLensApp {
             self.async_tasks.drain(0..32);
         }
         self.async_tasks.push(task);
+    }
+
+    fn bind_gallery_scroll(&mut self, cx: &mut Context<Self>) {
+        let entity = cx.weak_entity();
+        self.gallery_list.set_scroll_handler(move |event, _window, cx| {
+            let range = event.visible_range.clone();
+            let _ = entity.update(cx, |this, cx| {
+                if this.viewport_rows != range {
+                    this.viewport_rows = range;
+                    this.request_thumbs(cx);
+                }
+            });
+        });
+    }
+
+    fn gallery_columns(&self) -> usize {
+        if self.gallery_mode == GalleryMode::List {
+            1
+        } else {
+            self.grid_columns_estimate().max(1)
+        }
+    }
+
+    fn gallery_row_count(&self) -> usize {
+        let cols = self.gallery_columns();
+        if self.visible.is_empty() {
+            0
+        } else {
+            self.visible.len().div_ceil(cols)
+        }
+    }
+
+    fn gallery_row_height(&self) -> Pixels {
+        if self.gallery_mode == GalleryMode::List {
+            px(56.)
+        } else {
+            px(self.thumb_size() as f32 + 28.)
+        }
+    }
+
+    fn sync_gallery_list(&mut self) {
+        let rows = self.gallery_row_count();
+        self.gallery_list
+            .reset_with_uniform_height(rows, self.gallery_row_height());
+        let first = rows.min(24);
+        self.viewport_rows = 0..first;
+    }
+
+    fn viewport_item_range(&self) -> Range<usize> {
+        item_range_for_rows(
+            self.viewport_rows.clone(),
+            self.gallery_columns(),
+            self.visible.len(),
+        )
+    }
+
+    fn capture_overlay_focus(&mut self, window: &mut Window, cx: &App) {
+        self.overlay_restore_focus = window.focused(cx);
+    }
+
+    fn restore_overlay_focus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(handle) = self.overlay_restore_focus.take() {
+            handle.focus(window, cx);
+        } else {
+            self.focus_handle.focus(window, cx);
+        }
+    }
+
+    fn focus_overlay_after_join(
+        &mut self,
+        handle: FocusHandle,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        cx.on_next_frame(window, move |_this, window, cx| {
+            handle.focus(window, cx);
+        });
     }
 
     fn persist_settings(&mut self) {
@@ -225,41 +317,24 @@ impl PicLensApp {
         self.spawn_task(task);
     }
 
-    /// Queue background thumbnail work for visible static images (bounded).
+    /// Queue background thumbnail work for viewport static images (bounded).
     fn pump_thumbs(&mut self, cx: &mut Context<Self>) {
         if self.shutting_down {
             return;
         }
         let size = self.thumb_size();
         let gen = self.generation;
-        let mut slots = MAX_THUMB_IN_FLIGHT.saturating_sub(self.thumb_pending.len());
-        if slots == 0 {
-            return;
-        }
+        let mut cached_or_failed: HashSet<String> = self.thumbs.keys().cloned().collect();
+        cached_or_failed.extend(self.thumb_failed.iter().cloned());
+        let to_start = thumb_queue_update(
+            &self.visible,
+            self.viewport_item_range(),
+            &cached_or_failed,
+            &mut self.thumb_pending,
+            MAX_THUMB_IN_FLIGHT,
+        );
 
-        let candidates: Vec<String> = self
-            .visible
-            .iter()
-            .filter_map(|item| {
-                let img = item.as_image()?;
-                if img.is_animated {
-                    return None;
-                }
-                Some(img.path.clone())
-            })
-            .filter(|path| {
-                !self.thumbs.contains_key(path)
-                    && !self.thumb_pending.contains(path)
-                    && !self.thumb_failed.contains(path)
-            })
-            .collect();
-
-        for path in candidates {
-            if slots == 0 {
-                break;
-            }
-            slots -= 1;
-            self.thumb_pending.insert(path.clone());
+        for path in to_start {
             let path_for_bg = path.clone();
             let task = cx.spawn(async move |this, cx| {
                 let result = cx
@@ -297,52 +372,113 @@ impl PicLensApp {
         push_history: bool,
         cx: &mut Context<Self>,
     ) {
+        self.cancel_async_work();
+        self.folder_path = Some(path.clone());
+        self.items.clear();
+        self.visible.clear();
+        self.child_folders.clear();
+        self.clear_selection();
+        self.viewer = None;
+        self.rename = None;
+        self.drop_rename = None;
+        self.thumbs.clear();
+        self.thumb_failed.clear();
+        self.sync_gallery_list();
+        if push_history {
+            self.history.push(path.clone());
+        }
+        if remember_picker {
+            self.settings.last_folder_path = Some(path.clone());
+            self.persist_settings();
+        }
+        self.status = "載入中…".into();
+        let gen = self.generation;
         let query = ListQuery {
             folder_path: path.clone(),
             include_subfolders: self.settings.include_subfolders,
             sort: self.settings.sort,
         };
-        match scan_folder(&query) {
-            Ok(items) => {
-                self.cancel_async_work();
-                self.folder_path = Some(path.clone());
-                self.items = items;
-                self.clear_selection();
-                self.viewer = None;
-                self.rename = None;
-                self.drop_rename = None;
-                self.thumbs.clear();
-                self.thumb_failed.clear();
-                self.recompute_visible();
-                self.child_folders = scan_child_folders(&path)
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|f| f.path)
-                    .collect();
-                if push_history {
-                    self.history.push(path.clone());
+        let path_for_bg = path.clone();
+        let task = cx.spawn(async move |this, cx| {
+            let outcome = cx
+                .background_spawn(async move {
+                    let items = scan_folder(&query);
+                    let child_folders = match &items {
+                        Ok(_) => scan_child_folders(&path_for_bg)
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|f| f.path)
+                            .collect(),
+                        Err(_) => Vec::new(),
+                    };
+                    (items, child_folders)
+                })
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                if this.shutting_down {
+                    return;
                 }
-                if remember_picker {
-                    self.settings.last_folder_path = Some(path.clone());
-                    self.persist_settings();
+                match outcome.0 {
+                    Ok(items) => {
+                        let applied = apply_folder_scan(
+                            this.generation,
+                            gen,
+                            &mut this.items,
+                            &mut this.child_folders,
+                            FolderScanPayload {
+                                items,
+                                child_folders: outcome.1,
+                            },
+                        );
+                        if !applied {
+                            return;
+                        }
+                        this.recompute_visible();
+                        this.sync_gallery_list();
+                        this.status = format!("已載入 {} 個項目", this.visible.len());
+                        info(format!("opened folder: {path}"));
+                        this.request_thumbs(cx);
+                        cx.notify();
+                    }
+                    Err(err) => {
+                        if this.generation != gen {
+                            return;
+                        }
+                        this.status = format!("無法開啟資料夾：{err}");
+                        warn(this.status.clone());
+                        cx.notify();
+                    }
                 }
-                self.status = format!("已載入 {} 個項目", self.visible.len());
-                info(format!("opened folder: {path}"));
-                self.request_thumbs(cx);
-            }
-            Err(err) => {
-                self.status = format!("無法開啟資料夾：{err}");
-                warn(self.status.clone());
-            }
-        }
+            });
+        });
+        self.spawn_task(task);
         cx.notify();
     }
 
-    fn pick_folder(&mut self, cx: &mut Context<Self>) {
-        if let Some(path) = rfd::FileDialog::new().pick_folder() {
-            let path = path.to_string_lossy().replace('\\', "/");
-            self.open_folder(path, true, true, cx);
-        }
+    fn pick_folder(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        let receiver = cx.prompt_for_paths(PathPromptOptions {
+            files: false,
+            directories: true,
+            multiple: false,
+            prompt: Some("開啟資料夾".into()),
+        });
+        let task = cx.spawn(async move |this, cx| {
+            match receiver.await {
+                Ok(Ok(Some(paths))) => {
+                    if let Some(path) = paths.into_iter().next() {
+                        let path = path.to_string_lossy().replace('\\', "/");
+                        let _ = this.update(cx, |this, cx| {
+                            if this.shutting_down {
+                                return;
+                            }
+                            this.open_folder(path, true, true, cx);
+                        });
+                    }
+                }
+                _ => {}
+            }
+        });
+        self.spawn_task(task);
     }
 
     fn refresh(&mut self, cx: &mut Context<Self>) {
@@ -352,12 +488,7 @@ impl PicLensApp {
     }
 
     fn navigate_history(&mut self, back: bool, cx: &mut Context<Self>) {
-        let path = if back {
-            self.history.back().map(str::to_string)
-        } else {
-            self.history.forward().map(str::to_string)
-        };
-        if let Some(path) = path {
+        if let Some(path) = self.history.step(back).map(str::to_string) {
             self.open_folder(path, false, false, cx);
         }
     }
@@ -407,6 +538,7 @@ impl PicLensApp {
         self.cancel_async_work();
         self.thumbs.clear();
         self.thumb_failed.clear();
+        self.sync_gallery_list();
         self.request_thumbs(cx);
         cx.notify();
     }
@@ -450,7 +582,7 @@ impl PicLensApp {
         info(self.status.clone());
     }
 
-    fn open_viewer(&mut self, path: &str, cx: &mut Context<Self>) {
+    fn open_viewer(&mut self, path: &str, window: &mut Window, cx: &mut Context<Self>) {
         let images: Vec<ImageListItem> = self
             .visible
             .iter()
@@ -493,6 +625,8 @@ impl PicLensApp {
         if !is_animated {
             self.load_viewer_display(path.to_string(), cx);
         }
+        self.capture_overlay_focus(window, cx);
+        self.focus_overlay_after_join(self.viewer_focus.clone(), window, cx);
         cx.notify();
     }
 
@@ -542,8 +676,9 @@ impl PicLensApp {
         self.spawn_task(task);
     }
 
-    fn close_viewer(&mut self, cx: &mut Context<Self>) {
+    fn close_viewer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.viewer = None;
+        self.restore_overlay_focus(window, cx);
         cx.notify();
     }
 
@@ -592,14 +727,24 @@ impl PicLensApp {
         let path = images[0].path.clone();
         let name = images[0].name.clone();
         let input = cx.new(|cx| InputState::new(window, cx).default_value(name));
-        self.rename = Some(RenameState { path, input });
+        self.rename = Some(RenameState { path, input: input.clone() });
+        self.capture_overlay_focus(window, cx);
+        cx.on_next_frame(window, move |this, window, cx| {
+            this.rename_focus.focus(window, cx);
+            if let Some(draft) = this.rename.as_ref() {
+                draft.input.update(cx, |state, cx| {
+                    state.focus(window, cx);
+                });
+            }
+        });
         cx.notify();
     }
 
-    fn commit_rename(&mut self, cx: &mut Context<Self>) {
+    fn commit_rename(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(draft) = self.rename.take() else {
             return;
         };
+        self.restore_overlay_focus(window, cx);
         let new_name = draft.input.read(cx).value().to_string();
         let result = rename_image(&draft.path, &new_name);
         self.status = match result.status {
@@ -672,8 +817,8 @@ impl PicLensApp {
 
     // --- Keyboard action handlers ---
 
-    fn on_open_folder(&mut self, _: &OpenFolder, _: &mut Window, cx: &mut Context<Self>) {
-        self.pick_folder(cx);
+    fn on_open_folder(&mut self, _: &OpenFolder, window: &mut Window, cx: &mut Context<Self>) {
+        self.pick_folder(window, cx);
     }
 
     fn on_refresh(&mut self, _: &Refresh, _: &mut Window, cx: &mut Context<Self>) {
@@ -696,6 +841,8 @@ impl PicLensApp {
 
     fn on_toggle_sidebar(&mut self, _: &ToggleSidebar, _: &mut Window, cx: &mut Context<Self>) {
         self.sidebar_collapsed = !self.sidebar_collapsed;
+        self.sync_gallery_list();
+        self.request_thumbs(cx);
         cx.notify();
     }
 
@@ -709,6 +856,8 @@ impl PicLensApp {
             GalleryMode::Grid => GalleryMode::List,
             GalleryMode::List => GalleryMode::Grid,
         };
+        self.sync_gallery_list();
+        self.request_thumbs(cx);
         cx.notify();
     }
 
@@ -741,11 +890,10 @@ impl PicLensApp {
             cx.notify();
         } else if self.rename.is_some() {
             self.rename = None;
-            self.focus_handle.focus(window, cx);
+            self.restore_overlay_focus(window, cx);
             cx.notify();
         } else if self.viewer.is_some() {
-            self.close_viewer(cx);
-            self.focus_handle.focus(window, cx);
+            self.close_viewer(window, cx);
         } else if !self.selected.is_empty() {
             self.clear_selection();
             cx.notify();
@@ -755,6 +903,7 @@ impl PicLensApp {
                 state.set_value("", window, cx);
             });
             self.recompute_visible();
+            self.sync_gallery_list();
             self.request_thumbs(cx);
             self.focus_handle.focus(window, cx);
             cx.notify();
@@ -802,13 +951,11 @@ impl PicLensApp {
         }
         if let Some(img) = self.selected_images().first() {
             let path = img.path.clone();
-            self.open_viewer(&path, cx);
-            self.focus_handle.focus(window, cx);
+            self.open_viewer(&path, window, cx);
         } else if let Some(item) = self.visible.iter().find_map(|i| i.as_image()) {
             let path = item.path.clone();
             self.select_path(&path, false);
-            self.open_viewer(&path, cx);
-            self.focus_handle.focus(window, cx);
+            self.open_viewer(&path, window, cx);
         } else {
             self.status = "請先選取圖片。".into();
             cx.notify();
@@ -859,7 +1006,7 @@ impl PicLensApp {
         }
     }
 
-    fn on_trash(&mut self, _: &TrashSelection, _: &mut Window, cx: &mut Context<Self>) {
+    fn on_trash(&mut self, _: &TrashSelection, window: &mut Window, cx: &mut Context<Self>) {
         if self.viewer.is_some() {
             // Trash current viewer image
             if let Some(viewer) = self.viewer.as_ref() {
@@ -868,7 +1015,7 @@ impl PicLensApp {
                     let paths = vec![img.path.clone()];
                     let batch = trash_paths(&paths);
                     self.apply_batch("移至回收筒", &batch);
-                    self.close_viewer(cx);
+                    self.close_viewer(window, cx);
                     self.refresh(cx);
                     return;
                 }

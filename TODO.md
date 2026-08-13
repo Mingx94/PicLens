@@ -12,12 +12,12 @@ Done: `app/` split, theme global, bundled CJK fonts, native menus, image context
 
 Do in this order. Keep the app building after each item.
 
-- [ ] Mouse side buttons use the same folder history as Alt+← / Alt+→ (`MouseButton::Navigate`).
-- [ ] Open-folder picker must not block the GPUI loop. Prefer `cx.prompt_for_paths`.
-- [ ] Scan folder and child folders on a background task. Guard results with the existing generation counter.
-- [ ] Virtualize the gallery with `list()` / `ListState`. Start with list mode, then grid as rows.
-- [ ] Schedule thumbnails only for tiles in the viewport. Drop work for items that leave the screen.
-- [ ] Give viewer and rename overlays their own key context, restore previous focus, and focus the overlay after it joins the dispatch tree.
+- [x] Mouse side buttons use the same folder history as Alt+← / Alt+→ (`MouseButton::Navigate`).
+- [x] Open-folder picker must not block the GPUI loop. Prefer `cx.prompt_for_paths`.
+- [x] Scan folder and child folders on a background task. Guard results with the existing generation counter.
+- [x] Virtualize the gallery with `list()` / `ListState`. Start with list mode, then grid as rows.
+- [x] Schedule thumbnails only for tiles in the viewport. Drop work for items that leave the screen.
+- [x] Give viewer and rename overlays their own key context, restore previous focus, and focus the overlay after it joins the dispatch tree.
 
 ## Later
 

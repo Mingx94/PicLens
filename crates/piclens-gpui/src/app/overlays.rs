@@ -9,6 +9,7 @@ use gpui_component::{h_flex, v_flex, ActiveTheme};
 use piclens_domain::{clamp_zoom, reset_zoom_state};
 
 use super::PicLensApp;
+use crate::actions::{RENAME_CONTEXT, VIEWER_CONTEXT};
 use crate::theme::Theme;
 
 impl PicLensApp {
@@ -33,6 +34,8 @@ impl PicLensApp {
         Some(
             div()
                 .id("viewer")
+                .key_context(VIEWER_CONTEXT)
+                .track_focus(&self.viewer_focus)
                 .absolute()
                 .inset_0()
                 .flex()
@@ -54,8 +57,7 @@ impl PicLensApp {
                                 .icon(gpui_component::IconName::ArrowLeft)
                                 .label("返回")
                                 .on_click(cx.listener(|this, _, window, cx| {
-                                    this.close_viewer(cx);
-                                    this.focus_handle.focus(window, cx);
+                                    this.close_viewer(window, cx);
                                 })),
                         )
                         .child(
@@ -178,6 +180,8 @@ impl PicLensApp {
         Some(
             div()
                 .id("rename")
+                .key_context(RENAME_CONTEXT)
+                .track_focus(&self.rename_focus)
                 .absolute()
                 .inset_0()
                 .flex()
@@ -209,15 +213,15 @@ impl PicLensApp {
                                     Button::new("rn-cancel").outline().label("取消").on_click(
                                         cx.listener(|this, _, window, cx| {
                                             this.rename = None;
-                                            this.focus_handle.focus(window, cx);
+                                            this.restore_overlay_focus(window, cx);
                                             cx.notify();
                                         }),
                                     ),
                                 )
                                 .child(
                                     Button::new("rn-ok").primary().label("確定").on_click(
-                                        cx.listener(|this, _, _, cx| {
-                                            this.commit_rename(cx);
+                                        cx.listener(|this, _, window, cx| {
+                                            this.commit_rename(window, cx);
                                         }),
                                     ),
                                 ),
