@@ -122,10 +122,25 @@ impl PicLensApp {
         }
 
         let entity = cx.entity().downgrade();
+        let measure = entity.clone();
         div()
             .id("gallery-scroll")
             .relative()
             .size_full()
+            .child(
+                canvas(
+                    move |bounds, _, cx| {
+                        if let Some(entity) = measure.upgrade() {
+                            entity.update(cx, |this, cx| {
+                                this.apply_gallery_width(f32::from(bounds.size.width), cx);
+                            });
+                        }
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .inset_0(),
+            )
             .child(
                 list(self.gallery_list.clone(), move |row, _window, cx| {
                     entity

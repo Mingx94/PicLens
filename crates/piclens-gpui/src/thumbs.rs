@@ -5,6 +5,15 @@ use std::ops::Range;
 
 use piclens_domain::ListItem;
 
+/// How many grid tiles fit in `available_width` with a uniform tile and gap.
+pub fn grid_column_count(available_width: f32, tile_size: f32, gap: f32) -> usize {
+    let cell = tile_size + gap;
+    if available_width <= 0.0 || cell <= 0.0 {
+        return 1;
+    }
+    (((available_width + gap) / cell).floor() as usize).max(1)
+}
+
 /// Convert a range of gallery rows into item indices.
 pub fn item_range_for_rows(
     row_range: Range<usize>,
@@ -68,7 +77,7 @@ mod tests {
 
     use piclens_domain::{FolderListItem, ImageListItem, ListItem};
 
-    use super::{item_range_for_rows, thumb_queue_update};
+    use super::{grid_column_count, item_range_for_rows, thumb_queue_update};
 
     fn image(path: &str, animated: bool) -> ListItem {
         ListItem::Image(ImageListItem {
@@ -113,6 +122,14 @@ mod tests {
         );
         assert!(!pending.iter().any(|p| p == "/anim.gif"));
         assert!(!pending.iter().any(|p| p == "/dir"));
+    }
+
+    #[test]
+    fn wide_gallery_fits_more_columns() {
+        let tile = 160.0;
+        let gap = 12.0;
+        assert_eq!(grid_column_count(700.0, tile, gap), 4);
+        assert!(grid_column_count(1600.0, tile, gap) > grid_column_count(700.0, tile, gap));
     }
 
     #[test]

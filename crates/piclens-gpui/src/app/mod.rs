@@ -51,7 +51,10 @@ use crate::interaction::{
     PageKeyOutcome,
 };
 use crate::scan_apply::{apply_folder_scan, FolderScanPayload};
-use crate::thumbs::{item_range_for_rows, thumb_queue_update};
+use crate::thumbs::{grid_column_count, item_range_for_rows, thumb_queue_update};
+
+const GRID_GAP: f32 = 12.0;
+const GRID_PAD: f32 = 8.0;
 
 const MAX_THUMB_IN_FLIGHT: usize = 8;
 
@@ -93,6 +96,7 @@ pub struct PicLensApp {
     /// Prevents stacking concurrent thumb pump tasks.
     thumbs_pump_scheduled: bool,
     gallery_list: ListState,
+    gallery_width: f32,
     viewport_rows: Range<usize>,
     focus_handle: FocusHandle,
     viewer_focus: FocusHandle,
@@ -154,6 +158,7 @@ impl PicLensApp {
             thumb_failed: HashSet::new(),
             thumbs_pump_scheduled: false,
             gallery_list: ListState::new(0, ListAlignment::Top, px(256.0)),
+            gallery_width: 0.0,
             viewport_rows: 0..0,
             focus_handle: cx.focus_handle(),
             viewer_focus: cx.focus_handle(),
@@ -240,6 +245,19 @@ impl PicLensApp {
             1
         } else {
             self.grid_columns_estimate().max(1)
+        }
+    }
+
+    fn apply_gallery_width(&mut self, width: f32, cx: &mut Context<Self>) {
+        if width <= 0.0 || (self.gallery_width - width).abs() < 0.5 {
+            return;
+        }
+        let before = self.gallery_columns();
+        self.gallery_width = width;
+        if self.gallery_columns() != before {
+            self.sync_gallery_list();
+            self.request_thumbs(cx);
+            cx.notify();
         }
     }
 
@@ -1499,9 +1517,14 @@ impl PicLensApp {
     }
 
     fn grid_columns_estimate(&self) -> usize {
-        let tile = self.thumb_size() as usize + 16;
-        // Assume ~960px gallery width when sidebar open
-        let width = if self.sidebar_collapsed { 1200 } else { 960 };
-        (width / tile).max(1)
+        let tile = self.thumb_size() as f32;
+        let width = if self.gallery_width > 1.0 {
+            self.gallery_width - GRID_PAD
+        } else if self.sidebar_collapsed {
+            1200.0
+        } else {
+            960.0
+        };
+        grid_column_count(width, tile, GRID_GAP)
     }
 }
