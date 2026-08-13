@@ -142,7 +142,11 @@ impl PicLensApp {
         if self.sidebar_collapsed {
             return div().id("sidebar-off").w(px(0.)).into_any_element();
         }
-        let root = self.folder_path.clone().unwrap_or_default();
+        let root = self
+            .tree_root
+            .clone()
+            .or_else(|| self.folder_path.clone())
+            .unwrap_or_default();
         v_flex()
             .id("sidebar")
             .w(px(theme::SIDEBAR_W))

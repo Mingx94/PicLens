@@ -9,7 +9,7 @@
 - 未設定 `PICLENS_DATA_ROOT` 時，settings、logs 與 thumbnail cache 使用平台 local application data 下的 `PicLens`。
 - 正式 settings 檔名是 `piclens-settings.json`；歷史 JSON 欄位與 numeric sort enums 必須持續可讀。
 - Settings 寫入必須先 normalization，再以 atomic replacement 完成；corrupt JSON 必須 quarantine，而不是覆寫原檔。
-- 上次透過 folder picker 選取的有效資料夾是 startup restore authority。Folder tree、folder tile 與 history navigation 不得覆寫它。
+- 上次透過 folder picker 選取的有效資料夾是 startup restore authority，也是 folder tree 的 root。Folder tree、folder tile 與 history navigation 不得覆寫它，也不得重設、縮減或更換 tree 的 root 與頂層項目。
 - 測試、smoke、performance 與 package lifecycle 必須使用隔離 data root。
 
 詳見 [Data continuity](data-continuity.md)。

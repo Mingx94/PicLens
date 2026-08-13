@@ -1,4 +1,4 @@
-//! Expandable folder-tree rows under the current folder.
+//! Expandable folder-tree rows under the picker folder.
 
 use std::collections::{HashMap, HashSet};
 
@@ -31,6 +31,28 @@ pub fn apply_tree_children(
     children: Vec<String>,
 ) {
     children_by_parent.insert(parent.to_string(), children);
+}
+
+/// Rebuild the tree only when the folder picker (or startup restore of that
+/// picker folder) supplies a new root. Navigation must not call this with
+/// `remember_picker == false`.
+pub fn replace_tree_for_picker(
+    remember_picker: bool,
+    tree_root: &mut Option<String>,
+    roots: &mut Vec<String>,
+    children_by_parent: &mut HashMap<String, Vec<String>>,
+    expanded: &mut HashSet<String>,
+    picker_path: &str,
+    new_roots: Vec<String>,
+) -> bool {
+    if !remember_picker {
+        return false;
+    }
+    *tree_root = Some(picker_path.to_string());
+    *roots = new_roots;
+    children_by_parent.clear();
+    expanded.clear();
+    true
 }
 
 pub fn visible_tree_rows(
@@ -96,5 +118,42 @@ mod tests {
         assert_eq!(toggle_expand(&mut expanded, "/root/a"), ExpandAction::Collapse);
         let collapsed = visible_tree_rows(&roots, &children, &expanded);
         assert_eq!(collapsed.len(), 2);
+    }
+
+    #[test]
+    fn picker_replaces_tree_navigation_does_not() {
+        let mut tree_root = Some("/old".into());
+        let mut roots = vec!["/old/a".into()];
+        let mut children = HashMap::new();
+        apply_tree_children(&mut children, "/old/a", vec!["/old/a/one".into()]);
+        let mut expanded = HashSet::from(["/old/a".into()]);
+
+        assert!(!replace_tree_for_picker(
+            false,
+            &mut tree_root,
+            &mut roots,
+            &mut children,
+            &mut expanded,
+            "/old/a/one",
+            vec!["/should-not-apply".into()],
+        ));
+        assert_eq!(tree_root.as_deref(), Some("/old"));
+        assert_eq!(roots, vec!["/old/a".to_string()]);
+        assert!(expanded.contains("/old/a"));
+        assert_eq!(children.get("/old/a").map(Vec::len), Some(1));
+
+        assert!(replace_tree_for_picker(
+            true,
+            &mut tree_root,
+            &mut roots,
+            &mut children,
+            &mut expanded,
+            "/picked",
+            vec!["/picked/x".into(), "/picked/y".into()],
+        ));
+        assert_eq!(tree_root.as_deref(), Some("/picked"));
+        assert_eq!(roots, vec!["/picked/x".to_string(), "/picked/y".to_string()]);
+        assert!(children.is_empty());
+        assert!(expanded.is_empty());
     }
 }

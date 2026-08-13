@@ -42,7 +42,8 @@ use crate::drag_rename::{
     DragPhase,
 };
 use crate::folder_tree::{
-    apply_tree_children, toggle_expand, visible_tree_rows, ExpandAction, TreeRow,
+    apply_tree_children, replace_tree_for_picker, toggle_expand, visible_tree_rows, ExpandAction,
+    TreeRow,
 };
 use crate::history::FolderHistory;
 use crate::interaction::{
@@ -70,9 +71,11 @@ pub struct PicLensApp {
     folder_path: Option<String>,
     items: Vec<ListItem>,
     visible: Vec<ListItem>,
-    child_folders: Vec<String>,
+    tree_roots: Vec<String>,
+    tree_root: Option<String>,
     tree_children: HashMap<String, Vec<String>>,
     tree_expanded: HashSet<String>,
+    tree_generation: u64,
     selected: BTreeSet<String>,
     selection_order: Vec<String>,
     history: FolderHistory,
@@ -104,6 +107,7 @@ pub struct PicLensApp {
     overlay_restore_focus: Option<FocusHandle>,
     /// Held so tasks cancel on drop / generation bump (do not detach).
     async_tasks: Vec<Task<()>>,
+    tree_tasks: Vec<Task<()>>,
     _subscriptions: Vec<Subscription>,
     /// Set on release so late callbacks skip UI updates.
     shutting_down: bool,
@@ -134,9 +138,11 @@ impl PicLensApp {
             folder_path: None,
             items: Vec::new(),
             visible: Vec::new(),
-            child_folders: Vec::new(),
+            tree_roots: Vec::new(),
+            tree_root: None,
             tree_children: HashMap::new(),
             tree_expanded: HashSet::new(),
+            tree_generation: 0,
             selected: BTreeSet::new(),
             selection_order: Vec::new(),
             history: FolderHistory::default(),
@@ -165,6 +171,7 @@ impl PicLensApp {
             rename_focus: cx.focus_handle(),
             overlay_restore_focus: None,
             async_tasks: Vec::new(),
+            tree_tasks: Vec::new(),
             _subscriptions: Vec::new(),
             shutting_down: false,
         };
@@ -198,7 +205,9 @@ impl PicLensApp {
         let release = cx.on_release(|this, _cx| {
             this.shutting_down = true;
             this.generation = this.generation.wrapping_add(1);
+            this.tree_generation = this.tree_generation.wrapping_add(1);
             this.async_tasks.clear();
+            this.tree_tasks.clear();
             this.thumb_pending.clear();
         });
         app._subscriptions.push(release);
@@ -225,6 +234,18 @@ impl PicLensApp {
             self.async_tasks.drain(0..32);
         }
         self.async_tasks.push(task);
+    }
+
+    fn spawn_tree_task(&mut self, task: Task<()>) {
+        if self.tree_tasks.len() > 32 {
+            self.tree_tasks.drain(0..16);
+        }
+        self.tree_tasks.push(task);
+    }
+
+    fn cancel_tree_work(&mut self) {
+        self.tree_generation = self.tree_generation.wrapping_add(1);
+        self.tree_tasks.clear();
     }
 
     fn bind_gallery_scroll(&mut self, cx: &mut Context<Self>) {
@@ -343,13 +364,8 @@ impl PicLensApp {
         clear_selection(&mut self.selected, &mut self.selection_order);
     }
 
-    fn tree_roots_from_children(&mut self) {
-        self.tree_children.clear();
-        self.tree_expanded.clear();
-    }
-
     fn tree_rows(&self) -> Vec<TreeRow> {
-        visible_tree_rows(&self.child_folders, &self.tree_children, &self.tree_expanded)
+        visible_tree_rows(&self.tree_roots, &self.tree_children, &self.tree_expanded)
     }
 
     fn toggle_tree_path(&mut self, path: String, cx: &mut Context<Self>) {
@@ -366,7 +382,7 @@ impl PicLensApp {
     }
 
     fn load_tree_children(&mut self, path: String, cx: &mut Context<Self>) {
-        let gen = self.generation;
+        let gen = self.tree_generation;
         let path_for_bg = path.clone();
         let task = cx.spawn(async move |this, cx| {
             let children = cx
@@ -379,14 +395,14 @@ impl PicLensApp {
                 })
                 .await;
             let _ = this.update(cx, |this, cx| {
-                if this.shutting_down || this.generation != gen {
+                if this.shutting_down || this.tree_generation != gen {
                     return;
                 }
                 apply_tree_children(&mut this.tree_children, &path, children);
                 cx.notify();
             });
         });
-        self.spawn_task(task);
+        self.spawn_tree_task(task);
     }
 
     fn recompute_visible(&mut self) {
@@ -490,9 +506,12 @@ impl PicLensApp {
         self.folder_path = Some(path.clone());
         self.items.clear();
         self.visible.clear();
-        self.child_folders.clear();
-        self.tree_children.clear();
-        self.tree_expanded.clear();
+        if remember_picker {
+            self.cancel_tree_work();
+            self.tree_roots.clear();
+            self.tree_children.clear();
+            self.tree_expanded.clear();
+        }
         self.clear_selection();
         self.viewer = None;
         self.rename = None;
@@ -515,19 +534,24 @@ impl PicLensApp {
             sort: self.settings.sort,
         };
         let path_for_bg = path.clone();
+        let rebuild_tree = remember_picker;
         let task = cx.spawn(async move |this, cx| {
             let outcome = cx
                 .background_spawn(async move {
                     let items = scan_folder(&query);
-                    let child_folders = match &items {
-                        Ok(_) => scan_child_folders(&path_for_bg)
-                            .unwrap_or_default()
-                            .into_iter()
-                            .map(|f| f.path)
-                            .collect(),
-                        Err(_) => Vec::new(),
+                    let tree_roots = if rebuild_tree {
+                        match &items {
+                            Ok(_) => scan_child_folders(&path_for_bg)
+                                .unwrap_or_default()
+                                .into_iter()
+                                .map(|f| f.path)
+                                .collect(),
+                            Err(_) => Vec::new(),
+                        }
+                    } else {
+                        Vec::new()
                     };
-                    (items, child_folders)
+                    (items, tree_roots)
                 })
                 .await;
             let _ = this.update(cx, |this, cx| {
@@ -540,16 +564,20 @@ impl PicLensApp {
                             this.generation,
                             gen,
                             &mut this.items,
-                            &mut this.child_folders,
-                            FolderScanPayload {
-                                items,
-                                child_folders: outcome.1,
-                            },
+                            FolderScanPayload { items },
                         );
                         if !applied {
                             return;
                         }
-                        this.tree_roots_from_children();
+                        replace_tree_for_picker(
+                            rebuild_tree,
+                            &mut this.tree_root,
+                            &mut this.tree_roots,
+                            &mut this.tree_children,
+                            &mut this.tree_expanded,
+                            &path,
+                            outcome.1,
+                        );
                         this.recompute_visible();
                         this.sync_gallery_list();
                         this.status = format!("已載入 {} 個項目", this.visible.len());
@@ -1047,15 +1075,15 @@ impl PicLensApp {
                 cx.notify();
             }
             EscapeTarget::Search => {
-            self.search_text.clear();
-            self.search.update(cx, |state, cx| {
-                state.set_value("", window, cx);
-            });
-            self.recompute_visible();
-            self.sync_gallery_list();
-            self.request_thumbs(cx);
-            self.focus_handle.focus(window, cx);
-            cx.notify();
+                self.search_text.clear();
+                self.search.update(cx, |state, cx| {
+                    state.set_value("", window, cx);
+                });
+                self.recompute_visible();
+                self.sync_gallery_list();
+                self.request_thumbs(cx);
+                self.focus_handle.focus(window, cx);
+                cx.notify();
             }
             EscapeTarget::None => {}
         }
