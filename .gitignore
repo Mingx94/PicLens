@@ -60,5 +60,6 @@ CMakeUserPresets.json
 
 # Rust / GPUI experiment
 /target/
+.tmp/
 **/*.rs.bk
 .cargo-ok

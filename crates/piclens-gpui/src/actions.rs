@@ -1,10 +1,11 @@
-//! Keyboard actions and keybindings for the PicLens window.
+//! Keyboard actions, keybindings, and the native menu bar.
 
-use gpui::{App, KeyBinding, actions};
+use gpui::{App, KeyBinding, Menu, MenuItem, actions};
 
 actions!(
     piclens,
     [
+        Quit,
         OpenFolder,
         Refresh,
         HistoryBack,
@@ -42,6 +43,8 @@ pub const CONTEXT: &str = "PicLens";
 
 pub fn init(cx: &mut App) {
     cx.bind_keys([
+        KeyBinding::new("ctrl-q", Quit, None),
+        KeyBinding::new("alt-f4", Quit, None),
         // File / folder
         KeyBinding::new("ctrl-o", OpenFolder, Some(CONTEXT)),
         KeyBinding::new("f5", Refresh, Some(CONTEXT)),
@@ -82,5 +85,57 @@ pub fn init(cx: &mut App) {
         KeyBinding::new("plus", ZoomIn, Some(CONTEXT)),
         KeyBinding::new("-", ZoomOut, Some(CONTEXT)),
         KeyBinding::new("0", ZoomReset, Some(CONTEXT)),
+    ]);
+
+    set_app_menus(cx);
+}
+
+/// Native menu bar. Labels stay Traditional Chinese to match the product locale.
+pub fn set_app_menus(cx: &mut App) {
+    cx.set_menus(vec![
+        Menu {
+            name: "檔案".into(),
+            disabled: false,
+            items: vec![
+                MenuItem::action("開啟資料夾", OpenFolder),
+                MenuItem::action("重新整理", Refresh),
+                MenuItem::separator(),
+                MenuItem::action("在檔案管理器中顯示", RevealInFileManager),
+                MenuItem::separator(),
+                MenuItem::action("結束", Quit),
+            ],
+        },
+        Menu {
+            name: "編輯".into(),
+            disabled: false,
+            items: vec![
+                MenuItem::action("全選可見圖片", SelectAll),
+                MenuItem::action("清除選取", ClearSelection),
+                MenuItem::separator(),
+                MenuItem::action("重新命名", RenameSelection),
+                MenuItem::action("依目標重新命名", DropRenamePlan),
+                MenuItem::separator(),
+                MenuItem::action("轉 JPG", ConvertJpg),
+                MenuItem::action("轉 WebP", ConvertWebp),
+                MenuItem::action("清除同名格式", CleanupSameBasename),
+                MenuItem::separator(),
+                MenuItem::action("移至回收筒", TrashSelection),
+            ],
+        },
+        Menu {
+            name: "檢視".into(),
+            disabled: false,
+            items: vec![
+                MenuItem::action("側欄", ToggleSidebar),
+                MenuItem::action("格狀 / 列表", ToggleGalleryMode),
+                MenuItem::action("切換排序", CycleSort),
+                MenuItem::action("含子資料夾", ToggleIncludeSubfolders),
+                MenuItem::separator(),
+                MenuItem::action("搜尋", FocusSearch),
+                MenuItem::separator(),
+                MenuItem::action("上一頁", HistoryBack),
+                MenuItem::action("下一頁", HistoryForward),
+            ],
+        },
     ]);
 }

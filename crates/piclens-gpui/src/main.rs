@@ -1,5 +1,6 @@
 mod actions;
 mod app;
+mod assets;
 mod history;
 mod theme;
 
@@ -46,7 +47,12 @@ fn main() {
     let app = gpui_platform::application().with_assets(gpui_component_assets::Assets);
     app.run(move |cx| {
         gpui_component::init(cx);
+        theme::init(cx);
+        if let Err(err) = assets::register_fonts(cx) {
+            log::warn!("failed to register bundled fonts: {err}");
+        }
         actions::init(cx);
+        cx.on_action(|_: &actions::Quit, cx| cx.quit());
         cx.activate(true);
 
         let mut window_size = size(px(1280.), px(800.));

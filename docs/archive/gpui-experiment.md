@@ -27,6 +27,9 @@ cargo run -p piclens-gpui -- --folder D:\Photos
 
 ## Current UI
 
+- Native File / Edit / View menus and image context menus (right-click)
+- Bundled Noto Sans CJK TC fonts; theme is a GPUI global
+- Shell render split under `crates/piclens-gpui/src/app/` (`gallery`, `shell`, `overlays`, `render`)
 - Grid / list gallery with async disk-cache thumbnails (`ensure_thumbnail` + `img`)
 - Viewer shows real image via `img` (zoom scales layout size; pan still light)
 - Drop-rename plan/confirm: multi-select sources then last item as target → preview → apply

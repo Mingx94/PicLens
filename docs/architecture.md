@@ -17,7 +17,7 @@ assets/                    application icons and fonts
 
 ## Runtime composition
 
-`crates/piclens-gpui/src/main.rs` starts `gpui_platform`, calls `gpui_component::init`, and opens a window wrapped in `Root`. `PicLensApp` owns settings, folder history, library scan results, selection, viewer snapshot, and file-operation commands. Infrastructure implements scan, settings JSON, trash/reveal, convert, and thumbnail cache helpers.
+`crates/piclens-gpui/src/main.rs` starts `gpui_platform`, registers bundled fonts, publishes the light `Theme` global, installs native menus, calls `gpui_component::init`, and opens a window wrapped in `Root`. `PicLensApp` owns settings, folder history, library scan results, selection, viewer snapshot, and file-operation commands. Window render is split under `src/app/` (`gallery`, `shell`, `overlays`, `render`). Infrastructure implements scan, settings JSON, trash/reveal, convert, and thumbnail cache helpers.
 
 ## Data and diagnostics
 
