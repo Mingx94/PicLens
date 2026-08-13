@@ -44,6 +44,19 @@ pub fn pan_offset(offset: Point, delta: Point) -> Point {
     }
 }
 
+/// Pixel size of the viewer image box. Zoom `1.0` fills the canvas (contain).
+pub fn viewer_display_box(canvas_width: f64, canvas_height: f64, zoom: f64) -> (f64, f64) {
+    let zoom = clamp_zoom(zoom);
+    (
+        canvas_width.max(1.0) * zoom,
+        canvas_height.max(1.0) * zoom,
+    )
+}
+
+pub fn is_fit_view(zoom: f64, offset: Point) -> bool {
+    zoom <= 1.01 && offset.x.abs() < 0.5 && offset.y.abs() < 0.5
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,5 +84,15 @@ mod tests {
         let moved = pan_offset(Point { x: 10.0, y: -4.0 }, Point { x: 8.0, y: 3.0 });
         assert_eq!(moved.x, 18.0);
         assert_eq!(moved.y, -1.0);
+    }
+
+    #[test]
+    fn display_box_fills_canvas_at_fit_zoom() {
+        assert_eq!(viewer_display_box(1280.0, 720.0, 1.0), (1280.0, 720.0));
+        let (w, h) = viewer_display_box(1280.0, 720.0, ZOOM_STEP);
+        assert!((w - 1280.0 * ZOOM_STEP).abs() < 1e-9);
+        assert!((h - 720.0 * ZOOM_STEP).abs() < 1e-9);
+        assert!(is_fit_view(1.0, Point::default()));
+        assert!(!is_fit_view(ZOOM_STEP, Point::default()));
     }
 }

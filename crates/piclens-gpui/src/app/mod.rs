@@ -20,7 +20,8 @@ use gpui_component::WindowExt;
 use piclens_domain::{
     apply_layout_persist, path_equals, AppSettings, DropTargetBatchRenamePlan, ImageListItem,
     ImageSequenceSnapshot, ListItem, ListQuery, Point, SortDirection, SortKey, SortState,
-    ZoomState, clamp_zoom, pan_offset, reset_zoom_state, zoom_at_point, DEFAULT_THUMBNAIL_SIZE,
+    ZoomState, clamp_zoom, is_fit_view, pan_offset, reset_zoom_state, zoom_at_point,
+    DEFAULT_THUMBNAIL_SIZE,
 };
 use piclens_infra::{
     apply_drop_rename, cleanup_same_basename, convert_to_jpg, convert_to_lossless_webp,
@@ -1097,7 +1098,7 @@ impl PicLensApp {
     fn viewer_zoom_is_fit(&self) -> bool {
         self.viewer
             .as_ref()
-            .map(|v| v.zoom.zoom <= 1.01)
+            .map(|v| is_fit_view(v.zoom.zoom, v.zoom.offset))
             .unwrap_or(true)
     }
 

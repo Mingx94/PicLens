@@ -6,7 +6,7 @@ use gpui::*;
 use gpui_component::button::{Button, ButtonVariants as _};
 use gpui_component::input::Input;
 use gpui_component::{h_flex, v_flex, ActiveTheme};
-use piclens_domain::{clamp_zoom, reset_zoom_state};
+use piclens_domain::{clamp_zoom, is_fit_view, reset_zoom_state, viewer_display_box};
 
 use super::PicLensApp;
 use crate::actions::{RENAME_CONTEXT, VIEWER_CONTEXT};
@@ -146,7 +146,6 @@ impl PicLensApp {
                         .items_center()
                         .justify_center()
                         .overflow_hidden()
-                        .p_4()
                         .occlude()
                         .on_scroll_wheel(cx.listener(|this, event: &ScrollWheelEvent, _, cx| {
                             cx.stop_propagation();
@@ -192,14 +191,27 @@ impl PicLensApp {
                                 .child(msg)
                                 .into_any_element()
                         } else if let Some(display_path) = display {
-                            let base = 720.0 * zoom as f32;
-                            img(display_path)
-                                .object_fit(ObjectFit::Contain)
-                                .w(px(base))
-                                .h(px(base))
-                                .ml(px(offset.x as f32))
-                                .mt(px(offset.y as f32))
-                                .into_any_element()
+                            let image = img(display_path).object_fit(ObjectFit::Contain);
+                            if is_fit_view(zoom, offset) {
+                                image.size_full().into_any_element()
+                            } else {
+                                let (width, height) = self
+                                    .viewer_canvas_bounds
+                                    .map(|bounds| {
+                                        viewer_display_box(
+                                            f64::from(bounds.size.width),
+                                            f64::from(bounds.size.height),
+                                            zoom,
+                                        )
+                                    })
+                                    .unwrap_or_else(|| viewer_display_box(1280.0, 720.0, zoom));
+                                image
+                                    .w(px(width as f32))
+                                    .h(px(height as f32))
+                                    .ml(px(offset.x as f32))
+                                    .mt(px(offset.y as f32))
+                                    .into_any_element()
+                            }
                         } else {
                             div()
                                 .text_sm()
