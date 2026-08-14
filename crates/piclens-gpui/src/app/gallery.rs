@@ -270,6 +270,7 @@ impl PicLensApp {
         .into_any_element()
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn item_surface(
         &self,
         theme: Theme,
@@ -293,9 +294,7 @@ impl PicLensApp {
             .id(id)
             .rounded(px(10.))
             .border_1()
-            .border_color(if drop_target {
-                theme.accent
-            } else if selected {
+            .border_color(if drop_target || selected {
                 theme.accent
             } else {
                 theme.line

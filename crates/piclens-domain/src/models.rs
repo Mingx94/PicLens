@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[repr(i32)]
 #[serde(from = "i32", into = "i32")]
 pub enum SortKey {
+    #[default]
     Name = 0,
     ModifiedAt = 1,
 }
@@ -24,16 +25,11 @@ impl From<SortKey> for i32 {
     }
 }
 
-impl Default for SortKey {
-    fn default() -> Self {
-        Self::Name
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[repr(i32)]
 #[serde(from = "i32", into = "i32")]
 pub enum SortDirection {
+    #[default]
     Asc = 0,
     Desc = 1,
 }
@@ -51,12 +47,6 @@ impl From<i32> for SortDirection {
 impl From<SortDirection> for i32 {
     fn from(value: SortDirection) -> Self {
         value as i32
-    }
-}
-
-impl Default for SortDirection {
-    fn default() -> Self {
-        Self::Asc
     }
 }
 

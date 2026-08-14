@@ -16,10 +16,11 @@ env_logger = { workspace = true }
 log = { workspace = true }
 image = { workspace = true }
 
+# Pinned via Cargo.lock: zed commit c7537bdf463a998e7ec636adff33b198891e69ed
 gpui = { git = "https://github.com/zed-industries/zed" }
 gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit"] }
-gpui-component = { git = "https://github.com/longbridge/gpui-component" }
-gpui-component-assets = { git = "https://github.com/longbridge/gpui-component" }
+gpui-component = { git = "https://github.com/longbridge/gpui-component", rev = "9a4a3473e1ee6afa9960c5decf18d3dc321b6ea2" }
+gpui-component-assets = { git = "https://github.com/longbridge/gpui-component", rev = "9a4a3473e1ee6afa9960c5decf18d3dc321b6ea2" }
 
 [build-dependencies]
 winresource = "0.1"

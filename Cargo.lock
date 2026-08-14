@@ -2374,7 +2374,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.5.2"
-source = "git+https://github.com/longbridge/gpui-component#9a4a3473e1ee6afa9960c5decf18d3dc321b6ea2"
+source = "git+https://github.com/longbridge/gpui-component?rev=9a4a3473e1ee6afa9960c5decf18d3dc321b6ea2#9a4a3473e1ee6afa9960c5decf18d3dc321b6ea2"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2422,7 +2422,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-assets"
 version = "0.5.1"
-source = "git+https://github.com/longbridge/gpui-component#9a4a3473e1ee6afa9960c5decf18d3dc321b6ea2"
+source = "git+https://github.com/longbridge/gpui-component?rev=9a4a3473e1ee6afa9960c5decf18d3dc321b6ea2#9a4a3473e1ee6afa9960c5decf18d3dc321b6ea2"
 dependencies = [
  "anyhow",
  "gpui",
@@ -2436,7 +2436,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.5.1"
-source = "git+https://github.com/longbridge/gpui-component#9a4a3473e1ee6afa9960c5decf18d3dc321b6ea2"
+source = "git+https://github.com/longbridge/gpui-component?rev=9a4a3473e1ee6afa9960c5decf18d3dc321b6ea2#9a4a3473e1ee6afa9960c5decf18d3dc321b6ea2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2446,7 +2446,7 @@ dependencies = [
 [[package]]
 name = "gpui_linux"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#c7537bdf463a998e7ec636adff33b198891e69ed"
+source = "git+https://github.com/zed-industries/zed#0ad5441b5370428eaa353a36f63c50c5448eead5"
 dependencies = [
  "accesskit",
  "accesskit_unix",
@@ -2480,7 +2480,7 @@ dependencies = [
 [[package]]
 name = "gpui_macos"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#c7537bdf463a998e7ec636adff33b198891e69ed"
+source = "git+https://github.com/zed-industries/zed#0ad5441b5370428eaa353a36f63c50c5448eead5"
 dependencies = [
  "accesskit",
  "accesskit_macos",
@@ -2540,7 +2540,7 @@ dependencies = [
 [[package]]
 name = "gpui_platform"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#c7537bdf463a998e7ec636adff33b198891e69ed"
+source = "git+https://github.com/zed-industries/zed#0ad5441b5370428eaa353a36f63c50c5448eead5"
 dependencies = [
  "console_error_panic_hook",
  "gpui",
@@ -2573,7 +2573,7 @@ dependencies = [
 [[package]]
 name = "gpui_web"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#c7537bdf463a998e7ec636adff33b198891e69ed"
+source = "git+https://github.com/zed-industries/zed#0ad5441b5370428eaa353a36f63c50c5448eead5"
 dependencies = [
  "anyhow",
  "console_error_panic_hook",
@@ -2596,7 +2596,7 @@ dependencies = [
 [[package]]
 name = "gpui_wgpu"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#c7537bdf463a998e7ec636adff33b198891e69ed"
+source = "git+https://github.com/zed-industries/zed#0ad5441b5370428eaa353a36f63c50c5448eead5"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -2625,7 +2625,7 @@ dependencies = [
 [[package]]
 name = "gpui_windows"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#c7537bdf463a998e7ec636adff33b198891e69ed"
+source = "git+https://github.com/zed-industries/zed#0ad5441b5370428eaa353a36f63c50c5448eead5"
 dependencies = [
  "accesskit",
  "accesskit_windows",

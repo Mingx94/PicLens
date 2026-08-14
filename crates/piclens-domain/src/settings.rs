@@ -98,13 +98,19 @@ pub fn apply_layout_persist(
     sidebar_collapsed: Option<bool>,
     window: Option<(u32, u32)>,
 ) -> AppSettings {
-    let mut patch = AppSettingsPatch::default();
-    patch.sidebar_collapsed = sidebar_collapsed;
-    if let Some((width, height)) = window {
-        let (width, height) = normalize_window_size(width, height);
-        patch.window_width = Some(width);
-        patch.window_height = Some(height);
-    }
+    let (window_width, window_height) = match window {
+        Some((w, h)) => {
+            let (w, h) = normalize_window_size(w, h);
+            (Some(w), Some(h))
+        }
+        None => (None, None),
+    };
+    let patch = AppSettingsPatch {
+        sidebar_collapsed,
+        window_width,
+        window_height,
+        ..Default::default()
+    };
     merge_settings_patch(current, &patch)
 }
 
@@ -128,13 +134,10 @@ pub fn merge_settings_patch(current: &AppSettings, patch: &AppSettingsPatch) -> 
     if patch.window_width.is_some() || patch.window_height.is_some() {
         let width = patch.window_width.or(merged.window_width);
         let height = patch.window_height.or(merged.window_height);
-        match (width, height) {
-            (Some(w), Some(h)) => {
-                let (w, h) = normalize_window_size(w, h);
-                merged.window_width = Some(w);
-                merged.window_height = Some(h);
-            }
-            _ => {}
+        if let (Some(w), Some(h)) = (width, height) {
+            let (w, h) = normalize_window_size(w, h);
+            merged.window_width = Some(w);
+            merged.window_height = Some(h);
         }
     }
     merged

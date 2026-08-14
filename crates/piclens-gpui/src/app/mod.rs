@@ -608,19 +608,16 @@ impl PicLensApp {
             prompt: Some("開啟資料夾".into()),
         });
         let task = cx.spawn(async move |this, cx| {
-            match receiver.await {
-                Ok(Ok(Some(paths))) => {
-                    if let Some(path) = paths.into_iter().next() {
-                        let path = path.to_string_lossy().replace('\\', "/");
-                        let _ = this.update(cx, |this, cx| {
-                            if this.shutting_down {
-                                return;
-                            }
-                            this.open_folder(path, true, true, cx);
-                        });
-                    }
+            if let Ok(Ok(Some(paths))) = receiver.await {
+                if let Some(path) = paths.into_iter().next() {
+                    let path = path.to_string_lossy().replace('\\', "/");
+                    let _ = this.update(cx, |this, cx| {
+                        if this.shutting_down {
+                            return;
+                        }
+                        this.open_folder(path, true, true, cx);
+                    });
                 }
-                _ => {}
             }
         });
         self.spawn_task(task);
