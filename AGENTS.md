@@ -1,27 +1,28 @@
-Always use ASD-STE100 Simplified Technical English. 
-Follow Zinsser's four principles of quality writing: 1. Simplicity, 2. Brevity, 3. Clarity, 4. Humanity
+# PicLens Agent Guide
 
----
+PicLens is a cross-platform desktop image viewer and organizer built with Qt 6, C++20, and Qt Quick.
 
-- Delete obsolete paths. Ship only current code.
-- Use simplest code that meets needs now.
-- Build in layers. Ship smallest working version first. Add on top of working product.
-- Keep modules separate with clear concerns.
-- Prefer mature libraries that simplify or stabilize.
-- Check existing deps, docs, and types first.
-- Design for the long term.
-- Study proven products. Adopt their patterns.
-- Use the UTC release date and two-digit serial as every release version: `YY.MMDD.NN` (for example, `26.0806.01`).
-- Release: verify packages, push the matching `v<version>` tag to GitHub, and confirm the release Action succeeds.
+## Communication Standard
 
----
+- Use ASD-STE100 Simplified Technical English.
+- Apply Zinsser's four principles: Simplicity, Brevity, Clarity, Humanity.
 
-File changes:
+## Build and Test
 
-1. `git status`. Preserve existing work.
-2. Change and stage task work only.
-3. Review the diff. Run fitting checks.
-4. Commit on `main`. Short message. Report hash.
+- Build (Debug): `cmake --preset debug && cmake --build --preset debug`
+- Test (Debug): `ctest --preset debug --output-on-failure`
 
-Push/amend/rewrite need explicit request.
-Read-only work: report.
+## Core Workflow
+
+1. Check workspace: `git status`.
+2. Stage and change task files only.
+3. Verify changes with unit and preset tests.
+4. Commit directly on `main` with a short message. Report the commit hash.
+5. Do not push, amend, or rewrite history without explicit user permission.
+
+## Detailed Guidelines
+
+- [Git Workflow](docs/agent/git-workflow.md)
+- [Versioning and Release Protocol](docs/agent/versioning-and-release.md)
+- [Architecture Principles](docs/agent/architecture-principles.md)
+- [Project Documentation](docs/README.md)
