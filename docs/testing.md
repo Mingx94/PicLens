@@ -1,55 +1,35 @@
 # Testing
 
-## Local suites
+## Static and test gates
 
 ```powershell
-cmake --preset debug
-cmake --build --preset debug
-ctest --preset debug --output-on-failure
-
-cmake --preset release
-cmake --build --preset release
-ctest --preset release --output-on-failure
+cargo fmt --check
+cargo check --workspace --all-targets --locked
+cargo test --workspace --locked
+cargo clippy --workspace --all-targets --locked -- -D warnings
+git diff --check
 ```
 
-CTest discovers 15 gates covering product rules, filesystem scanning, persistence, logging, thumbnail cache/bounds, file operations, platform adapters, presentation controllers, application composition and QML components.
+Use a crate-scoped command while you iterate. Run the workspace gates before delivery when a change can affect more than one crate. Pure product rules belong in `piclens-domain`; filesystem and persistence checks belong in `piclens-infra`; GPUI state helpers belong beside the owning UI module.
 
 ## Isolation
 
-Runtime tests and scripts set `PICLENS_DATA_ROOT` to a disposable directory. Settings, thumbnail cache and logs must never target the real user profile unless the user explicitly authorizes a copied-profile verification. File mutation tests operate only inside temporary workspaces.
+Set `PICLENS_DATA_ROOT` to a disposable directory for app smoke, performance work, and tests that can create settings, logs, thumbnails, or mutate files. Do not use a real user profile unless the user explicitly authorizes a copied-profile check.
 
-## Windows release gate
-
-```powershell
-pwsh -NoProfile -File scripts/run-windows-cutover-gate.ps1 `
-  -PerformanceFolder <representative-folder>
-```
-
-The local gate validates Release build/tests, deployed portable smoke, performance thresholds against the caller-provided representative folder, and data continuity. The hosted Windows workflow separately creates the 10,000-path scale fixture. The performance-only command and dataset requirements are documented in [performance.md](performance.md).
-
-## Package lifecycle
+## Runtime smoke
 
 ```powershell
-pwsh -NoProfile -File scripts/test-msi-lifecycle.ps1 `
-  -PreviousMsiPath <previous.msi> -ConfirmSystemChanges
-
-# Or run it as the final, explicitly enabled build-msi stage:
-pwsh -NoProfile -File scripts/build-msi.ps1 `
-  -RunLifecycleTest -ConfirmSystemChanges `
-  -PreviousMsiPath <previous.msi>
+$env:PICLENS_DATA_ROOT = "F:\PicLens\artifacts\gpui-smoke"
+cargo run -p piclens-gpui -- --folder <representative-folder>
 ```
 
-```bash
-bash scripts/test-linux-package-lifecycle.sh --deb <package.deb>
-bash scripts/test-linux-package-lifecycle.sh --rpm <package.rpm>
-```
+For an automated launch-only check, add `--smoke-ms 4000`. This proves that the process opened and stayed alive until the timer elapsed. It does not prove that the library finished loading or that interaction works.
 
-Lifecycle gates install, launch, replace/upgrade where applicable, remove, and verify isolated profile preservation. They are never run by a normal MSI build; the integrated form still requires both `-RunLifecycleTest` and `-ConfirmSystemChanges` because it modifies the runner OS.
+For runtime changes, also check the affected mouse, keyboard, focus, resize, scrolling, error, and cancellation paths in the real app. Inspect `PicLens/Logs/PicLens.log` under the isolated data root.
 
-## CI
+## Current gaps
 
-`.github/workflows/release.yml` 目前只由 `v*` tag push 或手動 `workflow_dispatch` 觸發；一般 branch push 與 pull request 不會自動執行這組 gates。非 release 變更在合併前仍需依修改範圍完成本機驗證。
-
-Workflow 會執行 Windows 2025、Ubuntu 24.04 與 Fedora 44 jobs。Windows job 包含 Release CTest、10,000-image performance gate、portable、MSI 與 lifecycle；Ubuntu job 包含 portable、desktop adapters、DEB 與 lifecycle；Fedora job 包含 RPM build 與 lifecycle。符合版本規則的 tag 在三個平台全部成功後才發布 GitHub Release assets。
-
-同一個 ref 的新 run 會取消較舊的 run，避免重複或過期的長時間工作。實際 trigger、runner 與 stage 以 `.github/workflows/release.yml` 為準。
+- There are no package lifecycle tests for the GPUI binary.
+- There is no active GPUI CI workflow.
+- The legacy Qt release workflow references removed scripts and is not a valid test gate.
+- There are no GPUI window or input integration tests yet. Cargo unit tests do not replace a real launch.

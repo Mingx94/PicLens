@@ -1,6 +1,6 @@
 # PicLens Agent Guide
 
-PicLens is a cross-platform desktop image viewer and organizer built with Qt 6, C++20, and Qt Quick.
+PicLens is a desktop image viewer and organizer built with Rust, GPUI, and gpui-component.
 
 ## Communication Standard
 
@@ -9,16 +9,19 @@ PicLens is a cross-platform desktop image viewer and organizer built with Qt 6, 
 
 ## Build and Test
 
-- Build (Debug): `cmake --preset debug && cmake --build --preset debug`
-- Test (Debug): `ctest --preset debug --output-on-failure`
+- Format: `cargo fmt --check`
+- Check: `cargo check --workspace --all-targets --locked`
+- Test: `cargo test --workspace --locked`
+- Lint: `cargo clippy --workspace --all-targets --locked -- -D warnings`
 
 ## Core Workflow
 
 1. Check workspace: `git status`.
 2. Stage and change task files only.
-3. Verify changes with unit and preset tests.
-4. Commit directly on `main` with a short message. Report the commit hash.
-5. Do not push, amend, or rewrite history without explicit user permission.
+3. Read the product contract and runtime invariants for changed behavior.
+4. Run fitting Cargo checks and a real app smoke when runtime behavior changes.
+5. Commit to the current task branch with a short message. Report the commit hash.
+6. Do not push, amend, or rewrite history without explicit user permission.
 
 ## Detailed Guidelines
 

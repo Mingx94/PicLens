@@ -9,13 +9,21 @@ PicLens is a desktop image library and viewer. This branch builds with **Rust + 
 3. [Architecture](architecture.md): crate layers and dependency direction.
 4. [Development guide](development.md): change entry points and delivery checks.
 5. [Data continuity](data-continuity.md): settings, log, cache, profile isolation.
+6. [Testing](testing.md): Cargo checks and runtime verification.
+7. [Design system](design/system.md): current GPUI layout, palette, and component rules.
+
+## Release and operations
+
+- [Release and packaging](release.md): current release boundary and missing gates.
+- [Performance](performance.md): implemented safeguards and evidence rules.
+- [Licensing](licensing.md): source and bundled asset obligations.
 
 ## History
 
 - [GPUI migration notes](archive/gpui-experiment.md)
 - [2026-07 Qt cutover archive](archive/2026-07-qt-cutover.md): historical only
 
-Product-spec and runtime-invariants remain the behavior authority. Release packaging for the GPUI binary is not complete on this branch.
+Product-spec and runtime-invariants remain the behavior authority. The GPUI binary does not have a working package or release pipeline. The checked-in Qt release workflow is legacy and cannot build this branch.
 
 ## Document ownership
 
@@ -24,4 +32,6 @@ Product-spec and runtime-invariants remain the behavior authority. Release packa
 | User needs and product scope | [Product specification](product-spec.md) | Current GPUI runtime |
 | Engineering invariants | [Runtime invariants](runtime-invariants.md) | Domain + infra + UI |
 | Layer ownership | [Architecture](architecture.md) | Cargo crate graph |
-| Version | Rules only | Root `VERSION` |
+| Build and test commands | [Testing](testing.md) | Cargo workspace and lockfile |
+| Release readiness | [Release and packaging](release.md) | Future GPUI package scripts and CI |
+| Package version | [Release and packaging](release.md) | Not unified yet |

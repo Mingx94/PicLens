@@ -1,24 +1,22 @@
-# Data continuity after Qt cutover
+# Data continuity on the GPUI branch
 
 Without `PICLENS_DATA_ROOT`, PicLens uses the platform local application data root under `PicLens`:
 
 - Windows: `%LOCALAPPDATA%\PicLens`
 - Linux: `$XDG_DATA_HOME/PicLens`, or `~/.local/share/PicLens`
 
-`PICLENS_DATA_ROOT` is the supported test/diagnostic override. Release smoke and lifecycle scripts always set it to an isolated directory.
+`PICLENS_DATA_ROOT` is the supported test and diagnostic override. Set it to an isolated directory for tests, smoke runs, performance work, and future package lifecycle checks.
 
 ## Settings
 
-The production store is `piclens-settings.json`. It continues to read the historical JSON field names and numeric sort enums used by pre-cutover versions. Missing/default values are normalized; corrupt JSON is quarantined; updates are atomic. Deprecated `favoriteFolders` and `version` fields are ignored and removed on the next write. The obsolete filename `settings.json` is not the production settings path.
+The production store is `piclens-settings.json`. It reads the historical camel-case fields and numeric sort enums. Unknown legacy fields are ignored. Missing and invalid bounded values are normalized. Corrupt JSON is renamed with a `.corrupt.<suffix>` name before defaults are used. Writes use a temporary file followed by rename.
 
-Qt persistence tests include fixtures for the historical schema so installed users do not need a conversion step. This is forward continuity, not a rollback dependency.
+The active schema stores the selected folder, sort, recursive mode, thumbnail size, sidebar state, and window size. The last folder selected through the folder picker remains the startup restore authority.
 
 ## Cache and logs
 
-Thumbnail cache and logs retain their established locations and bounded-pruning behavior. Cache entries are disposable and can be regenerated; source images are never modified by pruning. Error logs avoid recording image contents and should not expose unrelated environment data.
+Thumbnail cache and logs retain their established locations under `PicLens/Thumbnails` and `PicLens/Logs/PicLens.log`. The cache stores generated PNG files and prunes entries beyond its bound. Cache data is disposable; pruning does not modify source images. The log is append-only and currently has no rotation policy.
 
 ## Verification
 
-`scripts/verify-data-continuity.ps1` copies a profile into `artifacts/data-migration/profile-copy`, launches the packaged Qt app against that copy, verifies restored folder/sort/recursive/size state and confirms the original source profile remains byte-for-byte unchanged. Access to a real profile requires explicit user authorization.
-
-MSI/DEB/RPM lifecycle scripts separately verify that install, upgrade/replacement and uninstall do not delete the isolated profile.
+There is no automated GPUI migration or package-lifecycle gate yet. For a manual continuity check, copy a profile, point `PICLENS_DATA_ROOT` to the copy, launch the app, and verify restored folder, sort, recursive mode, thumbnail size, sidebar state, and window size. Access to a real profile requires explicit user authorization.

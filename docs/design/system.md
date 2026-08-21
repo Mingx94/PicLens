@@ -1,164 +1,52 @@
-# PicLens Design System
+# PicLens design system
 
-## 1. Atmosphere & Identity
+PicLens is a calm, image-first desktop workspace. The current interface uses Rust, GPUI, and gpui-component. The implementation in `crates/piclens-gpui/src/theme.rs` and `crates/piclens-gpui/src/app/` is the executable authority.
 
-PicLens is a quiet desktop workspace for browsing and organizing local image folders. It should feel focused, dense enough for repeated file work, and visually calm around the images. The signature is an image-first workbench: neutral layered surfaces, a single cobalt accent, compact commands, and generous breathing room around library content.
+## Structure
 
-The app uses three visually distinct zones:
+- A 64 px command bar owns global navigation, search, and folder selection.
+- A 228 px sidebar owns the folder tree and can collapse.
+- The main surface owns folder context, sort and scope controls, gallery content, and file operations.
+- A 48 px status bar owns counts and thumbnail size.
+- The viewer and confirmation dialogs render as layers in the main window.
 
-- A compact command bar for global navigation, search, and opening folders.
-- A calm Folder Tree pane that anchors navigation without competing with images.
-- A raised white Library workspace that owns folder context, display controls, and content.
+The gallery uses a virtualized GPUI list. Keep shared dialogs and overlays outside repeated rows.
 
-## 2. Color
+## Palette
 
-PicLens intentionally supports the light theme only. The production application selects the Qt Quick Basic style and uses the light palette defined by `qml/PicLens/Theme.qml`; do not add dark-theme branches until a complete dark palette and visual test coverage are available.
+The app is light-only until a complete dark theme and runtime selection exist. Semantic colors live in `Theme`; views must not create a second palette.
 
-### Palette
+| Role | Value |
+|---|---|
+| App background | `#F5F6F8` |
+| Command surface | `#FCFCFD` |
+| Sidebar | `#F8F9FB` |
+| Content surface | `#FFFFFF` |
+| Tile frame | `#F2F3F5` |
+| Border | `#E1E4E9` |
+| Primary text | `#1D2026` |
+| Secondary text | `#626975` |
+| Accent | `#4968E8` |
+| Selected | `#E8EEFF` |
+| Viewer canvas | `#11141A` |
 
-| Role | Token | Light | Dark | Usage |
-|------|-------|-------|------|-------|
-| Surface/app | `Theme.appBackground` | `#F5F6F8` | N/A | Main shell background |
-| Surface/command | `Theme.commandBar` | `#FCFCFD` | N/A | Global command and status bars |
-| Surface/sidebar | `Theme.sidebar` | `#F8F9FB` | N/A | Folder pane |
-| Surface/content | `Theme.surface` | `#FFFFFF` | N/A | Main library surface |
-| Surface/tile | `Theme.tileFrame` | `#F2F3F5` | N/A | Thumbnail tile frame |
-| Border/default | `Theme.line` | `#E1E4E9` | N/A | Dividers and tile borders |
-| Border/strong | `Theme.strongLine` | `#CBD0D8` | N/A | Interactive hover boundary |
-| Text/primary | `Theme.primaryText` | `#1D2026` | N/A | Main labels and file names |
-| Text/secondary | `Theme.secondaryText` | `#626975` | N/A | Paths, metadata, viewer filename |
-| Text/muted | `Theme.mutedText` | `#7A828F` | N/A | Lower emphasis icons/text |
-| State/hover | `Theme.hover` | `#EEF1F5` | N/A | Toolbar hover |
-| State/selected | `Theme.selected` | `#E8EEFF` | N/A | Selected Library Item |
-| Accent/primary | `Theme.accent` | `#4968E8` | N/A | Primary action, selection, and status |
-| Accent/soft | `Theme.accentSoft` | `#EEF2FF` | N/A | Empty-state icon and active scope |
-| Accent/soft pressed | `Theme.accentSoftPressed` | `#DBE4FF` | N/A | Pressed active toggles |
-| Brand/shell | `brandShell` | `#EAF7FA` | N/A | In-app brand mark shell |
-| Brand/outline | `brandOutline` | `#B9DDE5` | N/A | In-app brand mark boundary |
-| Brand/sky | `brandSky` | `#45A9D4` | N/A | In-app brand mark image field |
-| Brand/sun | `brandSun` | `#FFCA52` | N/A | In-app brand mark sun |
-| Brand/hill | `brandHill` | `#2CB49D` | N/A | In-app brand mark foreground hill |
-| Brand/mountain | `brandMountain` | `#155DBB` | N/A | In-app brand mark primary mountain |
-| Surface/viewer | `Theme.viewerCanvas` | `#11141A` | Stable dark surface | Image Viewer canvas |
+`Theme::high_contrast` and `Theme::opaque` are tested fallback palettes, but the app does not select them from operating-system preferences. Do not claim automatic reduced-transparency or high-contrast support until that connection exists.
 
-### Rules
+## Typography and assets
 
-- Keep color functional: surfaces, text hierarchy, selection, and status only.
-- Add new colors as named properties in `qml/PicLens/Theme.qml` before using them in views.
+PicLens embeds Noto Sans CJK TC Regular, Medium, and Bold and registers them before the window opens. Use `Noto Sans CJK TC` for the interface. Keep the OFL notice with the fonts.
 
-## 3. Typography
+Use the packaged PicLens artwork for app identity and gpui-component icons for commands. Controls need stable IDs, clear labels, keyboard access, disabled states, and visible state feedback.
 
-### Scale
+## Layout and interaction
 
-| Level | Size | Weight | Line Height | Tracking | Usage |
-|-------|------|--------|-------------|----------|-------|
-| Page title | 24 | SemiBold | Font metrics | 0 | Current folder name |
-| Pane title | 22 | SemiBold | Font metrics | 0 | Sidebar and empty state title |
-| Section label | 20 | SemiBold | Font metrics | 0 | Parent folder label |
-| Body | Default | Normal | Font metrics | 0 | Toolbar, status, tree labels |
-| Tile label | 14 | SemiBold | Font metrics | 0 | Thumbnail file names |
-| Caption | 12 | Normal | Font metrics | 0 | Current folder path |
+- Use a 4 px spacing base where practical.
+- Keep the minimum window size at 480 x 320.
+- Keep blocking filesystem and image work outside render and off the application thread.
+- Preserve direct selection, bounded thumbnail work, viewer focus return, and explicit confirmation for file mutations.
+- Avoid decorative motion that competes with image browsing.
+- Keep file operation results and errors visible and logged.
 
-### Font Stack
+## Validation
 
-- Primary: an installed platform Traditional Chinese UI font (`Microsoft JhengHei UI` on Windows, `PingFang TC` on macOS, or Noto/WenQuanYi families on Linux when available).
-- Fallback: Qt's general system font with its native glyph fallback chain.
-- Mono: platform default monospace when needed.
-- Serif: not used.
-
-### Rules
-
-- Use one UI font family so Traditional Chinese, Japanese, Korean, and Latin filenames share consistent metrics.
-- Letter spacing stays at `0`.
-- Do not add display or serif fonts unless PicLens gains a non-tooling marketing surface.
-
-## 4. Spacing & Layout
-
-### Base Unit
-
-All spacing derives from a base of 4px.
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| space-1 | 4 | Tile inner padding |
-| space-2 | 8 | Button groups, dialog button gaps |
-| space-3 | 12 | Grid/sidebar compact spacing |
-| space-4 | 16 | Sidebar padding, grid margin |
-| space-5 | 20 | Main content padding |
-| space-6 | 24 | Status/footer horizontal padding |
-| space-7 | 28 | Gallery outer margin |
-
-### Grid
-
-- Main shell: 64px global command bar, Folder Tree, resizable splitter, Library workspace, 48px status bar.
-- Thumbnail grid: virtualized, reusable `GridView` delegates; new profiles default to 160px thumbnails.
-
-### Rules
-
-- Keep layout values compact and multiples of 4px where practical.
-- Preserve the resizable sidebar and virtualized thumbnail grid.
-- Keep global commands in the top bar and Library-specific sort, scope, and view controls in the Library header.
-- Align both Library header edges to `space-7`, matching the gallery content inset.
-- Keep the top search field geometrically centered at the default window size; at narrow widths it occupies the safe gap between command groups.
-- Keep thumbnail sizing in the status-bar slider; do not duplicate it with a Library-header menu.
-
-## 5. Components
-
-### Toolbar Buttons
-
-- **Structure**: the shared `ToolbarButton.qml` control with `AppIcon.qml` and optional text.
-- **Spacing**: compact `Theme.controlHeight` sizing with consistent icon/text spacing.
-- **States**: default transparent, hover uses `Theme.hover`, disabled uses opacity.
-- **Accessibility**: tooltip plus automation IDs for primary controls.
-- **Primary action**: only `開啟資料夾` uses a filled cobalt treatment in the main command bar.
-
-### Icons
-
-- Use the shared `AppIcon.qml` 24×24 vector coordinate system for command, navigation, view, search, and folder-tree disclosure icons.
-- Keep icon strokes round, optically centered, and consistent across Windows and Linux; do not substitute platform-dependent symbol fonts or Unicode glyphs for toolbar icons.
-- Use `LensMark.qml` for the compact in-app brand mark. Its simplified sun-and-mountain composition derives from the packaged application icon, which remains the authority for operating-system surfaces.
-
-### Library Tile
-
-- **Structure**: thumbnail/icon frame plus wrapped file name.
-- **States**: hover, selected, drop target.
-- **Accessibility**: automation ID and automation name from tile view model.
-- **Selection**: use a 2px cobalt outline, pale cobalt fill, stronger filename color, and a visible check badge so selection is not color-only.
-
-### Viewer Navigation Rails
-
-- **Structure**: edge controls spanning the image canvas height below the command strip, each occupying 10% of the viewer width.
-- **States**: low-opacity viewer surface at rest, full-rail hover/keyboard-focus feedback, stronger pressed feedback, and a muted icon at sequence boundaries.
-- **Accessibility**: the complete rail is the pointer target; previous/next labels and keyboard navigation remain available.
-- **Layout**: rail width responds continuously to the viewer viewport, not physical screen metadata; the centered chevron remains 28px regardless of rail width, and image content reserves the active rail width plus `space-4` on both sides so controls never obscure the image.
-
-## 6. Motion & Interaction
-
-### Timing
-
-| Type | Duration | Easing | Usage |
-|------|----------|--------|-------|
-| Immediate | 0ms | none | Folder navigation and selection |
-| Timer/debounce | 250ms | n/a | Thumbnail size commit |
-| Autoscroll tick | 33ms | n/a | Drag autoscroll |
-
-### Rules
-
-- Avoid decorative motion; image browsing should stay responsive.
-- Drag, selection, zoom, and pan feedback must remain direct.
-
-## 7. Depth & Surface
-
-### Strategy
-
-PicLens uses borders plus tonal shifts. Surfaces are separated with `Theme.line` and near-neutral backgrounds; shadows are avoided in the main shell.
-
-| Type | Value | Usage |
-|------|-------|-------|
-| Default border | 1px `Theme.line` | Pane dividers, Library workspace, tile frame, status bar |
-| Selected fill | `Theme.selected` | Active library selection |
-| Drop target border | 3px `Theme.accent` | Drag rename target |
-
-## 8. Interface Reference
-
-The archived high-fidelity direction is stored at [piclens-ui-concept.png](../archive/design/piclens-ui-concept.png), with its [generation prompt](../archive/design/piclens-ui-concept.prompt.md). It is a historical visual reference rather than a pixel-perfect contract: runtime behavior, responsive constraints, accessibility, and the tokens in `qml/PicLens/Theme.qml` remain authoritative.
+For visual changes, launch the real app with an isolated profile and representative images. Check default and minimum window sizes, gallery and list modes, empty and loading states, selection, dialogs, viewer, keyboard focus, and high-DPI rendering. Compilation alone does not prove layout, fonts, focus, or platform behavior.

@@ -1,50 +1,26 @@
 # Performance
 
-Performance claims require Release builds and representative libraries. Debug timings、framework impressions、兩張圖片 smoke 或單一 unit test 不可作為 release evidence。
+Performance claims require a Release build, an isolated profile, and a representative image library. Debug timings, a short launch smoke, or a small unit test are not release evidence.
 
-## Reproducible Windows gate
+## Current safeguards
+
+- The gallery uses GPUI `list` virtualization.
+- Folder scans and thumbnail decoding run on the background executor.
+- Thumbnail requests are limited to a bounded visible range and avoid duplicate pending work.
+- The disk thumbnail cache has a bounded entry count and prunes old PNG files.
+- Viewer images use cached thumbnails with a larger requested size instead of decoding during render.
+- Task results update live GPUI state through the application context.
+
+These mechanisms reduce obvious blocking and unbounded work. They do not define a measured latency, memory, throughput, or frame-time guarantee.
+
+## Measurement rules
 
 ```powershell
-cmake --build --preset release --target piclens
-pwsh -File scripts/measure-performance.ps1 `
-  -FolderPath <representative-folder>
+cargo build -p piclens-gpui --release --locked
+$env:PICLENS_DATA_ROOT = "F:\PicLens\artifacts\gpui-performance"
+cargo run -p piclens-gpui --release -- --folder <representative-folder>
 ```
 
-The script launches the real Qt Quick executable with isolated settings/cache, recursive scanning and offscreen rendering. It performs cold-cache and warm-cache runs against the same isolated profile and exercises virtualized-gallery scrolling when the dataset exceeds one viewport.
+Record the commit, locked GPUI revision, OS, CPU/GPU, storage type, image count and formats, cold or warm cache state, window size, and display scale. Exercise startup, first useful gallery content, sustained scrolling, search, folder navigation, viewer open, and shutdown. Capture latency, peak memory, CPU, and frame behavior with an external profiler until the app has its own metrics.
 
-Current conservative thresholds:
-
-- scan/model/settle elapsed: at most 5,000 ms;
-- peak working set: at most 512 MiB;
-- non-empty row/image counts are mandatory.
-
-Generated JSON includes library-ready and first-thumbnail latency, completed thumbnail requests, throughput/concurrency, cache hits, CPU, logical processor count, graphics API, frame-swap intervals and memory. `windows-release.json` is the cold run and `windows-release-warm.json` is the warm run.
-
-Frame intervals remain diagnostic until a representative interactive baseline defines a release threshold; they are not CPU/GPU render-duration measurements.
-
-## Dataset rules
-
-- Local release evidence uses an authorized representative library and records image count、storage characteristics、build/toolchain and date.
-- The hosted Windows workflow creates 10,000 copied valid PNG paths to exercise path enumeration and model scale.
-- Repeated small files or hard links do not represent heterogeneous decoder/storage cost and do not replace a real-library run.
-- Raw output under `artifacts/performance/` is intentionally ignored; durable claims must link to an immutable CI run or archived report.
-
-## Existing performance mechanisms
-
-- Virtualized gallery delegates keep shared menus/dialogs outside each tile.
-- Installed platform fonts avoid embedding large CJK font files at startup.
-- Viewer QML is instantiated only while open.
-- `LibraryItemModel` indexes path identity and limits role notifications to affected rows.
-- Search is debounced and preserves valid thumbnail mappings across projection changes.
-- Thumbnail cache capacity is tracked incrementally with bounded pruning.
-- A bounded decoded-image cache and asynchronous image provider avoid repeated cold-path PNG decode.
-- Visible-thumbnail concurrency scales within configured bounds.
-- JPG/WebP conversions use bounded worker and decoded-memory budgets.
-- Viewer decode requests use viewport/DPI-sized quantized tiers with a bounded dimension.
-- Supported Release toolchains enable interprocedural optimization where compatible.
-
-## Evidence and backlog
-
-Historical July 2026 measurements are archived in [2026-07 performance evidence](archive/performance/2026-07.md). Archive values do not prove the current checkout.
-
-Outstanding performance work should be tracked in the issue tracker rather than duplicated as an unchecked list in this document. This file remains the authority for measurement method and thresholds.
+There is no automated GPUI performance gate or accepted threshold yet. Historical Qt measurements under `docs/archive/performance/` do not prove this checkout.

@@ -19,8 +19,10 @@ Dependency direction: `piclens-gpui -> piclens-infra -> piclens-domain`.
 ## Commands
 
 ```powershell
-cargo test -p piclens-domain
-cargo check -p piclens-gpui
+cargo fmt --check
+cargo check --workspace --all-targets --locked
+cargo test --workspace --locked
+cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo run -p piclens-gpui -- --folder <path>
 ```
 
@@ -28,7 +30,7 @@ Use `PICLENS_DATA_ROOT` for isolated profiles in tests and smoke runs.
 
 ## Delivery check
 
-1. Domain tests pass for touched rules.
-2. `cargo check -p piclens-gpui` is clean.
-3. Manual smoke for open folder, select, viewer Escape, and one file op when those paths change.
-4. Short commit message on the migration branch. Push only when requested.
+1. Workspace format, check, test, and lint gates pass.
+2. Manual smoke covers open folder, select, viewer Escape, and one file operation when those paths change.
+3. Runtime checks use an isolated profile and the app log is clean for the tested path.
+4. The commit uses a short message on the current task branch. Push only when requested.

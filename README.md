@@ -38,11 +38,16 @@ $env:PICLENS_DATA_ROOT = "F:\PicLens\artifacts\gpui-profile"
 cargo run -p piclens-gpui
 ```
 
-Domain tests:
+Validation:
 
 ```powershell
-cargo test -p piclens-domain
+cargo fmt --check
+cargo check --workspace --all-targets --locked
+cargo test --workspace --locked
+cargo clippy --workspace --all-targets --locked -- -D warnings
 ```
+
+See [docs/testing.md](docs/testing.md) for runtime smoke and profile isolation.
 
 ## Data
 
