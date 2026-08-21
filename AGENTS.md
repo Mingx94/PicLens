@@ -21,8 +21,9 @@ PicLens is a desktop image viewer and organizer built with Rust, GPUI, and gpui-
 2. Stage and change task files only.
 3. Read the product contract and runtime invariants for changed behavior.
 4. Run fitting Cargo checks and a real app smoke when runtime behavior changes.
-5. Commit to the current task branch with a short message. Report the commit hash.
-6. Do not push, amend, or rewrite history without explicit user permission.
+5. Run each Cargo command, `git add`, and `git commit` as a separate shell call. Do not combine them with shell control flow.
+6. Commit to the current task branch with a short message. Report the commit hash.
+7. Do not push, amend, or rewrite history without explicit user permission.
 
 ## Detailed Guidelines
 

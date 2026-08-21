@@ -1,0 +1,42 @@
+# Allow only PicLens commands that recur in the required local workflow.
+prefix_rule(
+    pattern = ["cargo", "fmt", "--check"],
+    decision = "allow",
+    justification = "PicLens requires this format check.",
+)
+
+prefix_rule(
+    pattern = ["cargo", "build", "--workspace", "--all-targets", "--locked"],
+    decision = "allow",
+    justification = "PicLens requires this locked workspace build.",
+)
+
+prefix_rule(
+    pattern = ["cargo", "check", "--workspace", "--all-targets", "--locked"],
+    decision = "allow",
+    justification = "PicLens requires this locked workspace check.",
+)
+
+prefix_rule(
+    pattern = ["cargo", "test", "--workspace", "--locked"],
+    decision = "allow",
+    justification = "PicLens requires this locked workspace test.",
+)
+
+prefix_rule(
+    pattern = ["cargo", "clippy", "--workspace", "--all-targets", "--locked", "--", "-D", "warnings"],
+    decision = "allow",
+    justification = "PicLens requires this locked workspace lint.",
+)
+
+prefix_rule(
+    pattern = ["git", "add", "--"],
+    decision = "allow",
+    justification = "PicLens requires staging explicit task files for a local commit.",
+)
+
+prefix_rule(
+    pattern = ["git", "commit", "-m"],
+    decision = "allow",
+    justification = "PicLens requires a local task commit with a short message.",
+)
