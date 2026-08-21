@@ -2,7 +2,7 @@
 
 ## Before you change code
 
-1. `git status --short` and confirm branch (`experiment/gpui` for this migration).
+1. Run `git status --short --branch` and preserve unrelated work.
 2. Read [product-spec](product-spec.md) and [runtime-invariants](runtime-invariants.md) for the behavior you touch.
 3. Prefer the smallest working change on a green `cargo check`.
 
@@ -35,3 +35,5 @@ Use `PICLENS_DATA_ROOT` for isolated profiles in tests and smoke runs.
 2. Manual smoke covers open folder, select, viewer Escape, and one file operation when those paths change.
 3. Runtime checks use an isolated profile and the app log is clean for the tested path.
 4. The commit uses a short message on the current task branch. Push only when requested.
+
+GitHub runs the same locked Cargo gates on Windows and Linux through `.github/workflows/ci.yml`.

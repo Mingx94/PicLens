@@ -3,9 +3,9 @@
 //! Theme is a GPUI global so every view reads one published palette,
 //! matching the pattern used by mature GPUI apps.
 
-use gpui::{App, Global, Hsla, rgb};
+use gpui::{rgb, App, Global, Hsla};
 
-/// Match the established Qt shell geometry.
+/// Match the established PicLens shell geometry.
 pub const COMMAND_BAR_H: f32 = 64.0;
 pub const STATUS_BAR_H: f32 = 48.0;
 pub const SIDEBAR_W: f32 = 228.0;

@@ -75,7 +75,11 @@ pub fn natural_compare(left: &str, right: &str) -> Ordering {
     (left.len() - li).cmp(&(right.len() - ri))
 }
 
-pub fn sort_items(items: &[ListItem], sort_state: SortState, keep_folders_first: bool) -> Vec<ListItem> {
+pub fn sort_items(
+    items: &[ListItem],
+    sort_state: SortState,
+    keep_folders_first: bool,
+) -> Vec<ListItem> {
     let mut sorted = items.to_vec();
     sorted.sort_by(|left, right| {
         if keep_folders_first && left.is_folder() != right.is_folder() {

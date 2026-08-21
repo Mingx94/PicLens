@@ -78,7 +78,11 @@ pub fn has_same_directory_and_basename_without_extension(left: &str, right: &str
     }
 }
 
-pub fn target_name_exists(existing_paths: &[String], candidate_path: &str, source_path: &str) -> bool {
+pub fn target_name_exists(
+    existing_paths: &[String],
+    candidate_path: &str,
+    source_path: &str,
+) -> bool {
     existing_paths.iter().any(|path| {
         !path_equals(path, source_path)
             && has_same_directory_and_basename_without_extension(path, candidate_path)
@@ -127,10 +131,7 @@ mod tests {
 
     #[test]
     fn target_name_exists_skips_source() {
-        let existing = vec![
-            "/tmp/a/photo.jpg".into(),
-            "/tmp/a/other.png".into(),
-        ];
+        let existing = vec!["/tmp/a/photo.jpg".into(), "/tmp/a/other.png".into()];
         assert!(!target_name_exists(
             &existing,
             "/tmp/a/photo.webp",

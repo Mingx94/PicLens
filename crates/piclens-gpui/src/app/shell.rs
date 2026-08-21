@@ -2,13 +2,13 @@
 
 use std::path::PathBuf;
 
+use crate::folder_tree::TreeRow;
 use gpui::*;
 use gpui_component::button::{Button, ButtonVariants as _};
 use gpui_component::input::Input;
 use gpui_component::{h_flex, v_flex, Disableable, IconName, Selectable};
 use piclens_domain::path_equals;
 use piclens_infra::{cleanup_same_basename, convert_to_jpg, convert_to_lossless_webp, trash_paths};
-use crate::folder_tree::TreeRow;
 
 use super::{GalleryMode, PicLensApp};
 use crate::theme::{self, Theme};
@@ -101,7 +101,9 @@ impl PicLensApp {
                             .icon(IconName::ArrowLeft)
                             .tooltip("上一頁")
                             .disabled(!self.history.can_back())
-                            .on_click(cx.listener(|this, _, _, cx| this.navigate_history(true, cx))),
+                            .on_click(
+                                cx.listener(|this, _, _, cx| this.navigate_history(true, cx)),
+                            ),
                     )
                     .child(
                         Button::new("forward")
@@ -109,9 +111,9 @@ impl PicLensApp {
                             .icon(IconName::ArrowRight)
                             .tooltip("下一頁")
                             .disabled(!self.history.can_forward())
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.navigate_history(false, cx)
-                            })),
+                            .on_click(
+                                cx.listener(|this, _, _, cx| this.navigate_history(false, cx)),
+                            ),
                     )
                     .child(
                         Button::new("refresh")
@@ -177,9 +179,12 @@ impl PicLensApp {
                     .p_3()
                     .overflow_y_scroll()
                     .child(
-                        v_flex().gap_1().children(self.tree_rows().into_iter().enumerate().map(
-                            |(idx, row)| self.render_tree_row(idx, row, theme, cx),
-                        )),
+                        v_flex().gap_1().children(
+                            self.tree_rows()
+                                .into_iter()
+                                .enumerate()
+                                .map(|(idx, row)| self.render_tree_row(idx, row, theme, cx)),
+                        ),
                     )
                     .child(if root.is_empty() {
                         div().into_any_element()
@@ -301,9 +306,9 @@ impl PicLensApp {
                             .outline()
                             .selected(self.settings.include_subfolders)
                             .label("含子資料夾")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.toggle_include_subfolders(cx)
-                            })),
+                            .on_click(
+                                cx.listener(|this, _, _, cx| this.toggle_include_subfolders(cx)),
+                            ),
                     )
                     .child(
                         Button::new("sort")
@@ -345,12 +350,9 @@ impl PicLensApp {
                             })),
                     )
                     .child(
-                        Button::new("rename")
-                            .outline()
-                            .label("重新命名")
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.start_rename(window, cx)
-                            })),
+                        Button::new("rename").outline().label("重新命名").on_click(
+                            cx.listener(|this, _, window, cx| this.start_rename(window, cx)),
+                        ),
                     )
                     .child(
                         Button::new("drop-rename")
@@ -399,26 +401,20 @@ impl PicLensApp {
                             .label("顯示位置")
                             .on_click(cx.listener(|this, _, _, cx| this.reveal_focus(cx))),
                     )
-                    .child(
-                        Button::new("clear-sel")
-                            .ghost()
-                            .label("清除選取")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.clear_selection();
-                                cx.notify();
-                            })),
-                    )
+                    .child(Button::new("clear-sel").ghost().label("清除選取").on_click(
+                        cx.listener(|this, _, _, cx| {
+                            this.clear_selection();
+                            cx.notify();
+                        }),
+                    ))
                     .child(
                         Button::new("trash")
                             .danger()
                             .icon(IconName::Delete)
                             .label("回收筒")
                             .on_click(cx.listener(|this, _, window, cx| {
-                                let paths: Vec<String> = this
-                                    .selected_images()
-                                    .into_iter()
-                                    .map(|i| i.path)
-                                    .collect();
+                                let paths: Vec<String> =
+                                    this.selected_images().into_iter().map(|i| i.path).collect();
                                 if paths.is_empty() {
                                     this.status = "請先選取圖片。".into();
                                     cx.notify();
@@ -467,7 +463,9 @@ impl PicLensApp {
                             .ghost()
                             .icon(IconName::Minus)
                             .tooltip("縮小縮圖")
-                            .on_click(cx.listener(|this, _, _, cx| this.adjust_thumb_size(-20, cx))),
+                            .on_click(
+                                cx.listener(|this, _, _, cx| this.adjust_thumb_size(-20, cx)),
+                            ),
                     )
                     .child(
                         div()
@@ -483,14 +481,9 @@ impl PicLensApp {
                             .on_click(cx.listener(|this, _, _, cx| this.adjust_thumb_size(20, cx))),
                     ),
             )
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(theme.muted_text)
-                    .child(format!(
-                        "{} 項 · 選取 {} · Esc 關閉 · Del 回收",
-                        visible_count, selected_count
-                    )),
-            )
+            .child(div().text_xs().text_color(theme.muted_text).child(format!(
+                "{} 項 · 選取 {} · Esc 關閉 · Del 回收",
+                visible_count, selected_count
+            )))
     }
 }

@@ -1,9 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use piclens_domain::{
-    merge_settings_patch, normalize_settings, AppSettings, AppSettingsPatch,
-};
+use piclens_domain::{merge_settings_patch, normalize_settings, AppSettings, AppSettingsPatch};
 use thiserror::Error;
 
 use crate::paths::{ensure_parent_dir, settings_path};
@@ -101,9 +99,7 @@ impl JsonSettingsStore {
         ensure_parent_dir(&self.path)?;
         let normalized = normalize_settings(settings);
         let json = serde_json::to_vec_pretty(&normalized).map_err(|_| SettingsError::Parse)?;
-        let tmp = self
-            .path
-            .with_extension(format!("tmp.{}", unique_suffix()));
+        let tmp = self.path.with_extension(format!("tmp.{}", unique_suffix()));
         fs::write(&tmp, &json)?;
         fs::rename(&tmp, &self.path)?;
         Ok(())

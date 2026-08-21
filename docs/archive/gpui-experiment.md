@@ -1,4 +1,6 @@
-# GPUI migration branch
+# GPUI migration snapshot
+
+> Archived migration notes. Use [current documentation](../README.md) for commands and release status.
 
 Branch: `experiment/gpui`
 

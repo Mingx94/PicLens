@@ -1,28 +1,55 @@
 # Release and packaging
 
-## Current state
+## Version and trigger
 
-The GPUI migration branch has no working package or publication pipeline. A Cargo release build creates a development binary under `target/release`; it is not an installer, portable bundle, or validated release artifact.
+The root `Cargo.toml` field `[workspace.package].version` is the only version authority. Every workspace crate inherits it. A release tag must use `v<version>`, for example `v0.1.0`.
 
-The checked-in `.github/workflows/release.yml` is a legacy Qt workflow. It calls removed CMake and packaging scripts. Do not run it, push a release tag for this branch, or describe its outputs as GPUI release assets.
+Pushing a matching tag starts `.github/workflows/release.yml`. A manual run can rebuild an existing tag. The workflow checks that the tag exists and matches the `piclens-gpui` Cargo version before it builds anything.
 
-Version metadata is also not unified:
+## Release gates
 
-- the Cargo workspace version is `0.1.0`;
-- root `VERSION` contains the last Qt release value;
-- the GPUI binary does not expose root `VERSION` as its package version.
+Windows 2025 and Ubuntu 24.04 each use the nightly toolchain pinned in `rust-toolchain.toml` and run these locked gates:
 
-## Required release baseline
+```text
+cargo fmt --check
+cargo test --workspace --locked
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo build --release --locked -p piclens-gpui
+```
 
-Before the next PicLens release:
+The normal CI workflow also runs workspace build and check gates on both platforms.
 
-1. Choose one version authority and use it in Cargo metadata, the binary, packages, and tags.
-2. Define supported Windows and Linux targets and their minimum runtime requirements.
-3. Build clean Windows and Linux artifacts from the locked toolchain and dependency revisions.
-4. Package the GPUI runtime, application icon, bundled fonts, license files, and required native libraries.
-5. Test install, launch, folder access, upgrade, uninstall, and profile preservation on every claimed platform.
-6. Audit the final package file list and run it outside the source tree.
-7. Define signing policy, checksums, asset names, and GitHub publication gates.
-8. Replace the legacy Qt workflow before any `v*` tag is pushed.
+## Published assets
 
-Every candidate must also pass [Testing](testing.md) and the review in [Licensing and redistribution](licensing.md). A successful `cargo build --release` is only a compiler gate.
+For version `<version>`, the workflow publishes:
+
+- `PicLens-<version>-windows-x86_64.zip`
+- `PicLens-<version>-windows-x86_64.zip.sha256`
+- `PicLens-<version>-linux-x86_64.tar.gz`
+- `PicLens-<version>-linux-x86_64.tar.gz.sha256`
+
+Each archive contains the PicLens executable, `LICENSE`, `README.md`, and the Noto Sans CJK TC OFL notice. The font files are embedded in the executable. The release workflow generates GitHub release notes and attaches the four files.
+
+These are unsigned portable archives. They are not MSI, MSIX, DEB, RPM, or auto-update packages. Linux users must provide a Vulkan 1.3 driver, X11 or Wayland, and the required desktop portals and system libraries.
+
+## Release procedure
+
+1. Update the workspace version and lockfile in one release commit.
+2. Run the full commands in [Testing](testing.md).
+3. Build and inspect both portable archives from the release commit.
+4. Test launch, folder access, file operations, profile preservation, and shutdown on clean Windows and Linux systems.
+5. Record all unverified platforms and paths.
+6. Create an annotated `v<version>` tag on the release commit.
+7. Push the release commit and tag.
+8. Confirm that the GitHub Action passes and the GitHub Release contains both archives and both checksum files.
+
+Local compilation or archive creation does not complete a release. Completion requires a successful tag push and a successful release workflow.
+
+## Remaining release work
+
+- Code signing is not configured.
+- Installer lifecycle and upgrade tests are not configured.
+- Package-manager integration and desktop-file installation are not configured.
+- The hosted workflow compiles and packages the app, but it does not launch a GPU window.
+
+Review [Licensing and redistribution](licensing.md) for every release candidate.

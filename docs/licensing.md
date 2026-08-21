@@ -11,9 +11,9 @@ This is an engineering release policy, not legal advice. The project owner must 
 
 ## Current dependency model
 
-PicLens uses Rust crates plus native platform and graphics dependencies reached through GPUI and gpui-component. GPUI is locked to Zed commit `c7537bdf463a998e7ec636adff33b198891e69ed`. gpui-component is pinned to commit `9a4a3473e1ee6afa9960c5decf18d3dc321b6ea2`.
+PicLens uses Rust crates plus native platform and graphics dependencies reached through GPUI and gpui-component. `Cargo.lock` records the exact Git commits. The application manifest requests the GPUI Windows backend and both Linux window backends.
 
-There is no current GPUI package layout. Do not reuse the removed Qt redistribution inventory for a future GPUI package.
+The portable release archives contain the executable, PicLens MIT license, README, and Noto Sans CJK TC OFL notice. The font files are embedded in the executable. Linux graphics and desktop integration remain system dependencies.
 
 ## Bundled assets
 

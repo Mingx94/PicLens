@@ -179,9 +179,11 @@ mod tests {
 
     #[test]
     fn layout_persist_keeps_last_folder_authority() {
-        let mut current = AppSettings::default();
-        current.last_folder_path = Some("/picker".into());
-        current.include_subfolders = true;
+        let current = AppSettings {
+            last_folder_path: Some("/picker".into()),
+            include_subfolders: true,
+            ..AppSettings::default()
+        };
         let merged = apply_layout_persist(&current, Some(true), Some((900, 700)));
         assert_eq!(merged.last_folder_path.as_deref(), Some("/picker"));
         assert!(merged.sidebar_collapsed);
@@ -192,8 +194,10 @@ mod tests {
 
     #[test]
     fn zero_thumbnail_size_becomes_default() {
-        let mut settings = AppSettings::default();
-        settings.thumbnail_size = 0;
+        let settings = AppSettings {
+            thumbnail_size: 0,
+            ..AppSettings::default()
+        };
         let normalized = normalize_settings(&settings);
         assert_eq!(normalized.thumbnail_size, DEFAULT_THUMBNAIL_SIZE);
     }

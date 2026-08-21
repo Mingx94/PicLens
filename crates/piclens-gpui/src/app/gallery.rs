@@ -1,18 +1,25 @@
 //! Library tiles, list rows, and empty state.
 
+use crate::drag_rename::{drag_target, is_dragging};
 use gpui::*;
 use gpui_component::button::{Button, ButtonVariants as _};
 use gpui_component::menu::ContextMenuExt;
 use gpui_component::scroll::Scrollbar;
 use gpui_component::{h_flex, v_flex, Icon, IconName};
-use crate::drag_rename::{drag_target, is_dragging};
 
 use super::{GalleryMode, PicLensApp};
 use crate::actions::{OpenViewer, RenameSelection, RevealInFileManager, TrashSelection};
 use crate::theme::Theme;
 
 impl PicLensApp {
-    fn tile_preview(&self, theme: Theme, path: &str, is_folder: bool, animated: bool, size: f32) -> AnyElement {
+    fn tile_preview(
+        &self,
+        theme: Theme,
+        path: &str,
+        is_folder: bool,
+        animated: bool,
+        size: f32,
+    ) -> AnyElement {
         if is_folder {
             return div()
                 .size(px(size))
@@ -70,11 +77,7 @@ impl PicLensApp {
             .into_any_element()
     }
 
-    pub(super) fn render_gallery(
-        &self,
-        theme: Theme,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
+    pub(super) fn render_gallery(&self, theme: Theme, cx: &mut Context<Self>) -> AnyElement {
         if self.visible.is_empty() {
             return v_flex()
                 .size_full()
@@ -102,16 +105,13 @@ impl PicLensApp {
                             "開始整理圖片"
                         }),
                 )
-                .child(
-                    div()
-                        .text_sm()
-                        .text_color(theme.secondary_text)
-                        .child(if self.folder_path.is_some() {
-                            "試試清除搜尋，或切換「含子資料夾」。"
-                        } else {
-                            "選擇本機資料夾後即可瀏覽縮圖、排序與批次整理。"
-                        }),
-                )
+                .child(div().text_sm().text_color(theme.secondary_text).child(
+                    if self.folder_path.is_some() {
+                        "試試清除搜尋，或切換「含子資料夾」。"
+                    } else {
+                        "選擇本機資料夾後即可瀏覽縮圖、排序與批次整理。"
+                    },
+                ))
                 .child(
                     Button::new("empty-open")
                         .primary()
@@ -161,12 +161,7 @@ impl PicLensApp {
             .into_any_element()
     }
 
-    fn render_gallery_row(
-        &self,
-        row: usize,
-        theme: Theme,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
+    fn render_gallery_row(&self, row: usize, theme: Theme, cx: &mut Context<Self>) -> AnyElement {
         let tile_size = self.thumb_size() as f32;
         let selected_count = self.selected.len();
         let focus = self.focus_handle.clone();
@@ -195,19 +190,17 @@ impl PicLensApp {
                         .id(("tile", idx))
                         .w(px(tile_size))
                         .gap_1()
-                        .child(
-                            self.item_surface(
-                                theme,
-                                ("tile-surface", idx),
-                                selected,
-                                is_folder,
-                                selected_count,
-                                path.clone(),
-                                preview,
-                                focus.clone(),
-                                cx,
-                            ),
-                        )
+                        .child(self.item_surface(
+                            theme,
+                            ("tile-surface", idx),
+                            selected,
+                            is_folder,
+                            selected_count,
+                            path.clone(),
+                            preview,
+                            focus.clone(),
+                            cx,
+                        ))
                         .child(
                             div()
                                 .px_1()
@@ -257,12 +250,7 @@ impl PicLensApp {
                         .text_color(theme.primary_text)
                         .child(name),
                 )
-                .child(
-                    div()
-                        .text_xs()
-                        .text_color(theme.muted_text)
-                        .child(badge),
-                )
+                .child(div().text_xs().text_color(theme.muted_text).child(badge))
                 .into_any_element(),
             focus,
             cx,

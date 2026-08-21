@@ -1,17 +1,21 @@
 # Versioning and Release Protocol
 
-## Current State
+## Version Authority
 
-- The GPUI branch does not have a working packaging or release pipeline.
-- The checked-in GitHub release workflow belongs to the removed Qt build and must not be run for this branch.
-- `Cargo.toml` reports the Rust workspace package version. Root `VERSION` is retained from the Qt release and is not wired into the GPUI binary.
+- `[workspace.package].version` in the root `Cargo.toml` is the only package version authority.
+- All workspace crates inherit this version.
+- Release tags use `v<version>`. The release workflow rejects any tag that does not match the Cargo version.
 
-## Before the Next Release
+## Release Protocol
 
-1. Choose one version authority and connect it to package metadata and the binary.
-2. Add tested Windows and Linux package paths for the GPUI runtime.
-3. Add clean-machine install, launch, upgrade, and uninstall gates.
-4. Replace the legacy workflow and verify every claimed platform.
-5. Define signing, checksums, license payloads, and release asset names.
+1. Update the workspace version and `Cargo.lock` in one release commit.
+2. Run every command in [Testing](../testing.md).
+3. Build the portable archives from the clean release commit and inspect their contents.
+4. Test the archives on clean Windows and Linux systems. Record launch, folder access, profile preservation, and the unverified paths.
+5. Create an annotated tag named `v<version>` on the release commit.
+6. Push the release commit and tag. The tag starts `.github/workflows/release.yml`.
+7. Confirm that both archives, both checksum files, and the GitHub Release are present before reporting completion.
 
-See [Release and packaging](../release.md) for the current boundary.
+Do not create a release tag when packaging or clean-machine verification has failed. Do not claim installer, signing, or auto-update support; the current outputs are unsigned portable archives.
+
+See [Release and packaging](../release.md) for asset names and workflow details.

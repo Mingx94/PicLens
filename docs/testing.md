@@ -30,7 +30,6 @@ For runtime changes, also check the affected mouse, keyboard, focus, resize, scr
 
 ## Current gaps
 
-- There are no package lifecycle tests for the GPUI binary.
-- There is no active GPUI CI workflow.
-- The legacy Qt release workflow references removed scripts and is not a valid test gate.
+- Rust CI runs the workspace gates on Windows 2025 and Ubuntu 24.04.
+- The release workflow builds portable Windows and Linux archives, but it does not test install, upgrade, or uninstall behavior.
 - There are no GPUI window or input integration tests yet. Cargo unit tests do not replace a real launch.

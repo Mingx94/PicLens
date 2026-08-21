@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 
 use image::ImageFormat;
 use piclens_domain::{
-    has_link_or_junction_component, is_jpg_extension, is_webp_extension, path_equals,
-    path_key, plan_drop_target_batch_rename, supported_image_extension, target_name_exists,
+    has_link_or_junction_component, is_jpg_extension, is_webp_extension, path_equals, path_key,
+    plan_drop_target_batch_rename, supported_image_extension, target_name_exists,
     validate_image_file_name, DropTargetBatchRenamePlan, FileOperationBatchResult,
     FileOperationResult, FileOperationStatus,
 };
@@ -210,7 +210,12 @@ fn convert_paths(
     FileOperationBatchResult { items }
 }
 
-fn convert_one(path: &str, format: ImageFormat, extension: &str, _quality: u8) -> FileOperationResult {
+fn convert_one(
+    path: &str,
+    format: ImageFormat,
+    extension: &str,
+    _quality: u8,
+) -> FileOperationResult {
     let source = Path::new(path);
     let parent = source.parent().unwrap_or_else(|| Path::new("."));
     let stem = source
@@ -280,10 +285,7 @@ pub fn cleanup_same_basename(paths: &[String]) -> FileOperationBatchResult {
             .parent()
             .map(|x| x.to_string_lossy().replace('\\', "/"))
             .unwrap_or_default();
-        let stem = p
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or_default();
+        let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
         let key = path_key(&format!("{parent}/{stem}"));
         groups.entry(key).or_default().push(path.clone());
     }
@@ -314,10 +316,7 @@ pub fn cleanup_same_basename(paths: &[String]) -> FileOperationBatchResult {
     trash_paths(&to_trash)
 }
 
-pub fn plan_drop_rename(
-    source_paths: &[String],
-    target_path: &str,
-) -> DropTargetBatchRenamePlan {
+pub fn plan_drop_rename(source_paths: &[String], target_path: &str) -> DropTargetBatchRenamePlan {
     let parent = Path::new(target_path)
         .parent()
         .map(Path::to_path_buf)

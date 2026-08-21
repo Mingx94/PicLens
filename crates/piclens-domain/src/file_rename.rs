@@ -197,9 +197,8 @@ pub fn plan_drop_target_batch_rename(
             sequence_number,
             existing_paths,
         );
-        sequence_number = sequence_number.max(
-            extract_sequence_number(&item.target_path, &target_base_name) + 1,
-        );
+        sequence_number =
+            sequence_number.max(extract_sequence_number(&item.target_path, &target_base_name) + 1);
         items.push(item);
     }
 

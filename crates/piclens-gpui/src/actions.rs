@@ -1,6 +1,6 @@
 //! Keyboard actions, keybindings, and the native menu bar.
 
-use gpui::{App, KeyBinding, Menu, MenuItem, actions};
+use gpui::{actions, App, KeyBinding, Menu, MenuItem};
 
 actions!(
     piclens,

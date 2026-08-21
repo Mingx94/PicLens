@@ -107,7 +107,10 @@ mod tests {
             vec!["/root/a/one".into(), "/root/a/two".into()],
         );
         let mut expanded = HashSet::new();
-        assert_eq!(toggle_expand(&mut expanded, "/root/a"), ExpandAction::NeedChildren);
+        assert_eq!(
+            toggle_expand(&mut expanded, "/root/a"),
+            ExpandAction::NeedChildren
+        );
         let rows = visible_tree_rows(&roots, &children, &expanded);
         let paths: Vec<&str> = rows.iter().map(|row| row.path.as_str()).collect();
         assert_eq!(
@@ -115,7 +118,10 @@ mod tests {
             vec!["/root/a", "/root/a/one", "/root/a/two", "/root/b"]
         );
         assert_eq!(rows[1].depth, 1);
-        assert_eq!(toggle_expand(&mut expanded, "/root/a"), ExpandAction::Collapse);
+        assert_eq!(
+            toggle_expand(&mut expanded, "/root/a"),
+            ExpandAction::Collapse
+        );
         let collapsed = visible_tree_rows(&roots, &children, &expanded);
         assert_eq!(collapsed.len(), 2);
     }
@@ -152,7 +158,10 @@ mod tests {
             vec!["/picked/x".into(), "/picked/y".into()],
         ));
         assert_eq!(tree_root.as_deref(), Some("/picked"));
-        assert_eq!(roots, vec!["/picked/x".to_string(), "/picked/y".to_string()]);
+        assert_eq!(
+            roots,
+            vec!["/picked/x".to_string(), "/picked/y".to_string()]
+        );
         assert!(children.is_empty());
         assert!(expanded.is_empty());
     }

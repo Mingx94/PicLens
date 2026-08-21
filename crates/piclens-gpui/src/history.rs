@@ -6,7 +6,9 @@ pub struct FolderHistory {
 
 impl FolderHistory {
     pub fn current(&self) -> Option<&str> {
-        self.index.and_then(|i| self.entries.get(i)).map(String::as_str)
+        self.index
+            .and_then(|i| self.entries.get(i))
+            .map(String::as_str)
     }
 
     pub fn can_back(&self) -> bool {

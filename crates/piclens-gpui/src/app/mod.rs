@@ -18,9 +18,9 @@ use gpui_component::input::{InputEvent, InputState};
 use gpui_component::notification::Notification;
 use gpui_component::WindowExt;
 use piclens_domain::{
-    apply_layout_persist, path_equals, AppSettings, DropTargetBatchRenamePlan, ImageListItem,
-    ImageSequenceSnapshot, ListItem, ListQuery, Point, SortDirection, SortKey, SortState,
-    ZoomState, clamp_zoom, is_fit_view, pan_offset, reset_zoom_state, zoom_at_point,
+    apply_layout_persist, clamp_zoom, is_fit_view, pan_offset, path_equals, reset_zoom_state,
+    zoom_at_point, AppSettings, DropTargetBatchRenamePlan, ImageListItem, ImageSequenceSnapshot,
+    ListItem, ListQuery, Point, SortDirection, SortKey, SortState, ZoomState,
     DEFAULT_THUMBNAIL_SIZE,
 };
 use piclens_infra::{
@@ -38,8 +38,7 @@ use crate::actions::{
     ZoomOut, ZoomReset,
 };
 use crate::drag_rename::{
-    drag_begin, drag_cancel, drag_finish, drag_move, is_dragging, DragFinish,
-    DragPhase,
+    drag_begin, drag_cancel, drag_finish, drag_move, is_dragging, DragFinish, DragPhase,
 };
 use crate::folder_tree::{
     apply_tree_children, replace_tree_for_picker, toggle_expand, visible_tree_rows, ExpandAction,
@@ -127,7 +126,11 @@ struct RenameState {
 }
 
 impl PicLensApp {
-    pub fn new(window: &mut Window, cx: &mut Context<Self>, initial_folder: Option<String>) -> Self {
+    pub fn new(
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        initial_folder: Option<String>,
+    ) -> Self {
         let settings_store = Arc::new(JsonSettingsStore::new());
         let settings = settings_store.load();
         let search = cx.new(|cx| InputState::new(window, cx).placeholder("搜尋名稱或路徑…"));
@@ -250,15 +253,16 @@ impl PicLensApp {
 
     fn bind_gallery_scroll(&mut self, cx: &mut Context<Self>) {
         let entity = cx.weak_entity();
-        self.gallery_list.set_scroll_handler(move |event, _window, cx| {
-            let range = event.visible_range.clone();
-            let _ = entity.update(cx, |this, cx| {
-                if this.viewport_rows != range {
-                    this.viewport_rows = range;
-                    this.request_thumbs(cx);
-                }
+        self.gallery_list
+            .set_scroll_handler(move |event, _window, cx| {
+                let range = event.visible_range.clone();
+                let _ = entity.update(cx, |this, cx| {
+                    if this.viewport_rows != range {
+                        this.viewport_rows = range;
+                        this.request_thumbs(cx);
+                    }
+                });
             });
-        });
     }
 
     fn gallery_columns(&self) -> usize {
@@ -884,7 +888,10 @@ impl PicLensApp {
         let path = images[0].path.clone();
         let name = images[0].name.clone();
         let input = cx.new(|cx| InputState::new(window, cx).default_value(name));
-        self.rename = Some(RenameState { path, input: input.clone() });
+        self.rename = Some(RenameState {
+            path,
+            input: input.clone(),
+        });
         self.capture_overlay_focus(window, cx);
         cx.on_next_frame(window, move |this, window, cx| {
             this.rename_focus.focus(window, cx);
@@ -907,9 +914,7 @@ impl PicLensApp {
         self.status = match result.status {
             piclens_domain::FileOperationStatus::Renamed => "已重新命名。".into(),
             piclens_domain::FileOperationStatus::Skipped => "重新命名已略過。".into(),
-            _ => result
-                .message
-                .unwrap_or_else(|| "重新命名失敗。".into()),
+            _ => result.message.unwrap_or_else(|| "重新命名失敗。".into()),
         };
         self.refresh(cx);
     }
@@ -1202,7 +1207,8 @@ impl PicLensApp {
         };
         let path = item.path().to_string();
         self.select_path(&path, false);
-        self.gallery_list.scroll_to_reveal_item(index / self.gallery_columns().max(1));
+        self.gallery_list
+            .scroll_to_reveal_item(index / self.gallery_columns().max(1));
         cx.notify();
     }
 
@@ -1424,10 +1430,7 @@ impl PicLensApp {
         if matches!(self.drag, DragPhase::Idle) {
             return;
         }
-        let pointer = (
-            f64::from(event.position.x),
-            f64::from(event.position.y),
-        );
+        let pointer = (f64::from(event.position.x), f64::from(event.position.y));
         self.drag = drag_move(self.drag.clone(), pointer, self.hover_path.clone());
         cx.notify();
     }
@@ -1454,11 +1457,7 @@ impl PicLensApp {
         }
     }
 
-    fn apply_viewer_wheel(
-        &mut self,
-        event: &ScrollWheelEvent,
-        cx: &mut Context<Self>,
-    ) {
+    fn apply_viewer_wheel(&mut self, event: &ScrollWheelEvent, cx: &mut Context<Self>) {
         let Some(viewer) = self.viewer.as_mut() else {
             return;
         };
@@ -1507,7 +1506,12 @@ impl PicLensApp {
     }
 
     fn begin_viewer_pan(&mut self, event: &MouseDownEvent) {
-        if self.viewer.as_ref().map(|v| v.zoom.zoom > 1.01).unwrap_or(false) {
+        if self
+            .viewer
+            .as_ref()
+            .map(|v| v.zoom.zoom > 1.01)
+            .unwrap_or(false)
+        {
             self.viewer_panning = Some(Point {
                 x: f64::from(event.position.x),
                 y: f64::from(event.position.y),

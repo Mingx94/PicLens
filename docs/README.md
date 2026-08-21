@@ -1,6 +1,6 @@
 # PicLens documentation
 
-PicLens is a desktop image library and viewer. This branch builds with **Rust + GPUI**. Return to the [repository README](../README.md).
+PicLens is a desktop image library and viewer built with Rust, GPUI, and gpui-component. Return to the [repository README](../README.md).
 
 ## Daily development
 
@@ -14,16 +14,15 @@ PicLens is a desktop image library and viewer. This branch builds with **Rust + 
 
 ## Release and operations
 
-- [Release and packaging](release.md): current release boundary and missing gates.
+- [Release and packaging](release.md): versioning, portable artifacts, and publication.
 - [Performance](performance.md): implemented safeguards and evidence rules.
 - [Licensing](licensing.md): source and bundled asset obligations.
 
 ## History
 
-- [GPUI migration notes](archive/gpui-experiment.md)
-- [2026-07 Qt cutover archive](archive/2026-07-qt-cutover.md): historical only
+- [Archive index](archive/README.md): migration records and old evidence; never current instructions.
 
-Product-spec and runtime-invariants remain the behavior authority. The GPUI binary does not have a working package or release pipeline. The checked-in Qt release workflow is legacy and cannot build this branch.
+Product-spec and runtime-invariants remain the behavior authority. Current build, test, and release commands must use Cargo and the Rust workflows under `.github/workflows/`.
 
 ## Document ownership
 
@@ -33,5 +32,5 @@ Product-spec and runtime-invariants remain the behavior authority. The GPUI bina
 | Engineering invariants | [Runtime invariants](runtime-invariants.md) | Domain + infra + UI |
 | Layer ownership | [Architecture](architecture.md) | Cargo crate graph |
 | Build and test commands | [Testing](testing.md) | Cargo workspace and lockfile |
-| Release readiness | [Release and packaging](release.md) | Future GPUI package scripts and CI |
-| Package version | [Release and packaging](release.md) | Not unified yet |
+| Release readiness | [Release and packaging](release.md) | `.github/workflows/release.yml` |
+| Package version | [Release and packaging](release.md) | `[workspace.package].version` in root `Cargo.toml` |

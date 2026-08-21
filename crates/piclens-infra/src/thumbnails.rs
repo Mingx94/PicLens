@@ -119,10 +119,7 @@ mod tests {
 
     #[test]
     fn corrupt_bytes_do_not_panic_ensure_thumbnail() {
-        let dir = std::env::temp_dir().join(format!(
-            "piclens-thumb-test-{}",
-            std::process::id()
-        ));
+        let dir = std::env::temp_dir().join(format!("piclens-thumb-test-{}", std::process::id()));
         let _ = fs::create_dir_all(&dir);
         let bad = dir.join("bad.jpg");
         let mut f = fs::File::create(&bad).unwrap();

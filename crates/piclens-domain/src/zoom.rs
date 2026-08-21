@@ -47,10 +47,7 @@ pub fn pan_offset(offset: Point, delta: Point) -> Point {
 /// Pixel size of the viewer image box. Zoom `1.0` fills the canvas (contain).
 pub fn viewer_display_box(canvas_width: f64, canvas_height: f64, zoom: f64) -> (f64, f64) {
     let zoom = clamp_zoom(zoom);
-    (
-        canvas_width.max(1.0) * zoom,
-        canvas_height.max(1.0) * zoom,
-    )
+    (canvas_width.max(1.0) * zoom, canvas_height.max(1.0) * zoom)
 }
 
 pub fn is_fit_view(zoom: f64, offset: Point) -> bool {

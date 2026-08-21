@@ -1,6 +1,6 @@
 # Architecture
 
-PicLens on the GPUI migration branch is a Rust workspace.
+PicLens is a Rust workspace with a GPUI desktop application.
 
 ```text
 crates/piclens-domain/     framework-light product rules and value models
@@ -23,6 +23,6 @@ assets/                    application icons and fonts
 
 Without `PICLENS_DATA_ROOT`, platform local application data under `PicLens` is the authority for settings, cache, and logs. See [data continuity](data-continuity.md).
 
-## Qt history
+## History
 
-The Qt 6 / QML production tree was removed on this migration branch. Product contracts in `docs/` remain the authority for behavior. Older Qt packaging notes may remain under `docs/archive/` as history only.
+Migration records and measurements are kept under [the archive](archive/README.md). They do not define current architecture, commands, support, or release outputs.

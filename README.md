@@ -1,8 +1,6 @@
 # PicLens
 
-PicLens is a desktop image library and viewer for Windows and mainstream Linux.
-
-**This branch (`experiment/gpui`) is the GPUI migration.** The runtime is Rust + [GPUI](https://github.com/zed-industries/zed) + [gpui-component](https://github.com/longbridge/gpui-component). Product behavior stays under [docs/product-spec.md](docs/product-spec.md).
+PicLens is a desktop image library and viewer for Windows and Linux. It uses Rust, [GPUI](https://github.com/zed-industries/zed), and [gpui-component](https://github.com/longbridge/gpui-component). [The product specification](docs/product-spec.md) defines its behavior.
 
 ## Layout
 
@@ -17,8 +15,9 @@ assets/                  icons and fonts
 
 ## Requirements
 
-- Rust **nightly** (`rust-toolchain.toml` pins the channel; current Zed GPUI needs unstable APIs)
-- Windows or Linux desktop stack suitable for GPUI
+- Rust nightly `2026-08-11`, selected by `rust-toolchain.toml`
+- Windows x86_64 with a Vulkan-capable graphics driver
+- Linux x86_64 with an Ubuntu 24.04-compatible runtime, Vulkan 1.3, X11 or Wayland, and the required desktop portals
 
 ## Build and run
 
@@ -57,4 +56,8 @@ Without `PICLENS_DATA_ROOT`, settings and logs use local app data under `PicLens
 ## Docs
 
 - [docs/README.md](docs/README.md)
-- [docs/archive/gpui-experiment.md](docs/archive/gpui-experiment.md)
+- [docs/release.md](docs/release.md)
+
+## Automation
+
+`.github/workflows/ci.yml` runs the locked Rust gates on Windows and Linux. A tag that matches the Cargo version, such as `v0.1.0`, triggers `.github/workflows/release.yml`. The release workflow publishes portable Windows and Linux archives with SHA-256 files.

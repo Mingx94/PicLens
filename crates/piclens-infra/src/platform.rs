@@ -18,9 +18,7 @@ pub fn move_to_trash(path: &str) -> Result<(), PlatformError> {
     }
     let path = Path::new(path);
     if !path.exists() {
-        return Err(PlatformError::Message(
-            "Source path does not exist.".into(),
-        ));
+        return Err(PlatformError::Message("Source path does not exist.".into()));
     }
 
     #[cfg(windows)]

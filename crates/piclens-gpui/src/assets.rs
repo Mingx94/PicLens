@@ -12,8 +12,7 @@ const TEXT_FONTS: &[&[u8]] = &[
     include_bytes!("../../../assets/Fonts/NotoSansCJKtc-Bold.otf"),
 ];
 
-const APP_ICON_PNG: &[u8] =
-    include_bytes!("../../../assets/Square150x150Logo.scale-200.png");
+const APP_ICON_PNG: &[u8] = include_bytes!("../../../assets/Square150x150Logo.scale-200.png");
 
 /// In-app brand mark (same composition as `assets/AppIcon.ico`).
 pub fn app_icon() -> Arc<Image> {

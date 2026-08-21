@@ -130,11 +130,7 @@ pub fn scan_folder(query: &ListQuery) -> Result<Vec<ListItem>, ScanError> {
         }
     }
 
-    Ok(sort_items(
-        &items,
-        query.sort,
-        !query.include_subfolders,
-    ))
+    Ok(sort_items(&items, query.sort, !query.include_subfolders))
 }
 
 pub fn scan_child_folders(folder_path: &str) -> Result<Vec<FolderListItem>, ScanError> {

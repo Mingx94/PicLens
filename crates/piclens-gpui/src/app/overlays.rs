@@ -13,7 +13,11 @@ use crate::actions::{RENAME_CONTEXT, VIEWER_CONTEXT};
 use crate::theme::Theme;
 
 impl PicLensApp {
-    pub(super) fn render_viewer(&self, theme: Theme, cx: &mut Context<Self>) -> Option<impl IntoElement> {
+    pub(super) fn render_viewer(
+        &self,
+        theme: Theme,
+        cx: &mut Context<Self>,
+    ) -> Option<impl IntoElement> {
         let viewer = self.viewer.as_ref()?;
         let idx = viewer.sequence.current_index as usize;
         let name = viewer
@@ -130,12 +134,7 @@ impl PicLensApp {
                                         .text_color(theme.viewer_text)
                                         .child(name),
                                 )
-                                .child(
-                                    div()
-                                        .text_xs()
-                                        .text_color(theme.viewer_muted)
-                                        .child(pos),
-                                ),
+                                .child(div().text_xs().text_color(theme.viewer_muted).child(pos)),
                         ),
                 )
                 .child(
@@ -261,22 +260,18 @@ impl PicLensApp {
                             h_flex()
                                 .gap_2()
                                 .justify_end()
-                                .child(
-                                    Button::new("rn-cancel").outline().label("取消").on_click(
-                                        cx.listener(|this, _, window, cx| {
-                                            this.rename = None;
-                                            this.restore_overlay_focus(window, cx);
-                                            cx.notify();
-                                        }),
-                                    ),
-                                )
-                                .child(
-                                    Button::new("rn-ok").primary().label("確定").on_click(
-                                        cx.listener(|this, _, window, cx| {
-                                            this.commit_rename(window, cx);
-                                        }),
-                                    ),
-                                ),
+                                .child(Button::new("rn-cancel").outline().label("取消").on_click(
+                                    cx.listener(|this, _, window, cx| {
+                                        this.rename = None;
+                                        this.restore_overlay_focus(window, cx);
+                                        cx.notify();
+                                    }),
+                                ))
+                                .child(Button::new("rn-ok").primary().label("確定").on_click(
+                                    cx.listener(|this, _, window, cx| {
+                                        this.commit_rename(window, cx);
+                                    }),
+                                )),
                         ),
                 ),
         )
@@ -365,14 +360,12 @@ impl PicLensApp {
                             h_flex()
                                 .gap_2()
                                 .justify_end()
-                                .child(
-                                    Button::new("dr-cancel").outline().label("取消").on_click(
-                                        cx.listener(|this, _, _, cx| {
-                                            this.drop_rename = None;
-                                            cx.notify();
-                                        }),
-                                    ),
-                                )
+                                .child(Button::new("dr-cancel").outline().label("取消").on_click(
+                                    cx.listener(|this, _, _, cx| {
+                                        this.drop_rename = None;
+                                        cx.notify();
+                                    }),
+                                ))
                                 .child(
                                     Button::new("dr-ok")
                                         .primary()
