@@ -20,6 +20,7 @@ Dependency direction: `piclens-gpui -> piclens-infra -> piclens-domain`.
 
 ```powershell
 cargo fmt --check
+cargo build --workspace --all-targets --locked
 cargo check --workspace --all-targets --locked
 cargo test --workspace --locked
 cargo clippy --workspace --all-targets --locked -- -D warnings
@@ -30,7 +31,7 @@ Use `PICLENS_DATA_ROOT` for isolated profiles in tests and smoke runs.
 
 ## Delivery check
 
-1. Workspace format, check, test, and lint gates pass.
+1. Workspace format, build, check, test, and lint gates pass.
 2. Manual smoke covers open folder, select, viewer Escape, and one file operation when those paths change.
 3. Runtime checks use an isolated profile and the app log is clean for the tested path.
 4. The commit uses a short message on the current task branch. Push only when requested.

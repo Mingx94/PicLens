@@ -4,6 +4,7 @@
 
 ```powershell
 cargo fmt --check
+cargo build --workspace --all-targets --locked
 cargo check --workspace --all-targets --locked
 cargo test --workspace --locked
 cargo clippy --workspace --all-targets --locked -- -D warnings
