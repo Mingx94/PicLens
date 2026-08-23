@@ -17,6 +17,14 @@ Use a crate-scoped command while you iterate. Run the workspace gates before del
 
 Set `PICLENS_DATA_ROOT` to a disposable directory for app smoke, performance work, and tests that can create settings, logs, thumbnails, or mutate files. Do not use a real user profile unless the user explicitly authorizes a copied-profile check.
 
+## Validation layers
+
+- Use ordinary Rust tests for product rules, data transformations, and GPUI-independent state helpers.
+- Use `#[gpui::test]` with `TestAppContext` and `VisualTestContext` for GPUI entities, actions, mouse and keyboard input, focus, resize, scrolling, overlays, and asynchronous state. These tests use GPUI's simulated platform and do not require `computer-use`.
+- Use `computer-use` with the real app only when pixel appearance matters. Check layout, typography, colors, image rendering, high-DPI output, animation quality, and other visual details with an isolated profile and representative images.
+
+Do not use a headless test result as evidence that pixels are correct. Do not use `computer-use` for behavior that a deterministic GPUI or Rust test can assert.
+
 ## Runtime smoke
 
 ```powershell
