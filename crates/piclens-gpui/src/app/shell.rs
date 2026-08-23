@@ -127,7 +127,7 @@ impl PicLensApp {
                     .child(
                         Button::new("refresh")
                             .ghost()
-                            .icon(IconName::ArrowDown)
+                            .icon(IconName::Redo)
                             .tooltip("重新整理")
                             .on_click(cx.listener(|this, _, _, cx| this.refresh(cx))),
                     ),
