@@ -36,7 +36,7 @@ The app is light-only until a complete dark theme and runtime selection exist. S
 
 PicLens embeds Noto Sans CJK TC Regular, Medium, and Bold and registers them before the window opens. Use `Noto Sans CJK TC` for the interface. Keep the OFL notice with the fonts.
 
-Use the packaged PicLens artwork for app identity and gpui-component icons for commands. Controls need stable IDs, clear labels, keyboard access, disabled states, and visible state feedback.
+Use the packaged PicLens artwork for app identity and gpui-component icons for commands. Use the [Lucide icon catalog](https://lucide.dev/icons/) to find a suitable icon and check the available `gpui_component::IconName` variants before implementation. Controls need stable IDs, clear labels, keyboard access, disabled states, and visible state feedback.
 
 ## Layout and interaction
 
