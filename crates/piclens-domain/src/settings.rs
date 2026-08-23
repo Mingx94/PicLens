@@ -64,8 +64,8 @@ pub fn normalize_thumbnail_size(thumbnail_size: f64) -> i32 {
     stepped.clamp(MIN_THUMBNAIL_SIZE, MAX_THUMBNAIL_SIZE)
 }
 
-pub const MIN_WINDOW_WIDTH: u32 = 480;
-pub const MIN_WINDOW_HEIGHT: u32 = 320;
+pub const MIN_WINDOW_WIDTH: u32 = 800;
+pub const MIN_WINDOW_HEIGHT: u32 = 600;
 
 pub fn normalize_window_size(width: u32, height: u32) -> (u32, u32) {
     (width.max(MIN_WINDOW_WIDTH), height.max(MIN_WINDOW_HEIGHT))
@@ -153,6 +153,11 @@ mod tests {
         assert_eq!(normalize_thumbnail_size(10.0), MIN_THUMBNAIL_SIZE);
         assert_eq!(normalize_thumbnail_size(400.0), MAX_THUMBNAIL_SIZE);
         assert_eq!(normalize_thumbnail_size(165.0), 160);
+    }
+
+    #[test]
+    fn clamps_window_size_to_product_minimum() {
+        assert_eq!(normalize_window_size(480, 320), (800, 600));
     }
 
     #[test]

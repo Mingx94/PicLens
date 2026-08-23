@@ -12,7 +12,7 @@ use gpui_component::scroll::Scrollbar;
 use gpui_component::{h_flex, v_flex, Disableable, Icon, IconName, Selectable};
 use piclens_domain::{path_equals, FileOperationStatus};
 
-use super::{accessible_icon_button, GalleryMode, PicLensApp};
+use super::{accessible_icon_button, AdaptiveLayout, GalleryMode, PicLensApp};
 use crate::actions::{
     CleanupSameBasename, ConvertJpg, ConvertWebp, DropRenamePlan, RenameSelection, TrashSelection,
 };
@@ -189,10 +189,6 @@ impl PicLensApp {
             .into_any_element()
     }
 
-    fn compact_chrome(&self) -> bool {
-        self.gallery_width > 1.0 && self.gallery_width < 720.0
-    }
-
     pub(super) fn folder_title(&self) -> String {
         self.folder_path
             .as_deref()
@@ -215,9 +211,10 @@ impl PicLensApp {
     pub(super) fn render_command_bar(
         &self,
         theme: Theme,
+        layout: AdaptiveLayout,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        let compact = self.compact_chrome();
+        let compact = layout.compact;
         h_flex()
             .id("command-bar")
             .w_full()
@@ -258,7 +255,7 @@ impl PicLensApp {
             .child(
                 h_flex()
                     .gap_1()
-                    .child(
+                    .children((!layout.minimum).then(|| {
                         accessible_icon_button(
                             "sidebar",
                             if self.sidebar_collapsed {
@@ -281,8 +278,8 @@ impl PicLensApp {
                             this.sync_gallery_list();
                             this.request_thumbs(cx);
                             cx.notify();
-                        })),
-                    )
+                        }))
+                    }))
                     .child(
                         accessible_icon_button(
                             "back",
@@ -347,8 +344,13 @@ impl PicLensApp {
             )
     }
 
-    pub(super) fn render_sidebar(&self, theme: Theme, cx: &mut Context<Self>) -> AnyElement {
-        if self.sidebar_collapsed {
+    pub(super) fn render_sidebar(
+        &self,
+        theme: Theme,
+        hidden_for_window: bool,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        if self.sidebar_collapsed || hidden_for_window {
             return div().id("sidebar-off").w(px(0.)).into_any_element();
         }
         let root = self
@@ -482,9 +484,10 @@ impl PicLensApp {
         folder_title: String,
         folder_path: String,
         visible_count: usize,
+        layout: AdaptiveLayout,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        let compact = self.compact_chrome();
+        let compact = layout.compact;
         let selected_count = self.selected_images().len();
         let has_selection = selected_count > 0;
         let file_operation_busy = self.file_operation_label.is_some();
@@ -493,14 +496,17 @@ impl PicLensApp {
         let batch_focus = self.focus_handle.clone();
         h_flex()
             .w_full()
-            .px(px(28.))
-            .pt_4()
-            .pb_3()
-            .gap_3()
+            .px(if layout.minimum { px(8.0) } else { px(28.0) })
+            .pt(if layout.minimum { px(8.0) } else { px(16.0) })
+            .pb(if layout.minimum { px(8.0) } else { px(12.0) })
+            .gap(if layout.minimum { px(4.0) } else { px(12.0) })
             .items_start()
             .justify_between()
             .when(compact, |this| {
-                this.flex_col().items_stretch().px_4().gap_3()
+                this.flex_col()
+                    .items_stretch()
+                    .px(if layout.minimum { px(8.0) } else { px(16.0) })
+                    .gap(if layout.minimum { px(4.0) } else { px(12.0) })
             })
             .child(
                 v_flex()
@@ -513,7 +519,7 @@ impl PicLensApp {
                             .text_color(theme.primary_text)
                             .child(folder_title),
                     )
-                    .child(
+                    .children((!layout.minimum).then(|| {
                         div()
                             .px_2()
                             .py_1()
@@ -523,15 +529,15 @@ impl PicLensApp {
                             .border_color(theme.line)
                             .text_xs()
                             .text_color(theme.secondary_text)
-                            .child(format!("共 {visible_count} 個項目")),
-                    )
-                    .child(
+                            .child(format!("共 {visible_count} 個項目"))
+                    }))
+                    .children((!layout.minimum).then(|| {
                         div()
                             .text_xs()
                             .text_color(theme.muted_text)
                             .text_ellipsis()
-                            .child(folder_path),
-                    ),
+                            .child(folder_path)
+                    })),
             )
             .child(
                 v_flex()
@@ -614,92 +620,94 @@ impl PicLensApp {
                                     }),
                             ),
                     )
-                    .child(
-                        h_flex()
-                            .gap_1()
-                            .flex_wrap()
-                            .justify_end()
-                            .when(compact, |this| this.justify_start())
-                            .child(
-                                div()
-                                    .id("selection-status")
-                                    .role(Role::Status)
-                                    .aria_label(self.selection_announcement())
-                                    .min_w(px(48.))
-                                    .text_xs()
-                                    .text_color(if has_selection {
-                                        theme.secondary_text
-                                    } else {
-                                        theme.muted_text
-                                    })
-                                    .child(format!("選取 {selected_count}")),
-                            )
-                            .when(!has_selection, |this| {
-                                this.child(
+                    .when(!layout.minimum || has_selection, |this| {
+                        this.child(
+                            h_flex()
+                                .gap_1()
+                                .flex_wrap()
+                                .justify_end()
+                                .when(compact, |this| this.justify_start())
+                                .child(
                                     div()
-                                        .text_sm()
-                                        .text_color(theme.muted_text)
-                                        .child("選取圖片後可管理"),
+                                        .id("selection-status")
+                                        .role(Role::Status)
+                                        .aria_label(self.selection_announcement())
+                                        .min_w(px(48.))
+                                        .text_xs()
+                                        .text_color(if has_selection {
+                                            theme.secondary_text
+                                        } else {
+                                            theme.muted_text
+                                        })
+                                        .child(format!("選取 {selected_count}")),
                                 )
-                            })
-                            .when(has_selection, |this| {
-                                this.child(
-                                    Button::new("open-view")
-                                        .outline()
-                                        .label(if compact { "檢視" } else { "開啟檢視" })
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            if let Some(img) = this.selected_images().first() {
-                                                let path = img.path.clone();
-                                                this.open_viewer(&path, window, cx);
-                                            }
-                                        })),
-                                )
-                                .child(
-                                    Button::new("rename-actions")
-                                        .outline()
-                                        .label("重新命名")
-                                        .disabled(file_operation_busy)
-                                        .dropdown_menu(move |menu, _, _| {
-                                            menu.action_context(rename_focus.clone())
-                                                .menu_with_disabled(
-                                                    "重新命名",
-                                                    Box::new(RenameSelection),
-                                                    selected_count != 1 || file_operation_busy,
-                                                )
-                                                .menu_with_disabled(
-                                                    "依目標重新命名",
-                                                    Box::new(DropRenamePlan),
-                                                    selected_count < 2 || file_operation_busy,
-                                                )
+                                .when(!has_selection, |this| {
+                                    this.child(
+                                        div()
+                                            .text_sm()
+                                            .text_color(theme.muted_text)
+                                            .child("選取圖片後可管理"),
+                                    )
+                                })
+                                .when(has_selection, |this| {
+                                    this.child(
+                                        Button::new("open-view")
+                                            .outline()
+                                            .label(if compact { "檢視" } else { "開啟檢視" })
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                if let Some(img) = this.selected_images().first() {
+                                                    let path = img.path.clone();
+                                                    this.open_viewer(&path, window, cx);
+                                                }
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("rename-actions")
+                                            .outline()
+                                            .label("重新命名")
+                                            .disabled(file_operation_busy)
+                                            .dropdown_menu(move |menu, _, _| {
+                                                menu.action_context(rename_focus.clone())
+                                                    .menu_with_disabled(
+                                                        "重新命名",
+                                                        Box::new(RenameSelection),
+                                                        selected_count != 1 || file_operation_busy,
+                                                    )
+                                                    .menu_with_disabled(
+                                                        "依目標重新命名",
+                                                        Box::new(DropRenamePlan),
+                                                        selected_count < 2 || file_operation_busy,
+                                                    )
+                                            }),
+                                    )
+                                    .child(
+                                        Button::new("reveal")
+                                            .outline()
+                                            .label(if compact { "位置" } else { "顯示位置" })
+                                            .disabled(selected_count != 1)
+                                            .on_click(
+                                                cx.listener(|this, _, _, cx| this.reveal_focus(cx)),
+                                            ),
+                                    )
+                                    .child(Button::new("clear-sel").ghost().label("清除").on_click(
+                                        cx.listener(|this, _, _, cx| {
+                                            this.clear_selection();
+                                            cx.notify();
                                         }),
-                                )
-                                .child(
-                                    Button::new("reveal")
-                                        .outline()
-                                        .label(if compact { "位置" } else { "顯示位置" })
-                                        .disabled(selected_count != 1)
-                                        .on_click(
-                                            cx.listener(|this, _, _, cx| this.reveal_focus(cx)),
-                                        ),
-                                )
-                                .child(Button::new("clear-sel").ghost().label("清除").on_click(
-                                    cx.listener(|this, _, _, cx| {
-                                        this.clear_selection();
-                                        cx.notify();
-                                    }),
-                                ))
-                                .child(
-                                    Button::new("trash")
-                                        .danger()
-                                        .icon(IconName::Delete)
-                                        .label("回收筒")
-                                        .disabled(file_operation_busy)
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            this.on_trash(&TrashSelection, window, cx)
-                                        })),
-                                )
-                            }),
-                    ),
+                                    ))
+                                    .child(
+                                        Button::new("trash")
+                                            .danger()
+                                            .icon(IconName::Delete)
+                                            .label("回收筒")
+                                            .disabled(file_operation_busy)
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.on_trash(&TrashSelection, window, cx)
+                                            })),
+                                    )
+                                }),
+                        )
+                    }),
             )
     }
 
@@ -708,14 +716,19 @@ impl PicLensApp {
         theme: Theme,
         visible_count: usize,
         selected_count: usize,
+        layout: AdaptiveLayout,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        let compact = self.compact_chrome();
+        let compact = layout.compact;
         h_flex()
             .id("status-bar")
             .w_full()
-            .h(px(theme::STATUS_BAR_H))
-            .px_5()
+            .h(if layout.minimum {
+                px(36.0)
+            } else {
+                px(theme::STATUS_BAR_H)
+            })
+            .px(if layout.minimum { px(8.0) } else { px(20.0) })
             .gap_3()
             .items_center()
             .bg(theme.command_bar)

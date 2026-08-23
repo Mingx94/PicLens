@@ -14,7 +14,7 @@ use std::time::Duration;
 use app::PicLensApp;
 use gpui::*;
 use gpui_component::Root;
-use piclens_domain::normalize_window_size;
+use piclens_domain::{normalize_window_size, MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH};
 use piclens_infra::{info, init_file_logger, JsonSettingsStore};
 
 struct LaunchArgs {
@@ -95,7 +95,10 @@ fn main() {
             // TitleBar::window_options() is for client-drawn bars and hides those buttons.
             let options = WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(window_bounds)),
-                window_min_size: Some(size(px(480.), px(320.))),
+                window_min_size: Some(size(
+                    px(MIN_WINDOW_WIDTH as f32),
+                    px(MIN_WINDOW_HEIGHT as f32),
+                )),
                 kind: WindowKind::Normal,
                 titlebar: Some(TitlebarOptions {
                     title: Some("PicLens".into()),

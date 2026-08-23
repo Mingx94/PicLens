@@ -29,6 +29,8 @@ The app is light-only until a complete dark theme and runtime selection exist. S
 | Accent | `#4968E8` |
 | Selected | `#E8EEFF` |
 | Viewer canvas | `#11141A` |
+| Viewer error surface | `#1F2937` |
+| Modal backdrop | black at 35% opacity |
 
 `Theme::high_contrast` and `Theme::opaque` are tested fallback palettes, but the app does not select them from operating-system preferences. Do not claim automatic reduced-transparency or high-contrast support until that connection exists.
 
@@ -41,7 +43,8 @@ Use the packaged PicLens artwork for app identity and gpui-component icons for c
 ## Layout and interaction
 
 - Use a 4 px spacing base where practical.
-- Keep the minimum window size at 480 x 320.
+- Keep the minimum window size at 800 x 600.
+- At 800 px wide, remove the sidebar from layout and compress repeated library chrome so the gallery remains usable.
 - Keep blocking filesystem and image work outside render and off the application thread.
 - Preserve direct selection, bounded thumbnail work, viewer focus return, and explicit confirmation for file mutations.
 - Avoid decorative motion that competes with image browsing.

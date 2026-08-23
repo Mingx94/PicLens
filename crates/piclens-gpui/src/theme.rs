@@ -3,7 +3,7 @@
 //! Theme is a GPUI global so every view reads one published palette,
 //! matching the pattern used by mature GPUI apps.
 
-use gpui::{rgb, App, Global, Hsla};
+use gpui::{black, rgb, App, Global, Hsla};
 
 /// Match the established PicLens shell geometry.
 pub const COMMAND_BAR_H: f32 = 64.0;
@@ -33,9 +33,11 @@ pub struct Theme {
     pub viewer_canvas: Hsla,
     pub viewer_bar: Hsla,
     pub viewer_bar_line: Hsla,
+    pub viewer_error: Hsla,
     pub viewer_text: Hsla,
     pub viewer_muted: Hsla,
     pub danger_text: Hsla,
+    pub overlay_backdrop: Hsla,
 }
 
 impl Theme {
@@ -58,9 +60,11 @@ impl Theme {
             viewer_canvas: rgb(0x11141a).into(),
             viewer_bar: rgb(0x0c0e12).into(),
             viewer_bar_line: rgb(0x22262e).into(),
+            viewer_error: rgb(0x1f2937).into(),
             viewer_text: rgb(0xf3f4f6).into(),
             viewer_muted: rgb(0x9ca3af).into(),
             danger_text: rgb(0xfca5a5).into(),
+            overlay_backdrop: black().opacity(0.35),
         }
     }
 
@@ -84,9 +88,11 @@ impl Theme {
             viewer_canvas: rgb(0x000000).into(),
             viewer_bar: rgb(0x000000).into(),
             viewer_bar_line: rgb(0xffffff).into(),
+            viewer_error: rgb(0x000000).into(),
             viewer_text: rgb(0xffffff).into(),
             viewer_muted: rgb(0xcccccc).into(),
             danger_text: rgb(0xcc0000).into(),
+            overlay_backdrop: black().opacity(0.55),
         }
     }
 
@@ -126,6 +132,46 @@ pub fn init(cx: &mut App) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn linear_channel(channel: f32) -> f32 {
+        if channel <= 0.04045 {
+            channel / 12.92
+        } else {
+            ((channel + 0.055) / 1.055).powf(2.4)
+        }
+    }
+
+    fn contrast_ratio(foreground: Hsla, background: Hsla) -> f32 {
+        let foreground = foreground.to_rgb();
+        let background = background.to_rgb();
+        let luminance = |color: gpui::Rgba| {
+            0.2126 * linear_channel(color.r)
+                + 0.7152 * linear_channel(color.g)
+                + 0.0722 * linear_channel(color.b)
+        };
+        let foreground = luminance(foreground);
+        let background = luminance(background);
+        (foreground.max(background) + 0.05) / (foreground.min(background) + 0.05)
+    }
+
+    fn assert_contrast(foreground: Hsla, background: Hsla, minimum: f32) {
+        let actual = contrast_ratio(foreground, background);
+        assert!(
+            actual >= minimum,
+            "contrast {actual:.2}:1 is below {minimum:.1}:1"
+        );
+    }
+
+    #[test]
+    fn light_theme_text_and_focus_tokens_meet_contrast_contract() {
+        let theme = Theme::light();
+        assert_contrast(theme.secondary_text, theme.surface, 4.5);
+        assert_contrast(theme.muted_text, theme.surface, 4.5);
+        assert_contrast(theme.accent, theme.surface, 4.5);
+        assert_contrast(theme.viewer_muted, theme.viewer_bar, 4.5);
+        assert_contrast(theme.danger_text, theme.viewer_error, 4.5);
+        assert_contrast(theme.accent, theme.selected, 3.0);
+    }
 
     #[test]
     fn high_contrast_theme_uses_solid_borders() {

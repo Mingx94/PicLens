@@ -5,7 +5,7 @@ use std::time::Duration;
 use gpui::*;
 use gpui_component::{h_flex, v_flex, ActiveTheme, Root};
 
-use super::PicLensApp;
+use super::{adaptive_layout, PicLensApp};
 use crate::actions::CONTEXT;
 use crate::drag_rename::{drag_preview_count, is_dragging};
 use crate::theme::{self, Theme};
@@ -57,16 +57,18 @@ impl Focusable for PicLensApp {
 impl Render for PicLensApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = Theme::current(cx);
+        let viewport = window.viewport_size();
+        let layout = adaptive_layout(f32::from(viewport.width));
         let folder_title = self.folder_title();
         let folder_path = self.folder_path_label();
         let visible_count = self.visible.len();
         let selected_count = self.selected.len();
 
         let gallery_body = self.render_gallery(theme, cx);
-        let sidebar = self.render_sidebar(theme, cx);
+        let sidebar = self.render_sidebar(theme, layout.minimum, cx);
         let viewer_layer = self.render_viewer(theme, cx);
-        let rename_layer = self.render_rename(theme, cx);
-        let drop_layer = self.render_drop_rename(theme, cx);
+        let rename_layer = self.render_rename(theme, window, cx);
+        let drop_layer = self.render_drop_rename(theme, window, cx);
         let batch_report = self.render_batch_report(theme, cx);
 
         div()
@@ -128,10 +130,11 @@ impl Render for PicLensApp {
             .on_action(cx.listener(Self::on_gallery_end))
             .on_mouse_move(cx.listener(Self::on_shell_mouse_move))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_shell_mouse_up))
-            .child(self.render_command_bar(theme, cx))
+            .child(self.render_command_bar(theme, layout, cx))
             .child(
                 h_flex()
                     .id("body")
+                    .relative()
                     .flex_1()
                     .w_full()
                     .overflow_hidden()
@@ -141,7 +144,7 @@ impl Render for PicLensApp {
                             .id("library")
                             .flex_1()
                             .h_full()
-                            .m_3()
+                            .m(if layout.minimum { px(4.0) } else { px(12.0) })
                             .rounded(cx.theme().radius_lg)
                             .bg(theme.surface)
                             .border_1()
@@ -152,6 +155,7 @@ impl Render for PicLensApp {
                                 folder_title,
                                 folder_path,
                                 visible_count,
+                                layout,
                                 cx,
                             ))
                             .child(
@@ -160,13 +164,13 @@ impl Render for PicLensApp {
                                     .flex_1()
                                     .min_h_0()
                                     .w_full()
-                                    .px_5()
-                                    .pb_4()
+                                    .px(if layout.minimum { px(8.0) } else { px(20.0) })
+                                    .pb(if layout.minimum { px(8.0) } else { px(16.0) })
                                     .child(gallery_body),
                             ),
                     ),
             )
-            .child(self.render_status_bar(theme, visible_count, selected_count, cx))
+            .child(self.render_status_bar(theme, visible_count, selected_count, layout, cx))
             .children(batch_report)
             .children(self.render_drag_preview(theme))
             .children(viewer_layer)

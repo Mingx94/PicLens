@@ -5,10 +5,10 @@ use std::{path::PathBuf, time::Duration};
 use gpui::*;
 use gpui_component::button::{Button, ButtonCustomVariant, ButtonVariants as _};
 use gpui_component::input::Input;
-use gpui_component::{h_flex, v_flex, ActiveTheme};
+use gpui_component::{h_flex, v_flex, ActiveTheme, FocusTrapElement as _};
 use piclens_domain::{clamp_zoom, is_fit_view, reset_zoom_state, viewer_display_box};
 
-use super::{accessible_icon_button, PicLensApp};
+use super::{accessible_icon_button, fitted_dialog_width, PicLensApp};
 use crate::actions::{RENAME_CONTEXT, VIEWER_CONTEXT};
 use crate::theme::Theme;
 
@@ -44,8 +44,11 @@ impl PicLensApp {
         Some(
             div()
                 .id("viewer")
+                .role(Role::Dialog)
+                .aria_label(format!("圖片檢視器：{name}"))
                 .key_context(VIEWER_CONTEXT)
                 .track_focus(&self.viewer_focus)
+                .focus_trap("viewer-dialog", &self.viewer_focus)
                 .absolute()
                 .inset_0()
                 .flex()
@@ -154,6 +157,10 @@ impl PicLensApp {
                                 .items_end()
                                 .child(
                                     div()
+                                        .id("viewer-title")
+                                        .role(Role::Heading)
+                                        .aria_label(format!("圖片檢視器：{name}"))
+                                        .track_focus(&self.viewer_title_focus)
                                         .max_w_full()
                                         .overflow_hidden()
                                         .text_ellipsis()
@@ -210,10 +217,13 @@ impl PicLensApp {
                         )
                         .child(if let Some(msg) = message {
                             div()
+                                .id("viewer-message")
                                 .px_4()
                                 .py_3()
                                 .rounded(px(8.))
-                                .bg(rgb(0x1f2937))
+                                .role(Role::Status)
+                                .aria_label(msg.clone())
+                                .bg(theme.viewer_error)
                                 .text_color(theme.danger_text)
                                 .child(msg)
                                 .into_any_element()
@@ -255,6 +265,9 @@ impl PicLensApp {
                             }
                         } else {
                             div()
+                                .id("viewer-loading")
+                                .role(Role::Status)
+                                .aria_label("圖片載入中")
                                 .text_sm()
                                 .text_color(theme.viewer_muted)
                                 .child("載入中…")
@@ -267,23 +280,30 @@ impl PicLensApp {
     pub(super) fn render_rename(
         &self,
         theme: Theme,
+        window: &Window,
         cx: &mut Context<Self>,
     ) -> Option<impl IntoElement> {
         let draft = self.rename.as_ref()?;
+        let dialog_width = fitted_dialog_width(f32::from(window.viewport_size().width), 400.0);
+        let overlay_backdrop = theme.overlay_backdrop;
         Some(
             div()
                 .id("rename")
-                .key_context(RENAME_CONTEXT)
-                .track_focus(&self.rename_focus)
                 .absolute()
                 .inset_0()
                 .flex()
                 .items_center()
                 .justify_center()
-                .bg(black().opacity(0.35))
+                .bg(theme.overlay_backdrop)
                 .child(
                     v_flex()
-                        .w(px(400.))
+                        .id("rename-dialog")
+                        .role(Role::Dialog)
+                        .aria_label("重新命名圖片")
+                        .key_context(RENAME_CONTEXT)
+                        .track_focus(&self.rename_focus)
+                        .focus_trap("rename-focus-trap", &self.rename_focus)
+                        .w(px(dialog_width))
                         .gap_3()
                         .p_5()
                         .rounded(cx.theme().radius_lg)
@@ -297,7 +317,7 @@ impl PicLensApp {
                                 .text_color(theme.primary_text)
                                 .child("重新命名"),
                         )
-                        .child(Input::new(&draft.input))
+                        .child(Input::new(&draft.input).aria_label("新檔名"))
                         .child(
                             h_flex()
                                 .gap_2()
@@ -325,11 +345,11 @@ impl PicLensApp {
                         ),
                 ),
         )
-        .map(|overlay| {
+        .map(move |overlay| {
             overlay.with_animation(
                 "rename-backdrop-enter",
                 Animation::new(Duration::from_millis(140)).with_easing(ease_out_quint()),
-                |this, delta| this.bg(black().opacity(0.35 * delta)),
+                move |this, delta| this.bg(overlay_backdrop.opacity(delta)),
             )
         })
     }
@@ -337,9 +357,13 @@ impl PicLensApp {
     pub(super) fn render_drop_rename(
         &self,
         theme: Theme,
+        window: &Window,
         cx: &mut Context<Self>,
     ) -> Option<impl IntoElement> {
         let plan = self.drop_rename.as_ref()?;
+        let viewport = window.viewport_size();
+        let dialog_width = fitted_dialog_width(f32::from(viewport.width), 520.0);
+        let overlay_backdrop = theme.overlay_backdrop;
         let radius = cx.theme().radius;
         let lines: Vec<AnyElement> = plan
             .items
@@ -378,10 +402,17 @@ impl PicLensApp {
                 .flex()
                 .items_center()
                 .justify_center()
-                .bg(black().opacity(0.35))
+                .bg(theme.overlay_backdrop)
                 .child(
                     v_flex()
-                        .w(px(520.))
+                        .id("drop-rename-dialog")
+                        .role(Role::Dialog)
+                        .aria_label("批次重新命名預覽")
+                        .aria_description("選取順序為來源在前，最後一張為目標。取消不會修改檔案。")
+                        .key_context(RENAME_CONTEXT)
+                        .track_focus(&self.rename_focus)
+                        .focus_trap("drop-rename-focus-trap", &self.rename_focus)
+                        .w(px(dialog_width))
                         .max_h(px(480.))
                         .gap_3()
                         .p_5()
@@ -405,6 +436,8 @@ impl PicLensApp {
                         .child(
                             div()
                                 .id("drop-plan-list")
+                                .role(Role::List)
+                                .aria_label("重新命名預覽項目")
                                 .flex_1()
                                 .p_3()
                                 .rounded(radius)
@@ -418,8 +451,9 @@ impl PicLensApp {
                                 .gap_2()
                                 .justify_end()
                                 .child(Button::new("dr-cancel").outline().label("取消").on_click(
-                                    cx.listener(|this, _, _, cx| {
+                                    cx.listener(|this, _, window, cx| {
                                         this.drop_rename = None;
+                                        this.restore_overlay_focus(window, cx);
                                         cx.notify();
                                     }),
                                 ))
@@ -442,11 +476,11 @@ impl PicLensApp {
                         ),
                 ),
         )
-        .map(|overlay| {
+        .map(move |overlay| {
             overlay.with_animation(
                 "drop-rename-backdrop-enter",
                 Animation::new(Duration::from_millis(140)).with_easing(ease_out_quint()),
-                |this, delta| this.bg(black().opacity(0.35 * delta)),
+                move |this, delta| this.bg(overlay_backdrop.opacity(delta)),
             )
         })
     }

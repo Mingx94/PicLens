@@ -22,7 +22,7 @@ use piclens_domain::{
     apply_layout_persist, clamp_zoom, is_fit_view, pan_offset, path_equals, reset_zoom_state,
     zoom_at_point, AppSettings, DropTargetBatchRenamePlan, FileOperationBatchResult, ImageListItem,
     ImageSequenceSnapshot, ListItem, ListQuery, Point, SortDirection, SortKey, SortState,
-    ZoomState, DEFAULT_THUMBNAIL_SIZE,
+    ZoomState, DEFAULT_THUMBNAIL_SIZE, MIN_WINDOW_WIDTH,
 };
 use piclens_infra::{
     apply_drop_rename, cleanup_same_basename, convert_to_jpg, convert_to_lossless_webp,
@@ -79,6 +79,24 @@ fn accessible_icon_button(
 
 const GRID_GAP: f32 = 12.0;
 const GRID_PAD: f32 = 8.0;
+const DIALOG_MARGIN: f32 = 16.0;
+
+#[derive(Clone, Copy)]
+struct AdaptiveLayout {
+    compact: bool,
+    minimum: bool,
+}
+
+fn adaptive_layout(width: f32) -> AdaptiveLayout {
+    AdaptiveLayout {
+        compact: width < 980.0,
+        minimum: width <= MIN_WINDOW_WIDTH as f32,
+    }
+}
+
+fn fitted_dialog_width(viewport_width: f32, preferred: f32) -> f32 {
+    (viewport_width - DIALOG_MARGIN * 2.0).clamp(280.0, preferred)
+}
 
 const MAX_THUMB_IN_FLIGHT: usize = 8;
 
@@ -128,6 +146,7 @@ pub struct PicLensApp {
     viewport_rows: Range<usize>,
     focus_handle: FocusHandle,
     viewer_focus: FocusHandle,
+    viewer_title_focus: FocusHandle,
     rename_focus: FocusHandle,
     overlay_restore_focus: Option<FocusHandle>,
     /// Held so tasks cancel on drop / generation bump (do not detach).
@@ -208,6 +227,7 @@ impl PicLensApp {
             viewport_rows: 0..0,
             focus_handle: cx.focus_handle(),
             viewer_focus: cx.focus_handle(),
+            viewer_title_focus: cx.focus_handle(),
             rename_focus: cx.focus_handle(),
             overlay_restore_focus: None,
             async_tasks: Vec::new(),
@@ -907,7 +927,7 @@ impl PicLensApp {
             self.load_viewer_display(path.to_string(), cx);
         }
         self.capture_overlay_focus(window, cx);
-        self.focus_overlay_after_join(self.viewer_focus.clone(), window, cx);
+        self.focus_overlay_after_join(self.viewer_title_focus.clone(), window, cx);
         cx.notify();
     }
 
@@ -1040,7 +1060,7 @@ impl PicLensApp {
     }
 
     /// Last selected image is the drop target; earlier selections are sources.
-    fn plan_drop_rename_from_selection(&mut self, cx: &mut Context<Self>) {
+    fn plan_drop_rename_from_selection(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let images = self.selected_images();
         if images.len() < 2 {
             self.status = "請選取來源圖片，最後一張為目標圖片。".into();
@@ -1059,6 +1079,8 @@ impl PicLensApp {
             return;
         }
         self.drop_rename = Some(plan);
+        self.capture_overlay_focus(window, cx);
+        self.focus_overlay_after_join(self.rename_focus.clone(), window, cx);
         cx.notify();
     }
 
@@ -1066,6 +1088,7 @@ impl PicLensApp {
         let Some(plan) = self.drop_rename.take() else {
             return;
         };
+        self.restore_overlay_focus(window, cx);
         let batch = apply_drop_rename(&plan);
         self.apply_batch("拖放重新命名", &batch, window, cx);
         self.refresh(cx);
@@ -1187,7 +1210,7 @@ impl PicLensApp {
             }
             EscapeTarget::DropRename => {
                 self.drop_rename = None;
-                self.focus_handle.focus(window, cx);
+                self.restore_overlay_focus(window, cx);
                 cx.notify();
             }
             EscapeTarget::Rename => {
@@ -1430,14 +1453,14 @@ impl PicLensApp {
         self.start_rename(window, cx);
     }
 
-    fn on_drop_rename(&mut self, _: &DropRenamePlan, _: &mut Window, cx: &mut Context<Self>) {
+    fn on_drop_rename(&mut self, _: &DropRenamePlan, window: &mut Window, cx: &mut Context<Self>) {
         if self.viewer.is_some() {
             return;
         }
         if self.block_for_active_file_operation(cx) {
             return;
         }
-        self.plan_drop_rename_from_selection(cx);
+        self.plan_drop_rename_from_selection(window, cx);
     }
 
     fn on_convert_jpg(&mut self, _: &ConvertJpg, window: &mut Window, cx: &mut Context<Self>) {
@@ -1681,5 +1704,26 @@ impl PicLensApp {
             960.0
         };
         grid_column_count(width, tile, GRID_GAP)
+    }
+}
+
+#[cfg(test)]
+mod adaptive_tests {
+    use super::{adaptive_layout, fitted_dialog_width};
+
+    #[test]
+    fn minimum_window_uses_minimum_layout() {
+        let layout = adaptive_layout(800.0);
+        assert!(layout.compact);
+        assert!(layout.minimum);
+        assert_eq!(fitted_dialog_width(800.0, 520.0), 520.0);
+    }
+
+    #[test]
+    fn normal_window_keeps_full_layout_and_preferred_dialogs() {
+        let layout = adaptive_layout(1280.0);
+        assert!(!layout.compact);
+        assert!(!layout.minimum);
+        assert_eq!(fitted_dialog_width(1280.0, 520.0), 520.0);
     }
 }
