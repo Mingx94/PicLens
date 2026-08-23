@@ -15,12 +15,12 @@ Use a crate-scoped command while you iterate. Run the workspace gates before del
 
 ## Isolation
 
-Set `PICLENS_DATA_ROOT` to a disposable directory for app smoke, performance work, and tests that can create settings, logs, thumbnails, or mutate files. Do not use a real user profile unless the user explicitly authorizes a copied-profile check.
+Set `PICLENS_DATA_ROOT` to a disposable directory to isolate settings, logs, and thumbnails during app smoke, performance work, and tests. This override does not isolate files under `--folder`. Use a disposable copied fixture folder for tests that can rename, trash, or convert source files. Do not use a real user profile unless the user explicitly authorizes a copied-profile check.
 
 ## Validation layers
 
 - Use ordinary Rust tests for product rules, data transformations, and GPUI-independent state helpers.
-- Use `#[gpui::test]` with `TestAppContext` and `VisualTestContext` for GPUI entities, actions, mouse and keyboard input, focus, resize, scrolling, overlays, and asynchronous state. These tests use GPUI's simulated platform and do not require `computer-use`.
+- Use `#[gpui::test]` with `TestAppContext` and, when needed, `VisualTestContext` for GPUI entities, actions, mouse and keyboard input, focus, resize, scrolling, overlays, and asynchronous state. These tests use GPUI's simulated platform and do not require `computer-use`.
 - Use `computer-use` with the real app only when pixel appearance matters. Check layout, typography, colors, image rendering, high-DPI output, animation quality, and other visual details with an isolated profile and representative images.
 
 Do not use a headless test result as evidence that pixels are correct. Do not use `computer-use` for behavior that a deterministic GPUI or Rust test can assert.
@@ -34,7 +34,7 @@ cargo run -p piclens-gpui -- --folder <representative-folder>
 
 For an automated launch-only check, add `--smoke-ms 4000`. This proves that the process opened and stayed alive until the timer elapsed. It does not prove that the library finished loading or that interaction works.
 
-For runtime changes, also check the affected mouse, keyboard, focus, resize, scrolling, error, and cancellation paths in the real app. Inspect `PicLens/Logs/PicLens.log` under the isolated data root.
+For runtime changes, also check the affected mouse, keyboard, focus, resize, scrolling, error, and cancellation paths in the real app. Inspect `Logs/PicLens.log` under the isolated data root.
 
 ## Current gaps
 
