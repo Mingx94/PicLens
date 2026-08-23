@@ -77,12 +77,13 @@ fn push_rows(
     rows: &mut Vec<TreeRow>,
 ) {
     let children = children_by_parent.get(path);
-    let is_expanded = expanded.contains(path);
+    let is_root = depth == 0;
+    let is_expanded = is_root || expanded.contains(path);
     rows.push(TreeRow {
         path: path.to_string(),
         depth,
         expanded: is_expanded,
-        expandable: true,
+        expandable: !is_root,
     });
     if is_expanded {
         if let Some(children) = children {
@@ -101,8 +102,13 @@ mod tests {
 
     #[test]
     fn expanding_a_folder_exposes_its_child_paths() {
-        let roots = vec!["/root/a".into(), "/root/b".into()];
+        let roots = vec!["/root".into()];
         let mut children = HashMap::new();
+        apply_tree_children(
+            &mut children,
+            "/root",
+            vec!["/root/a".into(), "/root/b".into()],
+        );
         apply_tree_children(
             &mut children,
             "/root/a",
@@ -117,15 +123,29 @@ mod tests {
         let paths: Vec<&str> = rows.iter().map(|row| row.path.as_str()).collect();
         assert_eq!(
             paths,
-            vec!["/root/a", "/root/a/one", "/root/a/two", "/root/b"]
+            vec!["/root", "/root/a", "/root/a/one", "/root/a/two", "/root/b"]
         );
-        assert_eq!(rows[1].depth, 1);
+        assert_eq!(rows[2].depth, 2);
         assert_eq!(
             toggle_expand(&mut expanded, "/root/a"),
             ExpandAction::Collapse
         );
         let collapsed = visible_tree_rows(&roots, &children, &expanded);
-        assert_eq!(collapsed.len(), 2);
+        assert_eq!(collapsed.len(), 3);
+    }
+
+    #[test]
+    fn root_is_always_expanded_and_not_expandable() {
+        let roots = vec!["/root".into()];
+        let mut children = HashMap::new();
+        apply_tree_children(&mut children, "/root", vec!["/root/child".into()]);
+
+        let rows = visible_tree_rows(&roots, &children, &HashSet::new());
+
+        assert_eq!(rows.len(), 2);
+        assert!(rows[0].expanded);
+        assert!(!rows[0].expandable);
+        assert!(rows[1].expandable);
     }
 
     #[test]

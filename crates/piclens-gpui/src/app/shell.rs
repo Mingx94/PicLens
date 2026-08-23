@@ -442,13 +442,13 @@ impl PicLensApp {
             .pl(px(8.0 + row.depth as f32 * 14.0))
             .gap_1()
             .items_center()
-            .child(
+            .children(row.expandable.then(|| {
                 accessible_icon_button(("tree-exp", idx), expand_label, chevron)
                     .ghost()
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.toggle_tree_path(path.clone(), cx);
-                    })),
-            )
+                    }))
+            }))
             .child(
                 Button::new(("tree-open", idx))
                     .ghost()
