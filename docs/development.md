@@ -18,16 +18,7 @@ Dependency direction: `piclens-gpui -> piclens-infra -> piclens-domain`.
 
 ## Commands
 
-```powershell
-cargo fmt --check
-cargo build --workspace --all-targets --locked
-cargo check --workspace --all-targets --locked
-cargo test --workspace --locked
-cargo clippy --workspace --all-targets --locked -- -D warnings
-cargo run -p piclens-gpui -- --folder <path>
-```
-
-Use `PICLENS_DATA_ROOT` for isolated profiles in tests and smoke runs.
+Use the commands and isolated profile workflow in [Testing](testing.md).
 
 ## Delivery check
 

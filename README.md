@@ -37,21 +37,11 @@ $env:PICLENS_DATA_ROOT = "F:\PicLens\artifacts\gpui-profile"
 cargo run -p piclens-gpui
 ```
 
-Validation:
-
-```powershell
-cargo fmt --check
-cargo build --workspace --all-targets --locked
-cargo check --workspace --all-targets --locked
-cargo test --workspace --locked
-cargo clippy --workspace --all-targets --locked -- -D warnings
-```
-
-See [docs/testing.md](docs/testing.md) for runtime smoke and profile isolation.
+See [Testing](docs/testing.md) for validation commands, runtime smoke, and profile isolation.
 
 ## Data
 
-Without `PICLENS_DATA_ROOT`, settings and logs use local app data under `PicLens` (`piclens-settings.json`, `Logs/PicLens.log`, `Thumbnails/`).
+See [Data continuity](docs/data-continuity.md) for profile paths, settings, logs, and thumbnails.
 
 ## Docs
 
@@ -60,4 +50,4 @@ Without `PICLENS_DATA_ROOT`, settings and logs use local app data under `PicLens
 
 ## Automation
 
-`.github/workflows/ci.yml` runs the locked Rust gates on Windows and Linux. A tag that matches the Cargo version, such as `v0.1.0`, triggers `.github/workflows/release.yml`. The release workflow publishes portable Windows and Linux archives with SHA-256 files.
+See [Testing](docs/testing.md) for CI coverage and [Release and packaging](docs/release.md) for tag-triggered publication.
