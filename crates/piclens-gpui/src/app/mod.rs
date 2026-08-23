@@ -17,7 +17,7 @@ use gpui::*;
 use gpui_component::button::Button;
 use gpui_component::input::{InputEvent, InputState};
 use gpui_component::notification::Notification;
-use gpui_component::WindowExt;
+use gpui_component::{Selectable, WindowExt};
 use piclens_domain::{
     apply_layout_persist, clamp_zoom, is_fit_view, pan_offset, path_equals, reset_zoom_state,
     zoom_at_point, AppSettings, DropTargetBatchRenamePlan, FileOperationBatchResult, ImageListItem,
@@ -62,9 +62,14 @@ fn accessible_icon_button(
 ) -> Button {
     Button::new(id)
         .label(label)
+        // gpui-component renders labels and re-colors them on hover. Its
+        // selected visual path skips that hover foreground override; the
+        // refinement below then keeps the UIA label visually hidden.
+        .selected(true)
         .relative()
         .size(px(32.0))
         .overflow_hidden()
+        .bg(transparent_black())
         .text_color(transparent_black())
         .child(
             div()

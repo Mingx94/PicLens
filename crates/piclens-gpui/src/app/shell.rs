@@ -271,7 +271,6 @@ impl PicLensApp {
                             .text_color(theme.primary_text),
                         )
                         .outline()
-                        .tooltip("側欄")
                         .on_click(cx.listener(|this, _, _, cx| {
                             this.sidebar_collapsed = !this.sidebar_collapsed;
                             this.persist_sidebar();
