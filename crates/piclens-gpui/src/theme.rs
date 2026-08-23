@@ -50,7 +50,7 @@ impl Theme {
             strong_line: rgb(0xcbd0d8).into(),
             primary_text: rgb(0x1d2026).into(),
             secondary_text: rgb(0x626975).into(),
-            muted_text: rgb(0x7a828f).into(),
+            muted_text: rgb(0x69717d).into(),
             hover: rgb(0xeef1f5).into(),
             selected: rgb(0xe8eeff).into(),
             accent: rgb(0x4968e8).into(),

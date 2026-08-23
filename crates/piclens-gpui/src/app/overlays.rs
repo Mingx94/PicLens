@@ -8,7 +8,7 @@ use gpui_component::input::Input;
 use gpui_component::{h_flex, v_flex, ActiveTheme};
 use piclens_domain::{clamp_zoom, is_fit_view, reset_zoom_state, viewer_display_box};
 
-use super::PicLensApp;
+use super::{accessible_icon_button, PicLensApp};
 use crate::actions::{RENAME_CONTEXT, VIEWER_CONTEXT};
 use crate::theme::Theme;
 
@@ -71,47 +71,63 @@ impl PicLensApp {
                                 })),
                         )
                         .child(
-                            Button::new("v-prev")
-                                .custom(viewer_control)
-                                .icon(gpui_component::IconName::ChevronLeft)
-                                .tooltip("上一張")
-                                .on_click(cx.listener(|this, _, _, cx| this.viewer_step(-1, cx))),
+                            accessible_icon_button(
+                                "v-prev",
+                                "上一張",
+                                gpui_component::Icon::new(gpui_component::IconName::ChevronLeft)
+                                    .text_color(theme.viewer_text),
+                            )
+                            .custom(viewer_control)
+                            .tooltip("上一張")
+                            .on_click(cx.listener(|this, _, _, cx| this.viewer_step(-1, cx))),
                         )
                         .child(
-                            Button::new("v-next")
-                                .custom(viewer_control)
-                                .icon(gpui_component::IconName::ChevronRight)
-                                .tooltip("下一張")
-                                .on_click(cx.listener(|this, _, _, cx| this.viewer_step(1, cx))),
+                            accessible_icon_button(
+                                "v-next",
+                                "下一張",
+                                gpui_component::Icon::new(gpui_component::IconName::ChevronRight)
+                                    .text_color(theme.viewer_text),
+                            )
+                            .custom(viewer_control)
+                            .tooltip("下一張")
+                            .on_click(cx.listener(|this, _, _, cx| this.viewer_step(1, cx))),
                         )
                         .child(
-                            Button::new("v-zin")
-                                .custom(viewer_control)
-                                .icon(gpui_component::IconName::Plus)
-                                .tooltip("放大")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    if let Some(v) = this.viewer.as_mut() {
-                                        v.zoom.zoom = clamp_zoom(v.zoom.zoom * 1.2);
-                                        cx.notify();
-                                    }
-                                })),
+                            accessible_icon_button(
+                                "v-zin",
+                                "放大",
+                                gpui_component::Icon::new(gpui_component::IconName::Plus)
+                                    .text_color(theme.viewer_text),
+                            )
+                            .custom(viewer_control)
+                            .tooltip("放大")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                if let Some(v) = this.viewer.as_mut() {
+                                    v.zoom.zoom = clamp_zoom(v.zoom.zoom * 1.2);
+                                    cx.notify();
+                                }
+                            })),
                         )
                         .child(
-                            Button::new("v-zout")
-                                .custom(viewer_control)
-                                .icon(gpui_component::IconName::Minus)
-                                .tooltip("縮小")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    if let Some(v) = this.viewer.as_mut() {
-                                        v.zoom.zoom = clamp_zoom(v.zoom.zoom / 1.2);
-                                        cx.notify();
-                                    }
-                                })),
+                            accessible_icon_button(
+                                "v-zout",
+                                "縮小",
+                                gpui_component::Icon::new(gpui_component::IconName::Minus)
+                                    .text_color(theme.viewer_text),
+                            )
+                            .custom(viewer_control)
+                            .tooltip("縮小")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                if let Some(v) = this.viewer.as_mut() {
+                                    v.zoom.zoom = clamp_zoom(v.zoom.zoom / 1.2);
+                                    cx.notify();
+                                }
+                            })),
                         )
                         .child(
                             Button::new("v-zreset")
                                 .custom(viewer_control)
-                                .label(format!("{:.0}%", zoom * 100.0))
+                                .label(format!("重設 {:.0}%", zoom * 100.0))
                                 .tooltip("重設縮放")
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     if let Some(v) = this.viewer.as_mut() {
@@ -121,11 +137,15 @@ impl PicLensApp {
                                 })),
                         )
                         .child(
-                            Button::new("v-reveal")
-                                .custom(viewer_control)
-                                .icon(gpui_component::IconName::ExternalLink)
-                                .tooltip("在檔案管理器顯示")
-                                .on_click(cx.listener(|this, _, _, cx| this.reveal_focus(cx))),
+                            accessible_icon_button(
+                                "v-reveal",
+                                "在檔案管理器顯示",
+                                gpui_component::Icon::new(gpui_component::IconName::ExternalLink)
+                                    .text_color(theme.viewer_text),
+                            )
+                            .custom(viewer_control)
+                            .tooltip("在檔案管理器顯示")
+                            .on_click(cx.listener(|this, _, _, cx| this.reveal_focus(cx))),
                         )
                         .child(
                             v_flex()

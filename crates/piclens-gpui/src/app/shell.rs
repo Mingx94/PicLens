@@ -12,7 +12,7 @@ use gpui_component::scroll::Scrollbar;
 use gpui_component::{h_flex, v_flex, Disableable, Icon, IconName, Selectable};
 use piclens_domain::{path_equals, FileOperationStatus};
 
-use super::{GalleryMode, PicLensApp};
+use super::{accessible_icon_button, GalleryMode, PicLensApp};
 use crate::actions::{
     CleanupSameBasename, ConvertJpg, ConvertWebp, DropRenamePlan, RenameSelection, TrashSelection,
 };
@@ -259,48 +259,71 @@ impl PicLensApp {
                 h_flex()
                     .gap_1()
                     .child(
-                        Button::new("sidebar")
-                            .outline()
-                            .icon(if self.sidebar_collapsed {
+                        accessible_icon_button(
+                            "sidebar",
+                            if self.sidebar_collapsed {
+                                "展開側欄"
+                            } else {
+                                "收合側欄"
+                            },
+                            Icon::new(if self.sidebar_collapsed {
                                 IconName::PanelLeftOpen
                             } else {
                                 IconName::PanelLeftClose
                             })
-                            .tooltip("側欄")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.sidebar_collapsed = !this.sidebar_collapsed;
-                                this.persist_sidebar();
-                                this.sync_gallery_list();
-                                this.request_thumbs(cx);
-                                cx.notify();
-                            })),
+                            .text_color(theme.primary_text),
+                        )
+                        .outline()
+                        .tooltip("側欄")
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.sidebar_collapsed = !this.sidebar_collapsed;
+                            this.persist_sidebar();
+                            this.sync_gallery_list();
+                            this.request_thumbs(cx);
+                            cx.notify();
+                        })),
                     )
                     .child(
-                        Button::new("back")
-                            .ghost()
-                            .icon(IconName::ArrowLeft)
-                            .tooltip("上一頁")
-                            .disabled(!self.history.can_back())
-                            .on_click(
-                                cx.listener(|this, _, _, cx| this.navigate_history(true, cx)),
+                        accessible_icon_button(
+                            "back",
+                            "上一頁",
+                            Icon::new(IconName::ArrowLeft).text_color(if self.history.can_back() {
+                                theme.primary_text
+                            } else {
+                                theme.muted_text
+                            }),
+                        )
+                        .ghost()
+                        .tooltip("上一頁")
+                        .disabled(!self.history.can_back())
+                        .on_click(cx.listener(|this, _, _, cx| this.navigate_history(true, cx))),
+                    )
+                    .child(
+                        accessible_icon_button(
+                            "forward",
+                            "下一頁",
+                            Icon::new(IconName::ArrowRight).text_color(
+                                if self.history.can_forward() {
+                                    theme.primary_text
+                                } else {
+                                    theme.muted_text
+                                },
                             ),
+                        )
+                        .ghost()
+                        .tooltip("下一頁")
+                        .disabled(!self.history.can_forward())
+                        .on_click(cx.listener(|this, _, _, cx| this.navigate_history(false, cx))),
                     )
                     .child(
-                        Button::new("forward")
-                            .ghost()
-                            .icon(IconName::ArrowRight)
-                            .tooltip("下一頁")
-                            .disabled(!self.history.can_forward())
-                            .on_click(
-                                cx.listener(|this, _, _, cx| this.navigate_history(false, cx)),
-                            ),
-                    )
-                    .child(
-                        Button::new("refresh")
-                            .ghost()
-                            .icon(IconName::Redo)
-                            .tooltip("重新整理")
-                            .on_click(cx.listener(|this, _, _, cx| this.refresh(cx))),
+                        accessible_icon_button(
+                            "refresh",
+                            "重新整理",
+                            Icon::new(IconName::Redo).text_color(theme.primary_text),
+                        )
+                        .ghost()
+                        .tooltip("重新整理")
+                        .on_click(cx.listener(|this, _, _, cx| this.refresh(cx))),
                     ),
             )
             .child(
@@ -389,7 +412,7 @@ impl PicLensApp {
         &self,
         idx: usize,
         row: TreeRow,
-        _theme: Theme,
+        theme: Theme,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let path = row.path.clone();
@@ -405,8 +428,14 @@ impl PicLensApp {
             .map(|p| path_equals(p, &row.path))
             .unwrap_or(false);
         let expanded = row.expanded;
+        let expand_label = format!(
+            "{}資料夾「{}」",
+            if expanded { "收合" } else { "展開" },
+            name
+        );
         let chevron = if self.tree_motion_path.as_deref() == Some(row.path.as_str()) {
             Icon::new(IconName::ChevronRight)
+                .text_color(theme.secondary_text)
                 .with_animation(
                     format!("tree-chevron:{}:{}", row.path, self.tree_motion_revision),
                     Animation::new(Duration::from_millis(130)).with_easing(ease_out_quint()),
@@ -418,6 +447,7 @@ impl PicLensApp {
                 .into_any_element()
         } else {
             Icon::new(IconName::ChevronRight)
+                .text_color(theme.secondary_text)
                 .rotate(percentage(if expanded { 0.25 } else { 0.0 }))
                 .into_any_element()
         };
@@ -428,9 +458,8 @@ impl PicLensApp {
             .gap_1()
             .items_center()
             .child(
-                Button::new(("tree-exp", idx))
+                accessible_icon_button(("tree-exp", idx), expand_label, chevron)
                     .ghost()
-                    .child(chevron)
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.toggle_tree_path(path.clone(), cx);
                     })),
@@ -593,6 +622,9 @@ impl PicLensApp {
                             .when(compact, |this| this.justify_start())
                             .child(
                                 div()
+                                    .id("selection-status")
+                                    .role(Role::Status)
+                                    .aria_label(self.selection_announcement())
                                     .min_w(px(48.))
                                     .text_xs()
                                     .text_color(if has_selection {
@@ -691,6 +723,9 @@ impl PicLensApp {
             .border_color(theme.line)
             .child(
                 div()
+                    .id("status-message")
+                    .role(Role::Status)
+                    .aria_label(self.status.clone())
                     .flex_1()
                     .text_sm()
                     .text_color(theme.secondary_text)
@@ -703,13 +738,14 @@ impl PicLensApp {
                     .gap_1()
                     .items_center()
                     .child(
-                        Button::new("thumb-")
-                            .ghost()
-                            .icon(IconName::Minus)
-                            .tooltip("縮小縮圖")
-                            .on_click(
-                                cx.listener(|this, _, _, cx| this.adjust_thumb_size(-20, cx)),
-                            ),
+                        accessible_icon_button(
+                            "thumb-",
+                            "縮小縮圖",
+                            Icon::new(IconName::Minus).text_color(theme.secondary_text),
+                        )
+                        .ghost()
+                        .tooltip("縮小縮圖")
+                        .on_click(cx.listener(|this, _, _, cx| this.adjust_thumb_size(-20, cx))),
                     )
                     .child(
                         div()
@@ -718,11 +754,14 @@ impl PicLensApp {
                             .child(format!("縮圖 {}", self.settings.thumbnail_size)),
                     )
                     .child(
-                        Button::new("thumb+")
-                            .ghost()
-                            .icon(IconName::Plus)
-                            .tooltip("放大縮圖")
-                            .on_click(cx.listener(|this, _, _, cx| this.adjust_thumb_size(20, cx))),
+                        accessible_icon_button(
+                            "thumb+",
+                            "放大縮圖",
+                            Icon::new(IconName::Plus).text_color(theme.secondary_text),
+                        )
+                        .ghost()
+                        .tooltip("放大縮圖")
+                        .on_click(cx.listener(|this, _, _, cx| this.adjust_thumb_size(20, cx))),
                     ),
             )
             .child(

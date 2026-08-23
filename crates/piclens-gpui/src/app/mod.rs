@@ -14,6 +14,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use gpui::*;
+use gpui_component::button::Button;
 use gpui_component::input::{InputEvent, InputState};
 use gpui_component::notification::Notification;
 use gpui_component::WindowExt;
@@ -52,6 +53,29 @@ use crate::interaction::{
 };
 use crate::scan_apply::{apply_folder_scan, FolderScanPayload};
 use crate::thumbs::{grid_column_count, item_range_for_rows, thumb_queue_update};
+
+/// Keep an icon-only visual while giving gpui-component's Button a UIA name.
+fn accessible_icon_button(
+    id: impl Into<ElementId>,
+    label: impl Into<SharedString>,
+    icon: impl IntoElement,
+) -> Button {
+    Button::new(id)
+        .label(label)
+        .relative()
+        .size(px(32.0))
+        .overflow_hidden()
+        .text_color(transparent_black())
+        .child(
+            div()
+                .absolute()
+                .inset_0()
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(icon),
+        )
+}
 
 const GRID_GAP: f32 = 12.0;
 const GRID_PAD: f32 = 8.0;
@@ -728,6 +752,25 @@ impl PicLensApp {
                 })
             })
             .collect()
+    }
+
+    fn selection_announcement(&self) -> String {
+        let Some(index) = self.current_visible_index() else {
+            return "未選取項目".into();
+        };
+        let item = &self.visible[index];
+        let kind = if item.is_folder() {
+            "資料夾"
+        } else {
+            "圖片"
+        };
+        format!(
+            "已選取{}「{}」，第 {} 個，共 {} 個項目",
+            kind,
+            item.name(),
+            index + 1,
+            self.visible.len()
+        )
     }
 
     fn visible_image_paths(&self) -> Vec<String> {

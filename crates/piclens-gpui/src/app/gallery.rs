@@ -3,6 +3,7 @@
 use std::time::Duration;
 
 use crate::drag_rename::{drag_target, is_dragging};
+use gpui::prelude::FluentBuilder as _;
 use gpui::*;
 use gpui_component::button::{Button, ButtonVariants as _};
 use gpui_component::menu::ContextMenuExt;
@@ -133,6 +134,8 @@ impl PicLensApp {
         let measure = entity.clone();
         div()
             .id("gallery-scroll")
+            .role(Role::ListBox)
+            .aria_label("圖庫")
             .relative()
             .size_full()
             .child(
@@ -201,6 +204,9 @@ impl PicLensApp {
                         .child(self.item_surface(
                             theme,
                             ("tile-surface", idx),
+                            name.clone(),
+                            idx + 1,
+                            self.visible.len(),
                             selected,
                             is_folder,
                             selected_count,
@@ -240,6 +246,9 @@ impl PicLensApp {
         self.item_surface(
             theme,
             ("row", start),
+            name.clone(),
+            start + 1,
+            self.visible.len(),
             selected,
             is_folder,
             selected_count,
@@ -271,6 +280,9 @@ impl PicLensApp {
         &self,
         theme: Theme,
         id: impl Into<ElementId>,
+        name: String,
+        position: usize,
+        set_size: usize,
         selected: bool,
         is_folder: bool,
         selected_count: usize,
@@ -281,13 +293,21 @@ impl PicLensApp {
     ) -> impl IntoElement {
         let path_left = path.clone();
         let path_hover = path.clone();
-        let path_right = path;
+        let path_right = path.clone();
+        let path_accessible = path;
+        let entity = cx.entity().downgrade();
         let rename_disabled = selected && selected_count != 1;
         let drop_target = drag_target(&self.drag).is_some_and(|target| target == path_left);
         let dragging = is_dragging(&self.drag);
 
         div()
             .id(id)
+            .role(Role::ListBoxOption)
+            .aria_label(name)
+            .aria_selected(selected)
+            .aria_position_in_set(position)
+            .aria_size_of_set(set_size)
+            .when(selected, |this| this.aria_active_descendant())
             .rounded(px(10.))
             .border_1()
             .border_color(if drop_target || selected {
@@ -344,6 +364,16 @@ impl PicLensApp {
                     }
                 }),
             )
+            .on_a11y_action(AccessibleAction::Click, move |_, _, cx| {
+                let _ = entity.update(cx, |this, cx| {
+                    if is_folder {
+                        this.open_folder(path_accessible.clone(), false, true, cx);
+                    } else {
+                        this.select_path(&path_accessible, false);
+                        cx.notify();
+                    }
+                });
+            })
             .context_menu(move |menu, _, _| {
                 if is_folder {
                     return menu;

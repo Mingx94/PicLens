@@ -71,6 +71,8 @@ impl Render for PicLensApp {
 
         div()
             .id("piclens-root")
+            .role(Role::Application)
+            .aria_label("PicLens")
             .key_context(CONTEXT)
             .track_focus(&self.focus_handle)
             .size_full()
