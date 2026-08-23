@@ -111,6 +111,8 @@ pub struct PicLensApp {
     tree_tasks: Vec<Task<()>>,
     file_operation_task: Option<Task<()>>,
     file_operation_label: Option<&'static str>,
+    batch_report: Option<BatchReport>,
+    batch_report_list: ListState,
     _subscriptions: Vec<Subscription>,
     /// Set on release so late callbacks skip UI updates.
     shutting_down: bool,
@@ -127,6 +129,11 @@ struct ViewerState {
 struct RenameState {
     path: String,
     input: Entity<InputState>,
+}
+
+struct BatchReport {
+    label: String,
+    batch: FileOperationBatchResult,
 }
 
 impl PicLensApp {
@@ -183,6 +190,8 @@ impl PicLensApp {
             tree_tasks: Vec::new(),
             file_operation_task: None,
             file_operation_label: None,
+            batch_report: None,
+            batch_report_list: ListState::new(0, ListAlignment::Top, px(104.0)),
             _subscriptions: Vec::new(),
             shutting_down: false,
         };
@@ -781,6 +790,12 @@ impl PicLensApp {
     ) {
         match batch_result_message(label, batch) {
             Some(message) => {
+                self.batch_report_list
+                    .reset_with_uniform_height(batch.total(), px(104.0));
+                self.batch_report = Some(BatchReport {
+                    label: label.into(),
+                    batch: batch.clone(),
+                });
                 self.status = message.clone();
                 info(message.clone());
                 if let Some(kind) = batch_notice_kind(batch) {
@@ -796,6 +811,13 @@ impl PicLensApp {
                 self.status = format!("{label}：沒有可處理的項目");
             }
         }
+    }
+
+    fn close_batch_report(&mut self, cx: &mut Context<Self>) {
+        self.batch_report = None;
+        self.batch_report_list
+            .reset_with_uniform_height(0, px(104.0));
+        cx.notify();
     }
 
     fn open_viewer(&mut self, path: &str, window: &mut Window, cx: &mut Context<Self>) {
@@ -1006,6 +1028,17 @@ impl PicLensApp {
         self.refresh(cx);
     }
 
+    fn reveal_path(&mut self, path: &str, cx: &mut Context<Self>) {
+        match reveal_in_file_manager(path) {
+            Ok(()) => self.status = "已在檔案管理器中顯示。".into(),
+            Err(err) => {
+                self.status = format!("無法在檔案管理器顯示：{err}");
+                warn(self.status.clone());
+            }
+        }
+        cx.notify();
+    }
+
     fn reveal_focus(&mut self, cx: &mut Context<Self>) {
         let path = self
             .selected_images()
@@ -1019,17 +1052,12 @@ impl PicLensApp {
                         .map(|i| i.path.clone())
                 })
             });
-        match path {
-            Some(path) => match reveal_in_file_manager(&path) {
-                Ok(()) => self.status = "已在檔案管理器中顯示。".into(),
-                Err(err) => {
-                    self.status = format!("無法在檔案管理器顯示：{err}");
-                    warn(self.status.clone());
-                }
-            },
-            None => self.status = "請先選取圖片。".into(),
+        if let Some(path) = path {
+            self.reveal_path(&path, cx);
+        } else {
+            self.status = "請先選取圖片。".into();
+            cx.notify();
         }
-        cx.notify();
     }
 
     // --- Keyboard action handlers ---

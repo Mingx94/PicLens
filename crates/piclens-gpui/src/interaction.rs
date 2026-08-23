@@ -1,8 +1,8 @@
 //! Pure gallery / overlay / selection helpers used by the GPUI shell.
 
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, path::Path};
 
-use piclens_domain::FileOperationBatchResult;
+use piclens_domain::{FileOperationBatchResult, FileOperationResult, FileOperationStatus};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GalleryJump {
@@ -152,6 +152,85 @@ pub fn batch_notice_kind(batch: &FileOperationBatchResult) -> Option<BatchNotice
     }
 }
 
+pub fn batch_result_status_label(status: FileOperationStatus) -> &'static str {
+    match status {
+        FileOperationStatus::Converted => "已轉換",
+        FileOperationStatus::Trashed => "已移至回收筒",
+        FileOperationStatus::Renamed => "已重新命名",
+        FileOperationStatus::Skipped => "已略過",
+        FileOperationStatus::Failed => "失敗",
+    }
+}
+
+pub fn batch_result_file_name(result: &FileOperationResult) -> String {
+    Path::new(&result.path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(&result.path)
+        .to_string()
+}
+
+pub fn batch_result_detail(result: &FileOperationResult) -> String {
+    let target_name = result
+        .target_path
+        .as_deref()
+        .and_then(|path| Path::new(path).file_name().and_then(|name| name.to_str()));
+    match result.reason.as_deref() {
+        Some("target_exists") => "目標檔案已存在，未覆寫。".into(),
+        Some("same_path" | "same_name") => "來源與目標相同，未變更檔案。".into(),
+        Some("skip_format") => "已是 JPG、JPEG 或 WebP，未重複轉換。".into(),
+        Some("animated") => "動畫圖片目前不支援轉換。".into(),
+        Some("unsupported") => "不是支援的圖片格式。".into(),
+        Some("linked_path") => "路徑包含符號連結或 junction，為保護原檔而略過。".into(),
+        Some("decode_failed") => format!(
+            "無法讀取圖片。{}",
+            result.message.as_deref().unwrap_or("請確認檔案是否完整。")
+        ),
+        Some("encode_failed") => format!(
+            "無法寫入轉換檔案。{}",
+            result
+                .message
+                .as_deref()
+                .unwrap_or("請確認資料夾權限與可用空間。")
+        ),
+        Some("trash_failed") => format!(
+            "無法移至回收筒。{}",
+            result.message.as_deref().unwrap_or("請確認檔案權限。")
+        ),
+        Some("rename_failed") => format!(
+            "無法重新命名。{}",
+            result.message.as_deref().unwrap_or("請確認檔案權限。")
+        ),
+        _ => match result.status {
+            FileOperationStatus::Converted => target_name
+                .map(|name| format!("已建立 {name}，原始檔案仍保留。"))
+                .unwrap_or_else(|| "轉換完成，原始檔案仍保留。".into()),
+            FileOperationStatus::Trashed => "可從作業系統回收筒還原。".into(),
+            FileOperationStatus::Renamed => target_name
+                .map(|name| format!("新檔名：{name}"))
+                .unwrap_or_else(|| "重新命名完成。".into()),
+            FileOperationStatus::Skipped => result
+                .message
+                .clone()
+                .unwrap_or_else(|| "未變更檔案。".into()),
+            FileOperationStatus::Failed => result
+                .message
+                .clone()
+                .unwrap_or_else(|| "操作失敗，請確認檔案與資料夾權限。".into()),
+        },
+    }
+}
+
+pub fn batch_result_reveal_path(result: &FileOperationResult) -> Option<&str> {
+    match result.status {
+        FileOperationStatus::Trashed => None,
+        FileOperationStatus::Converted | FileOperationStatus::Renamed => {
+            result.target_path.as_deref().or(Some(result.path.as_str()))
+        }
+        FileOperationStatus::Skipped | FileOperationStatus::Failed => Some(result.path.as_str()),
+    }
+}
+
 /// Viewer / overlay code must not add motion when this is false.
 /// No viewer or overlay animation is shipped, so the UI does not call this yet.
 #[cfg_attr(not(test), allow(dead_code))]
@@ -268,6 +347,46 @@ mod tests {
         let message = batch_result_message("轉 JPG", &batch).expect("non-empty batch");
         assert_eq!(message, "轉 JPG：成功 1，略過 1，失敗 1（共 3）");
         assert_eq!(batch_notice_kind(&batch), Some(BatchNoticeKind::Error));
+    }
+
+    #[test]
+    fn batch_result_copy_and_reveal_target_match_the_outcome() {
+        let converted = FileOperationResult {
+            path: "C:/images/長檔名.png".into(),
+            status: FileOperationStatus::Converted,
+            target_path: Some("C:/images/長檔名.jpg".into()),
+            reason: None,
+            message: None,
+        };
+        assert_eq!(batch_result_file_name(&converted), "長檔名.png");
+        assert_eq!(batch_result_status_label(converted.status), "已轉換");
+        assert_eq!(
+            batch_result_detail(&converted),
+            "已建立 長檔名.jpg，原始檔案仍保留。"
+        );
+        assert_eq!(
+            batch_result_reveal_path(&converted),
+            Some("C:/images/長檔名.jpg")
+        );
+
+        let failed = FileOperationResult {
+            path: "C:/images/bad.webp".into(),
+            status: FileOperationStatus::Failed,
+            target_path: None,
+            reason: Some("decode_failed".into()),
+            message: Some("檔案已損毀。".into()),
+        };
+        assert_eq!(batch_result_detail(&failed), "無法讀取圖片。檔案已損毀。");
+        assert_eq!(
+            batch_result_reveal_path(&failed),
+            Some("C:/images/bad.webp")
+        );
+
+        let trashed = FileOperationResult {
+            status: FileOperationStatus::Trashed,
+            ..failed
+        };
+        assert_eq!(batch_result_reveal_path(&trashed), None);
     }
 
     #[test]

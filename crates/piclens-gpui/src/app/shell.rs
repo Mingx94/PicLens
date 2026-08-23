@@ -8,16 +8,187 @@ use gpui::*;
 use gpui_component::button::{Button, ButtonVariants as _};
 use gpui_component::input::Input;
 use gpui_component::menu::DropdownMenu as _;
+use gpui_component::scroll::Scrollbar;
 use gpui_component::{h_flex, v_flex, Disableable, Icon, IconName, Selectable};
-use piclens_domain::path_equals;
+use piclens_domain::{path_equals, FileOperationStatus};
 
 use super::{GalleryMode, PicLensApp};
 use crate::actions::{
     CleanupSameBasename, ConvertJpg, ConvertWebp, DropRenamePlan, RenameSelection, TrashSelection,
 };
+use crate::interaction::{
+    batch_result_detail, batch_result_file_name, batch_result_reveal_path,
+    batch_result_status_label,
+};
 use crate::theme::{self, Theme};
 
 impl PicLensApp {
+    pub(super) fn render_batch_report(
+        &self,
+        theme: Theme,
+        cx: &mut Context<Self>,
+    ) -> Option<impl IntoElement> {
+        let report = self.batch_report.as_ref()?;
+        let label = report.label.clone();
+        let total = report.batch.total();
+        let succeeded = report.batch.succeeded();
+        let skipped = report.batch.skipped();
+        let failed = report.batch.failed();
+        let list_state = self.batch_report_list.clone();
+        let entity = cx.entity().downgrade();
+
+        Some(
+            v_flex()
+                .id("batch-report")
+                .absolute()
+                .top(px(theme::COMMAND_BAR_H + 12.0))
+                .right(px(12.0))
+                .bottom(px(theme::STATUS_BAR_H + 12.0))
+                .w(px(420.0))
+                .max_w(relative(0.92))
+                .rounded(px(12.0))
+                .bg(theme.surface)
+                .border_1()
+                .border_color(theme.strong_line)
+                .overflow_hidden()
+                .occlude()
+                .child(
+                    h_flex()
+                        .px_4()
+                        .py_3()
+                        .gap_3()
+                        .border_b_1()
+                        .border_color(theme.line)
+                        .child(
+                            v_flex()
+                                .min_w_0()
+                                .flex_1()
+                                .gap_1()
+                                .child(
+                                    div()
+                                        .text_lg()
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .text_color(theme.primary_text)
+                                        .child(format!("{label}結果")),
+                                )
+                                .child(
+                                    div()
+                                        .text_sm()
+                                        .text_color(theme.secondary_text)
+                                        .child(format!(
+                                            "成功 {succeeded} · 略過 {skipped} · 失敗 {failed} · 共 {total}"
+                                        )),
+                                ),
+                        )
+                        .child(
+                            Button::new("batch-report-close")
+                                .ghost()
+                                .label("關閉")
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.close_batch_report(cx)
+                                })),
+                        ),
+                )
+                .child(
+                    div()
+                        .relative()
+                        .flex_1()
+                        .min_h_0()
+                        .child(
+                            list(list_state.clone(), move |row, _window, cx| {
+                                entity
+                                    .upgrade()
+                                    .map(|entity| {
+                                        entity.update(cx, |this, cx| {
+                                            this.render_batch_report_row(row, theme, cx)
+                                        })
+                                    })
+                                    .unwrap_or_else(|| div().into_any_element())
+                            })
+                            .size_full(),
+                        )
+                        .child(
+                            div()
+                                .absolute()
+                                .inset_0()
+                                .child(Scrollbar::vertical(&list_state)),
+                        ),
+                ),
+        )
+    }
+
+    fn render_batch_report_row(
+        &self,
+        row: usize,
+        theme: Theme,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let Some(result) = self
+            .batch_report
+            .as_ref()
+            .and_then(|report| report.batch.items.get(row))
+        else {
+            return div().into_any_element();
+        };
+        let file_name = batch_result_file_name(result);
+        let status = batch_result_status_label(result.status);
+        let detail = batch_result_detail(result);
+        let reveal_path = batch_result_reveal_path(result).map(str::to_string);
+        let status_color = if result.status == FileOperationStatus::Failed {
+            theme.primary_text
+        } else if result.status == FileOperationStatus::Skipped {
+            theme.secondary_text
+        } else {
+            theme.accent
+        };
+
+        h_flex()
+            .id(("batch-result", row))
+            .h(px(104.0))
+            .w_full()
+            .px_4()
+            .gap_3()
+            .border_b_1()
+            .border_color(theme.line)
+            .child(
+                div()
+                    .w(px(72.0))
+                    .text_xs()
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(status_color)
+                    .child(status),
+            )
+            .child(
+                v_flex()
+                    .min_w_0()
+                    .flex_1()
+                    .gap_1()
+                    .child(
+                        div()
+                            .text_sm()
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(theme.primary_text)
+                            .overflow_hidden()
+                            .whitespace_nowrap()
+                            .child(file_name),
+                    )
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(theme.secondary_text)
+                            .overflow_hidden()
+                            .child(detail),
+                    ),
+            )
+            .children(reveal_path.map(|path| {
+                Button::new(("batch-reveal", row))
+                    .ghost()
+                    .label("顯示位置")
+                    .on_click(cx.listener(move |this, _, _, cx| this.reveal_path(&path, cx)))
+            }))
+            .into_any_element()
+    }
+
     fn compact_chrome(&self) -> bool {
         self.gallery_width > 1.0 && self.gallery_width < 720.0
     }

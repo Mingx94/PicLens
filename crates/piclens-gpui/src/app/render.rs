@@ -67,6 +67,7 @@ impl Render for PicLensApp {
         let viewer_layer = self.render_viewer(theme, cx);
         let rename_layer = self.render_rename(theme, cx);
         let drop_layer = self.render_drop_rename(theme, cx);
+        let batch_report = self.render_batch_report(theme, cx);
 
         div()
             .id("piclens-root")
@@ -164,6 +165,7 @@ impl Render for PicLensApp {
                     ),
             )
             .child(self.render_status_bar(theme, visible_count, selected_count, cx))
+            .children(batch_report)
             .children(self.render_drag_preview(theme))
             .children(viewer_layer)
             .children(rename_layer)
