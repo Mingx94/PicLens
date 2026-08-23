@@ -113,6 +113,8 @@ pub fn reveal_in_file_manager(path: &str) -> Result<(), PlatformError> {
     }
     #[cfg(target_os = "linux")]
     {
+        use std::path::PathBuf;
+
         let parent = path
             .parent()
             .map(|p| p.to_path_buf())
