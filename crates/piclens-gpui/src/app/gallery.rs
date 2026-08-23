@@ -1,5 +1,7 @@
 //! Library tiles, list rows, and empty state.
 
+use std::time::Duration;
+
 use crate::drag_rename::{drag_target, is_dragging};
 use gpui::*;
 use gpui_component::button::{Button, ButtonVariants as _};
@@ -51,7 +53,13 @@ impl PicLensApp {
                 .child(
                     img(cache.clone())
                         .object_fit(ObjectFit::Cover)
-                        .size(px(size)),
+                        .size(px(size))
+                        .with_animation(
+                            format!("thumbnail-ready:{path}"),
+                            Animation::new(Duration::from_millis(110))
+                                .with_easing(ease_out_quint()),
+                            |this, delta| this.opacity(delta),
+                        ),
                 )
                 .into_any_element();
         }

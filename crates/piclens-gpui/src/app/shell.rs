@@ -1,12 +1,12 @@
 //! Command bar, sidebar, library chrome, and status bar.
 
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
 
 use crate::folder_tree::TreeRow;
 use gpui::*;
 use gpui_component::button::{Button, ButtonVariants as _};
 use gpui_component::input::Input;
-use gpui_component::{h_flex, v_flex, Disableable, IconName, Selectable};
+use gpui_component::{h_flex, v_flex, Disableable, Icon, IconName, Selectable};
 use piclens_domain::path_equals;
 use piclens_infra::{cleanup_same_basename, convert_to_jpg, convert_to_lossless_webp, trash_paths};
 
@@ -220,10 +220,22 @@ impl PicLensApp {
             .as_ref()
             .map(|p| path_equals(p, &row.path))
             .unwrap_or(false);
-        let chevron = if row.expanded {
-            IconName::ChevronDown
+        let expanded = row.expanded;
+        let chevron = if self.tree_motion_path.as_deref() == Some(row.path.as_str()) {
+            Icon::new(IconName::ChevronRight)
+                .with_animation(
+                    format!("tree-chevron:{}:{}", row.path, self.tree_motion_revision),
+                    Animation::new(Duration::from_millis(130)).with_easing(ease_out_quint()),
+                    move |this, delta| {
+                        let turn = if expanded { delta } else { 1.0 - delta };
+                        this.rotate(percentage(turn * 0.25))
+                    },
+                )
+                .into_any_element()
         } else {
-            IconName::ChevronRight
+            Icon::new(IconName::ChevronRight)
+                .rotate(percentage(if expanded { 0.25 } else { 0.0 }))
+                .into_any_element()
         };
         h_flex()
             .id(("tree-row", idx))
@@ -234,7 +246,7 @@ impl PicLensApp {
             .child(
                 Button::new(("tree-exp", idx))
                     .ghost()
-                    .icon(chevron)
+                    .child(chevron)
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.toggle_tree_path(path.clone(), cx);
                     })),

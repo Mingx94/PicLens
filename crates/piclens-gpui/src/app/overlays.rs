@@ -1,6 +1,6 @@
 //! Viewer, rename dialog, and drop-rename preview.
 
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
 
 use gpui::*;
 use gpui_component::button::{Button, ButtonVariants as _};
@@ -192,7 +192,15 @@ impl PicLensApp {
                         } else if let Some(display_path) = display {
                             let image = img(display_path).object_fit(ObjectFit::Contain);
                             if is_fit_view(zoom, offset) {
-                                image.size_full().into_any_element()
+                                image
+                                    .size_full()
+                                    .with_animation(
+                                        ("viewer-image", idx),
+                                        Animation::new(Duration::from_millis(140))
+                                            .with_easing(ease_out_quint()),
+                                        |this, delta| this.opacity(delta),
+                                    )
+                                    .into_any_element()
                             } else {
                                 let (width, height) = self
                                     .viewer_canvas_bounds
@@ -209,6 +217,12 @@ impl PicLensApp {
                                     .h(px(height as f32))
                                     .ml(px(offset.x as f32))
                                     .mt(px(offset.y as f32))
+                                    .with_animation(
+                                        ("viewer-image", idx),
+                                        Animation::new(Duration::from_millis(140))
+                                            .with_easing(ease_out_quint()),
+                                        |this, delta| this.opacity(delta),
+                                    )
                                     .into_any_element()
                             }
                         } else {
@@ -272,9 +286,24 @@ impl PicLensApp {
                                         this.commit_rename(window, cx);
                                     }),
                                 )),
+                        )
+                        .with_animation(
+                            "rename-card-enter",
+                            Animation::new(Duration::from_millis(180))
+                                .with_easing(ease_out_quint()),
+                            |this, delta| {
+                                this.relative().top(px((1.0 - delta) * 6.0)).opacity(delta)
+                            },
                         ),
                 ),
         )
+        .map(|overlay| {
+            overlay.with_animation(
+                "rename-backdrop-enter",
+                Animation::new(Duration::from_millis(140)).with_easing(ease_out_quint()),
+                |this, delta| this.bg(black().opacity(0.35 * delta)),
+            )
+        })
     }
 
     pub(super) fn render_drop_rename(
@@ -374,8 +403,23 @@ impl PicLensApp {
                                             this.commit_drop_rename(window, cx);
                                         })),
                                 ),
+                        )
+                        .with_animation(
+                            "drop-rename-card-enter",
+                            Animation::new(Duration::from_millis(180))
+                                .with_easing(ease_out_quint()),
+                            |this, delta| {
+                                this.relative().top(px((1.0 - delta) * 6.0)).opacity(delta)
+                            },
                         ),
                 ),
         )
+        .map(|overlay| {
+            overlay.with_animation(
+                "drop-rename-backdrop-enter",
+                Animation::new(Duration::from_millis(140)).with_easing(ease_out_quint()),
+                |this, delta| this.bg(black().opacity(0.35 * delta)),
+            )
+        })
     }
 }

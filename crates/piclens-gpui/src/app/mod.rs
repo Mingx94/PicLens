@@ -75,6 +75,8 @@ pub struct PicLensApp {
     tree_children: HashMap<String, Vec<String>>,
     tree_expanded: HashSet<String>,
     tree_generation: u64,
+    tree_motion_path: Option<String>,
+    tree_motion_revision: u64,
     selected: BTreeSet<String>,
     selection_order: Vec<String>,
     history: FolderHistory,
@@ -146,6 +148,8 @@ impl PicLensApp {
             tree_children: HashMap::new(),
             tree_expanded: HashSet::new(),
             tree_generation: 0,
+            tree_motion_path: None,
+            tree_motion_revision: 0,
             selected: BTreeSet::new(),
             selection_order: Vec::new(),
             history: FolderHistory::default(),
@@ -373,6 +377,8 @@ impl PicLensApp {
     }
 
     fn toggle_tree_path(&mut self, path: String, cx: &mut Context<Self>) {
+        self.tree_motion_path = Some(path.clone());
+        self.tree_motion_revision = self.tree_motion_revision.wrapping_add(1);
         match toggle_expand(&mut self.tree_expanded, &path) {
             ExpandAction::Collapse => cx.notify(),
             ExpandAction::NeedChildren => {

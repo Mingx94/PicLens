@@ -1,5 +1,7 @@
 //! Compose the PicLens window from shell, gallery, and overlay pieces.
 
+use std::time::Duration;
+
 use gpui::*;
 use gpui_component::{h_flex, v_flex, ActiveTheme, Root};
 
@@ -36,6 +38,11 @@ impl PicLensApp {
                         .text_sm()
                         .text_color(theme.primary_text)
                         .child(format!("重新命名 {count} 張")),
+                )
+                .with_animation(
+                    "drag-preview-enter",
+                    Animation::new(Duration::from_millis(110)).with_easing(ease_out_quint()),
+                    |this, delta| this.opacity(delta),
                 ),
         )
     }
