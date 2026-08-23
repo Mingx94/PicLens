@@ -7,11 +7,14 @@ use gpui::prelude::FluentBuilder as _;
 use gpui::*;
 use gpui_component::button::{Button, ButtonVariants as _};
 use gpui_component::input::Input;
+use gpui_component::menu::DropdownMenu as _;
 use gpui_component::{h_flex, v_flex, Disableable, Icon, IconName, Selectable};
 use piclens_domain::path_equals;
-use piclens_infra::{cleanup_same_basename, convert_to_jpg, convert_to_lossless_webp, trash_paths};
 
 use super::{GalleryMode, PicLensApp};
+use crate::actions::{
+    CleanupSameBasename, ConvertJpg, ConvertWebp, DropRenamePlan, RenameSelection, TrashSelection,
+};
 use crate::theme::{self, Theme};
 
 impl PicLensApp {
@@ -282,6 +285,12 @@ impl PicLensApp {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let compact = self.compact_chrome();
+        let selected_count = self.selected_images().len();
+        let has_selection = selected_count > 0;
+        let file_operation_busy = self.file_operation_label.is_some();
+        let has_visible_images = self.visible.iter().any(|item| item.as_image().is_some());
+        let rename_focus = self.focus_handle.clone();
+        let batch_focus = self.focus_handle.clone();
         h_flex()
             .w_full()
             .px(px(28.))
@@ -325,133 +334,168 @@ impl PicLensApp {
                     ),
             )
             .child(
-                h_flex()
-                    .gap_1()
-                    .flex_wrap()
-                    .justify_end()
+                v_flex()
+                    .gap_2()
+                    .items_end()
+                    .when(compact, |this| this.items_start())
                     .child(
-                        Button::new("recursive")
-                            .outline()
-                            .selected(self.settings.include_subfolders)
-                            .label("含子資料夾")
-                            .on_click(
-                                cx.listener(|this, _, _, cx| this.toggle_include_subfolders(cx)),
+                        h_flex()
+                            .gap_1()
+                            .flex_wrap()
+                            .justify_end()
+                            .when(compact, |this| this.justify_start())
+                            .children((!compact).then(|| {
+                                div()
+                                    .min_w(px(48.))
+                                    .text_xs()
+                                    .text_color(theme.muted_text)
+                                    .child("圖庫")
+                            }))
+                            .child(
+                                Button::new("recursive")
+                                    .outline()
+                                    .selected(self.settings.include_subfolders)
+                                    .toggled(self.settings.include_subfolders)
+                                    .label(if compact {
+                                        "子資料夾"
+                                    } else {
+                                        "含子資料夾"
+                                    })
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.toggle_include_subfolders(cx)
+                                    })),
+                            )
+                            .child(
+                                Button::new("sort")
+                                    .outline()
+                                    .label(self.sort_label())
+                                    .on_click(cx.listener(|this, _, _, cx| this.cycle_sort(cx))),
+                            )
+                            .child(
+                                Button::new("mode")
+                                    .outline()
+                                    .selected(self.gallery_mode == GalleryMode::Grid)
+                                    .toggled(self.gallery_mode == GalleryMode::Grid)
+                                    .label(if self.gallery_mode == GalleryMode::Grid {
+                                        "格狀"
+                                    } else {
+                                        "列表"
+                                    })
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.gallery_mode = match this.gallery_mode {
+                                            GalleryMode::Grid => GalleryMode::List,
+                                            GalleryMode::List => GalleryMode::Grid,
+                                        };
+                                        this.sync_gallery_list();
+                                        this.request_thumbs(cx);
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(
+                                Button::new("batch-actions")
+                                    .outline()
+                                    .icon(IconName::Ellipsis)
+                                    .label(self.file_operation_label.unwrap_or(if compact {
+                                        "批次"
+                                    } else {
+                                        "批次操作"
+                                    }))
+                                    .loading(file_operation_busy)
+                                    .disabled(file_operation_busy || !has_visible_images)
+                                    .dropdown_menu(move |menu, _, _| {
+                                        menu.action_context(batch_focus.clone())
+                                            .menu("目前結果轉 JPG", Box::new(ConvertJpg))
+                                            .menu("目前結果轉 WebP", Box::new(ConvertWebp))
+                                            .separator()
+                                            .menu(
+                                                "清除目前結果的同名格式",
+                                                Box::new(CleanupSameBasename),
+                                            )
+                                    }),
                             ),
                     )
                     .child(
-                        Button::new("sort")
-                            .outline()
-                            .label(self.sort_label())
-                            .on_click(cx.listener(|this, _, _, cx| this.cycle_sort(cx))),
-                    )
-                    .child(
-                        Button::new("mode")
-                            .outline()
-                            .selected(self.gallery_mode == GalleryMode::Grid)
-                            .label(if self.gallery_mode == GalleryMode::Grid {
-                                "格狀"
-                            } else {
-                                "列表"
+                        h_flex()
+                            .gap_1()
+                            .flex_wrap()
+                            .justify_end()
+                            .when(compact, |this| this.justify_start())
+                            .child(
+                                div()
+                                    .min_w(px(48.))
+                                    .text_xs()
+                                    .text_color(if has_selection {
+                                        theme.secondary_text
+                                    } else {
+                                        theme.muted_text
+                                    })
+                                    .child(format!("選取 {selected_count}")),
+                            )
+                            .when(!has_selection, |this| {
+                                this.child(
+                                    div()
+                                        .text_sm()
+                                        .text_color(theme.muted_text)
+                                        .child("選取圖片後可管理"),
+                                )
                             })
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.gallery_mode = match this.gallery_mode {
-                                    GalleryMode::Grid => GalleryMode::List,
-                                    GalleryMode::List => GalleryMode::Grid,
-                                };
-                                this.sync_gallery_list();
-                                this.request_thumbs(cx);
-                                cx.notify();
-                            })),
-                    )
-                    .child(
-                        Button::new("open-view")
-                            .outline()
-                            .label("開啟檢視")
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                if let Some(img) = this.selected_images().first() {
-                                    let path = img.path.clone();
-                                    this.open_viewer(&path, window, cx);
-                                } else {
-                                    this.status = "請先選取圖片。".into();
-                                    cx.notify();
-                                }
-                            })),
-                    )
-                    .child(
-                        Button::new("rename").outline().label("重新命名").on_click(
-                            cx.listener(|this, _, window, cx| this.start_rename(window, cx)),
-                        ),
-                    )
-                    .child(
-                        Button::new("drop-rename")
-                            .outline()
-                            .label("依目標重新命名")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.plan_drop_rename_from_selection(cx)
-                            })),
-                    )
-                    .child(
-                        Button::new("to-jpg")
-                            .outline()
-                            .label("轉 JPG")
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                let paths = this.visible_image_paths();
-                                let batch = convert_to_jpg(&paths);
-                                this.apply_batch("轉 JPG", &batch, window, cx);
-                                this.refresh(cx);
-                            })),
-                    )
-                    .child(
-                        Button::new("to-webp")
-                            .outline()
-                            .label("轉 WebP")
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                let paths = this.visible_image_paths();
-                                let batch = convert_to_lossless_webp(&paths);
-                                this.apply_batch("轉 WebP", &batch, window, cx);
-                                this.refresh(cx);
-                            })),
-                    )
-                    .child(
-                        Button::new("cleanup")
-                            .outline()
-                            .label("清除同名格式")
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                let paths = this.visible_image_paths();
-                                let batch = cleanup_same_basename(&paths);
-                                this.apply_batch("清除同名格式", &batch, window, cx);
-                                this.refresh(cx);
-                            })),
-                    )
-                    .child(
-                        Button::new("reveal")
-                            .outline()
-                            .label("顯示位置")
-                            .on_click(cx.listener(|this, _, _, cx| this.reveal_focus(cx))),
-                    )
-                    .child(Button::new("clear-sel").ghost().label("清除選取").on_click(
-                        cx.listener(|this, _, _, cx| {
-                            this.clear_selection();
-                            cx.notify();
-                        }),
-                    ))
-                    .child(
-                        Button::new("trash")
-                            .danger()
-                            .icon(IconName::Delete)
-                            .label("回收筒")
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                let paths: Vec<String> =
-                                    this.selected_images().into_iter().map(|i| i.path).collect();
-                                if paths.is_empty() {
-                                    this.status = "請先選取圖片。".into();
-                                    cx.notify();
-                                    return;
-                                }
-                                let batch = trash_paths(&paths);
-                                this.apply_batch("移至回收筒", &batch, window, cx);
-                                this.refresh(cx);
-                            })),
+                            .when(has_selection, |this| {
+                                this.child(
+                                    Button::new("open-view")
+                                        .outline()
+                                        .label(if compact { "檢視" } else { "開啟檢視" })
+                                        .on_click(cx.listener(|this, _, window, cx| {
+                                            if let Some(img) = this.selected_images().first() {
+                                                let path = img.path.clone();
+                                                this.open_viewer(&path, window, cx);
+                                            }
+                                        })),
+                                )
+                                .child(
+                                    Button::new("rename-actions")
+                                        .outline()
+                                        .label("重新命名")
+                                        .disabled(file_operation_busy)
+                                        .dropdown_menu(move |menu, _, _| {
+                                            menu.action_context(rename_focus.clone())
+                                                .menu_with_disabled(
+                                                    "重新命名",
+                                                    Box::new(RenameSelection),
+                                                    selected_count != 1 || file_operation_busy,
+                                                )
+                                                .menu_with_disabled(
+                                                    "依目標重新命名",
+                                                    Box::new(DropRenamePlan),
+                                                    selected_count < 2 || file_operation_busy,
+                                                )
+                                        }),
+                                )
+                                .child(
+                                    Button::new("reveal")
+                                        .outline()
+                                        .label(if compact { "位置" } else { "顯示位置" })
+                                        .disabled(selected_count != 1)
+                                        .on_click(
+                                            cx.listener(|this, _, _, cx| this.reveal_focus(cx)),
+                                        ),
+                                )
+                                .child(Button::new("clear-sel").ghost().label("清除").on_click(
+                                    cx.listener(|this, _, _, cx| {
+                                        this.clear_selection();
+                                        cx.notify();
+                                    }),
+                                ))
+                                .child(
+                                    Button::new("trash")
+                                        .danger()
+                                        .icon(IconName::Delete)
+                                        .label("回收筒")
+                                        .disabled(file_operation_busy)
+                                        .on_click(cx.listener(|this, _, window, cx| {
+                                            this.on_trash(&TrashSelection, window, cx)
+                                        })),
+                                )
+                            }),
                     ),
             )
     }

@@ -19,9 +19,9 @@ use gpui_component::notification::Notification;
 use gpui_component::WindowExt;
 use piclens_domain::{
     apply_layout_persist, clamp_zoom, is_fit_view, pan_offset, path_equals, reset_zoom_state,
-    zoom_at_point, AppSettings, DropTargetBatchRenamePlan, ImageListItem, ImageSequenceSnapshot,
-    ListItem, ListQuery, Point, SortDirection, SortKey, SortState, ZoomState,
-    DEFAULT_THUMBNAIL_SIZE,
+    zoom_at_point, AppSettings, DropTargetBatchRenamePlan, FileOperationBatchResult, ImageListItem,
+    ImageSequenceSnapshot, ListItem, ListQuery, Point, SortDirection, SortKey, SortState,
+    ZoomState, DEFAULT_THUMBNAIL_SIZE,
 };
 use piclens_infra::{
     apply_drop_rename, cleanup_same_basename, convert_to_jpg, convert_to_lossless_webp,
@@ -109,6 +109,8 @@ pub struct PicLensApp {
     /// Held so tasks cancel on drop / generation bump (do not detach).
     async_tasks: Vec<Task<()>>,
     tree_tasks: Vec<Task<()>>,
+    file_operation_task: Option<Task<()>>,
+    file_operation_label: Option<&'static str>,
     _subscriptions: Vec<Subscription>,
     /// Set on release so late callbacks skip UI updates.
     shutting_down: bool,
@@ -179,6 +181,8 @@ impl PicLensApp {
             overlay_restore_focus: None,
             async_tasks: Vec::new(),
             tree_tasks: Vec::new(),
+            file_operation_task: None,
+            file_operation_label: None,
             _subscriptions: Vec::new(),
             shutting_down: false,
         };
@@ -215,6 +219,7 @@ impl PicLensApp {
             this.tree_generation = this.tree_generation.wrapping_add(1);
             this.async_tasks.clear();
             this.tree_tasks.clear();
+            this.file_operation_task = None;
             this.thumb_pending.clear();
         });
         app._subscriptions.push(release);
@@ -721,6 +726,50 @@ impl PicLensApp {
             .iter()
             .filter_map(|i| i.as_image().map(|img| img.path.clone()))
             .collect()
+    }
+
+    fn block_for_active_file_operation(&mut self, cx: &mut Context<Self>) -> bool {
+        let Some(active) = self.file_operation_label else {
+            return false;
+        };
+        self.status = format!("{active}仍在進行中");
+        cx.notify();
+        true
+    }
+
+    fn start_visible_file_operation(
+        &mut self,
+        label: &'static str,
+        operation: fn(&[String]) -> FileOperationBatchResult,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.block_for_active_file_operation(cx) {
+            return;
+        }
+
+        let paths = self.visible_image_paths();
+        if paths.is_empty() {
+            self.status = format!("{label}：目前結果沒有可處理的圖片");
+            cx.notify();
+            return;
+        }
+
+        self.file_operation_label = Some(label);
+        self.status = format!("{label}：正在處理 {} 張圖片…", paths.len());
+        cx.notify();
+
+        self.file_operation_task = Some(cx.spawn_in(window, async move |this, cx| {
+            let batch = cx.background_spawn(async move { operation(&paths) }).await;
+            let _ = this.update_in(cx, |this, window, cx| {
+                if this.shutting_down {
+                    return;
+                }
+                this.file_operation_label = None;
+                this.apply_batch(label, &batch, window, cx);
+                this.refresh(cx);
+            });
+        }));
     }
 
     fn apply_batch(
@@ -1272,6 +1321,9 @@ impl PicLensApp {
     }
 
     fn on_trash(&mut self, _: &TrashSelection, window: &mut Window, cx: &mut Context<Self>) {
+        if self.block_for_active_file_operation(cx) {
+            return;
+        }
         if self.viewer.is_some() {
             // Trash current viewer image
             if let Some(viewer) = self.viewer.as_ref() {
@@ -1301,6 +1353,9 @@ impl PicLensApp {
         if self.viewer.is_some() {
             return;
         }
+        if self.block_for_active_file_operation(cx) {
+            return;
+        }
         self.start_rename(window, cx);
     }
 
@@ -1308,28 +1363,22 @@ impl PicLensApp {
         if self.viewer.is_some() {
             return;
         }
+        if self.block_for_active_file_operation(cx) {
+            return;
+        }
         self.plan_drop_rename_from_selection(cx);
     }
 
     fn on_convert_jpg(&mut self, _: &ConvertJpg, window: &mut Window, cx: &mut Context<Self>) {
-        let paths = self.visible_image_paths();
-        let batch = convert_to_jpg(&paths);
-        self.apply_batch("轉 JPG", &batch, window, cx);
-        self.refresh(cx);
+        self.start_visible_file_operation("轉 JPG", convert_to_jpg, window, cx);
     }
 
     fn on_convert_webp(&mut self, _: &ConvertWebp, window: &mut Window, cx: &mut Context<Self>) {
-        let paths = self.visible_image_paths();
-        let batch = convert_to_lossless_webp(&paths);
-        self.apply_batch("轉 WebP", &batch, window, cx);
-        self.refresh(cx);
+        self.start_visible_file_operation("轉 WebP", convert_to_lossless_webp, window, cx);
     }
 
     fn on_cleanup(&mut self, _: &CleanupSameBasename, window: &mut Window, cx: &mut Context<Self>) {
-        let paths = self.visible_image_paths();
-        let batch = cleanup_same_basename(&paths);
-        self.apply_batch("清除同名格式", &batch, window, cx);
-        self.refresh(cx);
+        self.start_visible_file_operation("清除同名格式", cleanup_same_basename, window, cx);
     }
 
     fn on_reveal(&mut self, _: &RevealInFileManager, _: &mut Window, cx: &mut Context<Self>) {
