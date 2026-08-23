@@ -352,11 +352,6 @@ impl PicLensApp {
         if self.sidebar_collapsed || hidden_for_window {
             return div().id("sidebar-off").w(px(0.)).into_any_element();
         }
-        let root = self
-            .tree_root
-            .clone()
-            .or_else(|| self.folder_path.clone())
-            .unwrap_or_default();
         v_flex()
             .id("sidebar")
             .w(px(theme::SIDEBAR_W))
@@ -393,18 +388,7 @@ impl PicLensApp {
                                 .enumerate()
                                 .map(|(idx, row)| self.render_tree_row(idx, row, theme, cx)),
                         ),
-                    )
-                    .child(if root.is_empty() {
-                        div().into_any_element()
-                    } else {
-                        div()
-                            .mt_3()
-                            .px_1()
-                            .text_xs()
-                            .text_color(theme.muted_text)
-                            .child(root)
-                            .into_any_element()
-                    }),
+                    ),
             )
             .into_any_element()
     }

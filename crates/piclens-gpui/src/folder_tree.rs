@@ -49,9 +49,11 @@ pub fn replace_tree_for_picker(
         return false;
     }
     *tree_root = Some(picker_path.to_string());
-    *roots = new_roots;
+    *roots = vec![picker_path.to_string()];
     children_by_parent.clear();
+    children_by_parent.insert(picker_path.to_string(), new_roots);
     expanded.clear();
+    expanded.insert(picker_path.to_string());
     true
 }
 
@@ -158,11 +160,16 @@ mod tests {
             vec!["/picked/x".into(), "/picked/y".into()],
         ));
         assert_eq!(tree_root.as_deref(), Some("/picked"));
+        assert_eq!(roots, vec!["/picked".to_string()]);
         assert_eq!(
-            roots,
-            vec!["/picked/x".to_string(), "/picked/y".to_string()]
+            children.get("/picked"),
+            Some(&vec!["/picked/x".to_string(), "/picked/y".to_string()])
         );
-        assert!(children.is_empty());
-        assert!(expanded.is_empty());
+        assert!(expanded.contains("/picked"));
+
+        let rows = visible_tree_rows(&roots, &children, &expanded);
+        assert_eq!(rows[0].path, "/picked");
+        assert_eq!(rows[0].depth, 0);
+        assert_eq!(rows[1].depth, 1);
     }
 }
