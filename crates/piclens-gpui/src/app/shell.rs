@@ -3,6 +3,7 @@
 use std::{path::PathBuf, time::Duration};
 
 use crate::folder_tree::TreeRow;
+use gpui::prelude::FluentBuilder as _;
 use gpui::*;
 use gpui_component::button::{Button, ButtonVariants as _};
 use gpui_component::input::Input;
@@ -14,6 +15,10 @@ use super::{GalleryMode, PicLensApp};
 use crate::theme::{self, Theme};
 
 impl PicLensApp {
+    fn compact_chrome(&self) -> bool {
+        self.gallery_width > 1.0 && self.gallery_width < 720.0
+    }
+
     pub(super) fn folder_title(&self) -> String {
         self.folder_path
             .as_deref()
@@ -38,11 +43,12 @@ impl PicLensApp {
         theme: Theme,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
+        let compact = self.compact_chrome();
         h_flex()
             .id("command-bar")
             .w_full()
             .h(px(theme::COMMAND_BAR_H))
-            .px_5()
+            .px(if compact { px(12.) } else { px(20.) })
             .gap_2()
             .items_center()
             .bg(theme.command_bar)
@@ -67,13 +73,13 @@ impl PicLensApp {
                                     .object_fit(ObjectFit::Contain),
                             ),
                     )
-                    .child(
+                    .children((!compact).then(|| {
                         div()
                             .text_lg()
                             .font_weight(FontWeight::BOLD)
                             .text_color(theme.primary_text)
-                            .child("PicLens"),
-                    ),
+                            .child("PicLens")
+                    })),
             )
             .child(
                 h_flex()
@@ -127,7 +133,7 @@ impl PicLensApp {
                 div()
                     .flex_1()
                     .max_w(px(420.))
-                    .mx_5()
+                    .mx(if compact { px(8.) } else { px(20.) })
                     .child(Input::new(&self.search)),
             )
             .child(div().flex_1())
@@ -135,7 +141,11 @@ impl PicLensApp {
                 Button::new("open")
                     .primary()
                     .icon(IconName::FolderOpen)
-                    .label("開啟資料夾")
+                    .label(if compact {
+                        "資料夾"
+                    } else {
+                        "開啟資料夾"
+                    })
                     .on_click(cx.listener(|this, _, window, cx| this.pick_folder(window, cx))),
             )
     }
@@ -271,6 +281,7 @@ impl PicLensApp {
         visible_count: usize,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
+        let compact = self.compact_chrome();
         h_flex()
             .w_full()
             .px(px(28.))
@@ -279,9 +290,13 @@ impl PicLensApp {
             .gap_3()
             .items_start()
             .justify_between()
+            .when(compact, |this| {
+                this.flex_col().items_stretch().px_4().gap_3()
+            })
             .child(
                 v_flex()
                     .gap_1()
+                    .overflow_hidden()
                     .child(
                         div()
                             .text_xl()
@@ -305,6 +320,7 @@ impl PicLensApp {
                         div()
                             .text_xs()
                             .text_color(theme.muted_text)
+                            .text_ellipsis()
                             .child(folder_path),
                     ),
             )
@@ -447,6 +463,7 @@ impl PicLensApp {
         selected_count: usize,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
+        let compact = self.compact_chrome();
         h_flex()
             .id("status-bar")
             .w_full()
@@ -493,9 +510,18 @@ impl PicLensApp {
                             .on_click(cx.listener(|this, _, _, cx| this.adjust_thumb_size(20, cx))),
                     ),
             )
-            .child(div().text_xs().text_color(theme.muted_text).child(format!(
-                "{} 項 · 選取 {} · Esc 關閉 · Del 回收",
-                visible_count, selected_count
-            )))
+            .child(
+                div()
+                    .text_xs()
+                    .text_color(theme.muted_text)
+                    .child(if compact {
+                        format!("{} 項 · 選取 {}", visible_count, selected_count)
+                    } else {
+                        format!(
+                            "{} 項 · 選取 {} · Esc 關閉 · Del 回收",
+                            visible_count, selected_count
+                        )
+                    }),
+            )
     }
 }

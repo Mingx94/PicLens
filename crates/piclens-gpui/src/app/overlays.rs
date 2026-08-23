@@ -3,7 +3,7 @@
 use std::{path::PathBuf, time::Duration};
 
 use gpui::*;
-use gpui_component::button::{Button, ButtonVariants as _};
+use gpui_component::button::{Button, ButtonCustomVariant, ButtonVariants as _};
 use gpui_component::input::Input;
 use gpui_component::{h_flex, v_flex, ActiveTheme};
 use piclens_domain::{clamp_zoom, is_fit_view, reset_zoom_state, viewer_display_box};
@@ -36,6 +36,10 @@ impl PicLensApp {
             idx.saturating_add(1),
             viewer.sequence.images.len().max(1)
         );
+        let viewer_control = ButtonCustomVariant::new(cx)
+            .foreground(theme.viewer_text)
+            .hover(theme.viewer_bar_line)
+            .active(theme.accent);
 
         Some(
             div()
@@ -59,7 +63,7 @@ impl PicLensApp {
                         .border_color(theme.viewer_bar_line)
                         .child(
                             Button::new("v-close")
-                                .ghost()
+                                .custom(viewer_control)
                                 .icon(gpui_component::IconName::ArrowLeft)
                                 .label("返回")
                                 .on_click(cx.listener(|this, _, window, cx| {
@@ -68,21 +72,21 @@ impl PicLensApp {
                         )
                         .child(
                             Button::new("v-prev")
-                                .ghost()
+                                .custom(viewer_control)
                                 .icon(gpui_component::IconName::ChevronLeft)
                                 .tooltip("上一張")
                                 .on_click(cx.listener(|this, _, _, cx| this.viewer_step(-1, cx))),
                         )
                         .child(
                             Button::new("v-next")
-                                .ghost()
+                                .custom(viewer_control)
                                 .icon(gpui_component::IconName::ChevronRight)
                                 .tooltip("下一張")
                                 .on_click(cx.listener(|this, _, _, cx| this.viewer_step(1, cx))),
                         )
                         .child(
                             Button::new("v-zin")
-                                .ghost()
+                                .custom(viewer_control)
                                 .icon(gpui_component::IconName::Plus)
                                 .tooltip("放大")
                                 .on_click(cx.listener(|this, _, _, cx| {
@@ -94,7 +98,7 @@ impl PicLensApp {
                         )
                         .child(
                             Button::new("v-zout")
-                                .ghost()
+                                .custom(viewer_control)
                                 .icon(gpui_component::IconName::Minus)
                                 .tooltip("縮小")
                                 .on_click(cx.listener(|this, _, _, cx| {
@@ -106,7 +110,7 @@ impl PicLensApp {
                         )
                         .child(
                             Button::new("v-zreset")
-                                .ghost()
+                                .custom(viewer_control)
                                 .label(format!("{:.0}%", zoom * 100.0))
                                 .tooltip("重設縮放")
                                 .on_click(cx.listener(|this, _, _, cx| {
@@ -118,17 +122,21 @@ impl PicLensApp {
                         )
                         .child(
                             Button::new("v-reveal")
-                                .ghost()
+                                .custom(viewer_control)
                                 .icon(gpui_component::IconName::ExternalLink)
                                 .tooltip("在檔案管理器顯示")
                                 .on_click(cx.listener(|this, _, _, cx| this.reveal_focus(cx))),
                         )
-                        .child(div().flex_1())
                         .child(
                             v_flex()
+                                .min_w_0()
+                                .flex_1()
                                 .items_end()
                                 .child(
                                     div()
+                                        .max_w_full()
+                                        .overflow_hidden()
+                                        .text_ellipsis()
                                         .text_sm()
                                         .font_weight(FontWeight::SEMIBOLD)
                                         .text_color(theme.viewer_text)
