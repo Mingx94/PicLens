@@ -12,6 +12,7 @@ use gpui_component::{h_flex, v_flex, Icon, IconName};
 
 use super::{GalleryMode, PicLensApp};
 use crate::actions::{OpenViewer, RenameSelection, RevealInFileManager, TrashSelection};
+use crate::interaction::SelectionGesture;
 use crate::theme::Theme;
 
 impl PicLensApp {
@@ -302,6 +303,7 @@ impl PicLensApp {
 
         div()
             .id(id)
+            .debug_selector(move || format!("gallery-item-{position}"))
             .role(Role::ListBoxOption)
             .aria_label(name)
             .aria_selected(selected)
@@ -339,14 +341,22 @@ impl PicLensApp {
                     if dragging {
                         return;
                     }
-                    let additive = event.modifiers.control || event.modifiers.shift;
                     if is_folder {
                         this.open_folder(path_left.clone(), false, true, cx);
                     } else if event.click_count >= 2 {
-                        this.select_path(&path_left, false);
+                        this.select_path(&path_left, SelectionGesture::Replace);
                         this.open_viewer(&path_left, window, cx);
                     } else {
-                        this.select_path(&path_left, additive);
+                        let gesture = if event.modifiers.shift {
+                            SelectionGesture::Range {
+                                additive: event.modifiers.control,
+                            }
+                        } else if event.modifiers.control {
+                            SelectionGesture::Toggle
+                        } else {
+                            SelectionGesture::Replace
+                        };
+                        this.select_path(&path_left, gesture);
                         this.begin_image_drag(
                             &path_left,
                             (f64::from(event.position.x), f64::from(event.position.y)),
@@ -357,11 +367,18 @@ impl PicLensApp {
             )
             .on_mouse_down(
                 MouseButton::Right,
-                cx.listener(move |this, _, _, cx| {
-                    if !is_folder && !this.selected.contains(&path_right) {
-                        this.select_path(&path_right, false);
+                cx.listener(move |this, _, window, cx| {
+                    if is_folder {
+                        return;
+                    }
+                    if !this.selected.contains(&path_right) {
+                        this.select_path(&path_right, SelectionGesture::Replace);
                         cx.notify();
                     }
+                    // ContextMenu focuses its PopupMenu during the next layout pass.
+                    // Clear the current focus before that frame so GPUI does not
+                    // publish both the gallery and menu as accessibility focus.
+                    window.defer(cx, |window, _| window.blur());
                 }),
             )
             .on_a11y_action(AccessibleAction::Click, move |_, _, cx| {
@@ -369,7 +386,7 @@ impl PicLensApp {
                     if is_folder {
                         this.open_folder(path_accessible.clone(), false, true, cx);
                     } else {
-                        this.select_path(&path_accessible, false);
+                        this.select_path(&path_accessible, SelectionGesture::Replace);
                         cx.notify();
                     }
                 });
@@ -395,5 +412,129 @@ impl PicLensApp {
                     .menu_with_icon("移至回收筒", IconName::Delete, Box::new(TrashSelection))
             })
             .child(child)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{path::PathBuf, sync::Arc};
+
+    use gpui::{Modifiers, TestAppContext, VisualTestContext};
+    use piclens_domain::{ImageListItem, ListItem};
+    use piclens_infra::JsonSettingsStore;
+
+    use super::{GalleryMode, PicLensApp};
+
+    fn image(path: &str) -> ListItem {
+        ListItem::Image(ImageListItem {
+            path: path.into(),
+            name: PathBuf::from(path)
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .into_owned(),
+            extension: "png".into(),
+            modified_at_ms: None,
+            size_bytes: 1,
+            is_animated: false,
+        })
+    }
+
+    #[gpui::test]
+    fn pointer_modifiers_and_keyboard_share_selection_state(cx: &mut TestAppContext) {
+        cx.update(|cx| {
+            gpui_component::init(cx);
+            crate::theme::init(cx);
+            crate::actions::init(cx);
+        });
+
+        let settings_path = std::env::temp_dir().join(format!(
+            "piclens-selection-test-{}.json",
+            std::process::id()
+        ));
+        let (app, cx) = cx.add_window_view(move |window, cx| {
+            PicLensApp::new_with_settings_store(
+                window,
+                cx,
+                None,
+                Arc::new(JsonSettingsStore::with_path(settings_path)),
+            )
+        });
+        app.update(cx, |app, cx| {
+            app.items = vec![image("/a.png"), image("/b.png"), image("/c.png")];
+            app.visible = app.items.clone();
+            app.thumb_failed = app
+                .visible
+                .iter()
+                .map(|item| item.path().to_string())
+                .collect();
+            app.gallery_mode = GalleryMode::List;
+            app.gallery_width = 800.0;
+            app.sync_gallery_list();
+            cx.notify();
+        });
+
+        let cx: &mut VisualTestContext = cx;
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            _ = window.draw(cx);
+        });
+
+        let first = cx.debug_bounds("gallery-item-1").unwrap().center();
+        let second = cx.debug_bounds("gallery-item-2").unwrap().center();
+        let third = cx.debug_bounds("gallery-item-3").unwrap().center();
+
+        cx.simulate_click(first, Modifiers::default());
+        app.read_with(cx, |app, _| {
+            assert_eq!(app.selection_order, vec!["/a.png"]);
+        });
+
+        cx.simulate_click(
+            second,
+            Modifiers {
+                control: true,
+                ..Default::default()
+            },
+        );
+        app.read_with(cx, |app, _| {
+            assert_eq!(app.selection_order, vec!["/a.png", "/b.png"]);
+        });
+
+        cx.simulate_click(
+            first,
+            Modifiers {
+                control: true,
+                ..Default::default()
+            },
+        );
+        app.read_with(cx, |app, _| {
+            assert_eq!(app.selection_order, vec!["/b.png"]);
+            assert_eq!(app.selection_anchor.as_deref(), Some("/a.png"));
+        });
+
+        cx.simulate_click(
+            third,
+            Modifiers {
+                shift: true,
+                ..Default::default()
+            },
+        );
+        app.read_with(cx, |app, _| {
+            assert_eq!(app.selection_order, vec!["/a.png", "/b.png", "/c.png"]);
+        });
+
+        app.update(cx, |app, cx| {
+            app.clear_selection();
+            cx.notify();
+        });
+        let focus = app.read_with(cx, |app, _| app.focus_handle.clone());
+        cx.update(|window, cx| {
+            focus.focus(window, cx);
+            assert_eq!(window.focused(cx).as_ref(), Some(&focus));
+        });
+        cx.simulate_keystrokes("ctrl-a");
+        app.read_with(cx, |app, _| {
+            assert_eq!(app.selection_order, vec!["/a.png", "/b.png", "/c.png"]);
+        });
     }
 }

@@ -20,6 +20,7 @@
 - Search、sort、folder navigation、reload、recursive-mode change 與 file operations 不得留下 stale selected paths。
 - Clear selection 必須同時更新 controller selection state 與 `LibraryItemModel` selected role。
 - Multi-selection 保留 selection order；開啟 viewer 時，多選優先使用 selection order 中的第一張圖片。
+- Range selection 的 anchor 與 selection order 分開保存；連續範圍只使用當下 visible image projection，不能包含資料夾項目。
 - Viewer 和 visible-file operations 使用當下的 visible projection，不得偷偷回到未篩選 source collection。
 
 ## Thumbnail pipeline

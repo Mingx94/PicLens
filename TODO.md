@@ -8,12 +8,7 @@
 
 ### 多選語意
 
-- [ ] 普通點擊只選取目標圖片。
-- [ ] `Ctrl` 點擊可加入或取消單張選取，且保留其他選取與既有選取順序。
-- [ ] `Shift` 點擊可從穩定 anchor 選取目前可見投影中的連續圖片範圍；資料夾不進入圖片選取。
-- [ ] 右鍵已選取圖片仍作用於目前選取；右鍵未選取圖片時仍先切換為單張選取。
-- [ ] 為 replace、toggle、range、清除、搜尋／排序／導覽後清除 stale selection 加入純 Rust 測試。
-- [ ] 加入 GPUI pointer、modifier、keyboard、focus 與 accessibility action 測試。
+- [ ] 加入 accessibility action 的 deterministic GPUI test；pointer、modifier、keyboard 與 focus 已有 GPUI test。
 
 ### 檔案操作確認
 
@@ -93,6 +88,7 @@
 
 ## 已完成，不列入待辦
 
+- 普通、`Ctrl`、`Shift`、`Ctrl+Shift` 與右鍵圖片選取語意，以及 stale selection 清理。
 - 可見範圍縮圖排程與 virtualized gallery。
 - 深層資料夾樹展開，以及固定展開且不可收合的 picker root。
 - 滑鼠側鍵資料夾歷史。

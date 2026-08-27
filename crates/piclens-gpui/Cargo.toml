@@ -22,5 +22,8 @@ gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["fo
 gpui-component = { git = "https://github.com/longbridge/gpui-component", rev = "9a4a3473e1ee6afa9960c5decf18d3dc321b6ea2" }
 gpui-component-assets = { git = "https://github.com/longbridge/gpui-component", rev = "9a4a3473e1ee6afa9960c5decf18d3dc321b6ea2" }
 
+[dev-dependencies]
+gpui = { git = "https://github.com/zed-industries/zed", features = ["test-support"] }
+
 [build-dependencies]
 winresource = "0.1"

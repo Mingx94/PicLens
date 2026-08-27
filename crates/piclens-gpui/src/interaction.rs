@@ -29,6 +29,13 @@ pub enum EscapeTarget {
     None,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SelectionGesture {
+    Replace,
+    Toggle,
+    Range { additive: bool },
+}
+
 pub fn gallery_jump_index(
     visible_len: usize,
     current: Option<usize>,
@@ -102,21 +109,82 @@ pub fn next_escape_target(
 pub fn apply_selection(
     selected: &mut BTreeSet<String>,
     order: &mut Vec<String>,
+    anchor: &mut Option<String>,
+    visible_images: &[String],
     path: &str,
-    additive: bool,
+    gesture: SelectionGesture,
 ) {
-    if !additive {
-        selected.clear();
-        order.clear();
+    match gesture {
+        SelectionGesture::Replace => {
+            clear_selection(selected, order, anchor);
+            insert_selection(selected, order, path);
+            *anchor = Some(path.to_string());
+        }
+        SelectionGesture::Toggle => {
+            if selected.remove(path) {
+                order.retain(|selected_path| selected_path != path);
+            } else {
+                insert_selection(selected, order, path);
+            }
+            *anchor = Some(path.to_string());
+        }
+        SelectionGesture::Range { additive } => {
+            let Some(target_index) = visible_images.iter().position(|item| item == path) else {
+                return;
+            };
+            let anchor_index = anchor
+                .as_ref()
+                .and_then(|anchor| visible_images.iter().position(|item| item == anchor))
+                .unwrap_or(target_index);
+            if anchor_index == target_index && anchor.as_deref() != Some(path) {
+                *anchor = Some(path.to_string());
+            }
+            if !additive {
+                selected.clear();
+                order.clear();
+            }
+            let (start, end) = if anchor_index <= target_index {
+                (anchor_index, target_index)
+            } else {
+                (target_index, anchor_index)
+            };
+            for range_path in &visible_images[start..=end] {
+                insert_selection(selected, order, range_path);
+            }
+        }
     }
+}
+
+fn insert_selection(selected: &mut BTreeSet<String>, order: &mut Vec<String>, path: &str) {
     if selected.insert(path.to_string()) {
         order.push(path.to_string());
     }
 }
 
-pub fn clear_selection(selected: &mut BTreeSet<String>, order: &mut Vec<String>) {
+pub fn clear_selection(
+    selected: &mut BTreeSet<String>,
+    order: &mut Vec<String>,
+    anchor: &mut Option<String>,
+) {
     selected.clear();
     order.clear();
+    *anchor = None;
+}
+
+pub fn reconcile_selection(
+    selected: &mut BTreeSet<String>,
+    order: &mut Vec<String>,
+    anchor: &mut Option<String>,
+    visible_images: &[String],
+) {
+    selected.retain(|path| visible_images.contains(path));
+    order.retain(|path| selected.contains(path));
+    if anchor
+        .as_ref()
+        .is_some_and(|path| !visible_images.contains(path))
+    {
+        *anchor = None;
+    }
 }
 
 pub fn batch_result_message(label: &str, batch: &FileOperationBatchResult) -> Option<String> {
@@ -317,18 +385,134 @@ mod tests {
     }
 
     #[test]
-    fn selection_add_replace_and_clear() {
+    fn selection_replace_toggle_range_clear_and_reconcile() {
         let mut selected = BTreeSet::new();
         let mut order = Vec::new();
-        apply_selection(&mut selected, &mut order, "/a", false);
-        apply_selection(&mut selected, &mut order, "/b", true);
+        let mut anchor = None;
+        let visible = vec![
+            "/a".to_string(),
+            "/b".to_string(),
+            "/c".to_string(),
+            "/d".to_string(),
+        ];
+
+        apply_selection(
+            &mut selected,
+            &mut order,
+            &mut anchor,
+            &visible,
+            "/a",
+            SelectionGesture::Replace,
+        );
+        apply_selection(
+            &mut selected,
+            &mut order,
+            &mut anchor,
+            &visible,
+            "/b",
+            SelectionGesture::Toggle,
+        );
         assert_eq!(order, vec!["/a".to_string(), "/b".to_string()]);
-        apply_selection(&mut selected, &mut order, "/c", false);
-        assert_eq!(order, vec!["/c".to_string()]);
-        assert_eq!(selected.len(), 1);
-        clear_selection(&mut selected, &mut order);
+
+        apply_selection(
+            &mut selected,
+            &mut order,
+            &mut anchor,
+            &visible,
+            "/a",
+            SelectionGesture::Toggle,
+        );
+        assert_eq!(order, vec!["/b".to_string()]);
+        assert_eq!(anchor.as_deref(), Some("/a"));
+
+        apply_selection(
+            &mut selected,
+            &mut order,
+            &mut anchor,
+            &visible,
+            "/d",
+            SelectionGesture::Range { additive: false },
+        );
+        assert_eq!(order, vec!["/a", "/b", "/c", "/d"]);
+        assert_eq!(anchor.as_deref(), Some("/a"));
+
+        reconcile_selection(
+            &mut selected,
+            &mut order,
+            &mut anchor,
+            &["/c".to_string(), "/d".to_string()],
+        );
+        assert_eq!(order, vec!["/c", "/d"]);
+        assert!(anchor.is_none());
+
+        clear_selection(&mut selected, &mut order, &mut anchor);
         assert!(selected.is_empty());
         assert!(order.is_empty());
+        assert!(anchor.is_none());
+    }
+
+    #[test]
+    fn range_uses_only_visible_images_and_keeps_the_anchor() {
+        let mut selected = BTreeSet::new();
+        let mut order = Vec::new();
+        let mut anchor = None;
+        let visible_images = vec!["/a".to_string(), "/b".to_string(), "/c".to_string()];
+
+        apply_selection(
+            &mut selected,
+            &mut order,
+            &mut anchor,
+            &visible_images,
+            "/b",
+            SelectionGesture::Replace,
+        );
+        apply_selection(
+            &mut selected,
+            &mut order,
+            &mut anchor,
+            &visible_images,
+            "/c",
+            SelectionGesture::Range { additive: false },
+        );
+        apply_selection(
+            &mut selected,
+            &mut order,
+            &mut anchor,
+            &visible_images,
+            "/a",
+            SelectionGesture::Range { additive: false },
+        );
+
+        assert_eq!(order, vec!["/a", "/b"]);
+        assert_eq!(anchor.as_deref(), Some("/b"));
+    }
+
+    #[test]
+    fn additive_range_keeps_existing_selection_order() {
+        let mut selected = BTreeSet::new();
+        let mut order = Vec::new();
+        let mut anchor = None;
+        let visible_images = vec!["/a".to_string(), "/b".to_string(), "/c".to_string()];
+
+        apply_selection(
+            &mut selected,
+            &mut order,
+            &mut anchor,
+            &visible_images,
+            "/c",
+            SelectionGesture::Toggle,
+        );
+        apply_selection(
+            &mut selected,
+            &mut order,
+            &mut anchor,
+            &visible_images,
+            "/a",
+            SelectionGesture::Range { additive: true },
+        );
+
+        assert_eq!(order, vec!["/c", "/a", "/b"]);
+        assert_eq!(anchor.as_deref(), Some("/c"));
     }
 
     #[test]

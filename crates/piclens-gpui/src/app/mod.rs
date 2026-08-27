@@ -48,8 +48,8 @@ use crate::folder_tree::{
 use crate::history::FolderHistory;
 use crate::interaction::{
     apply_selection, batch_notice_kind, batch_result_message, clear_selection, gallery_jump_index,
-    next_escape_target, page_key_outcome, BatchNoticeKind, EscapeTarget, GalleryJump,
-    PageKeyOutcome,
+    next_escape_target, page_key_outcome, reconcile_selection, BatchNoticeKind, EscapeTarget,
+    GalleryJump, PageKeyOutcome, SelectionGesture,
 };
 use crate::scan_apply::{apply_folder_scan, FolderScanPayload};
 use crate::thumbs::{grid_column_count, item_range_for_rows, thumb_queue_update};
@@ -126,6 +126,7 @@ pub struct PicLensApp {
     tree_motion_revision: u64,
     selected: BTreeSet<String>,
     selection_order: Vec<String>,
+    selection_anchor: Option<String>,
     history: FolderHistory,
     status: String,
     search: Entity<InputState>,
@@ -190,7 +191,20 @@ impl PicLensApp {
         cx: &mut Context<Self>,
         initial_folder: Option<String>,
     ) -> Self {
-        let settings_store = Arc::new(JsonSettingsStore::new());
+        Self::new_with_settings_store(
+            window,
+            cx,
+            initial_folder,
+            Arc::new(JsonSettingsStore::new()),
+        )
+    }
+
+    fn new_with_settings_store(
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        initial_folder: Option<String>,
+        settings_store: Arc<JsonSettingsStore>,
+    ) -> Self {
         let settings = settings_store.load();
         let search = cx.new(|cx| InputState::new(window, cx).placeholder("搜尋名稱或路徑…"));
 
@@ -209,6 +223,7 @@ impl PicLensApp {
             tree_motion_revision: 0,
             selected: BTreeSet::new(),
             selection_order: Vec::new(),
+            selection_anchor: None,
             history: FolderHistory::default(),
             status: "請選擇資料夾".into(),
             search: search.clone(),
@@ -263,6 +278,7 @@ impl PicLensApp {
             if matches!(event, InputEvent::Change) {
                 this.search_text = state.read(cx).value().to_string();
                 this.recompute_visible();
+                this.reconcile_selection();
                 this.sync_gallery_list();
                 this.request_thumbs(cx);
                 cx.notify();
@@ -432,7 +448,11 @@ impl PicLensApp {
     }
 
     fn clear_selection(&mut self) {
-        clear_selection(&mut self.selected, &mut self.selection_order);
+        clear_selection(
+            &mut self.selected,
+            &mut self.selection_order,
+            &mut self.selection_anchor,
+        );
     }
 
     fn tree_rows(&self) -> Vec<TreeRow> {
@@ -492,6 +512,16 @@ impl PicLensApp {
             })
             .cloned()
             .collect();
+    }
+
+    fn reconcile_selection(&mut self) {
+        let visible_images = self.visible_image_paths();
+        reconcile_selection(
+            &mut self.selected,
+            &mut self.selection_order,
+            &mut self.selection_anchor,
+            &visible_images,
+        );
     }
 
     fn thumb_size(&self) -> u32 {
@@ -758,12 +788,15 @@ impl PicLensApp {
         cx.notify();
     }
 
-    fn select_path(&mut self, path: &str, additive: bool) {
+    fn select_path(&mut self, path: &str, gesture: SelectionGesture) {
+        let visible_images = self.visible_image_paths();
         apply_selection(
             &mut self.selected,
             &mut self.selection_order,
+            &mut self.selection_anchor,
+            &visible_images,
             path,
-            additive,
+            gesture,
         );
     }
 
@@ -1289,7 +1322,7 @@ impl PicLensApp {
             self.open_viewer(&path, window, cx);
         } else if let Some(item) = self.visible.iter().find_map(|i| i.as_image()) {
             let path = item.path.clone();
-            self.select_path(&path, false);
+            self.select_path(&path, SelectionGesture::Replace);
             self.open_viewer(&path, window, cx);
         } else {
             self.status = "請先選取圖片。".into();
@@ -1360,7 +1393,7 @@ impl PicLensApp {
             return;
         };
         let path = item.path().to_string();
-        self.select_path(&path, false);
+        self.select_path(&path, SelectionGesture::Replace);
         self.gallery_list
             .scroll_to_reveal_item(index / self.gallery_columns().max(1));
         cx.notify();
@@ -1514,7 +1547,7 @@ impl PicLensApp {
             self.selected.insert(path.clone());
             self.selection_order.push(path);
         } else {
-            self.select_path(&path, false);
+            self.select_path(&path, SelectionGesture::Replace);
         }
         cx.notify();
     }
