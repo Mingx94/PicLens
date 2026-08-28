@@ -1,6 +1,0 @@
-interface:
-  display_name: "Prototype GPUI Motion"
-  short_description: "Compare native GPUI motion variants"
-  default_prompt: "Use $prototype to build three GPUI motion variants for this interaction."
-policy:
-  allow_implicit_invocation: false

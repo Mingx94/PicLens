@@ -1,6 +1,0 @@
-interface:
-  display_name: "Improve GPUI Animations"
-  short_description: "Audit and plan GPUI motion improvements"
-  default_prompt: "Use $improve-animations to audit this GPUI motion surface."
-policy:
-  allow_implicit_invocation: false

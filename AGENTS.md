@@ -7,14 +7,6 @@ PicLens is a desktop image viewer and organizer built with Rust, GPUI, and gpui-
 - Use ASD-STE100 Simplified Technical English.
 - Apply Zinsser's four principles: Simplicity, Brevity, Clarity, Humanity.
 
-## Build and Test
-
-- Format: `cargo fmt --check`
-- Build: `cargo build --workspace --all-targets --locked`
-- Check: `cargo check --workspace --all-targets --locked`
-- Test: `cargo test --workspace --locked`
-- Lint: `cargo clippy --workspace --all-targets --locked -- -D warnings`
-
 ## Core Workflow
 
 1. Read the product contract and runtime invariants for changed behavior.
@@ -22,10 +14,11 @@ PicLens is a desktop image viewer and organizer built with Rust, GPUI, and gpui-
 
 ## Tool Use
 
-- Do not use Computer Use unless the task requires direct interaction with a Windows app.
+- Use Computer Use only when the user explicitly requests it.
 
 ## Detailed Guidelines
 
+- [Build and Test](docs/agent/build-and-test.md)
 - [Versioning and Release Protocol](docs/agent/versioning-and-release.md)
 - [Architecture Principles](docs/agent/architecture-principles.md)
 - [Project Documentation](docs/README.md)

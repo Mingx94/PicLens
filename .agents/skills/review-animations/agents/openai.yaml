@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review GPUI Animations"
-  short_description: "Review native GPUI motion and gestures"
-  default_prompt: "Use $review-animations to review this GPUI motion change."
-policy:
-  allow_implicit_invocation: false

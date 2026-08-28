@@ -1,6 +1,6 @@
 ---
 name: gpui
-description: GPUI framework knowledge covering actions/keybindings, async/background tasks, context management (App/Window/Context<T>/AsyncApp), custom elements (low-level Element trait), entity state management, event system, focus handling, global state, layout/styling (flexbox/CSS-like), and testing. Use when working with any GPUI framework concept, building GPUI applications, or needing guidance on GPUI-specific APIs and patterns.
+description: GPUI framework knowledge covering actions and keybindings, async and background tasks, context management, custom elements, entity state, events, focus, global state, layout and styling, and testing. Use when working with GPUI framework APIs or patterns.
 ---
 
 ## Navigation
