@@ -6,10 +6,6 @@
 
 ## P1：恢復核心互動與檔案操作安全
 
-### 多選語意
-
-- [ ] 加入 accessibility action 的 deterministic GPUI test；pointer、modifier、keyboard 與 focus 已有 GPUI test。
-
 ### 檔案操作確認
 
 - [ ] 移至回收筒前顯示包含圖片數量的確認 dialog；取消不得修改檔案。

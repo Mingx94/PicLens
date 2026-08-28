@@ -40,4 +40,4 @@ For runtime changes, also check the affected mouse, keyboard, focus, resize, scr
 
 - Rust CI runs the workspace gates on Windows 2025 and Ubuntu 24.04.
 - The release workflow builds portable Windows and Linux archives, but it does not test install, upgrade, or uninstall behavior.
-- Gallery selection has a GPUI pointer, modifier, keyboard, and focus integration test. Accessibility action dispatch still needs deterministic GPUI coverage. Cargo tests do not replace a real launch.
+- Gallery selection has GPUI coverage for pointer, modifier, keyboard, focus, and the handler registered for accessibility Click. The pinned GPUI `TestPlatform` cannot inject OS AccessKit action requests, so the platform bridge still needs a runtime assistive-technology check. Cargo tests do not replace a real launch.

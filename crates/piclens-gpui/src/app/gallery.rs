@@ -16,6 +16,20 @@ use crate::interaction::SelectionGesture;
 use crate::theme::Theme;
 
 impl PicLensApp {
+    fn activate_gallery_item_from_accessibility(
+        &mut self,
+        path: String,
+        is_folder: bool,
+        cx: &mut Context<Self>,
+    ) {
+        if is_folder {
+            self.open_folder(path, false, true, cx);
+        } else {
+            self.select_path(&path, SelectionGesture::Replace);
+            cx.notify();
+        }
+    }
+
     fn tile_preview(
         &self,
         theme: Theme,
@@ -383,12 +397,11 @@ impl PicLensApp {
             )
             .on_a11y_action(AccessibleAction::Click, move |_, _, cx| {
                 let _ = entity.update(cx, |this, cx| {
-                    if is_folder {
-                        this.open_folder(path_accessible.clone(), false, true, cx);
-                    } else {
-                        this.select_path(&path_accessible, SelectionGesture::Replace);
-                        cx.notify();
-                    }
+                    this.activate_gallery_item_from_accessibility(
+                        path_accessible.clone(),
+                        is_folder,
+                        cx,
+                    );
                 });
             })
             .context_menu(move |menu, _, _| {
@@ -441,7 +454,7 @@ mod tests {
     }
 
     #[gpui::test]
-    fn pointer_modifiers_and_keyboard_share_selection_state(cx: &mut TestAppContext) {
+    fn pointer_keyboard_and_accessibility_share_selection_state(cx: &mut TestAppContext) {
         cx.update(|cx| {
             gpui_component::init(cx);
             crate::theme::init(cx);
@@ -535,6 +548,16 @@ mod tests {
         cx.simulate_keystrokes("ctrl-a");
         app.read_with(cx, |app, _| {
             assert_eq!(app.selection_order, vec!["/a.png", "/b.png", "/c.png"]);
+        });
+
+        // The pinned GPUI TestPlatform cannot inject AccessKit ActionRequest values.
+        // Exercise the same handler that the registered accessibility Click action uses.
+        app.update(cx, |app, cx| {
+            app.activate_gallery_item_from_accessibility("/b.png".into(), false, cx);
+        });
+        app.read_with(cx, |app, _| {
+            assert_eq!(app.selection_order, vec!["/b.png"]);
+            assert_eq!(app.selection_anchor.as_deref(), Some("/b.png"));
         });
     }
 }
