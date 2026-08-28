@@ -23,7 +23,7 @@ impl PicLensApp {
         cx: &mut Context<Self>,
     ) {
         if is_folder {
-            self.open_folder(path, false, true, cx);
+            self.open_folder(path, false, false, true, cx);
         } else {
             self.select_path(&path, SelectionGesture::Replace);
             cx.notify();
@@ -158,6 +158,7 @@ impl PicLensApp {
                     move |bounds, _, cx| {
                         if let Some(entity) = measure.upgrade() {
                             entity.update(cx, |this, cx| {
+                                this.gallery_bounds = Some(bounds);
                                 this.apply_gallery_width(f32::from(bounds.size.width), cx);
                             });
                         }
@@ -311,7 +312,8 @@ impl PicLensApp {
         let path_right = path.clone();
         let path_accessible = path;
         let entity = cx.entity().downgrade();
-        let rename_disabled = selected && selected_count != 1;
+        let file_operation_busy = self.file_operation_label.is_some();
+        let rename_disabled = file_operation_busy || (selected && selected_count != 1);
         let drop_target = drag_target(&self.drag).is_some_and(|target| target == path_left);
         let dragging = is_dragging(&self.drag);
 
@@ -356,7 +358,7 @@ impl PicLensApp {
                         return;
                     }
                     if is_folder {
-                        this.open_folder(path_left.clone(), false, true, cx);
+                        this.open_folder(path_left.clone(), false, false, true, cx);
                     } else if event.click_count >= 2 {
                         this.select_path(&path_left, SelectionGesture::Replace);
                         this.open_viewer(&path_left, window, cx);
@@ -422,7 +424,12 @@ impl PicLensApp {
                         rename_disabled,
                     )
                     .separator()
-                    .menu_with_icon("移至回收筒", IconName::Delete, Box::new(TrashSelection))
+                    .menu_with_icon_and_disabled(
+                        "移至回收筒",
+                        IconName::Delete,
+                        Box::new(TrashSelection),
+                        file_operation_busy,
+                    )
             })
             .child(child)
     }
@@ -470,6 +477,7 @@ mod tests {
                 window,
                 cx,
                 None,
+                super::super::LaunchOptions::default(),
                 Arc::new(JsonSettingsStore::with_path(settings_path)),
             )
         });

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.piclens.PicLens</id>
+  <name>PicLens</name>
+  <summary>View and organize local images</summary>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <launchable type="desktop-id">piclens.desktop</launchable>
+</component>

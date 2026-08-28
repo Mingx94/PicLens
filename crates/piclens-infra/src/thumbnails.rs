@@ -1,16 +1,51 @@
 use std::fs;
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::path::PathBuf;
-use std::sync::Mutex;
+use std::path::{Path, PathBuf};
+use std::process::{Child, Command, Stdio};
+use std::sync::{Condvar, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use image::ImageFormat;
 use sha2::{Digest, Sha256};
 
 use crate::paths::{ensure_parent_dir, thumbnail_cache_root};
+use crate::CancellationToken;
 
 const MAX_CACHE_ENTRIES: usize = 2000;
+const MAX_DECODE_PROCESSES: usize = 8;
 
 static CACHE_LOCK: Mutex<()> = Mutex::new(());
+static DECODE_LIMITER: OnceLock<(Mutex<usize>, Condvar)> = OnceLock::new();
+
+struct DecodePermit;
+
+impl Drop for DecodePermit {
+    fn drop(&mut self) {
+        let (active, wake) = DECODE_LIMITER.get_or_init(|| (Mutex::new(0), Condvar::new()));
+        let mut active = active.lock().unwrap_or_else(|err| err.into_inner());
+        *active = active.saturating_sub(1);
+        wake.notify_one();
+    }
+}
+
+fn acquire_decode_permit(cancellation: &CancellationToken) -> Result<DecodePermit, String> {
+    let (active, wake) = DECODE_LIMITER.get_or_init(|| (Mutex::new(0), Condvar::new()));
+    let mut active = active.lock().unwrap_or_else(|err| err.into_inner());
+    while *active >= MAX_DECODE_PROCESSES {
+        if cancellation.is_canceled() {
+            return Err("thumbnail canceled".into());
+        }
+        active = wake
+            .wait_timeout(active, Duration::from_millis(25))
+            .unwrap_or_else(|err| err.into_inner())
+            .0;
+    }
+    if cancellation.is_canceled() {
+        return Err("thumbnail canceled".into());
+    }
+    *active += 1;
+    Ok(DecodePermit)
+}
 
 fn cache_key(path: &str, size: u32) -> String {
     let mut hasher = Sha256::new();
@@ -51,19 +86,90 @@ pub fn ensure_thumbnail(source_path: &str, logical_size: u32) -> Result<PathBuf,
         Err(_) => return Err(format!("thumbnail decode panicked: {source_path}")),
     };
 
+    let temporary = out.with_extension(format!("{}.tmp", std::process::id()));
     let save = catch_unwind(AssertUnwindSafe(|| {
         thumb
-            .save_with_format(&out, ImageFormat::Png)
+            .save_with_format(&temporary, ImageFormat::Png)
             .map_err(|e| e.to_string())
     }));
     match save {
         Ok(Ok(())) => {
+            if let Err(err) = fs::rename(&temporary, &out) {
+                let _ = fs::remove_file(&temporary);
+                if !out.exists() {
+                    return Err(err.to_string());
+                }
+            }
             prune_cache_if_needed();
             Ok(out)
         }
-        Ok(Err(err)) => Err(err),
-        Err(_) => Err(format!("thumbnail encode panicked: {source_path}")),
+        Ok(Err(err)) => {
+            let _ = fs::remove_file(&temporary);
+            Err(err)
+        }
+        Err(_) => {
+            let _ = fs::remove_file(&temporary);
+            Err(format!("thumbnail encode panicked: {source_path}"))
+        }
     }
+}
+
+fn wait_for_child(
+    child: &mut Child,
+    timeout: Duration,
+    cancellation: &CancellationToken,
+) -> Result<(), String> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        if cancellation.is_canceled() {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err("thumbnail canceled".into());
+        }
+        match child.try_wait() {
+            Ok(Some(status)) if status.success() => return Ok(()),
+            Ok(Some(status)) => return Err(format!("thumbnail worker exited with {status}")),
+            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(10)),
+            Ok(None) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(format!(
+                    "thumbnail decode timed out after {} ms",
+                    timeout.as_millis()
+                ));
+            }
+            Err(err) => return Err(format!("thumbnail worker wait failed: {err}")),
+        }
+    }
+}
+
+/// Decode through a killable child process. This keeps the physical decoder
+/// count bounded and lets one stalled codec release its slot after timeout.
+pub fn ensure_thumbnail_with_timeout(
+    source_path: &str,
+    logical_size: u32,
+    worker_executable: &Path,
+    timeout: Duration,
+    cancellation: &CancellationToken,
+) -> Result<PathBuf, String> {
+    let out = thumbnail_path(source_path, logical_size);
+    if out.exists() {
+        return Ok(out);
+    }
+    let _permit = acquire_decode_permit(cancellation)?;
+    let mut child = Command::new(worker_executable)
+        .arg("--thumbnail-worker")
+        .arg(source_path)
+        .arg(logical_size.to_string())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|err| format!("thumbnail worker start failed: {err}"))?;
+    wait_for_child(&mut child, timeout, cancellation)?;
+    out.exists()
+        .then_some(out)
+        .ok_or_else(|| "thumbnail worker did not produce a cache file".into())
 }
 
 fn decode_and_resize(source_path: &str, logical_size: u32) -> Result<image::DynamicImage, String> {
@@ -133,5 +239,46 @@ mod tests {
         let result = ensure_thumbnail(bad.to_str().unwrap(), 64);
         assert!(result.is_err(), "expected Err, got {result:?}");
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn canceled_worker_does_not_start() {
+        let token = CancellationToken::new();
+        token.cancel();
+        let result = ensure_thumbnail_with_timeout(
+            "missing.jpg",
+            64,
+            Path::new("missing-worker"),
+            Duration::from_millis(10),
+            &token,
+        );
+        assert_eq!(result.unwrap_err(), "thumbnail canceled");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn stalled_child_is_killed_at_timeout() {
+        let mut child = Command::new("powershell")
+            .args(["-NoProfile", "-Command", "Start-Sleep -Seconds 5"])
+            .spawn()
+            .unwrap();
+        let result = wait_for_child(
+            &mut child,
+            Duration::from_millis(50),
+            &CancellationToken::new(),
+        );
+        assert!(result.unwrap_err().contains("timed out"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stalled_child_is_killed_at_timeout() {
+        let mut child = Command::new("sh").args(["-c", "sleep 5"]).spawn().unwrap();
+        let result = wait_for_child(
+            &mut child,
+            Duration::from_millis(50),
+            &CancellationToken::new(),
+        );
+        assert!(result.unwrap_err().contains("timed out"));
     }
 }

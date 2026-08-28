@@ -192,9 +192,10 @@ pub fn batch_result_message(label: &str, batch: &FileOperationBatchResult) -> Op
         return None;
     }
     Some(format!(
-        "{label}：成功 {}，略過 {}，失敗 {}（共 {}）",
+        "{label}：成功 {}，略過 {}，取消 {}，失敗 {}（共 {}）",
         batch.succeeded(),
         batch.skipped(),
+        batch.canceled(),
         batch.failed(),
         batch.total()
     ))
@@ -213,7 +214,7 @@ pub fn batch_notice_kind(batch: &FileOperationBatchResult) -> Option<BatchNotice
     }
     if batch.failed() > 0 {
         Some(BatchNoticeKind::Error)
-    } else if batch.succeeded() == 0 {
+    } else if batch.canceled() > 0 || batch.succeeded() == 0 {
         Some(BatchNoticeKind::Warning)
     } else {
         Some(BatchNoticeKind::Success)
@@ -225,6 +226,7 @@ pub fn batch_result_status_label(status: FileOperationStatus) -> &'static str {
         FileOperationStatus::Converted => "已轉換",
         FileOperationStatus::Trashed => "已移至回收筒",
         FileOperationStatus::Renamed => "已重新命名",
+        FileOperationStatus::Canceled => "已取消",
         FileOperationStatus::Skipped => "已略過",
         FileOperationStatus::Failed => "失敗",
     }
@@ -269,6 +271,7 @@ pub fn batch_result_detail(result: &FileOperationResult) -> String {
             "無法重新命名。{}",
             result.message.as_deref().unwrap_or("請確認檔案權限。")
         ),
+        Some("canceled") => "操作開始前已取消，未變更檔案。".into(),
         _ => match result.status {
             FileOperationStatus::Converted => target_name
                 .map(|name| format!("已建立 {name}，原始檔案仍保留。"))
@@ -277,6 +280,7 @@ pub fn batch_result_detail(result: &FileOperationResult) -> String {
             FileOperationStatus::Renamed => target_name
                 .map(|name| format!("新檔名：{name}"))
                 .unwrap_or_else(|| "重新命名完成。".into()),
+            FileOperationStatus::Canceled => "操作已取消，未變更檔案。".into(),
             FileOperationStatus::Skipped => result
                 .message
                 .clone()
@@ -295,7 +299,9 @@ pub fn batch_result_reveal_path(result: &FileOperationResult) -> Option<&str> {
         FileOperationStatus::Converted | FileOperationStatus::Renamed => {
             result.target_path.as_deref().or(Some(result.path.as_str()))
         }
-        FileOperationStatus::Skipped | FileOperationStatus::Failed => Some(result.path.as_str()),
+        FileOperationStatus::Canceled
+        | FileOperationStatus::Skipped
+        | FileOperationStatus::Failed => Some(result.path.as_str()),
     }
 }
 
@@ -529,7 +535,7 @@ mod tests {
             ],
         };
         let message = batch_result_message("轉 JPG", &batch).expect("non-empty batch");
-        assert_eq!(message, "轉 JPG：成功 1，略過 1，失敗 1（共 3）");
+        assert_eq!(message, "轉 JPG：成功 1，略過 1，取消 0，失敗 1（共 3）");
         assert_eq!(batch_notice_kind(&batch), Some(BatchNoticeKind::Error));
     }
 

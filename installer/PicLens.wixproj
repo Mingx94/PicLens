@@ -1,0 +1,8 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+  <PropertyGroup>
+    <OutputType>Package</OutputType>
+    <SuppressPdbOutput>true</SuppressPdbOutput>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <DefineConstants>AppVersion=$(AppVersion);PayloadDir=$(PayloadDir)</DefineConstants>
+  </PropertyGroup>
+</Project>

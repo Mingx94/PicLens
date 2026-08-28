@@ -10,6 +10,7 @@ use piclens_domain::{
 };
 
 use crate::platform::{move_to_trash, PlatformError};
+use crate::CancellationToken;
 
 fn make_result(
     path: impl Into<String>,
@@ -37,6 +38,23 @@ fn linked_path(path: &str, target: Option<String>) -> FileOperationResult {
     )
 }
 
+fn canceled(path: &str, target: Option<String>) -> FileOperationResult {
+    make_result(
+        path,
+        FileOperationStatus::Canceled,
+        target,
+        Some("canceled".into()),
+        None,
+    )
+}
+
+fn append_canceled<'a>(
+    items: &mut Vec<FileOperationResult>,
+    paths: impl IntoIterator<Item = &'a String>,
+) {
+    items.extend(paths.into_iter().map(|path| canceled(path, None)));
+}
+
 fn existing_directory_files(dir: &Path) -> Vec<String> {
     let Ok(read) = fs::read_dir(dir) else {
         return Vec::new();
@@ -47,8 +65,19 @@ fn existing_directory_files(dir: &Path) -> Vec<String> {
 }
 
 pub fn trash_paths(paths: &[String]) -> FileOperationBatchResult {
+    trash_paths_cancellable(paths, &CancellationToken::new())
+}
+
+pub fn trash_paths_cancellable(
+    paths: &[String],
+    cancellation: &CancellationToken,
+) -> FileOperationBatchResult {
     let mut items = Vec::new();
-    for path in paths {
+    for (index, path) in paths.iter().enumerate() {
+        if cancellation.is_canceled() {
+            append_canceled(&mut items, &paths[index..]);
+            break;
+        }
         if has_link_or_junction_component(path) {
             items.push(linked_path(path, None));
             continue;
@@ -74,6 +103,17 @@ pub fn trash_paths(paths: &[String]) -> FileOperationBatchResult {
 }
 
 pub fn rename_image(source_path: &str, new_file_name: &str) -> FileOperationResult {
+    rename_image_cancellable(source_path, new_file_name, &CancellationToken::new())
+}
+
+pub fn rename_image_cancellable(
+    source_path: &str,
+    new_file_name: &str,
+    cancellation: &CancellationToken,
+) -> FileOperationResult {
+    if cancellation.is_canceled() {
+        return canceled(source_path, None);
+    }
     if has_link_or_junction_component(source_path) {
         return linked_path(source_path, None);
     }
@@ -119,6 +159,10 @@ pub fn rename_image(source_path: &str, new_file_name: &str) -> FileOperationResu
         );
     }
 
+    if cancellation.is_canceled() {
+        return canceled(source_path, Some(target_str));
+    }
+
     match fs::rename(source, &target) {
         Ok(()) => make_result(
             source_path,
@@ -138,12 +182,30 @@ pub fn rename_image(source_path: &str, new_file_name: &str) -> FileOperationResu
 }
 
 pub fn convert_to_jpg(paths: &[String]) -> FileOperationBatchResult {
-    convert_paths(paths, ImageFormat::Jpeg, "jpg", 100)
+    convert_to_jpg_cancellable(paths, &CancellationToken::new())
+}
+
+pub fn convert_to_jpg_cancellable(
+    paths: &[String],
+    cancellation: &CancellationToken,
+) -> FileOperationBatchResult {
+    convert_paths(paths, ImageFormat::Jpeg, "jpg", 100, cancellation)
 }
 
 pub fn convert_to_lossless_webp(paths: &[String]) -> FileOperationBatchResult {
+    convert_to_lossless_webp_cancellable(paths, &CancellationToken::new())
+}
+
+pub fn convert_to_lossless_webp_cancellable(
+    paths: &[String],
+    cancellation: &CancellationToken,
+) -> FileOperationBatchResult {
     let mut items = Vec::new();
-    for path in paths {
+    for (index, path) in paths.iter().enumerate() {
+        if cancellation.is_canceled() {
+            append_canceled(&mut items, &paths[index..]);
+            break;
+        }
         if has_link_or_junction_component(path) {
             items.push(linked_path(path, None));
             continue;
@@ -178,7 +240,13 @@ pub fn convert_to_lossless_webp(paths: &[String]) -> FileOperationBatchResult {
             ));
             continue;
         }
-        items.push(convert_one(path, ImageFormat::WebP, "webp", 100));
+        items.push(convert_one(
+            path,
+            ImageFormat::WebP,
+            "webp",
+            100,
+            cancellation,
+        ));
     }
     FileOperationBatchResult { items }
 }
@@ -188,9 +256,14 @@ fn convert_paths(
     format: ImageFormat,
     extension: &str,
     quality: u8,
+    cancellation: &CancellationToken,
 ) -> FileOperationBatchResult {
     let mut items = Vec::new();
-    for path in paths {
+    for (index, path) in paths.iter().enumerate() {
+        if cancellation.is_canceled() {
+            append_canceled(&mut items, &paths[index..]);
+            break;
+        }
         if has_link_or_junction_component(path) {
             items.push(linked_path(path, None));
             continue;
@@ -205,7 +278,7 @@ fn convert_paths(
             ));
             continue;
         }
-        items.push(convert_one(path, format, extension, quality));
+        items.push(convert_one(path, format, extension, quality, cancellation));
     }
     FileOperationBatchResult { items }
 }
@@ -215,6 +288,7 @@ fn convert_one(
     format: ImageFormat,
     extension: &str,
     _quality: u8,
+    cancellation: &CancellationToken,
 ) -> FileOperationResult {
     let source = Path::new(path);
     let parent = source.parent().unwrap_or_else(|| Path::new("."));
@@ -245,8 +319,15 @@ fn convert_one(
         );
     }
 
+    if cancellation.is_canceled() {
+        return canceled(path, Some(target_str));
+    }
+
     match image::open(source) {
         Ok(img) => {
+            if cancellation.is_canceled() {
+                return canceled(path, Some(target_str));
+            }
             // image crate: jpeg/webp encode via save_with_format
             match img.save_with_format(&target, format) {
                 Ok(()) => make_result(
@@ -277,9 +358,21 @@ fn convert_one(
 
 /// Keep JPG/JPEG and WebP; trash other same-basename formats when either preferred form exists.
 pub fn cleanup_same_basename(paths: &[String]) -> FileOperationBatchResult {
+    cleanup_same_basename_cancellable(paths, &CancellationToken::new())
+}
+
+pub fn cleanup_same_basename_cancellable(
+    paths: &[String],
+    cancellation: &CancellationToken,
+) -> FileOperationBatchResult {
     use std::collections::HashMap;
     let mut groups: HashMap<String, Vec<String>> = HashMap::new();
     for path in paths {
+        if cancellation.is_canceled() {
+            return FileOperationBatchResult {
+                items: paths.iter().map(|path| canceled(path, None)).collect(),
+            };
+        }
         let p = Path::new(path);
         let parent = p
             .parent()
@@ -313,7 +406,7 @@ pub fn cleanup_same_basename(paths: &[String]) -> FileOperationBatchResult {
             to_trash.push(path.clone());
         }
     }
-    trash_paths(&to_trash)
+    trash_paths_cancellable(&to_trash, cancellation)
 }
 
 pub fn plan_drop_rename(source_paths: &[String], target_path: &str) -> DropTargetBatchRenamePlan {
@@ -326,8 +419,23 @@ pub fn plan_drop_rename(source_paths: &[String], target_path: &str) -> DropTarge
 }
 
 pub fn apply_drop_rename(plan: &DropTargetBatchRenamePlan) -> FileOperationBatchResult {
+    apply_drop_rename_cancellable(plan, &CancellationToken::new())
+}
+
+pub fn apply_drop_rename_cancellable(
+    plan: &DropTargetBatchRenamePlan,
+    cancellation: &CancellationToken,
+) -> FileOperationBatchResult {
     let mut items = Vec::new();
-    for item in &plan.items {
+    for (index, item) in plan.items.iter().enumerate() {
+        if cancellation.is_canceled() {
+            items.extend(
+                plan.items[index..]
+                    .iter()
+                    .map(|item| canceled(&item.source_path, Some(item.target_path.clone()))),
+            );
+            break;
+        }
         if item.should_skip {
             items.push(make_result(
                 &item.source_path,
@@ -365,4 +473,40 @@ pub fn apply_drop_rename(plan: &DropTargetBatchRenamePlan) -> FileOperationBatch
         }
     }
     FileOperationBatchResult { items }
+}
+
+#[cfg(test)]
+mod cancellation_tests {
+    use super::*;
+
+    #[test]
+    fn canceled_batch_marks_every_unstarted_item() {
+        let token = CancellationToken::new();
+        token.cancel();
+        let paths = vec!["a.jpg".into(), "b.jpg".into()];
+        let batch = convert_to_jpg_cancellable(&paths, &token);
+        assert_eq!(batch.canceled(), 2);
+        assert!(batch
+            .items
+            .iter()
+            .all(|item| item.reason.as_deref() == Some("canceled")));
+    }
+
+    #[test]
+    fn canceled_drop_plan_keeps_source_and_target_context() {
+        let token = CancellationToken::new();
+        token.cancel();
+        let plan = DropTargetBatchRenamePlan {
+            total: 1,
+            items: vec![piclens_domain::DropTargetBatchRenamePlanItem {
+                source_path: "a.jpg".into(),
+                target_path: "base-01.jpg".into(),
+                should_skip: false,
+                reason: None,
+            }],
+        };
+        let batch = apply_drop_rename_cancellable(&plan, &token);
+        assert_eq!(batch.canceled(), 1);
+        assert_eq!(batch.items[0].target_path.as_deref(), Some("base-01.jpg"));
+    }
 }

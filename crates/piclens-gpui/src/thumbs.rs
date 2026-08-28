@@ -26,17 +26,24 @@ pub fn item_range_for_rows(
     start..end
 }
 
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct ThumbQueueUpdate {
+    pub to_start: Vec<String>,
+    pub to_cancel: Vec<String>,
+}
+
 /// Static-image paths in `viewport` that still need a thumbnail.
 ///
-/// Drops `pending` paths that left the viewport. Returns paths to start, up to
-/// `max_in_flight` concurrent work (including remaining in-viewport pending).
+/// Work that leaves the viewport is canceled, but it keeps its physical slot
+/// until the worker exits. This prevents rapid scroll from exceeding the real
+/// decoder concurrency limit.
 pub fn thumb_queue_update(
     items: &[ListItem],
     viewport: Range<usize>,
     cached_or_failed: &HashSet<String>,
-    pending: &mut HashSet<String>,
+    active: &mut HashSet<String>,
     max_in_flight: usize,
-) -> Vec<String> {
+) -> ThumbQueueUpdate {
     let start = viewport.start.min(items.len());
     let end = viewport.end.min(items.len());
     let in_view: HashSet<String> = items[start..end]
@@ -44,22 +51,29 @@ pub fn thumb_queue_update(
         .filter_map(static_image_path)
         .collect();
 
-    pending.retain(|path| in_view.contains(path));
+    let to_cancel = active
+        .iter()
+        .filter(|path| !in_view.contains(*path))
+        .cloned()
+        .collect();
 
-    let mut slots = max_in_flight.saturating_sub(pending.len());
+    let mut slots = max_in_flight.saturating_sub(active.len());
     let mut to_start = Vec::new();
     for path in items[start..end].iter().filter_map(static_image_path) {
         if slots == 0 {
             break;
         }
-        if cached_or_failed.contains(&path) || pending.contains(&path) {
+        if cached_or_failed.contains(&path) || active.contains(&path) {
             continue;
         }
-        pending.insert(path.clone());
+        active.insert(path.clone());
         to_start.push(path);
         slots -= 1;
     }
-    to_start
+    ThumbQueueUpdate {
+        to_start,
+        to_cancel,
+    }
 }
 
 fn static_image_path(item: &ListItem) -> Option<String> {
@@ -99,7 +113,7 @@ mod tests {
     }
 
     #[test]
-    fn queues_only_in_range_static_images_and_drops_out_of_range_pending() {
+    fn queues_only_in_range_and_keeps_canceled_work_in_physical_slot() {
         let items = vec![
             image("/a.jpg", false),
             folder("/dir"),
@@ -111,17 +125,25 @@ mod tests {
         let cached = HashSet::new();
         let mut pending = HashSet::from(["/d.jpg".into(), "/a.jpg".into()]);
 
-        let queued = thumb_queue_update(&items, 0..4, &cached, &mut pending, 8);
+        let update = thumb_queue_update(&items, 0..4, &cached, &mut pending, 8);
 
-        assert_eq!(queued, vec!["/b.jpg".to_string()]);
+        assert_eq!(update.to_start, vec!["/b.jpg".to_string()]);
+        assert_eq!(update.to_cancel, vec!["/d.jpg".to_string()]);
         assert!(pending.contains("/a.jpg"));
         assert!(pending.contains("/b.jpg"));
-        assert!(
-            !pending.contains("/d.jpg"),
-            "out-of-range pending work must be dropped"
-        );
+        assert!(pending.contains("/d.jpg"), "physical work keeps its slot");
         assert!(!pending.iter().any(|p| p == "/anim.gif"));
         assert!(!pending.iter().any(|p| p == "/dir"));
+    }
+
+    #[test]
+    fn canceled_physical_workers_prevent_replacement_oversubscription() {
+        let items = vec![image("/a.jpg", false), image("/b.jpg", false)];
+        let cached = HashSet::new();
+        let mut active = HashSet::from(["/old.jpg".into()]);
+        let update = thumb_queue_update(&items, 0..2, &cached, &mut active, 1);
+        assert!(update.to_start.is_empty());
+        assert_eq!(update.to_cancel, vec!["/old.jpg".to_string()]);
     }
 
     #[test]

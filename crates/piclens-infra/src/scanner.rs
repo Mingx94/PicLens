@@ -10,6 +10,7 @@ use thiserror::Error;
 use walkdir::WalkDir;
 
 use crate::animation::is_animated;
+use crate::CancellationToken;
 
 #[derive(Debug, Error)]
 pub enum ScanError {
@@ -91,6 +92,13 @@ fn direct_entries(folder: &Path) -> std::io::Result<Vec<PathBuf>> {
 }
 
 pub fn scan_folder(query: &ListQuery) -> Result<Vec<ListItem>, ScanError> {
+    scan_folder_cancellable(query, &CancellationToken::new())
+}
+
+pub fn scan_folder_cancellable(
+    query: &ListQuery,
+    cancellation: &CancellationToken,
+) -> Result<Vec<ListItem>, ScanError> {
     let root = PathBuf::from(&query.folder_path);
     if !root.is_dir() {
         return Err(ScanError::DirectoryNotFound(query.folder_path.clone()));
@@ -99,6 +107,9 @@ pub fn scan_folder(query: &ListQuery) -> Result<Vec<ListItem>, ScanError> {
     let mut items = Vec::new();
     if !query.include_subfolders {
         for path in direct_entries(&root)? {
+            if cancellation.is_canceled() {
+                return Err(ScanError::Canceled);
+            }
             if path.is_dir() {
                 if let Some(folder) = create_folder_item(&path) {
                     items.push(ListItem::Folder(folder));
@@ -114,6 +125,9 @@ pub fn scan_folder(query: &ListQuery) -> Result<Vec<ListItem>, ScanError> {
             .into_iter()
             .filter_map(|e| e.ok())
         {
+            if cancellation.is_canceled() {
+                return Err(ScanError::Canceled);
+            }
             let path = entry.path();
             if path.is_dir() {
                 if let Ok(canon) = path.canonicalize() {
@@ -134,12 +148,22 @@ pub fn scan_folder(query: &ListQuery) -> Result<Vec<ListItem>, ScanError> {
 }
 
 pub fn scan_child_folders(folder_path: &str) -> Result<Vec<FolderListItem>, ScanError> {
+    scan_child_folders_cancellable(folder_path, &CancellationToken::new())
+}
+
+pub fn scan_child_folders_cancellable(
+    folder_path: &str,
+    cancellation: &CancellationToken,
+) -> Result<Vec<FolderListItem>, ScanError> {
     let root = PathBuf::from(folder_path);
     if !root.is_dir() {
         return Err(ScanError::DirectoryNotFound(folder_path.into()));
     }
     let mut folders = Vec::new();
     for path in direct_entries(&root)? {
+        if cancellation.is_canceled() {
+            return Err(ScanError::Canceled);
+        }
         if let Some(folder) = create_folder_item(&path) {
             folders.push(ListItem::Folder(folder));
         }
@@ -166,4 +190,24 @@ pub fn now_ms() -> i64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn canceled_scan_stops_before_reading_entries() {
+        let token = CancellationToken::new();
+        token.cancel();
+        let query = ListQuery {
+            folder_path: std::env::temp_dir().to_string_lossy().into_owned(),
+            include_subfolders: true,
+            sort: SortState::default(),
+        };
+        assert!(matches!(
+            scan_folder_cancellable(&query, &token),
+            Err(ScanError::Canceled)
+        ));
+    }
 }

@@ -12,6 +12,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use gpui::*;
 use gpui_component::button::{Button, ButtonVariant};
@@ -26,21 +27,26 @@ use piclens_domain::{
     ZoomState, DEFAULT_THUMBNAIL_SIZE, MIN_WINDOW_WIDTH,
 };
 use piclens_infra::{
-    apply_drop_rename, cleanup_same_basename, convert_to_jpg, convert_to_lossless_webp,
-    ensure_thumbnail, info, plan_drop_rename, rename_image, reveal_in_file_manager,
-    scan_child_folders, scan_folder, trash_paths, warn, JsonSettingsStore,
+    apply_drop_rename_cancellable, cleanup_same_basename_cancellable, convert_to_jpg_cancellable,
+    convert_to_lossless_webp_cancellable, ensure_thumbnail_with_timeout, info, plan_drop_rename,
+    rename_image_cancellable, reveal_in_file_manager, scan_child_folders_cancellable,
+    scan_folder_cancellable, trash_paths_cancellable, warn, CancellationToken, JsonSettingsStore,
+    ScanError,
 };
 
 use crate::actions::{
-    CleanupSameBasename, ClearSelection, CloseOverlay, ConvertJpg, ConvertWebp, CycleSort,
-    DropRenamePlan, FocusSearch, GalleryEnd, GalleryHome, HistoryBack, HistoryForward,
-    MoveSelectionDown, MoveSelectionLeft, MoveSelectionRight, MoveSelectionUp, OpenFolder,
-    OpenViewer, Refresh, RenameSelection, RevealInFileManager, SelectAll, ToggleGalleryMode,
-    ToggleIncludeSubfolders, ToggleSidebar, TrashSelection, ViewerNext, ViewerPrev, ZoomIn,
-    ZoomOut, ZoomReset,
+    CancelFileOperation, CleanupSameBasename, ClearSelection, CloseOverlay, ConvertJpg,
+    ConvertWebp, CycleSort, DropRenamePlan, FocusSearch, GalleryEnd, GalleryHome, HistoryBack,
+    HistoryForward, MoveSelectionDown, MoveSelectionLeft, MoveSelectionRight, MoveSelectionUp,
+    OpenFolder, OpenViewer, PrepareShutdown, Refresh, RenameSelection, RevealInFileManager,
+    SelectAll, SortModifiedAscending, SortModifiedDescending, SortNameAscending,
+    SortNameDescending, ToggleGalleryMode, ToggleIncludeSubfolders, ToggleSidebar, TrashSelection,
+    ViewerNext, ViewerPrev, ZoomIn, ZoomOut, ZoomReset,
 };
+use crate::diagnostics::RuntimeMetrics;
 use crate::drag_rename::{
-    drag_begin, drag_cancel, drag_finish, drag_move, is_dragging, DragFinish, DragPhase,
+    drag_begin, drag_cancel, drag_finish, drag_move, drag_sources_exist, edge_autoscroll_step,
+    is_dragging, DragFinish, DragPhase,
 };
 use crate::folder_tree::{
     apply_tree_children, replace_tree_for_picker, toggle_expand, visible_tree_rows, ExpandAction,
@@ -116,6 +122,7 @@ fn cleanup_confirmation_description(count: usize) -> String {
 
 const CONVERSION_CONFIRMATION_THRESHOLD: usize = 50;
 const MAX_THUMB_IN_FLIGHT: usize = 8;
+const THUMBNAIL_TIMEOUT: Duration = Duration::from_secs(15);
 
 #[derive(Clone, Copy)]
 enum ConversionKind {
@@ -128,13 +135,6 @@ impl ConversionKind {
         match self {
             Self::Jpg => "轉 JPG",
             Self::Webp => "轉 WebP",
-        }
-    }
-
-    fn operation(self) -> fn(&[String]) -> FileOperationBatchResult {
-        match self {
-            Self::Jpg => convert_to_jpg,
-            Self::Webp => convert_to_lossless_webp,
         }
     }
 
@@ -155,7 +155,13 @@ struct BackgroundFileOperationConfirmation {
     description: String,
     ok_text: &'static str,
     ok_variant: ButtonVariant,
-    operation: fn(&[String]) -> FileOperationBatchResult,
+    kind: BackgroundFileOperationKind,
+}
+
+#[derive(Clone, Copy)]
+enum BackgroundFileOperationKind {
+    Convert(ConversionKind),
+    Cleanup,
 }
 
 fn conversion_requires_confirmation(count: usize) -> bool {
@@ -168,9 +174,21 @@ enum GalleryMode {
     List,
 }
 
+#[derive(Clone, Default)]
+pub struct LaunchOptions {
+    pub include_subfolders: bool,
+    pub search: Option<String>,
+    pub list_view: bool,
+    pub sidebar_closed: bool,
+    pub viewer: Option<String>,
+    pub performance_scroll: bool,
+    pub metrics: Option<Arc<RuntimeMetrics>>,
+}
+
 pub struct PicLensApp {
     settings_store: Arc<JsonSettingsStore>,
     settings: AppSettings,
+    settings_authority: AppSettings,
     folder_path: Option<String>,
     items: Vec<ListItem>,
     visible: Vec<ListItem>,
@@ -201,12 +219,21 @@ pub struct PicLensApp {
     /// Source path -> cached PNG path for tiles.
     thumbs: HashMap<String, PathBuf>,
     thumb_pending: HashSet<String>,
+    thumb_cancellations: HashMap<String, CancellationToken>,
     thumb_failed: HashSet<String>,
     /// Prevents stacking concurrent thumb pump tasks.
     thumbs_pump_scheduled: bool,
     gallery_list: ListState,
     gallery_width: f32,
+    gallery_bounds: Option<Bounds<Pixels>>,
     viewport_rows: Range<usize>,
+    drag_autoscroll_step: f32,
+    drag_autoscroll_running: bool,
+    pending_scroll_restore: Option<(String, ListOffset)>,
+    performance_scroll_requested: bool,
+    performance_scroll_running: bool,
+    metrics: Option<Arc<RuntimeMetrics>>,
+    native_menu_snapshot: Option<(u8, bool, usize, bool)>,
     focus_handle: FocusHandle,
     viewer_focus: FocusHandle,
     viewer_title_focus: FocusHandle,
@@ -215,8 +242,13 @@ pub struct PicLensApp {
     /// Held so tasks cancel on drop / generation bump (do not detach).
     async_tasks: Vec<Task<()>>,
     tree_tasks: Vec<Task<()>>,
+    scan_cancellation: Option<CancellationToken>,
+    tree_cancellations: Vec<CancellationToken>,
+    viewer_cancellation: Option<CancellationToken>,
     file_operation_task: Option<Task<()>>,
     file_operation_label: Option<&'static str>,
+    file_operation_cancellation: Option<CancellationToken>,
+    file_operation_generation: u64,
     batch_report: Option<BatchReport>,
     batch_report_list: ListState,
     _subscriptions: Vec<Subscription>,
@@ -247,11 +279,13 @@ impl PicLensApp {
         window: &mut Window,
         cx: &mut Context<Self>,
         initial_folder: Option<String>,
+        launch: LaunchOptions,
     ) -> Self {
         Self::new_with_settings_store(
             window,
             cx,
             initial_folder,
+            launch,
             Arc::new(JsonSettingsStore::new()),
         )
     }
@@ -260,14 +294,26 @@ impl PicLensApp {
         window: &mut Window,
         cx: &mut Context<Self>,
         initial_folder: Option<String>,
+        launch: LaunchOptions,
         settings_store: Arc<JsonSettingsStore>,
     ) -> Self {
-        let settings = settings_store.load();
+        let stored_settings = settings_store.load();
+        let mut settings = stored_settings.clone();
+        if launch.include_subfolders {
+            settings.include_subfolders = true;
+        }
+        if launch.sidebar_closed {
+            settings.sidebar_collapsed = true;
+        }
         let search = cx.new(|cx| InputState::new(window, cx).placeholder("搜尋名稱或路徑…"));
+        if let Some(value) = &launch.search {
+            search.update(cx, |state, cx| state.set_value(value, window, cx));
+        }
 
         let mut app = Self {
             settings_store,
             settings: settings.clone(),
+            settings_authority: stored_settings.clone(),
             folder_path: None,
             items: Vec::new(),
             visible: Vec::new(),
@@ -284,9 +330,13 @@ impl PicLensApp {
             history: FolderHistory::default(),
             status: "請選擇資料夾".into(),
             search: search.clone(),
-            search_text: String::new(),
+            search_text: launch.search.clone().unwrap_or_default(),
             sidebar_collapsed: settings.sidebar_collapsed,
-            gallery_mode: GalleryMode::Grid,
+            gallery_mode: if launch.list_view {
+                GalleryMode::List
+            } else {
+                GalleryMode::Grid
+            },
             viewer: None,
             rename: None,
             drop_rename: None,
@@ -297,11 +347,20 @@ impl PicLensApp {
             generation: 0,
             thumbs: HashMap::new(),
             thumb_pending: HashSet::new(),
+            thumb_cancellations: HashMap::new(),
             thumb_failed: HashSet::new(),
             thumbs_pump_scheduled: false,
             gallery_list: ListState::new(0, ListAlignment::Top, px(256.0)),
             gallery_width: 0.0,
+            gallery_bounds: None,
             viewport_rows: 0..0,
+            drag_autoscroll_step: 0.0,
+            drag_autoscroll_running: false,
+            pending_scroll_restore: None,
+            performance_scroll_requested: launch.performance_scroll,
+            performance_scroll_running: false,
+            metrics: launch.metrics.clone(),
+            native_menu_snapshot: None,
             focus_handle: cx.focus_handle(),
             viewer_focus: cx.focus_handle(),
             viewer_title_focus: cx.focus_handle(),
@@ -309,13 +368,29 @@ impl PicLensApp {
             overlay_restore_focus: None,
             async_tasks: Vec::new(),
             tree_tasks: Vec::new(),
+            scan_cancellation: None,
+            tree_cancellations: Vec::new(),
+            viewer_cancellation: None,
             file_operation_task: None,
             file_operation_label: None,
+            file_operation_cancellation: None,
+            file_operation_generation: 0,
             batch_report: None,
             batch_report_list: ListState::new(0, ListAlignment::Top, px(104.0)),
             _subscriptions: Vec::new(),
             shutting_down: false,
         };
+        if let Some(metrics) = &app.metrics {
+            let size = window.bounds().size;
+            metrics.window_ready(
+                f32::from(size.width).round().max(0.0) as u32,
+                f32::from(size.height).round().max(0.0) as u32,
+                window.scale_factor(),
+            );
+            if launch.search.is_some() {
+                metrics.search_applied();
+            }
+        }
 
         // Keep shell focused so global keybindings work after open.
         app.focus_handle.focus(window, cx);
@@ -327,6 +402,12 @@ impl PicLensApp {
             this.persist_window_size(window.bounds().size);
         });
         app._subscriptions.push(bounds_sub);
+        let activation_sub = cx.observe_window_activation(window, |this, window, cx| {
+            if !window.is_window_active() {
+                this.cleanup_drag_session(cx);
+            }
+        });
+        app._subscriptions.push(activation_sub);
 
         let search_sub = cx.subscribe_in(&search, window, |this, state, event, _window, cx| {
             if this.shutting_down {
@@ -334,6 +415,9 @@ impl PicLensApp {
             }
             if matches!(event, InputEvent::Change) {
                 this.search_text = state.read(cx).value().to_string();
+                if let Some(metrics) = &this.metrics {
+                    metrics.search_applied();
+                }
                 this.recompute_visible();
                 this.reconcile_selection();
                 this.sync_gallery_list();
@@ -344,31 +428,86 @@ impl PicLensApp {
         app._subscriptions.push(search_sub);
 
         // Cancel async work when this view is released (window close).
-        let release = cx.on_release(|this, _cx| {
-            this.shutting_down = true;
-            this.generation = this.generation.wrapping_add(1);
-            this.tree_generation = this.tree_generation.wrapping_add(1);
-            this.async_tasks.clear();
-            this.tree_tasks.clear();
-            this.file_operation_task = None;
-            this.thumb_pending.clear();
-        });
+        let release = cx.on_release(|this, _cx| this.prepare_shutdown());
         app._subscriptions.push(release);
 
-        let restore = initial_folder.or(settings.last_folder_path.clone());
+        let has_folder_override = initial_folder.is_some();
+        let restore = initial_folder.or(stored_settings.last_folder_path.clone());
         if let Some(path) = restore {
             if PathBuf::from(&path).is_dir() {
-                app.open_folder(path, true, false, cx);
+                app.open_folder(path, true, !has_folder_override, false, cx);
             }
+        }
+        if let Some(viewer_path) = launch.viewer {
+            let task = cx.spawn_in(window, async move |this, cx| {
+                for _ in 0..100 {
+                    cx.background_executor()
+                        .timer(Duration::from_millis(50))
+                        .await;
+                    let opened = this
+                        .update_in(cx, |this, window, cx| {
+                            if this.shutting_down {
+                                return true;
+                            }
+                            if this.items.iter().any(|item| {
+                                item.as_image()
+                                    .is_some_and(|image| path_equals(&image.path, &viewer_path))
+                            }) {
+                                this.open_viewer(&viewer_path, window, cx);
+                                return true;
+                            }
+                            false
+                        })
+                        .unwrap_or(true);
+                    if opened {
+                        break;
+                    }
+                }
+            });
+            app.spawn_task(task);
         }
         app
     }
 
+    fn prepare_shutdown(&mut self) {
+        if self.shutting_down {
+            return;
+        }
+        self.shutting_down = true;
+        self.generation = self.generation.wrapping_add(1);
+        self.tree_generation = self.tree_generation.wrapping_add(1);
+        if let Some(token) = self.scan_cancellation.take() {
+            token.cancel();
+        }
+        for token in self.thumb_cancellations.values() {
+            token.cancel();
+        }
+        for token in self.tree_cancellations.drain(..) {
+            token.cancel();
+        }
+        if let Some(token) = self.viewer_cancellation.take() {
+            token.cancel();
+        }
+        if let Some(token) = self.file_operation_cancellation.take() {
+            token.cancel();
+        }
+        self.async_tasks.clear();
+        self.tree_tasks.clear();
+        self.file_operation_task = None;
+    }
+
     fn cancel_async_work(&mut self) {
         self.generation = self.generation.wrapping_add(1);
-        self.async_tasks.clear();
+        if let Some(token) = self.scan_cancellation.take() {
+            token.cancel();
+        }
+        if let Some(token) = self.viewer_cancellation.take() {
+            token.cancel();
+        }
+        for token in self.thumb_cancellations.values() {
+            token.cancel();
+        }
         self.thumbs_pump_scheduled = false;
-        self.thumb_pending.clear();
     }
 
     fn spawn_task(&mut self, task: Task<()>) {
@@ -388,6 +527,9 @@ impl PicLensApp {
 
     fn cancel_tree_work(&mut self) {
         self.tree_generation = self.tree_generation.wrapping_add(1);
+        for token in self.tree_cancellations.drain(..) {
+            token.cancel();
+        }
         self.tree_tasks.clear();
     }
 
@@ -482,15 +624,17 @@ impl PicLensApp {
         });
     }
 
-    fn persist_settings(&mut self) {
-        if let Err(err) = self.settings_store.save(&self.settings) {
+    fn persist_settings_authority(&mut self) {
+        if let Err(err) = self.settings_store.save(&self.settings_authority) {
             warn(format!("settings save failed: {err}"));
         }
     }
 
     fn persist_sidebar(&mut self) {
         self.settings = apply_layout_persist(&self.settings, Some(self.sidebar_collapsed), None);
-        self.persist_settings();
+        self.settings_authority =
+            apply_layout_persist(&self.settings_authority, Some(self.sidebar_collapsed), None);
+        self.persist_settings_authority();
     }
 
     fn persist_window_size(&mut self, size: Size<Pixels>) {
@@ -501,7 +645,9 @@ impl PicLensApp {
             return;
         }
         self.settings = apply_layout_persist(&self.settings, None, Some((width, height)));
-        self.persist_settings();
+        self.settings_authority =
+            apply_layout_persist(&self.settings_authority, None, Some((width, height)));
+        self.persist_settings_authority();
     }
 
     fn clear_selection(&mut self) {
@@ -533,11 +679,13 @@ impl PicLensApp {
 
     fn load_tree_children(&mut self, path: String, cx: &mut Context<Self>) {
         let gen = self.tree_generation;
+        let cancellation = CancellationToken::new();
+        self.tree_cancellations.push(cancellation.clone());
         let path_for_bg = path.clone();
         let task = cx.spawn(async move |this, cx| {
             let children = cx
                 .background_spawn(async move {
-                    scan_child_folders(&path_for_bg)
+                    scan_child_folders_cancellable(&path_for_bg, &cancellation)
                         .unwrap_or_default()
                         .into_iter()
                         .map(|folder| folder.path)
@@ -616,7 +764,7 @@ impl PicLensApp {
         let gen = self.generation;
         let mut cached_or_failed: HashSet<String> = self.thumbs.keys().cloned().collect();
         cached_or_failed.extend(self.thumb_failed.iter().cloned());
-        let to_start = thumb_queue_update(
+        let update = thumb_queue_update(
             &self.visible,
             self.viewport_item_range(),
             &cached_or_failed,
@@ -624,27 +772,52 @@ impl PicLensApp {
             MAX_THUMB_IN_FLIGHT,
         );
 
-        for path in to_start {
+        for path in update.to_cancel {
+            if let Some(token) = self.thumb_cancellations.get(&path) {
+                token.cancel();
+            }
+        }
+
+        for path in update.to_start {
+            let cancellation = CancellationToken::new();
+            self.thumb_cancellations
+                .insert(path.clone(), cancellation.clone());
             let path_for_bg = path.clone();
+            let worker = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("piclens-gpui"));
             let task = cx.spawn(async move |this, cx| {
                 let result = cx
-                    .background_spawn(async move { ensure_thumbnail(&path_for_bg, size) })
+                    .background_spawn(async move {
+                        ensure_thumbnail_with_timeout(
+                            &path_for_bg,
+                            size,
+                            &worker,
+                            THUMBNAIL_TIMEOUT,
+                            &cancellation,
+                        )
+                    })
                     .await;
                 let _ = this.update(cx, |this, cx| {
+                    this.thumb_pending.remove(&path);
+                    this.thumb_cancellations.remove(&path);
                     if this.shutting_down {
                         return;
                     }
-                    this.thumb_pending.remove(&path);
                     if this.generation != gen {
+                        this.request_thumbs(cx);
                         return;
                     }
                     match result {
                         Ok(cache_path) => {
                             this.thumbs.insert(path, cache_path);
+                            if let Some(metrics) = &this.metrics {
+                                metrics.thumbnail_ready();
+                            }
                         }
                         Err(err) => {
-                            this.thumb_failed.insert(path.clone());
-                            warn(format!("thumb failed for {path}: {err}"));
+                            if !err.contains("canceled") {
+                                this.thumb_failed.insert(path.clone());
+                                warn(format!("thumb failed for {path}: {err}"));
+                            }
                         }
                     }
                     this.request_thumbs(cx);
@@ -658,15 +831,23 @@ impl PicLensApp {
     fn open_folder(
         &mut self,
         path: String,
+        rebuild_tree: bool,
         remember_picker: bool,
         push_history: bool,
         cx: &mut Context<Self>,
     ) {
+        if self
+            .folder_path
+            .as_deref()
+            .is_some_and(|current| !path_equals(current, &path))
+        {
+            self.pending_scroll_restore = None;
+        }
         self.cancel_async_work();
         self.folder_path = Some(path.clone());
         self.items.clear();
         self.visible.clear();
-        if remember_picker {
+        if rebuild_tree {
             self.cancel_tree_work();
             self.tree_roots.clear();
             self.tree_children.clear();
@@ -684,24 +865,26 @@ impl PicLensApp {
         }
         if remember_picker {
             self.settings.last_folder_path = Some(path.clone());
-            self.persist_settings();
+            self.settings_authority.last_folder_path = Some(path.clone());
+            self.persist_settings_authority();
         }
         self.status = "載入中…".into();
         let gen = self.generation;
+        let cancellation = CancellationToken::new();
+        self.scan_cancellation = Some(cancellation.clone());
         let query = ListQuery {
             folder_path: path.clone(),
             include_subfolders: self.settings.include_subfolders,
             sort: self.settings.sort,
         };
         let path_for_bg = path.clone();
-        let rebuild_tree = remember_picker;
         let task = cx.spawn(async move |this, cx| {
             let outcome = cx
                 .background_spawn(async move {
-                    let items = scan_folder(&query);
+                    let items = scan_folder_cancellable(&query, &cancellation);
                     let tree_roots = if rebuild_tree {
                         match &items {
-                            Ok(_) => scan_child_folders(&path_for_bg)
+                            Ok(_) => scan_child_folders_cancellable(&path_for_bg, &cancellation)
                                 .unwrap_or_default()
                                 .into_iter()
                                 .map(|f| f.path)
@@ -739,14 +922,44 @@ impl PicLensApp {
                             outcome.1,
                         );
                         this.recompute_visible();
+                        if !drag_sources_exist(&this.drag, |source| {
+                            this.items.iter().any(|item| {
+                                item.as_image()
+                                    .is_some_and(|image| path_equals(&image.path, source))
+                            })
+                        }) {
+                            this.cleanup_drag_session(cx);
+                        }
                         this.sync_gallery_list();
+                        if this
+                            .pending_scroll_restore
+                            .as_ref()
+                            .is_some_and(|(folder, _)| path_equals(folder, &path))
+                        {
+                            if let Some((_, offset)) = this.pending_scroll_restore.take() {
+                                this.gallery_list.scroll_to(offset);
+                            }
+                        }
                         this.status = format!("已載入 {} 個項目", this.visible.len());
+                        if let Some(metrics) = &this.metrics {
+                            metrics.library_ready(
+                                this.visible.len(),
+                                this.visible
+                                    .iter()
+                                    .filter(|item| item.as_image().is_some())
+                                    .count(),
+                            );
+                        }
+                        this.start_performance_scroll(cx);
                         info(format!("opened folder: {path}"));
                         this.request_thumbs(cx);
                         cx.notify();
                     }
                     Err(err) => {
                         if this.generation != gen {
+                            return;
+                        }
+                        if matches!(err, ScanError::Canceled) {
                             return;
                         }
                         this.status = format!("無法開啟資料夾：{err}");
@@ -775,7 +988,7 @@ impl PicLensApp {
                         if this.shutting_down {
                             return;
                         }
-                        this.open_folder(path, true, true, cx);
+                        this.open_folder(path, true, true, true, cx);
                     });
                 }
             }
@@ -785,24 +998,25 @@ impl PicLensApp {
 
     fn refresh(&mut self, cx: &mut Context<Self>) {
         if let Some(path) = self.folder_path.clone() {
-            self.open_folder(path, false, false, cx);
+            self.open_folder(path, false, false, false, cx);
         }
     }
 
     fn navigate_history(&mut self, back: bool, cx: &mut Context<Self>) {
         if let Some(path) = self.history.step(back).map(str::to_string) {
-            self.open_folder(path, false, false, cx);
+            self.open_folder(path, false, false, false, cx);
         }
     }
 
     fn toggle_include_subfolders(&mut self, cx: &mut Context<Self>) {
         self.settings.include_subfolders = !self.settings.include_subfolders;
-        self.persist_settings();
+        self.settings_authority.include_subfolders = self.settings.include_subfolders;
+        self.persist_settings_authority();
         self.refresh(cx);
     }
 
     fn cycle_sort(&mut self, cx: &mut Context<Self>) {
-        self.settings.sort = match (self.settings.sort.key, self.settings.sort.direction) {
+        let sort = match (self.settings.sort.key, self.settings.sort.direction) {
             (SortKey::Name, SortDirection::Asc) => SortState {
                 key: SortKey::Name,
                 direction: SortDirection::Desc,
@@ -820,7 +1034,14 @@ impl PicLensApp {
                 direction: SortDirection::Asc,
             },
         };
-        self.persist_settings();
+        self.set_sort(sort, cx);
+    }
+
+    fn set_sort(&mut self, sort: SortState, cx: &mut Context<Self>) {
+        self.settings.sort = sort;
+        self.settings_authority.sort = sort;
+        self.persist_settings_authority();
+        self.sync_native_menus(cx);
         self.refresh(cx);
     }
 
@@ -833,10 +1054,40 @@ impl PicLensApp {
         }
     }
 
+    fn menu_availability(&self) -> crate::actions::MenuAvailability {
+        crate::actions::MenuAvailability {
+            has_visible_images: self.visible.iter().any(|item| item.as_image().is_some()),
+            selection_count: self.selected_images().len(),
+            file_operation_busy: self.file_operation_label.is_some(),
+        }
+    }
+
+    fn sync_native_menus(&mut self, cx: &mut Context<Self>) {
+        let sort = match (self.settings.sort.key, self.settings.sort.direction) {
+            (SortKey::Name, SortDirection::Asc) => 0,
+            (SortKey::Name, SortDirection::Desc) => 1,
+            (SortKey::ModifiedAt, SortDirection::Asc) => 2,
+            (SortKey::ModifiedAt, SortDirection::Desc) => 3,
+        };
+        let availability = self.menu_availability();
+        let snapshot = (
+            sort,
+            availability.has_visible_images,
+            availability.selection_count,
+            availability.file_operation_busy,
+        );
+        if self.native_menu_snapshot == Some(snapshot) {
+            return;
+        }
+        self.native_menu_snapshot = Some(snapshot);
+        crate::actions::set_app_menus(cx, Some(sort), availability);
+    }
+
     fn adjust_thumb_size(&mut self, delta: i32, cx: &mut Context<Self>) {
         let next = self.settings.thumbnail_size + delta;
         self.settings.thumbnail_size = piclens_domain::normalize_thumbnail_size(f64::from(next));
-        self.persist_settings();
+        self.settings_authority.thumbnail_size = self.settings.thumbnail_size;
+        self.persist_settings_authority();
         self.cancel_async_work();
         self.thumbs.clear();
         self.thumb_failed.clear();
@@ -904,39 +1155,67 @@ impl PicLensApp {
         true
     }
 
-    fn start_file_operation(
+    fn start_file_operation<F>(
         &mut self,
         label: &'static str,
-        paths: Vec<String>,
-        operation: fn(&[String]) -> FileOperationBatchResult,
+        item_count: usize,
+        close_viewer_after: bool,
+        operation: F,
         window: &mut Window,
         cx: &mut Context<Self>,
-    ) {
+    ) where
+        F: FnOnce(&CancellationToken) -> FileOperationBatchResult + Send + 'static,
+    {
         if self.block_for_active_file_operation(cx) {
             return;
         }
 
-        if paths.is_empty() {
+        if item_count == 0 {
             self.status = format!("{label}：目前結果沒有可處理的圖片");
             cx.notify();
             return;
         }
 
+        self.file_operation_generation = self.file_operation_generation.wrapping_add(1);
+        let operation_generation = self.file_operation_generation;
+        let cancellation = CancellationToken::new();
+        self.file_operation_cancellation = Some(cancellation.clone());
         self.file_operation_label = Some(label);
-        self.status = format!("{label}：正在處理 {} 張圖片…", paths.len());
+        self.status = format!("{label}：正在處理 {item_count} 張圖片…");
         cx.notify();
 
         self.file_operation_task = Some(cx.spawn_in(window, async move |this, cx| {
-            let batch = cx.background_spawn(async move { operation(&paths) }).await;
+            let batch = cx
+                .background_spawn(async move { operation(&cancellation) })
+                .await;
             let _ = this.update_in(cx, |this, window, cx| {
-                if this.shutting_down {
+                if this.shutting_down || this.file_operation_generation != operation_generation {
                     return;
                 }
                 this.file_operation_label = None;
+                this.file_operation_cancellation = None;
                 this.apply_batch(label, &batch, window, cx);
+                if close_viewer_after {
+                    this.close_viewer(window, cx);
+                }
+                if let Some(folder) = this.folder_path.clone() {
+                    this.pending_scroll_restore =
+                        Some((folder, this.gallery_list.logical_scroll_top()));
+                }
                 this.refresh(cx);
             });
         }));
+    }
+
+    fn cancel_file_operation(&mut self, cx: &mut Context<Self>) {
+        let Some(cancellation) = self.file_operation_cancellation.as_ref() else {
+            return;
+        };
+        cancellation.cancel();
+        if let Some(label) = self.file_operation_label {
+            self.status = format!("{label}：正在取消，已開始的項目會先完成…");
+        }
+        cx.notify();
     }
 
     fn apply_batch(
@@ -1018,6 +1297,9 @@ impl PicLensApp {
             message,
             display_path,
         });
+        if let Some(metrics) = &self.metrics {
+            metrics.viewer_opened();
+        }
         if !is_animated {
             self.load_viewer_display(path.to_string(), cx);
         }
@@ -1031,17 +1313,46 @@ impl PicLensApp {
         if self.shutting_down {
             return;
         }
+        if let Some(cancellation) = self.viewer_cancellation.take() {
+            cancellation.cancel();
+        }
         let gen = self.generation;
+        let cancellation = CancellationToken::new();
+        self.viewer_cancellation = Some(cancellation.clone());
+        let worker_executable = match std::env::current_exe() {
+            Ok(path) => path,
+            Err(err) => {
+                self.viewer_cancellation = None;
+                if let Some(viewer) = self.viewer.as_mut() {
+                    viewer.display_path = None;
+                    viewer.message = Some(format!("無法啟動圖片解碼器：{err}"));
+                }
+                cx.notify();
+                return;
+            }
+        };
         let path_for_bg = path.clone();
         let path_for_ui = path;
         let task = cx.spawn(async move |this, cx| {
             let result = cx
-                .background_spawn(async move { ensure_thumbnail(&path_for_bg, 1024) })
+                .background_spawn({
+                    let cancellation = cancellation.clone();
+                    async move {
+                        ensure_thumbnail_with_timeout(
+                            &path_for_bg,
+                            1024,
+                            &worker_executable,
+                            THUMBNAIL_TIMEOUT,
+                            &cancellation,
+                        )
+                    }
+                })
                 .await;
             let _ = this.update(cx, |this, cx| {
                 if this.shutting_down || this.generation != gen {
                     return;
                 }
+                this.viewer_cancellation = None;
                 let Some(viewer) = this.viewer.as_mut() else {
                     return;
                 };
@@ -1060,6 +1371,7 @@ impl PicLensApp {
                         viewer.display_path = Some(cache);
                         viewer.message = None;
                     }
+                    Err(_err) if cancellation.is_canceled() => {}
                     Err(err) => {
                         viewer.display_path = None;
                         viewer.message = Some(format!("無法載入圖片：{err}"));
@@ -1145,13 +1457,21 @@ impl PicLensApp {
         };
         self.restore_overlay_focus(window, cx);
         let new_name = draft.input.read(cx).value().to_string();
-        let result = rename_image(&draft.path, &new_name);
-        self.status = match result.status {
-            piclens_domain::FileOperationStatus::Renamed => "已重新命名。".into(),
-            piclens_domain::FileOperationStatus::Skipped => "重新命名已略過。".into(),
-            _ => result.message.unwrap_or_else(|| "重新命名失敗。".into()),
-        };
-        self.refresh(cx);
+        let source_path = draft.path;
+        self.start_file_operation(
+            "重新命名",
+            1,
+            false,
+            move |cancellation| FileOperationBatchResult {
+                items: vec![rename_image_cancellable(
+                    &source_path,
+                    &new_name,
+                    cancellation,
+                )],
+            },
+            window,
+            cx,
+        );
     }
 
     /// Last selected image is the drop target; earlier selections are sources.
@@ -1184,9 +1504,15 @@ impl PicLensApp {
             return;
         };
         self.restore_overlay_focus(window, cx);
-        let batch = apply_drop_rename(&plan);
-        self.apply_batch("拖放重新命名", &batch, window, cx);
-        self.refresh(cx);
+        let item_count = plan.items.len();
+        self.start_file_operation(
+            "拖放重新命名",
+            item_count,
+            false,
+            move |cancellation| apply_drop_rename_cancellable(&plan, cancellation),
+            window,
+            cx,
+        );
     }
 
     fn reveal_path(&mut self, path: &str, cx: &mut Context<Self>) {
@@ -1228,12 +1554,15 @@ impl PicLensApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let batch = trash_paths(&paths);
-        self.apply_batch("移至回收筒", &batch, window, cx);
-        if close_viewer_after {
-            self.close_viewer(window, cx);
-        }
-        self.refresh(cx);
+        let item_count = paths.len();
+        self.start_file_operation(
+            "移至回收筒",
+            item_count,
+            close_viewer_after,
+            move |cancellation| trash_paths_cancellable(&paths, cancellation),
+            window,
+            cx,
+        );
     }
 
     fn request_trash_confirmation(
@@ -1284,7 +1613,7 @@ impl PicLensApp {
             description,
             ok_text,
             ok_variant,
-            operation,
+            kind,
         } = confirmation;
         let entity = cx.entity().downgrade();
 
@@ -1306,7 +1635,48 @@ impl PicLensApp {
                     let paths = paths.clone();
                     window.defer(cx, move |window, cx| {
                         let _ = entity.update(cx, |this, cx| {
-                            this.start_file_operation(label, paths, operation, window, cx);
+                            let item_count = paths.len();
+                            match kind {
+                                BackgroundFileOperationKind::Convert(ConversionKind::Jpg) => {
+                                    this.start_file_operation(
+                                        label,
+                                        item_count,
+                                        false,
+                                        move |cancellation| {
+                                            convert_to_jpg_cancellable(&paths, cancellation)
+                                        },
+                                        window,
+                                        cx,
+                                    );
+                                }
+                                BackgroundFileOperationKind::Convert(ConversionKind::Webp) => {
+                                    this.start_file_operation(
+                                        label,
+                                        item_count,
+                                        false,
+                                        move |cancellation| {
+                                            convert_to_lossless_webp_cancellable(
+                                                &paths,
+                                                cancellation,
+                                            )
+                                        },
+                                        window,
+                                        cx,
+                                    );
+                                }
+                                BackgroundFileOperationKind::Cleanup => {
+                                    this.start_file_operation(
+                                        label,
+                                        item_count,
+                                        false,
+                                        move |cancellation| {
+                                            cleanup_same_basename_cancellable(&paths, cancellation)
+                                        },
+                                        window,
+                                        cx,
+                                    );
+                                }
+                            }
                         });
                     });
                     true
@@ -1328,7 +1698,7 @@ impl PicLensApp {
                 description,
                 ok_text: "開始轉換",
                 ok_variant: ButtonVariant::Primary,
-                operation: kind.operation(),
+                kind: BackgroundFileOperationKind::Convert(kind),
             },
             paths,
             window,
@@ -1358,7 +1728,25 @@ impl PicLensApp {
         if conversion_requires_confirmation(paths.len()) {
             self.request_conversion_confirmation(kind, paths, window, cx);
         } else {
-            self.start_file_operation(kind.label(), paths, kind.operation(), window, cx);
+            let item_count = paths.len();
+            match kind {
+                ConversionKind::Jpg => self.start_file_operation(
+                    kind.label(),
+                    item_count,
+                    false,
+                    move |cancellation| convert_to_jpg_cancellable(&paths, cancellation),
+                    window,
+                    cx,
+                ),
+                ConversionKind::Webp => self.start_file_operation(
+                    kind.label(),
+                    item_count,
+                    false,
+                    move |cancellation| convert_to_lossless_webp_cancellable(&paths, cancellation),
+                    window,
+                    cx,
+                ),
+            }
         }
     }
 
@@ -1413,6 +1801,79 @@ impl PicLensApp {
         self.cycle_sort(cx);
     }
 
+    fn on_sort_name_ascending(
+        &mut self,
+        _: &SortNameAscending,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_sort(
+            SortState {
+                key: SortKey::Name,
+                direction: SortDirection::Asc,
+            },
+            cx,
+        );
+    }
+
+    fn on_sort_name_descending(
+        &mut self,
+        _: &SortNameDescending,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_sort(
+            SortState {
+                key: SortKey::Name,
+                direction: SortDirection::Desc,
+            },
+            cx,
+        );
+    }
+
+    fn on_sort_modified_ascending(
+        &mut self,
+        _: &SortModifiedAscending,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_sort(
+            SortState {
+                key: SortKey::ModifiedAt,
+                direction: SortDirection::Asc,
+            },
+            cx,
+        );
+    }
+
+    fn on_sort_modified_descending(
+        &mut self,
+        _: &SortModifiedDescending,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_sort(
+            SortState {
+                key: SortKey::ModifiedAt,
+                direction: SortDirection::Desc,
+            },
+            cx,
+        );
+    }
+
+    fn on_cancel_file_operation(
+        &mut self,
+        _: &CancelFileOperation,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.cancel_file_operation(cx);
+    }
+
+    fn on_prepare_shutdown(&mut self, _: &PrepareShutdown, _: &mut Window, _: &mut Context<Self>) {
+        self.prepare_shutdown();
+    }
+
     fn on_toggle_include_subfolders(
         &mut self,
         _: &ToggleIncludeSubfolders,
@@ -1441,8 +1902,7 @@ impl PicLensApp {
             !self.search_text.is_empty(),
         ) {
             EscapeTarget::Drag => {
-                let _ = drag_cancel(std::mem::replace(&mut self.drag, DragPhase::Idle));
-                cx.notify();
+                self.cleanup_drag_session(cx);
             }
             EscapeTarget::DropRename => {
                 self.drop_rename = None;
@@ -1510,7 +1970,7 @@ impl PicLensApp {
                 .iter()
                 .any(|item| item.is_folder() && path_equals(item.path(), &path))
             {
-                self.open_folder(path, false, true, cx);
+                self.open_folder(path, false, false, true, cx);
                 self.focus_handle.focus(window, cx);
                 return;
             }
@@ -1732,7 +2192,7 @@ impl PicLensApp {
                 description,
                 ok_text: "確認清除",
                 ok_variant: ButtonVariant::Danger,
-                operation: cleanup_same_basename,
+                kind: BackgroundFileOperationKind::Cleanup,
             },
             paths,
             window,
@@ -1835,6 +2295,100 @@ impl PicLensApp {
         self.drag = drag_begin(origin, sources);
     }
 
+    fn start_performance_scroll(&mut self, cx: &mut Context<Self>) {
+        if !self.performance_scroll_requested
+            || self.performance_scroll_running
+            || self.visible.is_empty()
+        {
+            return;
+        }
+        self.performance_scroll_running = true;
+        info("performance scroll workload started");
+        let task = cx.spawn(async move |this, cx| {
+            let started = std::time::Instant::now();
+            for index in 0..60 {
+                cx.background_executor()
+                    .timer(Duration::from_millis(33))
+                    .await;
+                let keep_running = this
+                    .update(cx, |this, cx| {
+                        if this.shutting_down {
+                            return false;
+                        }
+                        let distance = if (index / 15) % 2 == 0 { 360.0 } else { -360.0 };
+                        this.gallery_list.scroll_by(px(distance));
+                        this.request_thumbs(cx);
+                        cx.notify();
+                        true
+                    })
+                    .unwrap_or(false);
+                if !keep_running {
+                    return;
+                }
+            }
+            let elapsed = started.elapsed().as_millis();
+            let _ = this.update(cx, |this, _cx| {
+                this.performance_scroll_running = false;
+                if let Some(metrics) = &this.metrics {
+                    metrics.scroll_completed(elapsed);
+                }
+                info(format!(
+                    "performance scroll workload completed in {elapsed} ms"
+                ));
+            });
+        });
+        self.spawn_task(task);
+    }
+
+    fn cleanup_drag_session(&mut self, cx: &mut Context<Self>) {
+        if matches!(self.drag, DragPhase::Idle) && self.drag_autoscroll_step == 0.0 {
+            return;
+        }
+        let _ = drag_cancel(std::mem::replace(&mut self.drag, DragPhase::Idle));
+        self.hover_path = None;
+        self.drag_autoscroll_step = 0.0;
+        cx.notify();
+    }
+
+    fn update_drag_autoscroll(&mut self, pointer_y: f64, cx: &mut Context<Self>) {
+        let step = self.gallery_bounds.map_or(0.0, |bounds| {
+            edge_autoscroll_step(
+                pointer_y,
+                f64::from(bounds.origin.y),
+                f64::from(bounds.origin.y + bounds.size.height),
+            )
+        });
+        self.drag_autoscroll_step = if is_dragging(&self.drag) { step } else { 0.0 };
+        if self.drag_autoscroll_step == 0.0 || self.drag_autoscroll_running {
+            return;
+        }
+        self.drag_autoscroll_running = true;
+        let task = cx.spawn(async move |this, cx| loop {
+            cx.background_executor()
+                .timer(Duration::from_millis(33))
+                .await;
+            let keep_running = this
+                .update(cx, |this, cx| {
+                    if this.shutting_down
+                        || !is_dragging(&this.drag)
+                        || this.drag_autoscroll_step == 0.0
+                    {
+                        this.drag_autoscroll_running = false;
+                        return false;
+                    }
+                    this.gallery_list.scroll_by(px(this.drag_autoscroll_step));
+                    this.request_thumbs(cx);
+                    cx.notify();
+                    true
+                })
+                .unwrap_or(false);
+            if !keep_running {
+                break;
+            }
+        });
+        self.spawn_task(task);
+    }
+
     fn on_shell_mouse_move(
         &mut self,
         event: &MouseMoveEvent,
@@ -1846,6 +2400,7 @@ impl PicLensApp {
         }
         let pointer = (f64::from(event.position.x), f64::from(event.position.y));
         self.drag = drag_move(self.drag.clone(), pointer, self.hover_path.clone());
+        self.update_drag_autoscroll(pointer.1, cx);
         cx.notify();
     }
 
@@ -1856,6 +2411,7 @@ impl PicLensApp {
         cx: &mut Context<Self>,
     ) {
         let finish = drag_finish(std::mem::replace(&mut self.drag, DragPhase::Idle));
+        self.drag_autoscroll_step = 0.0;
         match finish {
             DragFinish::Confirm { sources, target } => {
                 let plan = plan_drop_rename(&sources, &target);
@@ -2035,6 +2591,7 @@ mod file_operation_tests {
                     window,
                     cx,
                     None,
+                    super::LaunchOptions::default(),
                     Arc::new(JsonSettingsStore::with_path(settings_path)),
                 )
             });

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=PicLens
+Comment=Image viewer and organizer
+Exec=/usr/bin/PicLens
+Icon=piclens
+Terminal=false
+Categories=Graphics;Viewer;

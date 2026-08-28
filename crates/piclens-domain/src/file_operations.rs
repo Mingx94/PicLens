@@ -3,6 +3,7 @@ pub enum FileOperationStatus {
     Converted,
     Trashed,
     Renamed,
+    Canceled,
     Skipped,
     Failed,
 }
@@ -44,6 +45,13 @@ impl FileOperationBatchResult {
         self.items
             .iter()
             .filter(|item| item.status == FileOperationStatus::Skipped)
+            .count()
+    }
+
+    pub fn canceled(&self) -> usize {
+        self.items
+            .iter()
+            .filter(|item| item.status == FileOperationStatus::Canceled)
             .count()
     }
 
@@ -91,11 +99,19 @@ mod tests {
                     reason: None,
                     message: None,
                 },
+                FileOperationResult {
+                    path: "e".into(),
+                    status: FileOperationStatus::Canceled,
+                    target_path: None,
+                    reason: Some("canceled".into()),
+                    message: None,
+                },
             ],
         };
-        assert_eq!(batch.total(), 4);
+        assert_eq!(batch.total(), 5);
         assert_eq!(batch.succeeded(), 2);
         assert_eq!(batch.skipped(), 1);
+        assert_eq!(batch.canceled(), 1);
         assert_eq!(batch.failed(), 1);
     }
 }

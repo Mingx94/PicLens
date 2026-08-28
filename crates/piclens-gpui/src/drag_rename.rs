@@ -26,6 +26,33 @@ pub enum DragFinish {
 }
 
 pub const DRAG_THRESHOLD: f64 = 8.0;
+pub const AUTOSCROLL_EDGE: f64 = 72.0;
+pub const AUTOSCROLL_MAX_STEP: f32 = 48.0;
+
+/// Return one bounded scroll step. Negative moves toward the top.
+pub fn edge_autoscroll_step(pointer_y: f64, top: f64, bottom: f64) -> f32 {
+    if bottom <= top || pointer_y < top || pointer_y > bottom {
+        return 0.0;
+    }
+    let top_distance = pointer_y - top;
+    if top_distance < AUTOSCROLL_EDGE {
+        return -(AUTOSCROLL_MAX_STEP * (1.0 - top_distance / AUTOSCROLL_EDGE) as f32);
+    }
+    let bottom_distance = bottom - pointer_y;
+    if bottom_distance < AUTOSCROLL_EDGE {
+        return AUTOSCROLL_MAX_STEP * (1.0 - bottom_distance / AUTOSCROLL_EDGE) as f32;
+    }
+    0.0
+}
+
+pub fn drag_sources_exist(session: &DragPhase, paths: impl Fn(&str) -> bool) -> bool {
+    match session {
+        DragPhase::Idle => true,
+        DragPhase::Pressed { sources, .. } | DragPhase::Dragging { sources, .. } => {
+            sources.iter().all(|source| paths(source))
+        }
+    }
+}
 
 pub fn drag_begin(origin: (f64, f64), sources: Vec<String>) -> DragPhase {
     if sources.is_empty() {
@@ -161,5 +188,21 @@ mod tests {
             Some("/a.jpg".into()),
         );
         assert_eq!(drag_target(&session), None);
+    }
+
+    #[test]
+    fn edge_autoscroll_is_bounded_and_zero_in_the_middle() {
+        assert_eq!(edge_autoscroll_step(0.0, 0.0, 400.0), -48.0);
+        assert_eq!(edge_autoscroll_step(36.0, 0.0, 400.0), -24.0);
+        assert_eq!(edge_autoscroll_step(200.0, 0.0, 400.0), 0.0);
+        assert_eq!(edge_autoscroll_step(364.0, 0.0, 400.0), 24.0);
+        assert_eq!(edge_autoscroll_step(400.0, 0.0, 400.0), 48.0);
+        assert_eq!(edge_autoscroll_step(401.0, 0.0, 400.0), 0.0);
+    }
+
+    #[test]
+    fn removed_source_invalidates_the_session() {
+        let session = drag_begin((0.0, 0.0), vec!["/a.jpg".into(), "/b.jpg".into()]);
+        assert!(!drag_sources_exist(&session, |path| path == "/a.jpg"));
     }
 }

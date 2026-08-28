@@ -8,7 +8,7 @@ Pushing a matching tag starts `.github/workflows/release.yml`. A manual run can 
 
 ## Release gates
 
-Windows 2025 and Ubuntu 24.04 each use the nightly toolchain pinned in `rust-toolchain.toml` and run these locked gates:
+Windows 2025, Ubuntu 24.04, and Fedora 42 use the nightly toolchain pinned in `rust-toolchain.toml`. Windows runs the complete Rust gates below. Normal CI runs the same workspace gates on Windows and Ubuntu.
 
 ```text
 cargo fmt --check
@@ -24,13 +24,18 @@ The normal CI workflow also runs workspace build and check gates on both platfor
 For version `<version>`, the workflow publishes:
 
 - `PicLens-<version>-windows-x86_64.zip`
+- `PicLens-<version>-windows-x86_64.msi`
 - `PicLens-<version>-windows-x86_64.zip.sha256`
 - `PicLens-<version>-linux-x86_64.tar.gz`
+- `PicLens-<version>-linux-x86_64.deb`
+- `PicLens-<version>-linux-x86_64.rpm`
 - `PicLens-<version>-linux-x86_64.tar.gz.sha256`
 
-Each archive contains the PicLens executable, `LICENSE`, `README.md`, and the Noto Sans CJK TC OFL notice. The font files are embedded in the executable. The release workflow generates GitHub release notes and attaches the four files.
+Each payload contains the PicLens executable, license, README, and Noto Sans CJK TC OFL notice. The DEB and RPM also install the desktop entry, AppStream metadata, and icon. The MSI installs PicLens per machine and adds a Start Menu shortcut.
 
-These are unsigned portable archives. They are not MSI, MSIX, DEB, RPM, or auto-update packages. Linux users must provide a Vulkan 1.3 driver, X11 or Wayland, and the required desktop portals and system libraries.
+All current release assets are unsigned. The release page says this explicitly and provides SHA-256 checksum files. The build script supports optional MSI Authenticode signing, but the hosted workflow does not enable it. Linux users must provide a Vulkan 1.3 driver, X11 or Wayland, and the required desktop portals and system libraries.
+
+Before upload, clean native runners install, launch, reinstall/replace, and uninstall each package. The lifecycle checks preserve an isolated `PICLENS_DATA_ROOT`. A package from another operating system or cross-compilation does not satisfy this gate.
 
 ## Release procedure
 
@@ -41,15 +46,12 @@ These are unsigned portable archives. They are not MSI, MSIX, DEB, RPM, or auto-
 5. Record all unverified platforms and paths.
 6. Create an annotated `v<version>` tag on the release commit.
 7. Push the release commit and tag.
-8. Confirm that the GitHub Action passes and the GitHub Release contains both archives and both checksum files.
+8. Confirm that all three native package lifecycle jobs pass and that the GitHub Release contains MSI, DEB, RPM, portable archives, and checksum files.
 
 Local compilation or archive creation does not complete a release. Completion requires a successful tag push and a successful release workflow.
 
-## Remaining release work
+## Known limitation
 
-- Code signing is not configured.
-- Installer lifecycle and upgrade tests are not configured.
-- Package-manager integration and desktop-file installation are not configured.
-- The hosted workflow compiles and packages the app, but it does not launch a GPU window.
+Code signing is not configured. Do not describe these assets as signed. The package lifecycle uses native clean runners and a real GPUI launch under the available desktop session or Xvfb; it does not replace manual GPU and visual validation on representative hardware.
 
 Review [Licensing and redistribution](licensing.md) for every release candidate.

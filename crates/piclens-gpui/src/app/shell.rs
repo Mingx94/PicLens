@@ -14,7 +14,9 @@ use piclens_domain::{path_equals, FileOperationStatus};
 
 use super::{accessible_icon_button, AdaptiveLayout, GalleryMode, PicLensApp};
 use crate::actions::{
-    CleanupSameBasename, ConvertJpg, ConvertWebp, DropRenamePlan, RenameSelection, TrashSelection,
+    CleanupSameBasename, ConvertJpg, ConvertWebp, DropRenamePlan, RenameSelection,
+    SortModifiedAscending, SortModifiedDescending, SortNameAscending, SortNameDescending,
+    TrashSelection,
 };
 use crate::interaction::{
     batch_result_detail, batch_result_file_name, batch_result_reveal_path,
@@ -456,7 +458,7 @@ impl PicLensApp {
                     .icon(IconName::Folder)
                     .label(name)
                     .on_click(cx.listener(move |this, _, _, cx| {
-                        this.open_folder(open_path.clone(), false, true, cx);
+                        this.open_folder(open_path.clone(), false, false, true, cx);
                     })),
             )
     }
@@ -477,6 +479,7 @@ impl PicLensApp {
         let has_visible_images = self.visible.iter().any(|item| item.as_image().is_some());
         let rename_focus = self.focus_handle.clone();
         let batch_focus = self.focus_handle.clone();
+        let sort_focus = self.focus_handle.clone();
         h_flex()
             .w_full()
             .px(if layout.minimum { px(8.0) } else { px(28.0) })
@@ -558,7 +561,14 @@ impl PicLensApp {
                                 Button::new("sort")
                                     .outline()
                                     .label(self.sort_label())
-                                    .on_click(cx.listener(|this, _, _, cx| this.cycle_sort(cx))),
+                                    .dropdown_menu(move |menu, _, _| {
+                                        menu.action_context(sort_focus.clone())
+                                            .menu("名稱遞增", Box::new(SortNameAscending))
+                                            .menu("名稱遞減", Box::new(SortNameDescending))
+                                            .separator()
+                                            .menu("修改時間遞增", Box::new(SortModifiedAscending))
+                                            .menu("修改時間遞減", Box::new(SortModifiedDescending))
+                                    }),
                             )
                             .child(
                                 Button::new("mode")
@@ -601,7 +611,15 @@ impl PicLensApp {
                                                 Box::new(CleanupSameBasename),
                                             )
                                     }),
-                            ),
+                            )
+                            .children(file_operation_busy.then(|| {
+                                Button::new("cancel-file-operation")
+                                    .danger()
+                                    .label("取消操作")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.cancel_file_operation(cx);
+                                    }))
+                            })),
                     )
                     .when(!layout.minimum || has_selection, |this| {
                         this.child(
@@ -728,6 +746,14 @@ impl PicLensApp {
                     .overflow_hidden()
                     .whitespace_nowrap()
                     .child(self.status.clone()),
+            )
+            .child(
+                div()
+                    .id("version-label")
+                    .aria_label(format!("PicLens 版本 {}", env!("CARGO_PKG_VERSION")))
+                    .text_xs()
+                    .text_color(theme.muted_text)
+                    .child(format!("PicLens {}", env!("CARGO_PKG_VERSION"))),
             )
             .child(
                 h_flex()

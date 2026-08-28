@@ -63,6 +63,7 @@ impl Render for PicLensApp {
         let folder_path = self.folder_path_label();
         let visible_count = self.visible.len();
         let selected_count = self.selected.len();
+        self.sync_native_menus(cx);
 
         let gallery_body = self.render_gallery(theme, cx);
         let sidebar = self.render_sidebar(theme, layout.minimum, cx);
@@ -104,6 +105,12 @@ impl Render for PicLensApp {
             .on_action(cx.listener(Self::on_toggle_sidebar))
             .on_action(cx.listener(Self::on_toggle_gallery_mode))
             .on_action(cx.listener(Self::on_cycle_sort))
+            .on_action(cx.listener(Self::on_sort_name_ascending))
+            .on_action(cx.listener(Self::on_sort_name_descending))
+            .on_action(cx.listener(Self::on_sort_modified_ascending))
+            .on_action(cx.listener(Self::on_sort_modified_descending))
+            .on_action(cx.listener(Self::on_cancel_file_operation))
+            .on_action(cx.listener(Self::on_prepare_shutdown))
             .on_action(cx.listener(Self::on_toggle_include_subfolders))
             .on_action(cx.listener(Self::on_focus_search))
             .on_action(cx.listener(Self::on_close_overlay))

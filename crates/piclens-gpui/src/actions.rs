@@ -13,6 +13,10 @@ actions!(
         ToggleSidebar,
         ToggleGalleryMode,
         CycleSort,
+        SortNameAscending,
+        SortNameDescending,
+        SortModifiedAscending,
+        SortModifiedDescending,
         ToggleIncludeSubfolders,
         ClearSelection,
         SelectAll,
@@ -29,6 +33,8 @@ actions!(
         ConvertJpg,
         ConvertWebp,
         CleanupSameBasename,
+        CancelFileOperation,
+        PrepareShutdown,
         RevealInFileManager,
         FocusSearch,
         MoveSelectionUp,
@@ -47,6 +53,13 @@ pub const VIEWER_CONTEXT: &str = "PicLensViewer";
 /// Key context for the single-image rename overlay.
 pub const RENAME_CONTEXT: &str = "PicLensRename";
 
+#[derive(Clone, Copy, Default)]
+pub struct MenuAvailability {
+    pub has_visible_images: bool,
+    pub selection_count: usize,
+    pub file_operation_busy: bool,
+}
+
 pub fn init(cx: &mut App) {
     cx.bind_keys([
         KeyBinding::new("ctrl-q", Quit, None),
@@ -64,6 +77,10 @@ pub fn init(cx: &mut App) {
         KeyBinding::new("ctrl-1", ToggleGalleryMode, Some(CONTEXT)),
         KeyBinding::new("ctrl-2", ToggleGalleryMode, Some(CONTEXT)),
         KeyBinding::new("ctrl-s", CycleSort, Some(CONTEXT)),
+        KeyBinding::new("ctrl-alt-1", SortNameAscending, Some(CONTEXT)),
+        KeyBinding::new("ctrl-alt-2", SortNameDescending, Some(CONTEXT)),
+        KeyBinding::new("ctrl-alt-3", SortModifiedAscending, Some(CONTEXT)),
+        KeyBinding::new("ctrl-alt-4", SortModifiedDescending, Some(CONTEXT)),
         KeyBinding::new("ctrl-shift-s", ToggleIncludeSubfolders, Some(CONTEXT)),
         KeyBinding::new("ctrl-f", FocusSearch, Some(CONTEXT)),
         KeyBinding::new("/", FocusSearch, Some(CONTEXT)),
@@ -86,6 +103,7 @@ pub fn init(cx: &mut App) {
         KeyBinding::new("ctrl-w", ConvertWebp, Some(CONTEXT)),
         KeyBinding::new("ctrl-shift-c", CleanupSameBasename, Some(CONTEXT)),
         KeyBinding::new("ctrl-shift-e", RevealInFileManager, Some(CONTEXT)),
+        KeyBinding::new("ctrl-escape", CancelFileOperation, Some(CONTEXT)),
         // Viewer (shell context still matches as an ancestor; overlay has its own too)
         KeyBinding::new("pageup", ViewerPrev, Some(CONTEXT)),
         KeyBinding::new("pagedown", ViewerNext, Some(CONTEXT)),
@@ -108,11 +126,15 @@ pub fn init(cx: &mut App) {
         KeyBinding::new("escape", CloseOverlay, Some(RENAME_CONTEXT)),
     ]);
 
-    set_app_menus(cx);
+    set_app_menus(cx, None, MenuAvailability::default());
 }
 
 /// Native menu bar. Labels stay Traditional Chinese to match the product locale.
-pub fn set_app_menus(cx: &mut App) {
+pub fn set_app_menus(cx: &App, selected_sort: Option<u8>, availability: MenuAvailability) {
+    let no_selection = availability.selection_count == 0;
+    let not_single_selection = availability.selection_count != 1;
+    let not_drop_selection = availability.selection_count < 2;
+    let busy = availability.file_operation_busy;
     cx.set_menus(vec![
         Menu {
             name: "檔案".into(),
@@ -121,7 +143,7 @@ pub fn set_app_menus(cx: &mut App) {
                 MenuItem::action("開啟資料夾", OpenFolder),
                 MenuItem::action("重新整理", Refresh),
                 MenuItem::separator(),
-                MenuItem::action("在檔案管理器中顯示", RevealInFileManager),
+                MenuItem::action("在檔案管理器中顯示", RevealInFileManager).disabled(no_selection),
                 MenuItem::separator(),
                 MenuItem::action("結束", Quit),
             ],
@@ -133,14 +155,20 @@ pub fn set_app_menus(cx: &mut App) {
                 MenuItem::action("全選可見圖片", SelectAll),
                 MenuItem::action("清除選取", ClearSelection),
                 MenuItem::separator(),
-                MenuItem::action("重新命名", RenameSelection),
-                MenuItem::action("依目標重新命名", DropRenamePlan),
+                MenuItem::action("重新命名", RenameSelection)
+                    .disabled(busy || not_single_selection),
+                MenuItem::action("依目標重新命名", DropRenamePlan)
+                    .disabled(busy || not_drop_selection),
                 MenuItem::separator(),
-                MenuItem::action("目前結果轉 JPG", ConvertJpg),
-                MenuItem::action("目前結果轉 WebP", ConvertWebp),
-                MenuItem::action("清除目前結果的同名格式", CleanupSameBasename),
+                MenuItem::action("目前結果轉 JPG", ConvertJpg)
+                    .disabled(busy || !availability.has_visible_images),
+                MenuItem::action("目前結果轉 WebP", ConvertWebp)
+                    .disabled(busy || !availability.has_visible_images),
+                MenuItem::action("清除目前結果的同名格式", CleanupSameBasename)
+                    .disabled(busy || !availability.has_visible_images),
+                MenuItem::action("取消目前檔案操作", CancelFileOperation).disabled(!busy),
                 MenuItem::separator(),
-                MenuItem::action("移至回收筒", TrashSelection),
+                MenuItem::action("移至回收筒", TrashSelection).disabled(busy || no_selection),
             ],
         },
         Menu {
@@ -149,7 +177,12 @@ pub fn set_app_menus(cx: &mut App) {
             items: vec![
                 MenuItem::action("側欄", ToggleSidebar),
                 MenuItem::action("格狀 / 列表", ToggleGalleryMode),
-                MenuItem::action("切換排序", CycleSort),
+                MenuItem::action("名稱遞增", SortNameAscending).checked(selected_sort == Some(0)),
+                MenuItem::action("名稱遞減", SortNameDescending).checked(selected_sort == Some(1)),
+                MenuItem::action("修改時間遞增", SortModifiedAscending)
+                    .checked(selected_sort == Some(2)),
+                MenuItem::action("修改時間遞減", SortModifiedDescending)
+                    .checked(selected_sort == Some(3)),
                 MenuItem::action("含子資料夾", ToggleIncludeSubfolders),
                 MenuItem::separator(),
                 MenuItem::action("搜尋", FocusSearch),
