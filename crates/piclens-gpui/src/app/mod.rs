@@ -108,6 +108,12 @@ fn trash_confirmation_description(count: usize) -> String {
     format!("將 {count} 張圖片移至作業系統回收筒。取消不會修改檔案。")
 }
 
+fn cleanup_confirmation_description(count: usize) -> String {
+    format!(
+        "將檢查目前結果的 {count} 張圖片。JPG/JPEG 與 WebP 會保留；其他同名格式會移至作業系統回收筒。取消不會修改檔案。"
+    )
+}
+
 const MAX_THUMB_IN_FLIGHT: usize = 8;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -859,11 +865,22 @@ impl PicLensApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let paths = self.visible_image_paths();
+        self.start_file_operation(label, paths, operation, window, cx);
+    }
+
+    fn start_file_operation(
+        &mut self,
+        label: &'static str,
+        paths: Vec<String>,
+        operation: fn(&[String]) -> FileOperationBatchResult,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if self.block_for_active_file_operation(cx) {
             return;
         }
 
-        let paths = self.visible_image_paths();
         if paths.is_empty() {
             self.status = format!("{label}：目前結果沒有可處理的圖片");
             cx.notify();
@@ -1213,6 +1230,47 @@ impl PicLensApp {
                     window.defer(cx, move |window, cx| {
                         let _ = entity.update(cx, |this, cx| {
                             this.confirm_trash(paths, close_viewer_after, window, cx);
+                        });
+                    });
+                    true
+                })
+        });
+    }
+
+    fn request_cleanup_confirmation(
+        &mut self,
+        paths: Vec<String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let description = cleanup_confirmation_description(paths.len());
+        let entity = cx.entity().downgrade();
+
+        window.open_alert_dialog(cx, move |alert, _, _| {
+            let entity = entity.clone();
+            let paths = paths.clone();
+            alert
+                .title("清除同名格式")
+                .description(description.clone())
+                .button_props(
+                    DialogButtonProps::default()
+                        .ok_text("確認清除")
+                        .ok_variant(ButtonVariant::Danger)
+                        .cancel_text("取消")
+                        .show_cancel(true),
+                )
+                .on_ok(move |_, window, cx| {
+                    let entity = entity.clone();
+                    let paths = paths.clone();
+                    window.defer(cx, move |window, cx| {
+                        let _ = entity.update(cx, |this, cx| {
+                            this.start_file_operation(
+                                "清除同名格式",
+                                paths,
+                                cleanup_same_basename,
+                                window,
+                                cx,
+                            );
                         });
                     });
                     true
@@ -1570,7 +1628,20 @@ impl PicLensApp {
     }
 
     fn on_cleanup(&mut self, _: &CleanupSameBasename, window: &mut Window, cx: &mut Context<Self>) {
-        self.start_visible_file_operation("清除同名格式", cleanup_same_basename, window, cx);
+        if self.block_for_active_file_operation(cx) {
+            return;
+        }
+        if window.has_active_dialog(cx) {
+            return;
+        }
+
+        let paths = self.visible_image_paths();
+        if paths.is_empty() {
+            self.status = "清除同名格式：目前結果沒有可處理的圖片".into();
+            cx.notify();
+            return;
+        }
+        self.request_cleanup_confirmation(paths, window, cx);
     }
 
     fn on_reveal(&mut self, _: &RevealInFileManager, _: &mut Window, cx: &mut Context<Self>) {
@@ -1830,6 +1901,7 @@ mod adaptive_tests {
 mod file_operation_tests {
     use std::cell::RefCell;
     use std::fs;
+    use std::path::{Path, PathBuf};
     use std::rc::Rc;
     use std::sync::Arc;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -1839,16 +1911,75 @@ mod file_operation_tests {
     use piclens_domain::{ImageListItem, ListItem};
     use piclens_infra::JsonSettingsStore;
 
-    use super::{trash_confirmation_description, GalleryMode, PicLensApp};
-    use crate::actions::TrashSelection;
+    use super::{
+        cleanup_confirmation_description, trash_confirmation_description, GalleryMode, PicLensApp,
+    };
+    use crate::actions::{CleanupSameBasename, TrashSelection};
 
-    #[gpui::test]
-    fn trash_escape_cancels_without_modifying_files(cx: &mut TestAppContext) {
+    fn initialize_test_app(cx: &mut TestAppContext) {
         cx.update(|cx| {
             gpui_component::init(cx);
             crate::theme::init(cx);
             crate::actions::init(cx);
         });
+    }
+
+    fn open_file_operation_app(
+        cx: &mut TestAppContext,
+        image_paths: Vec<String>,
+        settings_path: PathBuf,
+    ) -> (Entity<PicLensApp>, &mut VisualTestContext) {
+        let app_slot = Rc::new(RefCell::new(None::<Entity<PicLensApp>>));
+        let app_slot_for_window = app_slot.clone();
+
+        let (_, cx) = cx.add_window_view(move |window, cx| {
+            let app = cx.new(|cx| {
+                PicLensApp::new_with_settings_store(
+                    window,
+                    cx,
+                    None,
+                    Arc::new(JsonSettingsStore::with_path(settings_path)),
+                )
+            });
+            app.update(cx, |app, cx| {
+                let images = image_paths
+                    .iter()
+                    .map(|path| {
+                        let path_ref = Path::new(path);
+                        ListItem::Image(ImageListItem {
+                            path: path.clone(),
+                            name: path_ref.file_name().unwrap().to_string_lossy().into_owned(),
+                            extension: path_ref.extension().unwrap().to_string_lossy().into_owned(),
+                            modified_at_ms: None,
+                            size_bytes: fs::metadata(path_ref).unwrap().len(),
+                            is_animated: false,
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                app.items = images.clone();
+                app.visible = images;
+                app.selected.extend(image_paths.iter().cloned());
+                app.selection_order = image_paths.clone();
+                app.selection_anchor = image_paths.first().cloned();
+                app.thumb_failed.extend(image_paths.iter().cloned());
+                app.gallery_mode = GalleryMode::List;
+                app.sync_gallery_list();
+                cx.notify();
+            });
+            *app_slot_for_window.borrow_mut() = Some(app.clone());
+            Root::new(app, window, cx)
+        });
+        let app = app_slot.borrow_mut().take().unwrap();
+        let cx: &mut VisualTestContext = cx;
+        cx.update(|window, cx| {
+            _ = window.draw(cx);
+        });
+        (app, cx)
+    }
+
+    #[gpui::test]
+    fn trash_escape_cancels_without_modifying_files(cx: &mut TestAppContext) {
+        initialize_test_app(cx);
 
         let unique = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -1861,47 +1992,8 @@ mod file_operation_tests {
         fs::write(&image_path, b"test image placeholder").unwrap();
         let image_path_string = image_path.to_string_lossy().into_owned();
         let settings_path = image_path.with_extension("settings.json");
-        let app_slot = Rc::new(RefCell::new(None::<Entity<PicLensApp>>));
-        let app_slot_for_window = app_slot.clone();
-        let image_path_for_window = image_path_string.clone();
-
-        let (_, cx) = cx.add_window_view(move |window, cx| {
-            let app = cx.new(|cx| {
-                PicLensApp::new_with_settings_store(
-                    window,
-                    cx,
-                    None,
-                    Arc::new(JsonSettingsStore::with_path(settings_path)),
-                )
-            });
-            app.update(cx, |app, cx| {
-                let image = ListItem::Image(ImageListItem {
-                    path: image_path_for_window.clone(),
-                    name: "confirmation.png".into(),
-                    extension: "png".into(),
-                    modified_at_ms: None,
-                    size_bytes: 22,
-                    is_animated: false,
-                });
-                app.items = vec![image.clone()];
-                app.visible = vec![image];
-                app.selected.insert(image_path_for_window.clone());
-                app.selection_order.push(image_path_for_window.clone());
-                app.selection_anchor = Some(image_path_for_window.clone());
-                app.thumb_failed.insert(image_path_for_window.clone());
-                app.gallery_mode = GalleryMode::List;
-                app.sync_gallery_list();
-                cx.notify();
-            });
-            *app_slot_for_window.borrow_mut() = Some(app.clone());
-            Root::new(app, window, cx)
-        });
-        let app = app_slot.borrow_mut().take().unwrap();
+        let (app, cx) = open_file_operation_app(cx, vec![image_path_string.clone()], settings_path);
         let app_focus = app.read_with(cx, |app, _| app.focus_handle.clone());
-        let cx: &mut VisualTestContext = cx;
-        cx.update(|window, cx| {
-            _ = window.draw(cx);
-        });
 
         cx.dispatch_action(TrashSelection);
         assert!(cx.update(|window, cx| window.has_active_dialog(cx)));
@@ -1922,5 +2014,58 @@ mod file_operation_tests {
         });
 
         fs::remove_file(image_path).unwrap();
+    }
+
+    #[gpui::test]
+    fn cleanup_escape_cancels_without_modifying_files(cx: &mut TestAppContext) {
+        initialize_test_app(cx);
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let fixture_dir = std::env::temp_dir().join(format!(
+            "piclens-cleanup-confirmation-{}-{unique}",
+            std::process::id()
+        ));
+        fs::create_dir(&fixture_dir).unwrap();
+        let jpg_path = fixture_dir.join("same-name.jpg");
+        let png_path = fixture_dir.join("same-name.png");
+        fs::write(&jpg_path, b"test jpg placeholder").unwrap();
+        fs::write(&png_path, b"test png placeholder").unwrap();
+        let image_paths = vec![
+            jpg_path.to_string_lossy().into_owned(),
+            png_path.to_string_lossy().into_owned(),
+        ];
+        let settings_path = fixture_dir.join("settings.json");
+        let (app, cx) = open_file_operation_app(cx, image_paths, settings_path.clone());
+        let app_focus = app.read_with(cx, |app, _| app.focus_handle.clone());
+
+        cx.dispatch_action(CleanupSameBasename);
+        assert!(cx.update(|window, cx| window.has_active_dialog(cx)));
+        assert_eq!(
+            cleanup_confirmation_description(2),
+            "將檢查目前結果的 2 張圖片。JPG/JPEG 與 WebP 會保留；其他同名格式會移至作業系統回收筒。取消不會修改檔案。"
+        );
+        assert!(jpg_path.exists());
+        assert!(png_path.exists());
+
+        cx.simulate_keystrokes("escape");
+        assert!(!cx.update(|window, cx| window.has_active_dialog(cx)));
+        cx.update(|window, cx| {
+            assert_eq!(window.focused(cx).as_ref(), Some(&app_focus));
+        });
+        app.read_with(cx, |app, _| {
+            assert!(app.file_operation_label.is_none());
+        });
+        assert!(jpg_path.exists());
+        assert!(png_path.exists());
+
+        fs::remove_file(jpg_path).unwrap();
+        fs::remove_file(png_path).unwrap();
+        if settings_path.exists() {
+            fs::remove_file(settings_path).unwrap();
+        }
+        fs::remove_dir(fixture_dir).unwrap();
     }
 }
