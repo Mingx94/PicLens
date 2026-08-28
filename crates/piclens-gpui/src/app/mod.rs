@@ -114,7 +114,53 @@ fn cleanup_confirmation_description(count: usize) -> String {
     )
 }
 
+const CONVERSION_CONFIRMATION_THRESHOLD: usize = 50;
 const MAX_THUMB_IN_FLIGHT: usize = 8;
+
+#[derive(Clone, Copy)]
+enum ConversionKind {
+    Jpg,
+    Webp,
+}
+
+impl ConversionKind {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Jpg => "轉 JPG",
+            Self::Webp => "轉 WebP",
+        }
+    }
+
+    fn operation(self) -> fn(&[String]) -> FileOperationBatchResult {
+        match self {
+            Self::Jpg => convert_to_jpg,
+            Self::Webp => convert_to_lossless_webp,
+        }
+    }
+
+    fn confirmation_description(self, count: usize) -> String {
+        match self {
+            Self::Jpg => format!(
+                "將處理目前結果的 {count} 張圖片並轉為 JPG。原始檔案會保留，且不會覆寫既有目標檔。取消不會修改檔案。"
+            ),
+            Self::Webp => format!(
+                "將處理目前結果的 {count} 張圖片並轉為無損 WebP。原始檔案會保留；JPG/JPEG、WebP 與動畫圖片會略過，且不會覆寫既有目標檔。取消不會修改檔案。"
+            ),
+        }
+    }
+}
+
+struct BackgroundFileOperationConfirmation {
+    label: &'static str,
+    description: String,
+    ok_text: &'static str,
+    ok_variant: ButtonVariant,
+    operation: fn(&[String]) -> FileOperationBatchResult,
+}
+
+fn conversion_requires_confirmation(count: usize) -> bool {
+    count >= CONVERSION_CONFIRMATION_THRESHOLD
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum GalleryMode {
@@ -858,17 +904,6 @@ impl PicLensApp {
         true
     }
 
-    fn start_visible_file_operation(
-        &mut self,
-        label: &'static str,
-        operation: fn(&[String]) -> FileOperationBatchResult,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let paths = self.visible_image_paths();
-        self.start_file_operation(label, paths, operation, window, cx);
-    }
-
     fn start_file_operation(
         &mut self,
         label: &'static str,
@@ -1237,25 +1272,32 @@ impl PicLensApp {
         });
     }
 
-    fn request_cleanup_confirmation(
+    fn request_background_file_operation_confirmation(
         &mut self,
+        confirmation: BackgroundFileOperationConfirmation,
         paths: Vec<String>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let description = cleanup_confirmation_description(paths.len());
+        let BackgroundFileOperationConfirmation {
+            label,
+            description,
+            ok_text,
+            ok_variant,
+            operation,
+        } = confirmation;
         let entity = cx.entity().downgrade();
 
         window.open_alert_dialog(cx, move |alert, _, _| {
             let entity = entity.clone();
             let paths = paths.clone();
             alert
-                .title("清除同名格式")
+                .title(label)
                 .description(description.clone())
                 .button_props(
                     DialogButtonProps::default()
-                        .ok_text("確認清除")
-                        .ok_variant(ButtonVariant::Danger)
+                        .ok_text(ok_text)
+                        .ok_variant(ok_variant)
                         .cancel_text("取消")
                         .show_cancel(true),
                 )
@@ -1264,18 +1306,60 @@ impl PicLensApp {
                     let paths = paths.clone();
                     window.defer(cx, move |window, cx| {
                         let _ = entity.update(cx, |this, cx| {
-                            this.start_file_operation(
-                                "清除同名格式",
-                                paths,
-                                cleanup_same_basename,
-                                window,
-                                cx,
-                            );
+                            this.start_file_operation(label, paths, operation, window, cx);
                         });
                     });
                     true
                 })
         });
+    }
+
+    fn request_conversion_confirmation(
+        &mut self,
+        kind: ConversionKind,
+        paths: Vec<String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let description = kind.confirmation_description(paths.len());
+        self.request_background_file_operation_confirmation(
+            BackgroundFileOperationConfirmation {
+                label: kind.label(),
+                description,
+                ok_text: "開始轉換",
+                ok_variant: ButtonVariant::Primary,
+                operation: kind.operation(),
+            },
+            paths,
+            window,
+            cx,
+        );
+    }
+
+    fn request_conversion(
+        &mut self,
+        kind: ConversionKind,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.block_for_active_file_operation(cx) {
+            return;
+        }
+        if window.has_active_dialog(cx) {
+            return;
+        }
+
+        let paths = self.visible_image_paths();
+        if paths.is_empty() {
+            self.status = format!("{}：目前結果沒有可處理的圖片", kind.label());
+            cx.notify();
+            return;
+        }
+        if conversion_requires_confirmation(paths.len()) {
+            self.request_conversion_confirmation(kind, paths, window, cx);
+        } else {
+            self.start_file_operation(kind.label(), paths, kind.operation(), window, cx);
+        }
     }
 
     // --- Keyboard action handlers ---
@@ -1620,11 +1704,11 @@ impl PicLensApp {
     }
 
     fn on_convert_jpg(&mut self, _: &ConvertJpg, window: &mut Window, cx: &mut Context<Self>) {
-        self.start_visible_file_operation("轉 JPG", convert_to_jpg, window, cx);
+        self.request_conversion(ConversionKind::Jpg, window, cx);
     }
 
     fn on_convert_webp(&mut self, _: &ConvertWebp, window: &mut Window, cx: &mut Context<Self>) {
-        self.start_visible_file_operation("轉 WebP", convert_to_lossless_webp, window, cx);
+        self.request_conversion(ConversionKind::Webp, window, cx);
     }
 
     fn on_cleanup(&mut self, _: &CleanupSameBasename, window: &mut Window, cx: &mut Context<Self>) {
@@ -1641,7 +1725,19 @@ impl PicLensApp {
             cx.notify();
             return;
         }
-        self.request_cleanup_confirmation(paths, window, cx);
+        let description = cleanup_confirmation_description(paths.len());
+        self.request_background_file_operation_confirmation(
+            BackgroundFileOperationConfirmation {
+                label: "清除同名格式",
+                description,
+                ok_text: "確認清除",
+                ok_variant: ButtonVariant::Danger,
+                operation: cleanup_same_basename,
+            },
+            paths,
+            window,
+            cx,
+        );
     }
 
     fn on_reveal(&mut self, _: &RevealInFileManager, _: &mut Window, cx: &mut Context<Self>) {
@@ -1912,9 +2008,10 @@ mod file_operation_tests {
     use piclens_infra::JsonSettingsStore;
 
     use super::{
-        cleanup_confirmation_description, trash_confirmation_description, GalleryMode, PicLensApp,
+        cleanup_confirmation_description, conversion_requires_confirmation,
+        trash_confirmation_description, ConversionKind, GalleryMode, PicLensApp,
     };
-    use crate::actions::{CleanupSameBasename, TrashSelection};
+    use crate::actions::{CleanupSameBasename, ConvertJpg, ConvertWebp, TrashSelection};
 
     fn initialize_test_app(cx: &mut TestAppContext) {
         cx.update(|cx| {
@@ -2063,6 +2160,71 @@ mod file_operation_tests {
 
         fs::remove_file(jpg_path).unwrap();
         fs::remove_file(png_path).unwrap();
+        if settings_path.exists() {
+            fs::remove_file(settings_path).unwrap();
+        }
+        fs::remove_dir(fixture_dir).unwrap();
+    }
+
+    #[test]
+    fn conversion_confirmation_threshold_starts_at_fifty() {
+        assert!(!conversion_requires_confirmation(49));
+        assert!(conversion_requires_confirmation(50));
+        assert_eq!(
+            ConversionKind::Jpg.confirmation_description(50),
+            "將處理目前結果的 50 張圖片並轉為 JPG。原始檔案會保留，且不會覆寫既有目標檔。取消不會修改檔案。"
+        );
+        assert_eq!(
+            ConversionKind::Webp.confirmation_description(50),
+            "將處理目前結果的 50 張圖片並轉為無損 WebP。原始檔案會保留；JPG/JPEG、WebP 與動畫圖片會略過，且不會覆寫既有目標檔。取消不會修改檔案。"
+        );
+    }
+
+    #[gpui::test]
+    fn large_conversions_escape_without_modifying_files(cx: &mut TestAppContext) {
+        initialize_test_app(cx);
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let fixture_dir = std::env::temp_dir().join(format!(
+            "piclens-conversion-confirmation-{}-{unique}",
+            std::process::id()
+        ));
+        fs::create_dir(&fixture_dir).unwrap();
+        let image_paths = (0..50)
+            .map(|index| {
+                let path = fixture_dir.join(format!("image-{index:02}.png"));
+                fs::write(&path, b"test image placeholder").unwrap();
+                path.to_string_lossy().into_owned()
+            })
+            .collect::<Vec<_>>();
+        let settings_path = fixture_dir.join("settings.json");
+        let (app, cx) = open_file_operation_app(cx, image_paths.clone(), settings_path.clone());
+        let app_focus = app.read_with(cx, |app, _| app.focus_handle.clone());
+
+        cx.dispatch_action(ConvertJpg);
+        assert!(cx.update(|window, cx| window.has_active_dialog(cx)));
+        cx.simulate_keystrokes("escape");
+        assert!(!cx.update(|window, cx| window.has_active_dialog(cx)));
+        cx.update(|window, cx| {
+            assert_eq!(window.focused(cx).as_ref(), Some(&app_focus));
+        });
+
+        cx.dispatch_action(ConvertWebp);
+        assert!(cx.update(|window, cx| window.has_active_dialog(cx)));
+        cx.simulate_keystrokes("escape");
+        assert!(!cx.update(|window, cx| window.has_active_dialog(cx)));
+        app.read_with(cx, |app, _| {
+            assert!(app.file_operation_label.is_none());
+        });
+        for path in &image_paths {
+            assert!(Path::new(path).exists());
+            assert!(!Path::new(path).with_extension("jpg").exists());
+            assert!(!Path::new(path).with_extension("webp").exists());
+            fs::remove_file(path).unwrap();
+        }
         if settings_path.exists() {
             fs::remove_file(settings_path).unwrap();
         }

@@ -8,7 +8,6 @@
 
 ### 檔案操作確認
 
-- [ ] JPG / WebP 轉換在目前結果達 50 張以上時要求確認，並清楚顯示作用範圍與原檔保留規則。
 - [ ] Dialog 不可自動確認；Escape、取消按鈕與 focus restore 必須使用同一個關閉路徑。
 - [ ] Toolbar、native menu、context menu、keyboard action 與 accessibility action 必須共用相同的 enabled state 與確認流程。
 
