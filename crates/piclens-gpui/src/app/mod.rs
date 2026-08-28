@@ -14,7 +14,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use gpui::*;
-use gpui_component::button::Button;
+use gpui_component::button::{Button, ButtonVariant};
+use gpui_component::dialog::DialogButtonProps;
 use gpui_component::input::{InputEvent, InputState};
 use gpui_component::notification::Notification;
 use gpui_component::{Selectable, WindowExt};
@@ -101,6 +102,10 @@ fn adaptive_layout(width: f32) -> AdaptiveLayout {
 
 fn fitted_dialog_width(viewport_width: f32, preferred: f32) -> f32 {
     (viewport_width - DIALOG_MARGIN * 2.0).clamp(280.0, preferred)
+}
+
+fn trash_confirmation_description(count: usize) -> String {
+    format!("將 {count} 張圖片移至作業系統回收筒。取消不會修改檔案。")
 }
 
 const MAX_THUMB_IN_FLIGHT: usize = 8;
@@ -1164,6 +1169,57 @@ impl PicLensApp {
         }
     }
 
+    fn confirm_trash(
+        &mut self,
+        paths: Vec<String>,
+        close_viewer_after: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let batch = trash_paths(&paths);
+        self.apply_batch("移至回收筒", &batch, window, cx);
+        if close_viewer_after {
+            self.close_viewer(window, cx);
+        }
+        self.refresh(cx);
+    }
+
+    fn request_trash_confirmation(
+        &mut self,
+        paths: Vec<String>,
+        close_viewer_after: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let description = trash_confirmation_description(paths.len());
+        let entity = cx.entity().downgrade();
+
+        window.open_alert_dialog(cx, move |alert, _, _| {
+            let entity = entity.clone();
+            let paths = paths.clone();
+            alert
+                .title("移至回收筒")
+                .description(description.clone())
+                .button_props(
+                    DialogButtonProps::default()
+                        .ok_text("移至回收筒")
+                        .ok_variant(ButtonVariant::Danger)
+                        .cancel_text("取消")
+                        .show_cancel(true),
+                )
+                .on_ok(move |_, window, cx| {
+                    let entity = entity.clone();
+                    let paths = paths.clone();
+                    window.defer(cx, move |window, cx| {
+                        let _ = entity.update(cx, |this, cx| {
+                            this.confirm_trash(paths, close_viewer_after, window, cx);
+                        });
+                    });
+                    true
+                })
+        });
+    }
+
     // --- Keyboard action handlers ---
 
     fn on_open_folder(&mut self, _: &OpenFolder, window: &mut Window, cx: &mut Context<Self>) {
@@ -1456,29 +1512,33 @@ impl PicLensApp {
         if self.block_for_active_file_operation(cx) {
             return;
         }
-        if self.viewer.is_some() {
-            // Trash current viewer image
-            if let Some(viewer) = self.viewer.as_ref() {
-                let idx = viewer.sequence.current_index as usize;
-                if let Some(img) = viewer.sequence.images.get(idx) {
-                    let paths = vec![img.path.clone()];
-                    let batch = trash_paths(&paths);
-                    self.apply_batch("移至回收筒", &batch, window, cx);
-                    self.close_viewer(window, cx);
-                    self.refresh(cx);
-                    return;
-                }
-            }
+        if window.has_active_dialog(cx) {
+            return;
         }
-        let paths: Vec<String> = self.selected_images().into_iter().map(|i| i.path).collect();
+
+        let viewer_path = self.viewer.as_ref().and_then(|viewer| {
+            viewer
+                .sequence
+                .images
+                .get(viewer.sequence.current_index as usize)
+                .map(|image| image.path.clone())
+        });
+        let close_viewer_after = viewer_path.is_some();
+        let paths = viewer_path.map_or_else(
+            || {
+                self.selected_images()
+                    .into_iter()
+                    .map(|image| image.path)
+                    .collect()
+            },
+            |path| vec![path],
+        );
         if paths.is_empty() {
             self.status = "請先選取圖片。".into();
             cx.notify();
             return;
         }
-        let batch = trash_paths(&paths);
-        self.apply_batch("移至回收筒", &batch, window, cx);
-        self.refresh(cx);
+        self.request_trash_confirmation(paths, close_viewer_after, window, cx);
     }
 
     fn on_rename(&mut self, _: &RenameSelection, window: &mut Window, cx: &mut Context<Self>) {
@@ -1763,5 +1823,104 @@ mod adaptive_tests {
         assert!(!layout.compact);
         assert!(!layout.minimum);
         assert_eq!(fitted_dialog_width(1280.0, 520.0), 520.0);
+    }
+}
+
+#[cfg(test)]
+mod file_operation_tests {
+    use std::cell::RefCell;
+    use std::fs;
+    use std::rc::Rc;
+    use std::sync::Arc;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use gpui::{AppContext as _, Entity, TestAppContext, VisualTestContext};
+    use gpui_component::{Root, WindowExt};
+    use piclens_domain::{ImageListItem, ListItem};
+    use piclens_infra::JsonSettingsStore;
+
+    use super::{trash_confirmation_description, GalleryMode, PicLensApp};
+    use crate::actions::TrashSelection;
+
+    #[gpui::test]
+    fn trash_escape_cancels_without_modifying_files(cx: &mut TestAppContext) {
+        cx.update(|cx| {
+            gpui_component::init(cx);
+            crate::theme::init(cx);
+            crate::actions::init(cx);
+        });
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let image_path = std::env::temp_dir().join(format!(
+            "piclens-trash-confirmation-{}-{unique}.png",
+            std::process::id()
+        ));
+        fs::write(&image_path, b"test image placeholder").unwrap();
+        let image_path_string = image_path.to_string_lossy().into_owned();
+        let settings_path = image_path.with_extension("settings.json");
+        let app_slot = Rc::new(RefCell::new(None::<Entity<PicLensApp>>));
+        let app_slot_for_window = app_slot.clone();
+        let image_path_for_window = image_path_string.clone();
+
+        let (_, cx) = cx.add_window_view(move |window, cx| {
+            let app = cx.new(|cx| {
+                PicLensApp::new_with_settings_store(
+                    window,
+                    cx,
+                    None,
+                    Arc::new(JsonSettingsStore::with_path(settings_path)),
+                )
+            });
+            app.update(cx, |app, cx| {
+                let image = ListItem::Image(ImageListItem {
+                    path: image_path_for_window.clone(),
+                    name: "confirmation.png".into(),
+                    extension: "png".into(),
+                    modified_at_ms: None,
+                    size_bytes: 22,
+                    is_animated: false,
+                });
+                app.items = vec![image.clone()];
+                app.visible = vec![image];
+                app.selected.insert(image_path_for_window.clone());
+                app.selection_order.push(image_path_for_window.clone());
+                app.selection_anchor = Some(image_path_for_window.clone());
+                app.thumb_failed.insert(image_path_for_window.clone());
+                app.gallery_mode = GalleryMode::List;
+                app.sync_gallery_list();
+                cx.notify();
+            });
+            *app_slot_for_window.borrow_mut() = Some(app.clone());
+            Root::new(app, window, cx)
+        });
+        let app = app_slot.borrow_mut().take().unwrap();
+        let app_focus = app.read_with(cx, |app, _| app.focus_handle.clone());
+        let cx: &mut VisualTestContext = cx;
+        cx.update(|window, cx| {
+            _ = window.draw(cx);
+        });
+
+        cx.dispatch_action(TrashSelection);
+        assert!(cx.update(|window, cx| window.has_active_dialog(cx)));
+        assert!(image_path.exists());
+        assert_eq!(
+            trash_confirmation_description(1),
+            "將 1 張圖片移至作業系統回收筒。取消不會修改檔案。"
+        );
+
+        cx.simulate_keystrokes("escape");
+        assert!(!cx.update(|window, cx| window.has_active_dialog(cx)));
+        cx.update(|window, cx| {
+            assert_eq!(window.focused(cx).as_ref(), Some(&app_focus));
+        });
+        assert!(image_path.exists());
+        app.read_with(cx, |app, _| {
+            assert_eq!(app.selection_order, vec![image_path_string]);
+        });
+
+        fs::remove_file(image_path).unwrap();
     }
 }
