@@ -73,6 +73,7 @@ pub(super) struct ViewerLoader {
     active: Option<ViewerRequest>,
     prefetch: VecDeque<String>,
     ready: HashMap<String, ViewerPreview>,
+    navigation_workload: Option<Task<()>>,
 }
 
 struct ViewerRequest {
@@ -91,6 +92,7 @@ impl Drop for ViewerRequest {
 
 impl ViewerLoader {
     pub(super) fn cancel(&mut self, cx: &mut gpui::App) {
+        self.navigation_workload = None;
         self.cancel_request();
         for (_, preview) in self.ready.drain() {
             release_preview(preview, cx);
@@ -148,6 +150,51 @@ fn adjacent_previews(sequence: &ImageSequenceSnapshot) -> VecDeque<String> {
 }
 
 impl PicLensApp {
+    /// Exercise the same navigation path as the viewer controls in one window.
+    /// A held selection that never paints is a failure, not a missing sample.
+    pub(super) fn start_viewer_navigation_workload(&mut self, cx: &mut Context<Self>) {
+        let Some(viewer) = self.viewer.as_ref() else {
+            return;
+        };
+        let steps = viewer.sequence.images.len().min(64);
+        if steps == 0 {
+            return;
+        }
+        info("viewer navigation workload started");
+        self.viewer_loader.navigation_workload = Some(cx.spawn(async move |this, cx| {
+            for step in 0..=steps * 2 {
+                cx.background_executor()
+                    .timer(std::time::Duration::from_millis(650))
+                    .await;
+                let keep_running = this
+                    .update(cx, |this, cx| {
+                        let Some(viewer) = this.viewer.as_ref().filter(|_| !this.shutting_down)
+                        else {
+                            return false;
+                        };
+                        if let Some(metrics) = &this.metrics {
+                            metrics.viewer_navigation_checked(viewer.paint_recorded.get());
+                        }
+                        if !viewer.paint_recorded.get() {
+                            warn(format!(
+                                "viewer navigation selection did not paint: index={}",
+                                viewer.sequence.current_index
+                            ));
+                        }
+                        if step < steps * 2 {
+                            this.viewer_step(if step < steps { 1 } else { -1 }, cx);
+                        }
+                        true
+                    })
+                    .unwrap_or(false);
+                if !keep_running {
+                    return;
+                }
+            }
+            info("viewer navigation workload completed");
+        }));
+    }
+
     pub(super) fn load_viewer_display(&mut self, path: String, cx: &mut Context<Self>) {
         if self.shutting_down || self.viewer.is_none() {
             return;
@@ -576,6 +623,59 @@ mod tests {
             assert!(app.viewer_loader.prefetch.is_empty());
             app.viewer_loader.cancel(cx); // No real decoder is launched by this test.
         });
+    }
+
+    #[gpui::test]
+    fn arrow_navigation_paints_cached_pixels_on_every_step(cx: &mut TestAppContext) {
+        let (app, cx) = test_app(cx);
+        let paths = ["a.png", "b.png", "c.png"];
+        let previews = paths.map(|path| {
+            let mut decoded = preview(path);
+            decoded.cache_path = thumbnail_path(path, VIEWER_PREVIEW_SIZE);
+            decoded
+        });
+        cx.update(|window, cx| {
+            app.update(cx, |app, cx| {
+                set_viewer(
+                    app,
+                    sequence(&[("a.png", false), ("b.png", false), ("c.png", false)], 0),
+                );
+                app.viewer.as_mut().unwrap().display_image = Some(previews[0].image.clone());
+                for (path, decoded) in paths.iter().zip(&previews) {
+                    app.viewer_loader
+                        .ready
+                        .insert((*path).into(), decoded.clone());
+                }
+                app.viewer_focus.focus(window, cx);
+                cx.notify();
+            });
+            _ = window.draw(cx);
+        });
+        for (key, index) in [
+            ("right", 1),
+            ("left", 0),
+            ("right", 1),
+            ("right", 2),
+            ("right", 0),
+            ("left", 2),
+        ] {
+            cx.simulate_keystrokes(key);
+            cx.run_until_parked();
+            cx.update(|window, cx| {
+                _ = window.draw(cx);
+            });
+            app.read_with(cx, |app, _| {
+                let viewer = app.viewer.as_ref().unwrap();
+                assert_eq!(viewer.sequence.current_index as usize, index);
+                assert!(viewer.paint_recorded.get());
+                assert!(viewer.display_path.is_none());
+                assert!(Arc::ptr_eq(
+                    viewer.display_image.as_ref().unwrap(),
+                    &previews[index].image
+                ));
+            });
+        }
+        app.update(cx, |app, cx| app.viewer_loader.cancel(cx));
     }
 
     #[gpui::test]

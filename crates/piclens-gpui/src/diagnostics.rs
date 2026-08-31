@@ -24,11 +24,16 @@ mod tests {
         metrics.viewer_sharp_painted(120);
         metrics.viewer_sharp_painted(500);
         metrics.viewer_sharp_painted(501);
+        metrics.viewer_navigation_checked(true);
+        metrics.viewer_navigation_checked(false);
         let state = metrics.state.lock().unwrap();
         assert_eq!(state.viewer_sharp_paint_ms, Some(120));
         assert_eq!(state.viewer_sharp_paint_max_ms, 501);
         assert_eq!(state.viewer_sharp_paint_count, 3);
         assert_eq!(state.viewer_sharp_target_misses, 1);
+        assert_eq!(state.viewer_sharp_paint_samples_ms, [120, 500, 501]);
+        assert_eq!(state.viewer_navigation_checked, 2);
+        assert_eq!(state.viewer_navigation_unpainted, 1);
     }
 }
 
@@ -43,6 +48,9 @@ struct MetricState {
     viewer_sharp_paint_max_ms: u128,
     viewer_sharp_paint_count: usize,
     viewer_sharp_target_misses: usize,
+    viewer_sharp_paint_samples_ms: Vec<u128>,
+    viewer_navigation_checked: usize,
+    viewer_navigation_unpainted: usize,
     search_ms: Option<u128>,
     scroll_ms: Option<u128>,
     row_count: usize,
@@ -136,6 +144,15 @@ impl RuntimeMetrics {
         state.viewer_sharp_paint_max_ms = state.viewer_sharp_paint_max_ms.max(elapsed_ms);
         state.viewer_sharp_paint_count += 1;
         state.viewer_sharp_target_misses += usize::from(elapsed_ms > 500);
+        if state.viewer_sharp_paint_samples_ms.len() < 256 {
+            state.viewer_sharp_paint_samples_ms.push(elapsed_ms);
+        }
+    }
+
+    pub fn viewer_navigation_checked(&self, painted: bool) {
+        let mut state = self.state.lock().unwrap_or_else(|err| err.into_inner());
+        state.viewer_navigation_checked += 1;
+        state.viewer_navigation_unpainted += usize::from(!painted);
     }
 
     pub fn scroll_completed(&self, elapsed_ms: u128) {
@@ -159,6 +176,7 @@ impl RuntimeMetrics {
             .unwrap_or_else(|| "unknown".into());
         let value = json!({
             "schemaVersion": 2,
+            "buildProfile": if cfg!(debug_assertions) { "debug" } else { "release" },
             "version": env!("CARGO_PKG_VERSION"),
             "commit": option_env!("PICLENS_BUILD_COMMIT").unwrap_or("working-tree"),
             "gpuiRevision": "c7537bdf463a998e7ec636adff33b198891e69ed",
@@ -181,6 +199,9 @@ impl RuntimeMetrics {
             "viewerSharpPaintCount": state.viewer_sharp_paint_count,
             "viewerSharpTargetMilliseconds": 500,
             "viewerSharpTargetMisses": state.viewer_sharp_target_misses,
+            "viewerSharpPaintSamplesMilliseconds": state.viewer_sharp_paint_samples_ms,
+            "viewerNavigationCheckedSelections": state.viewer_navigation_checked,
+            "viewerNavigationUnpaintedSelections": state.viewer_navigation_unpainted,
             "rowCount": state.row_count,
             "imageCount": state.image_count,
             "completedThumbnailRequests": state.completed_thumbnails,

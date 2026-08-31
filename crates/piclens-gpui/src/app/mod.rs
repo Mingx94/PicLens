@@ -187,6 +187,7 @@ pub struct LaunchOptions {
     pub sidebar_closed: bool,
     pub viewer: Option<String>,
     pub performance_scroll: bool,
+    pub performance_viewer: bool,
     pub metrics: Option<Arc<RuntimeMetrics>>,
 }
 
@@ -474,6 +475,9 @@ impl PicLensApp {
                                     .is_some_and(|image| path_equals(&image.path, &viewer_path))
                             }) {
                                 this.open_viewer(&viewer_path, window, cx);
+                                if launch.performance_viewer {
+                                    this.start_viewer_navigation_workload(cx);
+                                }
                                 return true;
                             }
                             false

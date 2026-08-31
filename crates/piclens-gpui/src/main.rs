@@ -60,7 +60,17 @@ fn main() {
     }
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     init_file_logger();
-    info("PicLens GPUI starting");
+    info(format!(
+        "PicLens GPUI starting; build={}; executable={}",
+        if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        },
+        std::env::current_exe()
+            .map(|path| path.display().to_string())
+            .unwrap_or_default()
+    ));
 
     let LaunchArgs {
         folder: initial_folder,
@@ -71,6 +81,7 @@ fn main() {
         sidebar_closed,
         metrics,
         performance_scroll,
+        performance_viewer,
         viewer,
         screenshot,
         ..
@@ -83,6 +94,7 @@ fn main() {
         sidebar_closed,
         viewer,
         performance_scroll,
+        performance_viewer,
         metrics: runtime_metrics.clone(),
     };
     let screenshot_path = screenshot.map(std::path::PathBuf::from);

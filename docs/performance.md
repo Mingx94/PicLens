@@ -2,6 +2,8 @@
 
 Performance claims require a Release build, an isolated profile, and a representative image library. Debug timings, a short launch smoke, or a small unit test are not release evidence.
 
+Development runs use optimized `image`, JPEG, WebP, and PNG/DEFLATE codec dependencies so a normal `cargo run` does not spend seconds in unoptimized pixel loops. Application code retains its normal debug profile and assertions. Record `buildProfile` from the metrics; a Release result does not establish Debug performance.
+
 ## Current safeguards
 
 - The gallery uses GPUI `list` virtualization.
@@ -34,3 +36,9 @@ Metrics schema 2 defines:
 - `viewerOpenMilliseconds`: process metrics startup to viewer open, unchanged.
 
 The viewer has a 500ms target for its existing sharp preview quality. Report cold and warm cache results separately with the hardware and fixture. The target is not a universal guarantee for arbitrary files or storage. The app records misses but does not fail its exit code; `thresholdGateEnabled` remains false. Gallery latency, scrolling, and memory still have no approved numerical gate. Historical Qt measurements under `docs/archive/performance/` do not prove this checkout.
+
+## Continuous viewer navigation
+
+Single-image launches do not validate repeated navigation. Add `--performance-viewer` with `--viewer`, `--metrics`, and a visible window to step forward and backward in the same viewer. The workload holds each selection for 650ms, takes up to 64 steps in each direction, and checks the initial and final selections too. It uses the viewer controls' navigation method; it does not inject OS keyboard or mouse input.
+
+For a 23-image library, allow at least 35 seconds (`--smoke-ms 35000`) and require the completion log, 47 `viewerNavigationCheckedSelections`, 47 `viewerSharpPaintCount`, zero `viewerNavigationUnpaintedSelections`, and zero `viewerSharpTargetMisses`. A selection still showing its placeholder is a failure even if other images painted quickly. `viewerSharpPaintSamplesMilliseconds` retains the first 256 timings for distributions. Run Debug and Release separately if both are used; use isolated cold and warm profiles and verify source hashes.

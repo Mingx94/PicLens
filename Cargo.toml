@@ -28,3 +28,29 @@ directories = "6"
 log = "0.4"
 env_logger = "0.11"
 sysinfo = "0.31"
+
+# Keep image decoding/resizing fast in `cargo run` too. Application code keeps
+# the normal dev profile, including debug assertions and debug information.
+[profile.dev.package.image]
+opt-level = 3
+
+[profile.dev.package."zune-jpeg@0.5.15"]
+opt-level = 3
+
+[profile.dev.package."zune-core@0.5.3"]
+opt-level = 3
+
+[profile.dev.package.image-webp]
+opt-level = 3
+
+[profile.dev.package."png@0.18.1"]
+opt-level = 3
+
+[profile.dev.package.fdeflate]
+opt-level = 3
+
+[profile.dev.package.flate2]
+opt-level = 3
+
+[profile.dev.package.miniz_oxide]
+opt-level = 3

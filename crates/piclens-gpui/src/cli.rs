@@ -9,6 +9,7 @@ pub struct LaunchArgs {
     pub viewer: Option<String>,
     pub metrics: Option<String>,
     pub performance_scroll: bool,
+    pub performance_viewer: bool,
     pub include_subfolders: bool,
     pub search: Option<String>,
     pub list_view: bool,
@@ -34,6 +35,7 @@ Options:\n\
       --screenshot <PATH>      Save an automated window screenshot\n\
       --metrics <PATH>         Write release-run metrics as JSON\n\
       --performance-scroll     Run the deterministic scroll workload\n\
+      --performance-viewer     Run forward/backward navigation (requires --viewer)\n\
       --smoke-ms <MILLISECONDS> Quit automatically after the given time\n\
   -h, --help                   Print help\n\
   -V, --version                Print version\n";
@@ -98,12 +100,16 @@ pub fn parse(args: &[String]) -> Result<ParseOutcome, String> {
             "--metrics" => launch.metrics = Some(take_value(args, &mut index, arg)?),
             "--search" => launch.search = Some(take_value(args, &mut index, arg)?),
             "--performance-scroll" => launch.performance_scroll = true,
+            "--performance-viewer" => launch.performance_viewer = true,
             "--include-subfolders" => launch.include_subfolders = true,
             "--list-view" => launch.list_view = true,
             "--sidebar-closed" => launch.sidebar_closed = true,
             _ => return Err(format!("unknown option: {arg}")),
         }
         index += 1;
+    }
+    if launch.performance_viewer && launch.viewer.is_none() {
+        return Err("--performance-viewer requires --viewer".into());
     }
     Ok(ParseOutcome::Run(launch))
 }
@@ -139,5 +145,15 @@ mod tests {
         assert!(parse(&["piclens".into(), "--wat".into()]).is_err());
         assert!(parse(&["piclens".into(), "--folder".into()]).is_err());
         assert!(parse(&["piclens".into(), "--smoke-ms=x".into()]).is_err());
+        assert!(parse(&["piclens".into(), "--performance-viewer".into()]).is_err());
+        let ParseOutcome::Run(parsed) = parse(&[
+            "piclens".into(),
+            "--performance-viewer".into(),
+            "--viewer=a.jpg".into(),
+        ])
+        .unwrap() else {
+            panic!()
+        };
+        assert!(parsed.performance_viewer);
     }
 }
