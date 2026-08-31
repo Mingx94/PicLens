@@ -7,4 +7,4 @@ Use [Release and packaging](../release.md) as the authority for versioning, vali
 1. Use `[workspace.package].version` and the matching annotated `v<version>` tag.
 2. Do not tag when packaging or clean-machine verification fails.
 3. Push the release commit and tag only when authorized.
-4. Report completion only after the GitHub workflow succeeds and publishes both archives and checksum files.
+4. Report completion only after the GitHub workflow succeeds and publishes the Windows MSI, portable ZIP, and both checksum files.

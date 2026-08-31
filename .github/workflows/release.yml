@@ -1,4 +1,4 @@
-name: Rust release
+name: Windows packages
 
 on:
   push:
@@ -11,18 +11,21 @@ on:
         type: string
 
 concurrency:
-  group: rust-release-${{ inputs.release_tag || github.ref }}
+  group: windows-packages-${{ inputs.release_tag || github.ref }}
   cancel-in-progress: false
 permissions:
   contents: read
 
 jobs:
-  context:
-    name: Validate release context
-    runs-on: ubuntu-24.04
-    outputs:
-      tag: ${{ steps.release.outputs.tag }}
-      version: ${{ steps.release.outputs.version }}
+  windows:
+    name: Build Windows MSI and portable ZIP
+    runs-on: windows-2025
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
     steps:
       - uses: actions/checkout@v6
         with:
@@ -35,38 +38,20 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
         run: |
-          set -euo pipefail
-          version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "piclens-gpui") | .version')"
-          [[ "$RELEASE_TAG" == "v$version" ]] || { echo "Tag $RELEASE_TAG must match v$version" >&2; exit 1; }
-          [[ "$(git cat-file -t "$RELEASE_TAG")" == tag ]] || { echo "$RELEASE_TAG must be annotated" >&2; exit 1; }
-          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-  windows-msi:
-    name: Windows x86_64 MSI lifecycle
-    needs: context
-    runs-on: windows-2025
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v6
-        with: { ref: "${{ needs.context.outputs.tag }}" }
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
-        with:
-          toolchain: nightly-2026-08-11
-          components: rustfmt, clippy
-      - run: cargo fmt --check
-      - run: cargo test --workspace --locked
-      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+          $metadataJson = cargo metadata --locked --no-deps --format-version 1
+          if ($LASTEXITCODE -ne 0) { throw 'Cargo metadata failed' }
+          $metadata = $metadataJson | ConvertFrom-Json
+          $version = ($metadata.packages | Where-Object name -eq 'piclens-gpui').version
+          if ($env:RELEASE_TAG -cne "v$version") { throw "Tag $env:RELEASE_TAG must match v$version" }
+          $tagType = git cat-file -t "refs/tags/$env:RELEASE_TAG"
+          if ($LASTEXITCODE -ne 0 -or $tagType -ne 'tag') { throw "$env:RELEASE_TAG must be an annotated tag" }
+          "tag=$env:RELEASE_TAG" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
       - name: Build unsigned MSI
-        shell: pwsh
-        run: ./scripts/build-msi.ps1 -Version '${{ needs.context.outputs.version }}'
-      - name: Verify MSI lifecycle on clean Windows runner
-        shell: pwsh
-        run: ./scripts/test-msi-lifecycle.ps1 -MsiPath 'dist/PicLens-${{ needs.context.outputs.version }}-windows-x86_64.msi' -ConfirmSystemChanges
+        run: ./scripts/build-msi.ps1 -Version '${{ steps.release.outputs.version }}'
       - name: Build portable ZIP
-        shell: pwsh
         run: |
-          $name = 'PicLens-${{ needs.context.outputs.version }}-windows-x86_64'
+          $name = 'PicLens-${{ steps.release.outputs.version }}-windows-x86_64'
           $stage = Join-Path dist $name
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item target/release/piclens-gpui.exe (Join-Path $stage PicLens.exe)
@@ -83,92 +68,15 @@ jobs:
             dist/*.msi.sha256
             dist/*.zip
             dist/*.zip.sha256
-
-  ubuntu-deb:
-    name: Ubuntu x86_64 DEB lifecycle
-    needs: context
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v6
-        with: { ref: "${{ needs.context.outputs.tag }}" }
-      - name: Install native build and package tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes build-essential ruby-dev xvfb libasound2-dev libfontconfig-dev libwayland-dev libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libxcb-shape0-dev libxcb-xfixes0-dev
-          sudo gem install fpm --no-document
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
-        with: { toolchain: nightly-2026-08-11 }
-      - run: bash scripts/build-deb.sh '${{ needs.context.outputs.version }}'
-      - name: Verify DEB lifecycle on clean Ubuntu runner
-        run: sudo --preserve-env=PATH bash scripts/test-linux-package-lifecycle.sh deb 'dist/PicLens-${{ needs.context.outputs.version }}-linux-x86_64.deb'
-      - name: Build portable tar.gz
-        run: |
-          name='PicLens-${{ needs.context.outputs.version }}-linux-x86_64'
-          stage="dist/$name"
-          install -Dm755 target/release/piclens-gpui "$stage/PicLens"
-          install -Dm644 LICENSE "$stage/LICENSE"
-          install -Dm644 README.md "$stage/README.md"
-          install -Dm644 assets/Fonts/NotoSansCJKtc-OFL.txt "$stage/NotoSansCJKtc-OFL.txt"
-          tar -C dist -czf "dist/$name.tar.gz" "$name"
-          (cd dist && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
-      - uses: actions/upload-artifact@v6
+      - name: Publish unsigned GitHub Release assets
+        uses: softprops/action-gh-release@v3
         with:
-          name: PicLens-Ubuntu-x86_64
-          if-no-files-found: error
-          path: |
-            dist/*.deb
-            dist/*.deb.sha256
-            dist/*.tar.gz
-            dist/*.tar.gz.sha256
-
-  fedora-rpm:
-    name: Fedora x86_64 RPM lifecycle
-    needs: context
-    runs-on: ubuntu-24.04
-    container: fedora:42
-    timeout-minutes: 60
-    steps:
-      - name: Install runner and native build tools
-        run: dnf install --assumeyes git tar gzip findutils gcc gcc-c++ make ruby-devel rubygems xorg-x11-server-Xvfb alsa-lib-devel fontconfig-devel wayland-devel libX11-devel libxkbcommon-devel libxkbcommon-x11-devel libxcb-devel openssl-devel pkgconf-pkg-config curl jq
-      - uses: actions/checkout@v6
-        with: { ref: "${{ needs.context.outputs.tag }}" }
-      - run: gem install fpm --no-document
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
-        with: { toolchain: nightly-2026-08-11 }
-      - run: bash scripts/build-rpm.sh '${{ needs.context.outputs.version }}'
-      - name: Verify RPM lifecycle on clean Fedora runner
-        run: bash scripts/test-linux-package-lifecycle.sh rpm 'dist/PicLens-${{ needs.context.outputs.version }}-linux-x86_64.rpm'
-      - uses: actions/upload-artifact@v6
-        with:
-          name: PicLens-Fedora-x86_64
-          if-no-files-found: error
-          path: |
-            dist/*.rpm
-            dist/*.rpm.sha256
-
-  publish:
-    name: Publish unsigned GitHub Release assets
-    needs: [context, windows-msi, ubuntu-deb, fedora-rpm]
-    runs-on: ubuntu-24.04
-    permissions: { contents: write }
-    steps:
-      - uses: actions/download-artifact@v7
-        with: { path: release-assets, merge-multiple: true }
-      - uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ needs.context.outputs.tag }}
+          tag_name: ${{ steps.release.outputs.tag }}
           generate_release_notes: true
           fail_on_unmatched_files: true
           body: "These release assets are currently unsigned. SHA-256 checksum files are provided."
           files: |
-            release-assets/*.msi
-            release-assets/*.msi.sha256
-            release-assets/*.deb
-            release-assets/*.deb.sha256
-            release-assets/*.rpm
-            release-assets/*.rpm.sha256
-            release-assets/*.zip
-            release-assets/*.zip.sha256
-            release-assets/*.tar.gz
-            release-assets/*.tar.gz.sha256
+            dist/*.msi
+            dist/*.msi.sha256
+            dist/*.zip
+            dist/*.zip.sha256

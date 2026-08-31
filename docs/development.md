@@ -27,4 +27,4 @@ Use the commands and isolated profile workflow in [Testing](testing.md).
 3. Runtime checks use an isolated profile and the app log is clean for the tested path.
 4. The commit uses a short message on the current task branch. Push only when requested.
 
-GitHub runs the same locked Cargo gates on Windows and Linux through `.github/workflows/ci.yml`.
+Run the Cargo gates locally. GitHub Actions only builds and publishes Windows packages through `.github/workflows/release.yml`; see [Release and packaging](release.md).

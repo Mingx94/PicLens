@@ -50,4 +50,4 @@ See [Data continuity](docs/data-continuity.md) for profile paths, settings, logs
 
 ## Automation
 
-See [Testing](docs/testing.md) for CI coverage and [Release and packaging](docs/release.md) for tag-triggered publication.
+GitHub Actions only builds and publishes the Windows MSI, portable ZIP, and checksums. See [Release and packaging](docs/release.md) for tag and manual triggers, and [Testing](docs/testing.md) for local checks.
