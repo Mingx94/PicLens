@@ -16,6 +16,8 @@ cargo build --release --locked -p piclens-gpui
 
 The portable ZIP uses the same executable. There is no branch or pull-request CI. The workflow does not run format, test, Clippy, or package lifecycle checks. Run the checks in [Testing](testing.md) locally before release.
 
+Windows release builds use the GUI subsystem and do not open a console at startup. Debug builds keep the console. To read release CLI output in PowerShell, pipe it to `Out-String`, for example `& .\PicLens.exe --help | Out-String` from the executable's directory.
+
 Linux package scripts remain available for local use, but GitHub Actions does not build, test, or publish Linux packages.
 
 ## Build an installer on your PC

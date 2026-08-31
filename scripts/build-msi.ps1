@@ -48,7 +48,7 @@ try {
     Copy-Item target/release/piclens-gpui.exe (Join-Path $payload PicLens.exe) -Force
     Copy-Item LICENSE, README.md, assets/Fonts/NotoSansCJKtc-OFL.txt, assets/AppIcon.ico $payload -Force
     $output = Join-Path $repoRoot "dist\PicLens-$Version-windows-x86_64.msi"
-    dotnet build installer/PicLens.wixproj --configuration Release --no-incremental `
+    dotnet build installer/PicLens.wixproj --configuration Release -t:Rebuild `
         "/p:AppVersion=$Version" "/p:PayloadDir=$payload" "/p:OutputPath=$repoRoot\dist\" `
         "/p:OutputName=PicLens-$Version-windows-x86_64" "/p:SuppressValidation=true"
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $output)) { throw "MSI build failed" }

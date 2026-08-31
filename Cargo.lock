@@ -4906,7 +4906,7 @@ dependencies = [
 
 [[package]]
 name = "piclens-domain"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "thiserror 2.0.20",
@@ -4914,7 +4914,7 @@ dependencies = [
 
 [[package]]
 name = "piclens-gpui"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "env_logger",
@@ -4935,7 +4935,7 @@ dependencies = [
 
 [[package]]
 name = "piclens-infra"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "chrono",
