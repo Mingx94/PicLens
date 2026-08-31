@@ -30,10 +30,16 @@
 - Request concurrency、timeout、logical-slot accounting 與 cache capacity 必須有界限；單一 stalled decoder 不得永久阻塞後續 visible requests。
 - UI-bound model updates 必須回到 UI thread。
 - Cache entries 是可重建資料；pruning 不得修改 source images。
+- Cache pruning 由主程式單一 background task 負責，不得在每個 decoder worker 內掃描目錄。啟動時清理既有快取，之後每五秒只在有新寫入時清理；每輪保留該次快照中最新的 2,000 筆，兩輪之間的新寫入可暫時超出此目標。Shutdown 必須停止後續清理排程。
 
 ## Viewer
 
 - Viewer 使用開啟當下的 immutable image-sequence snapshot；主 library 後續 reload 不得直接改變已開啟 viewer 的 navigation list。
+- Viewer 開啟時取消並暫停被遮住的 gallery thumbnail requests，關閉後恢復可見縮圖排程；共用 decoder 的實體程序總數上限仍為八個。
+- Viewer 只持有一個目前載入或預載工作。目前圖片的 1024-pixel preview 完成後，才依序預載 snapshot 中相鄰的下一張與上一張靜態圖片；不得掃描整個序列預載或建立無界的像素快取。
+- 安全預覽 PNG 在 background executor 解碼成 GPUI BGRA pixels；UI render 不再讀取或解碼清晰預覽檔。只保留目前與相鄰兩張的像素，共最多三張、12 MiB；切換淘汰與 close 同時釋放對應 GPU atlas entries。重用前須在背景比對來源路徑、mtime、檔案大小與預覽尺寸形成的 cache key。
+- 清晰預覽完成後以完整不透明度繪製，不再等待淡入。每次選取只記錄一次成功的清晰繪製，500ms 目標包含背景處理與 GPUI paint submission，但不宣稱量到 OS compositor 的實際呈現時間。
+- 切換到正在預載的圖片時沿用該工作；其他切換、動畫提示、close、generation change 與 shutdown 必須取消過期工作。只有 request identity 相符的結果能清除工作或更新畫面，包含快速 A-B-A 與關閉後重開同張圖片的情況。
 - Viewer canvas 從 pointer press 起攔截 zoom/pan input，避免事件穿透到底層 gallery 或啟動 drag/drop rename。
 - Zoom 維持 clamp 與 pointer-anchor invariants；未 zoom in 時，左右方向鍵可導覽圖片。
 - Escape 或 close action 必須關閉 viewer 並將 focus 還給 main gallery。

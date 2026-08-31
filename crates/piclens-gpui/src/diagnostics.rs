@@ -1,5 +1,4 @@
-//! Release-run performance metrics. Measurements are descriptive until the
-//! product contract defines thresholds.
+//! Release-run performance metrics, including the viewer's 500ms paint target.
 
 use std::fs;
 use std::path::PathBuf;
@@ -15,12 +14,35 @@ pub struct RuntimeMetrics {
     state: Mutex<MetricState>,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sharp_paint_counts_target_misses_and_keeps_first_and_maximum() {
+        let metrics = RuntimeMetrics::new("unused.json");
+        metrics.viewer_sharp_painted(120);
+        metrics.viewer_sharp_painted(500);
+        metrics.viewer_sharp_painted(501);
+        let state = metrics.state.lock().unwrap();
+        assert_eq!(state.viewer_sharp_paint_ms, Some(120));
+        assert_eq!(state.viewer_sharp_paint_max_ms, 501);
+        assert_eq!(state.viewer_sharp_paint_count, 3);
+        assert_eq!(state.viewer_sharp_target_misses, 1);
+    }
+}
+
 #[derive(Default)]
 struct MetricState {
     startup_ms: Option<u128>,
     library_ready_ms: Option<u128>,
     first_thumbnail_ms: Option<u128>,
     viewer_open_ms: Option<u128>,
+    viewer_preview_ready_ms: Option<u128>,
+    viewer_sharp_paint_ms: Option<u128>,
+    viewer_sharp_paint_max_ms: u128,
+    viewer_sharp_paint_count: usize,
+    viewer_sharp_target_misses: usize,
     search_ms: Option<u128>,
     scroll_ms: Option<u128>,
     row_count: usize,
@@ -96,6 +118,26 @@ impl RuntimeMetrics {
             .get_or_insert(self.started.elapsed().as_millis());
     }
 
+    /// Time from selection until the safe preview pixels are decoded.
+    /// This excludes GPU upload and first paint.
+    pub fn viewer_preview_ready(&self, elapsed_ms: u128) {
+        self.state
+            .lock()
+            .unwrap_or_else(|err| err.into_inner())
+            .viewer_preview_ready_ms
+            .get_or_insert(elapsed_ms);
+    }
+
+    /// First sharp-image paint per selection, after paint_image has accepted
+    /// the pixels. This is not an OS compositor/display presentation timestamp.
+    pub fn viewer_sharp_painted(&self, elapsed_ms: u128) {
+        let mut state = self.state.lock().unwrap_or_else(|err| err.into_inner());
+        state.viewer_sharp_paint_ms.get_or_insert(elapsed_ms);
+        state.viewer_sharp_paint_max_ms = state.viewer_sharp_paint_max_ms.max(elapsed_ms);
+        state.viewer_sharp_paint_count += 1;
+        state.viewer_sharp_target_misses += usize::from(elapsed_ms > 500);
+    }
+
     pub fn scroll_completed(&self, elapsed_ms: u128) {
         self.state
             .lock()
@@ -116,7 +158,7 @@ impl RuntimeMetrics {
             .map(|cpu| cpu.brand().to_string())
             .unwrap_or_else(|| "unknown".into());
         let value = json!({
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "version": env!("CARGO_PKG_VERSION"),
             "commit": option_env!("PICLENS_BUILD_COMMIT").unwrap_or("working-tree"),
             "gpuiRevision": "c7537bdf463a998e7ec636adff33b198891e69ed",
@@ -133,6 +175,12 @@ impl RuntimeMetrics {
             "continuousScrollMilliseconds": state.scroll_ms,
             "searchMilliseconds": state.search_ms,
             "viewerOpenMilliseconds": state.viewer_open_ms,
+            "viewerPreviewReadyMilliseconds": state.viewer_preview_ready_ms,
+            "viewerSharpPaintMilliseconds": state.viewer_sharp_paint_ms,
+            "viewerSharpPaintMaxMilliseconds": state.viewer_sharp_paint_max_ms,
+            "viewerSharpPaintCount": state.viewer_sharp_paint_count,
+            "viewerSharpTargetMilliseconds": 500,
+            "viewerSharpTargetMisses": state.viewer_sharp_target_misses,
             "rowCount": state.row_count,
             "imageCount": state.image_count,
             "completedThumbnailRequests": state.completed_thumbnails,

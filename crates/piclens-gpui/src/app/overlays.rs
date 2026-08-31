@@ -30,6 +30,10 @@ impl PicLensApp {
         let offset = viewer.zoom.offset;
         let message = viewer.message.clone();
         let display = viewer.display_path.clone();
+        let decoded = viewer.display_image.clone();
+        let paint_recorded = viewer.paint_recorded.clone();
+        let load_started = viewer.load_started;
+        let metrics = self.metrics.clone();
         let entity = cx.entity().downgrade();
         let pos = format!(
             "{}/{}",
@@ -227,6 +231,56 @@ impl PicLensApp {
                                 .text_color(theme.danger_text)
                                 .child(msg)
                                 .into_any_element()
+                        } else if let Some(decoded) = decoded {
+                            // The pixels are already decoded. Paint at full opacity;
+                            // do not spend the sharp-image budget on another fade.
+                            let image = canvas(
+                                |_, _, _| {},
+                                move |bounds, _, window, _cx| {
+                                    let image_bounds =
+                                        ObjectFit::Contain.get_bounds(bounds, decoded.size(0));
+                                    if bounds.size.width > px(0.)
+                                        && bounds.size.height > px(0.)
+                                        && window
+                                            .paint_image(
+                                                bounds,
+                                                image_bounds,
+                                                Corners::all(px(0.)),
+                                                decoded,
+                                                0,
+                                                false,
+                                            )
+                                            .is_ok()
+                                        && !paint_recorded.replace(true)
+                                    {
+                                        if let Some(metrics) = metrics {
+                                            metrics.viewer_sharp_painted(
+                                                load_started.elapsed().as_millis(),
+                                            );
+                                        }
+                                    }
+                                },
+                            );
+                            if is_fit_view(zoom, offset) {
+                                image.size_full().into_any_element()
+                            } else {
+                                let (width, height) = self
+                                    .viewer_canvas_bounds
+                                    .map(|bounds| {
+                                        viewer_display_box(
+                                            f64::from(bounds.size.width),
+                                            f64::from(bounds.size.height),
+                                            zoom,
+                                        )
+                                    })
+                                    .unwrap_or_else(|| viewer_display_box(1280.0, 720.0, zoom));
+                                image
+                                    .w(px(width as f32))
+                                    .h(px(height as f32))
+                                    .ml(px(offset.x as f32))
+                                    .mt(px(offset.y as f32))
+                                    .into_any_element()
+                            }
                         } else if let Some(display_path) = display {
                             let image = img(display_path).object_fit(ObjectFit::Contain);
                             if is_fit_view(zoom, offset) {

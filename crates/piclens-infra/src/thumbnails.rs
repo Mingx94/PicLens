@@ -2,6 +2,7 @@ use std::fs;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Condvar, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -14,7 +15,9 @@ use crate::CancellationToken;
 const MAX_CACHE_ENTRIES: usize = 2000;
 const MAX_DECODE_PROCESSES: usize = 8;
 
-static CACHE_LOCK: Mutex<()> = Mutex::new(());
+// Set in the parent process, not in the short-lived decoder workers.
+// Start dirty so an oversized cache from a previous run is also pruned.
+static CACHE_DIRTY: AtomicBool = AtomicBool::new(true);
 static DECODE_LIMITER: OnceLock<(Mutex<usize>, Condvar)> = OnceLock::new();
 
 struct DecodePermit;
@@ -70,6 +73,7 @@ pub fn thumbnail_path(source_path: &str, logical_size: u32) -> PathBuf {
 
 /// Decode and write a PNG thumbnail. Guess format from content so misnamed files work.
 /// Decode panics and I/O failures become `Err` — never unwind across the UI.
+/// Cache maintenance belongs to the parent, not to this decoder worker.
 pub fn ensure_thumbnail(source_path: &str, logical_size: u32) -> Result<PathBuf, String> {
     let out = thumbnail_path(source_path, logical_size);
     if out.exists() {
@@ -100,7 +104,6 @@ pub fn ensure_thumbnail(source_path: &str, logical_size: u32) -> Result<PathBuf,
                     return Err(err.to_string());
                 }
             }
-            prune_cache_if_needed();
             Ok(out)
         }
         Ok(Err(err)) => {
@@ -166,7 +169,10 @@ pub fn ensure_thumbnail_with_timeout(
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|err| format!("thumbnail worker start failed: {err}"))?;
-    wait_for_child(&mut child, timeout, cancellation)?;
+    let result = wait_for_child(&mut child, timeout, cancellation);
+    // Even a canceled worker may have published its PNG before it was killed.
+    CACHE_DIRTY.store(true, Ordering::Relaxed);
+    result?;
     out.exists()
         .then_some(out)
         .ok_or_else(|| "thumbnail worker did not produce a cache file".into())
@@ -181,31 +187,57 @@ fn decode_and_resize(source_path: &str, logical_size: u32) -> Result<image::Dyna
     Ok(img.thumbnail(logical_size, logical_size))
 }
 
-fn prune_cache_if_needed() {
-    let _guard = CACHE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    let root = thumbnail_cache_root();
-    let Ok(read) = fs::read_dir(&root) else {
-        return;
+/// Called periodically by one background task in the parent process.
+/// Idle and cache-hit-only intervals do not scan the cache directory.
+pub fn prune_thumbnail_cache_if_needed() {
+    if let Err(err) = prune_dirty_cache(&thumbnail_cache_root(), &CACHE_DIRTY, MAX_CACHE_ENTRIES) {
+        crate::warn(format!("thumbnail cache cleanup failed: {err}"));
+    }
+}
+
+fn prune_dirty_cache(root: &Path, dirty: &AtomicBool, capacity: usize) -> std::io::Result<usize> {
+    if !dirty.swap(false, Ordering::Relaxed) {
+        return Ok(0);
+    }
+    let result = prune_cache(root, capacity);
+    if result.is_err() {
+        dirty.store(true, Ordering::Relaxed);
+    }
+    result
+}
+
+fn prune_cache(root: &Path, capacity: usize) -> std::io::Result<usize> {
+    let read = match fs::read_dir(root) {
+        Ok(read) => read,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+        Err(err) => return Err(err),
     };
     let mut files: Vec<(PathBuf, std::time::SystemTime)> = read
         .filter_map(|e| e.ok())
         .filter_map(|e| {
             let path = e.path();
-            if path.extension().and_then(|x| x.to_str()) != Some("png") {
+            if path.extension().and_then(|x| x.to_str()) != Some("png")
+                || !e.file_type().ok()?.is_file()
+            {
                 return None;
             }
             let modified = e.metadata().ok()?.modified().ok()?;
             Some((path, modified))
         })
         .collect();
-    if files.len() <= MAX_CACHE_ENTRIES {
-        return;
+    if files.len() <= capacity {
+        return Ok(0);
     }
     files.sort_by_key(|(_, t)| *t);
-    let remove_count = files.len() - MAX_CACHE_ENTRIES;
+    let remove_count = files.len() - capacity;
     for (path, _) in files.into_iter().take(remove_count) {
-        let _ = fs::remove_file(path);
+        match fs::remove_file(path) {
+            Ok(()) => {}
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+            Err(err) => return Err(err),
+        }
     }
+    Ok(remove_count)
 }
 
 pub fn load_thumbnail_rgba(
@@ -222,6 +254,64 @@ pub fn load_thumbnail_rgba(
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn cache_cleanup_keeps_newest_pngs_and_preserves_other_files() {
+        let dir = std::env::temp_dir().join(format!("piclens-prune-test-{}", std::process::id()));
+        let cache = dir.join("cache");
+        fs::create_dir_all(&cache).unwrap();
+        let source = dir.join("source.png");
+        fs::write(&source, b"source must not change").unwrap();
+        fs::write(cache.join("pending.tmp"), b"unfinished thumbnail").unwrap();
+        fs::create_dir(cache.join("directory.png")).unwrap();
+        for index in 0..3 {
+            let file = fs::File::create(cache.join(format!("{index}.png"))).unwrap();
+            file.set_modified(std::time::UNIX_EPOCH + Duration::from_secs(index + 1))
+                .unwrap();
+        }
+
+        assert_eq!(prune_cache(&cache, 2).unwrap(), 1);
+        assert!(!cache.join("0.png").exists());
+        assert!(cache.join("1.png").exists());
+        assert!(cache.join("2.png").exists());
+        assert!(cache.join("pending.tmp").exists());
+        assert!(cache.join("directory.png").is_dir());
+        assert_eq!(fs::read(source).unwrap(), b"source must not change");
+        assert_eq!(prune_cache(&cache, 2).unwrap(), 0);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn cache_cleanup_skips_clean_intervals_and_retries_failed_passes() {
+        let root = std::env::temp_dir().join(format!("piclens-prune-retry-{}", std::process::id()));
+        // A regular file makes directory reads fail. A clean interval must not
+        // attempt that read, but a dirty interval must retain its retry signal.
+        fs::write(&root, b"not a directory").unwrap();
+        let dirty = AtomicBool::new(false);
+        assert_eq!(prune_dirty_cache(&root, &dirty, 2).unwrap(), 0);
+        dirty.store(true, Ordering::Relaxed);
+        assert!(prune_dirty_cache(&root, &dirty, 2).is_err());
+        assert!(dirty.load(Ordering::Relaxed));
+
+        fs::remove_file(&root).unwrap();
+        fs::create_dir(&root).unwrap();
+        for index in 0..4 {
+            fs::write(root.join(format!("{index}.png")), b"cached").unwrap();
+        }
+        assert_eq!(prune_dirty_cache(&root, &dirty, 2).unwrap(), 2);
+        assert!(!dirty.load(Ordering::Relaxed));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn cache_cleanup_accepts_a_missing_cache_directory() {
+        let root =
+            std::env::temp_dir().join(format!("piclens-prune-missing-{}", std::process::id()));
+        let dirty = AtomicBool::new(true);
+        assert_eq!(prune_dirty_cache(&root, &dirty, 2).unwrap(), 0);
+        assert!(!root.exists());
+        assert!(!dirty.load(Ordering::Relaxed));
+    }
 
     #[test]
     fn corrupt_bytes_do_not_panic_ensure_thumbnail() {

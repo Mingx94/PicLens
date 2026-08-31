@@ -7,12 +7,17 @@ mod gallery;
 mod overlays;
 mod render;
 mod shell;
+mod viewer;
 
+use std::cell::Cell;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::ops::Range;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+use viewer::ViewerLoader;
 
 use gpui::*;
 use gpui_component::button::{Button, ButtonVariant};
@@ -29,9 +34,9 @@ use piclens_domain::{
 use piclens_infra::{
     apply_drop_rename_cancellable, cleanup_same_basename_cancellable, convert_to_jpg_cancellable,
     convert_to_lossless_webp_cancellable, ensure_thumbnail_with_timeout, info, plan_drop_rename,
-    rename_image_cancellable, reveal_in_file_manager, scan_child_folders_cancellable,
-    scan_folder_cancellable, trash_paths_cancellable, warn, CancellationToken, JsonSettingsStore,
-    ScanError,
+    prune_thumbnail_cache_if_needed, rename_image_cancellable, reveal_in_file_manager,
+    scan_child_folders_cancellable, scan_folder_cancellable, trash_paths_cancellable, warn,
+    CancellationToken, JsonSettingsStore, ScanError,
 };
 
 use crate::actions::{
@@ -241,10 +246,11 @@ pub struct PicLensApp {
     overlay_restore_focus: Option<FocusHandle>,
     /// Held so tasks cancel on drop / generation bump (do not detach).
     async_tasks: Vec<Task<()>>,
+    thumbnail_cache_task: Option<Task<()>>,
     tree_tasks: Vec<Task<()>>,
     scan_cancellation: Option<CancellationToken>,
     tree_cancellations: Vec<CancellationToken>,
-    viewer_cancellation: Option<CancellationToken>,
+    viewer_loader: ViewerLoader,
     file_operation_task: Option<Task<()>>,
     file_operation_label: Option<&'static str>,
     file_operation_cancellation: Option<CancellationToken>,
@@ -260,8 +266,11 @@ struct ViewerState {
     sequence: ImageSequenceSnapshot,
     zoom: ZoomState,
     message: Option<String>,
-    /// Safe on-disk image for `img()` (always a decoded PNG path when present).
+    /// Safe gallery PNG shown while the sharper viewer preview loads.
     display_path: Option<PathBuf>,
+    display_image: Option<Arc<RenderImage>>,
+    load_started: Instant,
+    paint_recorded: Rc<Cell<bool>>,
 }
 
 struct RenameState {
@@ -281,13 +290,23 @@ impl PicLensApp {
         initial_folder: Option<String>,
         launch: LaunchOptions,
     ) -> Self {
-        Self::new_with_settings_store(
+        let mut app = Self::new_with_settings_store(
             window,
             cx,
             initial_folder,
             launch,
             Arc::new(JsonSettingsStore::new()),
-        )
+        );
+        // One parent task owns cleanup. Workers can return PNG paths without
+        // waiting for a directory scan; clean intervals do no filesystem work.
+        let executor = cx.background_executor().clone();
+        app.thumbnail_cache_task = Some(executor.clone().spawn(async move {
+            loop {
+                prune_thumbnail_cache_if_needed();
+                executor.timer(Duration::from_secs(5)).await;
+            }
+        }));
+        app
     }
 
     fn new_with_settings_store(
@@ -367,10 +386,11 @@ impl PicLensApp {
             rename_focus: cx.focus_handle(),
             overlay_restore_focus: None,
             async_tasks: Vec::new(),
+            thumbnail_cache_task: None,
             tree_tasks: Vec::new(),
             scan_cancellation: None,
             tree_cancellations: Vec::new(),
-            viewer_cancellation: None,
+            viewer_loader: ViewerLoader::default(),
             file_operation_task: None,
             file_operation_label: None,
             file_operation_cancellation: None,
@@ -428,7 +448,7 @@ impl PicLensApp {
         app._subscriptions.push(search_sub);
 
         // Cancel async work when this view is released (window close).
-        let release = cx.on_release(|this, _cx| this.prepare_shutdown());
+        let release = cx.on_release(|this, cx| this.prepare_shutdown(cx));
         app._subscriptions.push(release);
 
         let has_folder_override = initial_folder.is_some();
@@ -469,7 +489,7 @@ impl PicLensApp {
         app
     }
 
-    fn prepare_shutdown(&mut self) {
+    fn prepare_shutdown(&mut self, cx: &mut App) {
         if self.shutting_down {
             return;
         }
@@ -485,13 +505,12 @@ impl PicLensApp {
         for token in self.tree_cancellations.drain(..) {
             token.cancel();
         }
-        if let Some(token) = self.viewer_cancellation.take() {
-            token.cancel();
-        }
+        self.viewer_loader.cancel(cx);
         if let Some(token) = self.file_operation_cancellation.take() {
             token.cancel();
         }
         self.async_tasks.clear();
+        self.thumbnail_cache_task = None;
         self.tree_tasks.clear();
         self.file_operation_task = None;
     }
@@ -501,9 +520,9 @@ impl PicLensApp {
         if let Some(token) = self.scan_cancellation.take() {
             token.cancel();
         }
-        if let Some(token) = self.viewer_cancellation.take() {
-            token.cancel();
-        }
+        // The immutable viewer can remain open across a gallery generation.
+        // Keep its decoded pixels owned until navigation or close evicts them.
+        self.viewer_loader.cancel_request();
         for token in self.thumb_cancellations.values() {
             token.cancel();
         }
@@ -757,7 +776,7 @@ impl PicLensApp {
 
     /// Queue background thumbnail work for viewport static images (bounded).
     fn pump_thumbs(&mut self, cx: &mut Context<Self>) {
-        if self.shutting_down {
+        if self.shutting_down || self.viewer.is_some() {
             return;
         }
         let size = self.thumb_size();
@@ -1271,6 +1290,12 @@ impl PicLensApp {
         if current_index < 0 {
             return;
         }
+        self.viewer_loader.cancel(cx);
+        // The gallery is covered. Release its decoder slots for the viewer;
+        // close_viewer resumes visible thumbnail requests.
+        for token in self.thumb_cancellations.values() {
+            token.cancel();
+        }
         let is_animated = images
             .get(current_index as usize)
             .map(|img| img.is_animated)
@@ -1296,6 +1321,9 @@ impl PicLensApp {
             zoom: reset_zoom_state(),
             message,
             display_path,
+            display_image: None,
+            load_started: Instant::now(),
+            paint_recorded: Rc::new(Cell::new(false)),
         });
         if let Some(metrics) = &self.metrics {
             metrics.viewer_opened();
@@ -1308,85 +1336,11 @@ impl PicLensApp {
         cx.notify();
     }
 
-    /// Decode a bounded safe PNG for the viewer (never feed raw corrupt files to `img`).
-    fn load_viewer_display(&mut self, path: String, cx: &mut Context<Self>) {
-        if self.shutting_down {
-            return;
-        }
-        if let Some(cancellation) = self.viewer_cancellation.take() {
-            cancellation.cancel();
-        }
-        let gen = self.generation;
-        let cancellation = CancellationToken::new();
-        self.viewer_cancellation = Some(cancellation.clone());
-        let worker_executable = match std::env::current_exe() {
-            Ok(path) => path,
-            Err(err) => {
-                self.viewer_cancellation = None;
-                if let Some(viewer) = self.viewer.as_mut() {
-                    viewer.display_path = None;
-                    viewer.message = Some(format!("無法啟動圖片解碼器：{err}"));
-                }
-                cx.notify();
-                return;
-            }
-        };
-        let path_for_bg = path.clone();
-        let path_for_ui = path;
-        let task = cx.spawn(async move |this, cx| {
-            let result = cx
-                .background_spawn({
-                    let cancellation = cancellation.clone();
-                    async move {
-                        ensure_thumbnail_with_timeout(
-                            &path_for_bg,
-                            1024,
-                            &worker_executable,
-                            THUMBNAIL_TIMEOUT,
-                            &cancellation,
-                        )
-                    }
-                })
-                .await;
-            let _ = this.update(cx, |this, cx| {
-                if this.shutting_down || this.generation != gen {
-                    return;
-                }
-                this.viewer_cancellation = None;
-                let Some(viewer) = this.viewer.as_mut() else {
-                    return;
-                };
-                let idx = viewer.sequence.current_index as usize;
-                let current = viewer
-                    .sequence
-                    .images
-                    .get(idx)
-                    .map(|i| i.path.as_str())
-                    .unwrap_or("");
-                if !path_equals(current, &path_for_ui) {
-                    return;
-                }
-                match result {
-                    Ok(cache) => {
-                        viewer.display_path = Some(cache);
-                        viewer.message = None;
-                    }
-                    Err(_err) if cancellation.is_canceled() => {}
-                    Err(err) => {
-                        viewer.display_path = None;
-                        viewer.message = Some(format!("無法載入圖片：{err}"));
-                        warn(format!("viewer decode failed for {path_for_ui}: {err}"));
-                    }
-                }
-                cx.notify();
-            });
-        });
-        self.spawn_task(task);
-    }
-
     fn close_viewer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.viewer_loader.cancel(cx);
         self.viewer = None;
         self.restore_overlay_focus(window, cx);
+        self.request_thumbs(cx);
         cx.notify();
     }
 
@@ -1401,6 +1355,9 @@ impl PicLensApp {
         let next = (viewer.sequence.current_index + delta).rem_euclid(len);
         viewer.sequence.current_index = next;
         viewer.zoom = reset_zoom_state();
+        viewer.load_started = Instant::now();
+        viewer.paint_recorded = Rc::new(Cell::new(false));
+        viewer.display_image = None;
         let (message, path) = viewer
             .sequence
             .images
@@ -1421,6 +1378,8 @@ impl PicLensApp {
         };
         if message.is_none() && !path.is_empty() {
             self.load_viewer_display(path, cx);
+        } else {
+            self.viewer_loader.cancel(cx);
         }
         cx.notify();
     }
@@ -1870,8 +1829,8 @@ impl PicLensApp {
         self.cancel_file_operation(cx);
     }
 
-    fn on_prepare_shutdown(&mut self, _: &PrepareShutdown, _: &mut Window, _: &mut Context<Self>) {
-        self.prepare_shutdown();
+    fn on_prepare_shutdown(&mut self, _: &PrepareShutdown, _: &mut Window, cx: &mut Context<Self>) {
+        self.prepare_shutdown(cx);
     }
 
     fn on_toggle_include_subfolders(
