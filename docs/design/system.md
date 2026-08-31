@@ -52,4 +52,4 @@ Use the packaged PicLens artwork for app identity and gpui-component icons for c
 
 ## Validation
 
-For visual changes, launch the real app with an isolated profile and representative images. Check default and minimum window sizes, gallery and list modes, empty and loading states, selection, dialogs, viewer, keyboard focus, and high-DPI rendering. Compilation alone does not prove layout, fonts, focus, or platform behavior.
+For visual changes, launch the real app with an isolated profile and representative images. Check default and minimum window sizes, the grid gallery, empty and loading states, selection, dialogs, viewer, keyboard focus, and high-DPI rendering. Compilation alone does not prove layout, fonts, focus, or platform behavior.

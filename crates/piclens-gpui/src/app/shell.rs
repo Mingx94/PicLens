@@ -12,7 +12,7 @@ use gpui_component::scroll::Scrollbar;
 use gpui_component::{h_flex, v_flex, Disableable, Icon, IconName, Selectable};
 use piclens_domain::{path_equals, FileOperationStatus};
 
-use super::{accessible_icon_button, AdaptiveLayout, GalleryMode, PicLensApp};
+use super::{accessible_icon_button, AdaptiveLayout, PicLensApp};
 use crate::actions::{
     CleanupSameBasename, ConvertJpg, ConvertWebp, DropRenamePlan, RenameSelection,
     SortModifiedAscending, SortModifiedDescending, SortNameAscending, SortNameDescending,
@@ -569,26 +569,6 @@ impl PicLensApp {
                                             .menu("修改時間遞增", Box::new(SortModifiedAscending))
                                             .menu("修改時間遞減", Box::new(SortModifiedDescending))
                                     }),
-                            )
-                            .child(
-                                Button::new("mode")
-                                    .outline()
-                                    .selected(self.gallery_mode == GalleryMode::Grid)
-                                    .toggled(self.gallery_mode == GalleryMode::Grid)
-                                    .label(if self.gallery_mode == GalleryMode::Grid {
-                                        "格狀"
-                                    } else {
-                                        "列表"
-                                    })
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.gallery_mode = match this.gallery_mode {
-                                            GalleryMode::Grid => GalleryMode::List,
-                                            GalleryMode::List => GalleryMode::Grid,
-                                        };
-                                        this.sync_gallery_list();
-                                        this.request_thumbs(cx);
-                                        cx.notify();
-                                    })),
                             )
                             .child(
                                 Button::new("batch-actions")

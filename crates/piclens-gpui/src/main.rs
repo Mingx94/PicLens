@@ -79,7 +79,6 @@ fn main() {
         smoke_ms,
         include_subfolders,
         search,
-        list_view,
         sidebar_closed,
         metrics,
         performance_scroll,
@@ -92,7 +91,6 @@ fn main() {
     let launch_options = LaunchOptions {
         include_subfolders,
         search,
-        list_view,
         sidebar_closed,
         viewer,
         performance_scroll,

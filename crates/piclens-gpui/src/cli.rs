@@ -12,7 +12,6 @@ pub struct LaunchArgs {
     pub performance_viewer: bool,
     pub include_subfolders: bool,
     pub search: Option<String>,
-    pub list_view: bool,
     pub sidebar_closed: bool,
 }
 
@@ -30,7 +29,6 @@ Options:\n\
       --viewer <PATH>          Open this image in the viewer after loading\n\
       --search <TEXT>          Apply a temporary search filter\n\
       --include-subfolders     Include child folders for this run\n\
-      --list-view              Start in list view for this run\n\
       --sidebar-closed         Start with the sidebar closed for this run\n\
       --screenshot <PATH>      Save an automated window screenshot\n\
       --metrics <PATH>         Write release-run metrics as JSON\n\
@@ -102,7 +100,6 @@ pub fn parse(args: &[String]) -> Result<ParseOutcome, String> {
             "--performance-scroll" => launch.performance_scroll = true,
             "--performance-viewer" => launch.performance_viewer = true,
             "--include-subfolders" => launch.include_subfolders = true,
-            "--list-view" => launch.list_view = true,
             "--sidebar-closed" => launch.sidebar_closed = true,
             _ => return Err(format!("unknown option: {arg}")),
         }
@@ -128,7 +125,6 @@ mod tests {
             "--include-subfolders".into(),
             "--search".into(),
             "cat".into(),
-            "--list-view".into(),
             "--sidebar-closed".into(),
         ];
         let ParseOutcome::Run(parsed) = parse(&args).unwrap() else {
@@ -137,12 +133,13 @@ mod tests {
         assert_eq!(parsed.folder.as_deref(), Some("photos"));
         assert_eq!(parsed.data_root.as_deref(), Some("profile"));
         assert_eq!(parsed.search.as_deref(), Some("cat"));
-        assert!(parsed.include_subfolders && parsed.list_view && parsed.sidebar_closed);
+        assert!(parsed.include_subfolders && parsed.sidebar_closed);
     }
 
     #[test]
     fn rejects_unknown_missing_and_invalid_values() {
         assert!(parse(&["piclens".into(), "--wat".into()]).is_err());
+        assert!(parse(&["piclens".into(), "--list-view".into()]).is_err());
         assert!(parse(&["piclens".into(), "--folder".into()]).is_err());
         assert!(parse(&["piclens".into(), "--smoke-ms=x".into()]).is_err());
         assert!(parse(&["piclens".into(), "--performance-viewer".into()]).is_err());

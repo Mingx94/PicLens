@@ -103,7 +103,6 @@ impl Render for PicLensApp {
                 }),
             )
             .on_action(cx.listener(Self::on_toggle_sidebar))
-            .on_action(cx.listener(Self::on_toggle_gallery_mode))
             .on_action(cx.listener(Self::on_cycle_sort))
             .on_action(cx.listener(Self::on_sort_name_ascending))
             .on_action(cx.listener(Self::on_sort_name_descending))

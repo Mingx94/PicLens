@@ -1,4 +1,4 @@
-//! Library tiles, list rows, and empty state.
+//! Library grid tiles and empty state.
 
 use std::time::Duration;
 
@@ -10,7 +10,7 @@ use gpui_component::menu::ContextMenuExt;
 use gpui_component::scroll::Scrollbar;
 use gpui_component::{h_flex, v_flex, Icon, IconName};
 
-use super::{GalleryMode, PicLensApp};
+use super::PicLensApp;
 use crate::actions::{OpenViewer, RenameSelection, RevealInFileManager, TrashSelection};
 use crate::interaction::SelectionGesture;
 use crate::theme::Theme;
@@ -46,7 +46,11 @@ impl PicLensApp {
                 .justify_center()
                 .rounded(px(8.))
                 .bg(theme.tile_frame)
-                .child(Icon::new(IconName::Folder).text_color(theme.accent))
+                .child(
+                    Icon::new(IconName::Folder)
+                        .size(rems(4.))
+                        .text_color(theme.accent),
+                )
                 .into_any_element();
         }
         if animated {
@@ -199,96 +203,49 @@ impl PicLensApp {
         }
         let end = (start + cols).min(self.visible.len());
 
-        if self.gallery_mode == GalleryMode::Grid {
-            return h_flex()
-                .id(("grid-row", row))
-                .w_full()
-                .gap_3()
-                .p_1()
-                .children((start..end).map(|idx| {
-                    let item = &self.visible[idx];
-                    let path = item.path().to_string();
-                    let name = item.name().to_string();
-                    let is_folder = item.is_folder();
-                    let animated = item.as_image().map(|i| i.is_animated).unwrap_or(false);
-                    let selected = self.selected.contains(&path);
-                    let preview = self.tile_preview(theme, &path, is_folder, animated, tile_size);
-                    v_flex()
-                        .id(("tile", idx))
-                        .w(px(tile_size))
-                        .gap_1()
-                        .child(self.item_surface(
-                            theme,
-                            ("tile-surface", idx),
-                            name.clone(),
-                            idx + 1,
-                            self.visible.len(),
-                            selected,
-                            is_folder,
-                            selected_count,
-                            path.clone(),
-                            preview,
-                            focus.clone(),
-                            cx,
-                        ))
-                        .child(
-                            div()
-                                .px_1()
-                                .text_xs()
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(theme.primary_text)
-                                .overflow_hidden()
-                                .whitespace_nowrap()
-                                .child(name),
-                        )
-                }))
-                .into_any_element();
-        }
-
-        let item = &self.visible[start];
-        let path = item.path().to_string();
-        let name = item.name().to_string();
-        let is_folder = item.is_folder();
-        let animated = item.as_image().map(|i| i.is_animated).unwrap_or(false);
-        let selected = self.selected.contains(&path);
-        let preview = self.tile_preview(theme, &path, is_folder, animated, 48.0);
-        let badge = if animated {
-            "動畫"
-        } else if is_folder {
-            "資料夾"
-        } else {
-            ""
-        };
-        self.item_surface(
-            theme,
-            ("row", start),
-            name.clone(),
-            start + 1,
-            self.visible.len(),
-            selected,
-            is_folder,
-            selected_count,
-            path,
-            h_flex()
-                .w_full()
-                .gap_3()
-                .px_3()
-                .py_2()
-                .items_center()
-                .child(preview)
-                .child(
-                    div()
-                        .flex_1()
-                        .text_sm()
-                        .text_color(theme.primary_text)
-                        .child(name),
-                )
-                .child(div().text_xs().text_color(theme.muted_text).child(badge))
-                .into_any_element(),
-            focus,
-            cx,
-        )
-        .into_any_element()
+        h_flex()
+            .id(("grid-row", row))
+            .w_full()
+            .gap_3()
+            .p_1()
+            .children((start..end).map(|idx| {
+                let item = &self.visible[idx];
+                let path = item.path().to_string();
+                let name = item.name().to_string();
+                let is_folder = item.is_folder();
+                let animated = item.as_image().map(|i| i.is_animated).unwrap_or(false);
+                let selected = self.selected.contains(&path);
+                let preview = self.tile_preview(theme, &path, is_folder, animated, tile_size);
+                v_flex()
+                    .id(("tile", idx))
+                    .w(px(tile_size))
+                    .gap_1()
+                    .child(self.item_surface(
+                        theme,
+                        ("tile-surface", idx),
+                        name.clone(),
+                        idx + 1,
+                        self.visible.len(),
+                        selected,
+                        is_folder,
+                        selected_count,
+                        path.clone(),
+                        preview,
+                        focus.clone(),
+                        cx,
+                    ))
+                    .child(
+                        div()
+                            .px_1()
+                            .text_xs()
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(theme.primary_text)
+                            .overflow_hidden()
+                            .whitespace_nowrap()
+                            .child(name),
+                    )
+            }))
+            .into_any_element()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -327,7 +284,7 @@ impl PicLensApp {
             .aria_size_of_set(set_size)
             .when(selected, |this| this.aria_active_descendant())
             .rounded(px(10.))
-            .border_1()
+            .border(px(if selected { 3.0 } else { 1.0 }))
             .border_color(if drop_target || selected {
                 theme.accent
             } else {
@@ -439,11 +396,11 @@ impl PicLensApp {
 mod tests {
     use std::{path::PathBuf, sync::Arc};
 
-    use gpui::{Modifiers, TestAppContext, VisualTestContext};
+    use gpui::{px, size, Modifiers, TestAppContext, VisualTestContext};
     use piclens_domain::{ImageListItem, ListItem};
     use piclens_infra::JsonSettingsStore;
 
-    use super::{GalleryMode, PicLensApp};
+    use super::PicLensApp;
 
     fn image(path: &str) -> ListItem {
         ListItem::Image(ImageListItem {
@@ -482,20 +439,22 @@ mod tests {
             )
         });
         app.update(cx, |app, cx| {
-            app.items = vec![image("/a.png"), image("/b.png"), image("/c.png")];
+            app.items = ('a'..='h')
+                .map(|name| image(&format!("/{name}.png")))
+                .collect();
             app.visible = app.items.clone();
             app.thumb_failed = app
                 .visible
                 .iter()
                 .map(|item| item.path().to_string())
                 .collect();
-            app.gallery_mode = GalleryMode::List;
             app.gallery_width = 800.0;
             app.sync_gallery_list();
             cx.notify();
         });
 
         let cx: &mut VisualTestContext = cx;
+        cx.simulate_resize(size(px(1280.), px(800.)));
         cx.run_until_parked();
         cx.update(|window, cx| {
             _ = window.draw(cx);
@@ -504,6 +463,8 @@ mod tests {
         let first = cx.debug_bounds("gallery-item-1").unwrap().center();
         let second = cx.debug_bounds("gallery-item-2").unwrap().center();
         let third = cx.debug_bounds("gallery-item-3").unwrap().center();
+        assert_eq!(first.y, second.y);
+        assert!(second.x > first.x);
 
         cx.simulate_click(first, Modifiers::default());
         app.read_with(cx, |app, _| {
@@ -555,7 +516,26 @@ mod tests {
         });
         cx.simulate_keystrokes("ctrl-a");
         app.read_with(cx, |app, _| {
-            assert_eq!(app.selection_order, vec!["/a.png", "/b.png", "/c.png"]);
+            assert_eq!(
+                app.selection_order,
+                app.visible
+                    .iter()
+                    .map(|item| item.path())
+                    .collect::<Vec<_>>()
+            );
+        });
+
+        // Vertical navigation must follow grid columns, not single list items.
+        let columns = app.read_with(cx, |app, _| app.gallery_columns());
+        assert!(columns > 1 && columns < 8, "grid columns: {columns}");
+        cx.simulate_click(first, Modifiers::default());
+        cx.simulate_keystrokes("down");
+        app.read_with(cx, |app, _| {
+            assert_eq!(app.selection_order, vec![app.visible[columns].path()]);
+        });
+        cx.simulate_keystrokes("up");
+        app.read_with(cx, |app, _| {
+            assert_eq!(app.selection_order, vec!["/a.png"]);
         });
 
         // The pinned GPUI TestPlatform cannot inject AccessKit ActionRequest values.

@@ -11,7 +11,6 @@ actions!(
         HistoryBack,
         HistoryForward,
         ToggleSidebar,
-        ToggleGalleryMode,
         CycleSort,
         SortNameAscending,
         SortNameDescending,
@@ -74,8 +73,6 @@ pub fn init(cx: &mut App) {
         KeyBinding::new("backspace", HistoryBack, Some(CONTEXT)),
         // Shell
         KeyBinding::new("ctrl-b", ToggleSidebar, Some(CONTEXT)),
-        KeyBinding::new("ctrl-1", ToggleGalleryMode, Some(CONTEXT)),
-        KeyBinding::new("ctrl-2", ToggleGalleryMode, Some(CONTEXT)),
         KeyBinding::new("ctrl-s", CycleSort, Some(CONTEXT)),
         KeyBinding::new("ctrl-alt-1", SortNameAscending, Some(CONTEXT)),
         KeyBinding::new("ctrl-alt-2", SortNameDescending, Some(CONTEXT)),
@@ -176,7 +173,6 @@ pub fn set_app_menus(cx: &App, selected_sort: Option<u8>, availability: MenuAvai
             disabled: false,
             items: vec![
                 MenuItem::action("側欄", ToggleSidebar),
-                MenuItem::action("格狀 / 列表", ToggleGalleryMode),
                 MenuItem::action("名稱遞增", SortNameAscending).checked(selected_sort == Some(0)),
                 MenuItem::action("名稱遞減", SortNameDescending).checked(selected_sort == Some(1)),
                 MenuItem::action("修改時間遞增", SortModifiedAscending)

@@ -45,8 +45,8 @@ use crate::actions::{
     HistoryForward, MoveSelectionDown, MoveSelectionLeft, MoveSelectionRight, MoveSelectionUp,
     OpenFolder, OpenViewer, PrepareShutdown, Refresh, RenameSelection, RevealInFileManager,
     SelectAll, SortModifiedAscending, SortModifiedDescending, SortNameAscending,
-    SortNameDescending, ToggleGalleryMode, ToggleIncludeSubfolders, ToggleSidebar, TrashSelection,
-    ViewerNext, ViewerPrev, ZoomIn, ZoomOut, ZoomReset,
+    SortNameDescending, ToggleIncludeSubfolders, ToggleSidebar, TrashSelection, ViewerNext,
+    ViewerPrev, ZoomIn, ZoomOut, ZoomReset,
 };
 use crate::diagnostics::RuntimeMetrics;
 use crate::drag_rename::{
@@ -173,17 +173,10 @@ fn conversion_requires_confirmation(count: usize) -> bool {
     count >= CONVERSION_CONFIRMATION_THRESHOLD
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum GalleryMode {
-    Grid,
-    List,
-}
-
 #[derive(Clone, Default)]
 pub struct LaunchOptions {
     pub include_subfolders: bool,
     pub search: Option<String>,
-    pub list_view: bool,
     pub sidebar_closed: bool,
     pub viewer: Option<String>,
     pub performance_scroll: bool,
@@ -213,7 +206,6 @@ pub struct PicLensApp {
     search: Entity<InputState>,
     search_text: String,
     sidebar_collapsed: bool,
-    gallery_mode: GalleryMode,
     viewer: Option<ViewerState>,
     rename: Option<RenameState>,
     drop_rename: Option<DropTargetBatchRenamePlan>,
@@ -352,11 +344,6 @@ impl PicLensApp {
             search: search.clone(),
             search_text: launch.search.clone().unwrap_or_default(),
             sidebar_collapsed: settings.sidebar_collapsed,
-            gallery_mode: if launch.list_view {
-                GalleryMode::List
-            } else {
-                GalleryMode::Grid
-            },
             viewer: None,
             rename: None,
             drop_rename: None,
@@ -571,11 +558,7 @@ impl PicLensApp {
     }
 
     fn gallery_columns(&self) -> usize {
-        if self.gallery_mode == GalleryMode::List {
-            1
-        } else {
-            self.grid_columns_estimate().max(1)
-        }
+        self.grid_columns_estimate().max(1)
     }
 
     fn apply_gallery_width(&mut self, width: f32, cx: &mut Context<Self>) {
@@ -601,11 +584,7 @@ impl PicLensApp {
     }
 
     fn gallery_row_height(&self) -> Pixels {
-        if self.gallery_mode == GalleryMode::List {
-            px(56.)
-        } else {
-            px(self.thumb_size() as f32 + 28.)
-        }
+        px(self.thumb_size() as f32 + 28.)
     }
 
     fn sync_gallery_list(&mut self) {
@@ -1745,21 +1724,6 @@ impl PicLensApp {
         cx.notify();
     }
 
-    fn on_toggle_gallery_mode(
-        &mut self,
-        _: &ToggleGalleryMode,
-        _: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.gallery_mode = match self.gallery_mode {
-            GalleryMode::Grid => GalleryMode::List,
-            GalleryMode::List => GalleryMode::Grid,
-        };
-        self.sync_gallery_list();
-        self.request_thumbs(cx);
-        cx.notify();
-    }
-
     fn on_cycle_sort(&mut self, _: &CycleSort, _: &mut Window, cx: &mut Context<Self>) {
         self.cycle_sort(cx);
     }
@@ -2206,11 +2170,7 @@ impl PicLensApp {
         if self.viewer.is_some() {
             return;
         }
-        let step = if self.gallery_mode == GalleryMode::Grid {
-            self.grid_columns_estimate().max(1) as i32
-        } else {
-            1
-        };
+        let step = self.gallery_columns() as i32;
         self.move_selection(-step, cx);
     }
 
@@ -2218,11 +2178,7 @@ impl PicLensApp {
         if self.viewer.is_some() {
             return;
         }
-        let step = if self.gallery_mode == GalleryMode::Grid {
-            self.grid_columns_estimate().max(1) as i32
-        } else {
-            1
-        };
+        let step = self.gallery_columns() as i32;
         self.move_selection(step, cx);
     }
 
@@ -2528,7 +2484,7 @@ mod file_operation_tests {
 
     use super::{
         cleanup_confirmation_description, conversion_requires_confirmation,
-        trash_confirmation_description, ConversionKind, GalleryMode, PicLensApp,
+        trash_confirmation_description, ConversionKind, PicLensApp,
     };
     use crate::actions::{CleanupSameBasename, ConvertJpg, ConvertWebp, TrashSelection};
 
@@ -2579,7 +2535,6 @@ mod file_operation_tests {
                 app.selection_order = image_paths.clone();
                 app.selection_anchor = image_paths.first().cloned();
                 app.thumb_failed.extend(image_paths.iter().cloned());
-                app.gallery_mode = GalleryMode::List;
                 app.sync_gallery_list();
                 cx.notify();
             });
