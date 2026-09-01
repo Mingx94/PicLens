@@ -53,15 +53,15 @@ egui view -> Action -> App reducer -> Command -> background backend
 
 目標：讓 view、狀態轉移與背景副作用有清楚且可測試的邊界。
 
-- [ ] 在 `model.rs` 定義 framework-light 的頁面、dialog、selection、viewer 與 `Loadable<T>` 狀態。
-- [ ] View 在繪製時只收集 `Action`；不得直接掃描磁碟、解碼圖片或執行檔案操作。
-- [ ] App reducer 在繪製後依序套用 action，並正確處理 action 產生的新 action。
+- [x] 在 `model.rs` 定義 framework-light 的頁面、dialog、selection、viewer 與 `Loadable<T>` 狀態。
+- [x] View 在繪製時只收集 `Action`；不得直接掃描磁碟、解碼圖片或執行檔案操作。
+- [x] App reducer 在繪製後依序套用 action，並正確處理 action 產生的新 action。
 - [x] Backend 使用 channel 接收 `Command`、回傳 `Event`，並在送出事件後呼叫 `request_repaint()`。
 - [ ] Blocking filesystem、image decode 與 helper process 全部離開 UI thread。
 - [ ] 所有佇列、worker 數量、timeout、cache 與 shutdown 都有明確界限。
-- [ ] Generation 或 request identity 不相符的 event 不得更新 UI state。
+- [x] Generation 或 request identity 不相符的 event 不得更新 UI state。
 - [x] Shutdown 會停止接收新工作、取消可取消工作並結束 background owner。
-- [ ] 以 reducer 與 backend contract tests 驗證 event ordering、stale result、錯誤及 shutdown。
+- [x] 以 reducer 與 backend contract tests 驗證 event ordering、stale result、錯誤及 shutdown。
 
 退出條件：測試能證明 UI thread 不執行 blocking work，且快速切換狀態時過期 event 不會污染畫面。
 

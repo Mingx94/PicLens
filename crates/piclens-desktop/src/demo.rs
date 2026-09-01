@@ -1,10 +1,10 @@
 //! Deterministic interface states for headless render and screenshot tests.
 
-use crate::model::{AppModel, BackendStatus};
+use crate::model::{AppModel, Loadable};
 
 pub fn empty_library() -> AppModel {
     let mut model = AppModel::new(None);
-    model.backend = BackendStatus::Ready;
+    model.backend = Loadable::Ready(());
     model
 }
 

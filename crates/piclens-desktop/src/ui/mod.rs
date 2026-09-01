@@ -2,7 +2,7 @@
 
 use egui::{Color32, Frame, Margin, RichText, Stroke};
 
-use crate::model::{Action, AppModel, BackendStatus};
+use crate::model::{Action, AppModel, Loadable};
 
 pub fn show(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
     egui::Panel::top("app-bar")
@@ -60,14 +60,14 @@ pub fn show(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
 
 fn backend_status(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
     match &model.backend {
-        BackendStatus::Starting => {
+        Loadable::Idle | Loadable::Loading => {
             ui.spinner();
             ui.label("正在啟動背景服務…");
         }
-        BackendStatus::Ready => {
+        Loadable::Ready(()) => {
             ui.label(RichText::new("背景服務已就緒").color(Color32::from_rgb(30, 130, 76)));
         }
-        BackendStatus::Failed(message) => {
+        Loadable::Failed(message) => {
             ui.label(
                 RichText::new(message)
                     .color(Color32::from_rgb(183, 35, 35))

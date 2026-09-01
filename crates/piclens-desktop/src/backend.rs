@@ -1,33 +1,44 @@
 //! Channel boundary between the UI thread and background work.
 
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 const SMOKE_CLOSE_GRACE: Duration = Duration::from_secs(2);
+const COMMAND_QUEUE_CAPACITY: usize = 64;
+const EVENT_QUEUE_CAPACITY: usize = 256;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WorkIdentity {
+    pub generation: u64,
+    pub request_id: u64,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
-    Probe { request_id: u64 },
+    Probe { identity: WorkIdentity },
     Shutdown,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Event {
-    Ready { request_id: u64 },
+    ProbeCompleted {
+        identity: WorkIdentity,
+        result: Result<(), String>,
+    },
     SmokeDeadlineElapsed,
 }
 
 pub struct Backend {
-    commands: Sender<Command>,
+    commands: SyncSender<Command>,
     events: Receiver<Event>,
     thread: Option<JoinHandle<()>>,
 }
 
 impl Backend {
     pub fn spawn(ctx: egui::Context, smoke_after: Option<Duration>) -> Self {
-        let (command_tx, command_rx) = mpsc::channel();
-        let (event_tx, event_rx) = mpsc::channel();
+        let (command_tx, command_rx) = mpsc::sync_channel(COMMAND_QUEUE_CAPACITY);
+        let (event_tx, event_rx) = mpsc::sync_channel(EVENT_QUEUE_CAPACITY);
         let thread = thread::Builder::new()
             .name("piclens-backend".into())
             .spawn(move || worker_loop(command_rx, event_tx, ctx, smoke_after))
@@ -39,8 +50,8 @@ impl Backend {
         }
     }
 
-    pub fn send(&self, command: Command) -> Result<(), mpsc::SendError<Command>> {
-        self.commands.send(command)
+    pub fn send(&self, command: Command) -> Result<(), mpsc::TrySendError<Command>> {
+        self.commands.try_send(command)
     }
 
     pub fn poll(&self) -> impl Iterator<Item = Event> + '_ {
@@ -55,6 +66,8 @@ impl Backend {
 
 impl Drop for Backend {
     fn drop(&mut self) {
+        let (_replacement_tx, replacement_rx) = mpsc::sync_channel(0);
+        drop(std::mem::replace(&mut self.events, replacement_rx));
         let _ = self.commands.send(Command::Shutdown);
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
@@ -64,7 +77,7 @@ impl Drop for Backend {
 
 fn worker_loop(
     commands: Receiver<Command>,
-    events: Sender<Event>,
+    events: SyncSender<Event>,
     ctx: egui::Context,
     smoke_after: Option<Duration>,
 ) {
@@ -117,7 +130,10 @@ fn worker_loop(
             },
         };
         let event = match command {
-            Command::Probe { request_id } => Event::Ready { request_id },
+            Command::Probe { identity } => Event::ProbeCompleted {
+                identity,
+                result: Ok(()),
+            },
             Command::Shutdown => break,
         };
         if events.send(event).is_err() {
@@ -134,12 +150,19 @@ mod tests {
     #[test]
     fn command_returns_matching_event_identity() {
         let backend = Backend::spawn(egui::Context::default(), None);
-        backend.send(Command::Probe { request_id: 42 }).unwrap();
+        let identity = WorkIdentity {
+            generation: 3,
+            request_id: 42,
+        };
+        backend.send(Command::Probe { identity }).unwrap();
         assert_eq!(
             backend
                 .recv_timeout(std::time::Duration::from_secs(1))
                 .unwrap(),
-            Event::Ready { request_id: 42 }
+            Event::ProbeCompleted {
+                identity,
+                result: Ok(())
+            }
         );
     }
 
@@ -160,13 +183,39 @@ mod tests {
     #[test]
     fn drop_stops_and_joins_backend_owner() {
         let backend = Backend::spawn(egui::Context::default(), None);
-        backend.send(Command::Probe { request_id: 7 }).unwrap();
+        let identity = WorkIdentity {
+            generation: 1,
+            request_id: 7,
+        };
+        backend.send(Command::Probe { identity }).unwrap();
         assert_eq!(
             backend
                 .recv_timeout(std::time::Duration::from_secs(1))
                 .unwrap(),
-            Event::Ready { request_id: 7 }
+            Event::ProbeCompleted {
+                identity,
+                result: Ok(())
+            }
         );
         drop(backend);
+    }
+
+    #[test]
+    fn command_queue_is_bounded_and_never_blocks_sender() {
+        let (sender, _receiver) = mpsc::sync_channel(COMMAND_QUEUE_CAPACITY);
+        for request_id in 0..COMMAND_QUEUE_CAPACITY {
+            sender
+                .try_send(Command::Probe {
+                    identity: WorkIdentity {
+                        generation: 0,
+                        request_id: request_id as u64,
+                    },
+                })
+                .unwrap();
+        }
+        assert!(matches!(
+            sender.try_send(Command::Shutdown),
+            Err(mpsc::TrySendError::Full(Command::Shutdown))
+        ));
     }
 }

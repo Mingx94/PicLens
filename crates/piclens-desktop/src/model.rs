@@ -2,11 +2,15 @@
 
 use std::path::PathBuf;
 
+use piclens_domain::{FileOperationBatchResult, ImageSequenceSnapshot, ListItem};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     ChooseFolder,
     RetryBackendProbe,
     DismissStatus,
+    ShowNotice(String),
+    StartBackendProbe,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -18,17 +22,41 @@ pub enum Loadable<T> {
     Failed(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BackendStatus {
-    Starting,
-    Ready,
-    Failed(String),
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Page {
+    #[default]
+    Library,
+    Viewer,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SelectionState {
+    pub ordered_paths: Vec<PathBuf>,
+    pub range_anchor: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DialogState {
+    Confirmation { title: String, message: String },
+    Rename { source: PathBuf, basename: String },
+    BatchResult(FileOperationBatchResult),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ViewerState {
+    pub snapshot: ImageSequenceSnapshot,
+    pub preview: Loadable<PathBuf>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct AppModel {
     pub initial_folder: Option<PathBuf>,
-    pub backend: BackendStatus,
+    pub page: Page,
+    pub library: Loadable<Vec<ListItem>>,
+    pub selection: SelectionState,
+    pub dialog: Option<DialogState>,
+    pub viewer: Option<ViewerState>,
+    pub backend: Loadable<()>,
     pub notice: Option<String>,
 }
 
@@ -36,7 +64,12 @@ impl AppModel {
     pub fn new(initial_folder: Option<PathBuf>) -> Self {
         Self {
             initial_folder,
-            backend: BackendStatus::Starting,
+            page: Page::Library,
+            library: Loadable::Idle,
+            selection: SelectionState::default(),
+            dialog: None,
+            viewer: None,
+            backend: Loadable::Loading,
             notice: None,
         }
     }
@@ -44,7 +77,12 @@ impl AppModel {
     pub fn demo_error(message: impl Into<String>) -> Self {
         Self {
             initial_folder: None,
-            backend: BackendStatus::Failed(message.into()),
+            page: Page::Library,
+            library: Loadable::Idle,
+            selection: SelectionState::default(),
+            dialog: None,
+            viewer: None,
+            backend: Loadable::Failed(message.into()),
             notice: None,
         }
     }
