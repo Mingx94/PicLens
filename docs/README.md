@@ -12,6 +12,10 @@ PicLens is a desktop image library and viewer built with Rust, GPUI, and gpui-co
 6. [Testing](testing.md): Cargo checks and runtime verification.
 7. [Design system](design/system.md): current GPUI layout, palette, and component rules.
 
+## Active migration
+
+- [egui migration design](egui-migration.md): target event flow, decisions, parity inventory, and cutover safety.
+
 ## Release and operations
 
 - [Release and packaging](release.md): versioning, portable artifacts, and publication.

@@ -19,14 +19,14 @@ serde_json = { workspace = true }
 sysinfo = { workspace = true }
 scap = { git = "https://github.com/zed-industries/scap", rev = "4afea48c3b002197176fb19cd0f9b180dd36eaac", default-features = false, features = ["x11"], package = "zed-scap", version = "0.0.8-zed" }
 
-[target.'cfg(windows)'.dependencies]
-windows-capture = "=1.4.2"
-
 # Pinned via Cargo.lock: zed commit c7537bdf463a998e7ec636adff33b198891e69ed
 gpui = { git = "https://github.com/zed-industries/zed" }
 gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit", "wayland", "x11"] }
 gpui-component = { git = "https://github.com/longbridge/gpui-component", rev = "9a4a3473e1ee6afa9960c5decf18d3dc321b6ea2" }
 gpui-component-assets = { git = "https://github.com/longbridge/gpui-component", rev = "9a4a3473e1ee6afa9960c5decf18d3dc321b6ea2" }
+
+[target.'cfg(windows)'.dependencies]
+windows-capture = "=1.4.2"
 
 [dev-dependencies]
 gpui = { git = "https://github.com/zed-industries/zed", features = ["test-support"] }

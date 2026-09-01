@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/piclens-domain",
+    "crates/piclens-desktop",
     "crates/piclens-infra",
     "crates/piclens-gpui",
 ]
@@ -28,6 +29,9 @@ directories = "6"
 log = "0.4"
 env_logger = "0.11"
 sysinfo = "0.31"
+eframe = { version = "=0.36.1", default-features = false, features = ["accesskit", "default_fonts", "wayland", "wgpu", "x11"] }
+egui = { version = "=0.36.1", default-features = false, features = ["default_fonts"] }
+egui_kittest = { version = "=0.36.1", default-features = false }
 
 # Keep image decoding/resizing fast in `cargo run` too. Application code keeps
 # the normal dev profile, including debug assertions and debug information.
