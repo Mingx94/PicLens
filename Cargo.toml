@@ -32,6 +32,7 @@ sysinfo = "0.31"
 eframe = { version = "=0.36.1", default-features = false, features = ["accesskit", "default_fonts", "wayland", "wgpu", "x11"] }
 egui = { version = "=0.36.1", default-features = false, features = ["default_fonts"] }
 egui_kittest = { version = "=0.36.1", default-features = false }
+rfd = "=0.17.2"
 
 # Keep image decoding/resizing fast in `cargo run` too. Application code keeps
 # the normal dev profile, including debug assertions and debug information.

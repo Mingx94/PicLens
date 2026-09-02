@@ -28,6 +28,7 @@ pub struct LaunchOptions {
     pub include_subfolders: bool,
     pub sort: SortState,
     pub thumbnail_size: i32,
+    pub sidebar_collapsed: bool,
     pub smoke_after: Option<Duration>,
 }
 
@@ -41,12 +42,13 @@ pub fn run(options: LaunchOptions) -> eframe::Result<()> {
 
     let initial_folder = options
         .initial_folder
-        .or_else(|| stored.last_folder_path.map(PathBuf::from));
+        .or_else(|| restorable_folder(stored.last_folder_path));
     let options = LaunchOptions {
         initial_folder,
         include_subfolders: stored.include_subfolders,
         sort: stored.sort,
         thumbnail_size: stored.thumbnail_size,
+        sidebar_collapsed: stored.sidebar_collapsed,
         smoke_after: options.smoke_after,
     };
 
@@ -79,6 +81,12 @@ pub fn run(options: LaunchOptions) -> eframe::Result<()> {
     )
 }
 
+fn restorable_folder(last_folder_path: Option<String>) -> Option<PathBuf> {
+    last_folder_path
+        .map(PathBuf::from)
+        .filter(|path| path.is_dir())
+}
+
 impl Default for LaunchOptions {
     fn default() -> Self {
         Self {
@@ -86,6 +94,7 @@ impl Default for LaunchOptions {
             include_subfolders: false,
             sort: SortState::default(),
             thumbnail_size: DEFAULT_THUMBNAIL_SIZE,
+            sidebar_collapsed: false,
             smoke_after: None,
         }
     }
@@ -100,5 +109,28 @@ fn app_icon() -> egui::IconData {
         rgba: image.into_raw(),
         width,
         height,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn startup_restore_uses_only_an_existing_directory() {
+        let fixture =
+            std::env::temp_dir().join(format!("piclens-egui-restore-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&fixture);
+        std::fs::create_dir_all(&fixture).unwrap();
+
+        assert_eq!(
+            restorable_folder(Some(fixture.to_string_lossy().into_owned())),
+            Some(fixture.clone())
+        );
+        std::fs::remove_dir_all(&fixture).unwrap();
+        assert_eq!(
+            restorable_folder(Some(fixture.to_string_lossy().into_owned())),
+            None
+        );
     }
 }

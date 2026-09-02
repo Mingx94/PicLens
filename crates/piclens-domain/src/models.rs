@@ -131,6 +131,45 @@ pub struct ImageSequenceSnapshot {
     pub current_index: i32,
 }
 
+impl ImageSequenceSnapshot {
+    pub fn from_visible(
+        source_folder_path: String,
+        include_subfolders: bool,
+        sort: SortState,
+        visible: &[ListItem],
+        current_path: &str,
+    ) -> Option<Self> {
+        let images = visible
+            .iter()
+            .filter_map(|item| item.as_image().cloned())
+            .collect::<Vec<_>>();
+        let current_index = images
+            .iter()
+            .position(|image| crate::path_equals(&image.path, current_path))?
+            as i32;
+        Some(Self {
+            source_folder_path,
+            include_subfolders,
+            sort,
+            images,
+            current_index,
+        })
+    }
+
+    pub fn current(&self) -> Option<&ImageListItem> {
+        self.images.get(self.current_index as usize)
+    }
+
+    pub fn step(&mut self, delta: i32) -> Option<&ImageListItem> {
+        let len = self.images.len() as i32;
+        if len == 0 {
+            return None;
+        }
+        self.current_index = (self.current_index + delta).rem_euclid(len);
+        self.current()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point {
     pub x: f64,
@@ -155,5 +194,64 @@ impl Default for ZoomState {
             zoom: 1.0,
             offset: Point::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn image(name: &str) -> ListItem {
+        ListItem::Image(ImageListItem {
+            path: format!("C:/gallery/{name}"),
+            name: name.into(),
+            extension: "png".into(),
+            modified_at_ms: None,
+            size_bytes: 1,
+            is_animated: false,
+        })
+    }
+
+    #[test]
+    fn image_sequence_uses_visible_order_and_wraps_without_following_source_changes() {
+        let mut visible = vec![
+            image("b.png"),
+            ListItem::Folder(FolderListItem {
+                path: "C:/gallery/nested".into(),
+                name: "nested".into(),
+                modified_at_ms: None,
+            }),
+            image("a.png"),
+        ];
+        let mut snapshot = ImageSequenceSnapshot::from_visible(
+            "C:/gallery".into(),
+            false,
+            SortState::default(),
+            &visible,
+            "C:/gallery/a.png",
+        )
+        .unwrap();
+
+        visible.clear();
+        assert_eq!(
+            snapshot
+                .images
+                .iter()
+                .map(|item| item.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["b.png", "a.png"]
+        );
+        assert_eq!(
+            snapshot.current().map(|item| item.name.as_str()),
+            Some("a.png")
+        );
+        assert_eq!(
+            snapshot.step(1).map(|item| item.name.as_str()),
+            Some("b.png")
+        );
+        assert_eq!(
+            snapshot.step(-1).map(|item| item.name.as_str()),
+            Some("a.png")
+        );
     }
 }

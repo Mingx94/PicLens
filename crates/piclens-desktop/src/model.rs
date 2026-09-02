@@ -1,15 +1,24 @@
 //! Framework-light interface state for the egui frontend.
 
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use piclens_domain::{
-    FileOperationBatchResult, ImageSequenceSnapshot, ListItem, ListQuery, SortState,
+    FileOperationBatchResult, FolderHistory, ImageSequenceSnapshot, ListItem, ListQuery, SortState,
     DEFAULT_THUMBNAIL_SIZE,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     ChooseFolder,
+    PickedFolder(PathBuf),
+    RestoreFolder(PathBuf),
+    NavigateFolder(PathBuf),
+    NavigateHistory {
+        back: bool,
+    },
+    ToggleTreeFolder(String),
+    ToggleSidebar,
     RetryBackendProbe,
     DismissStatus,
     ShowNotice(String),
@@ -20,6 +29,10 @@ pub enum Action {
     SetSort(SortState),
     ToggleIncludeSubfolders,
     SetThumbnailSize(i32),
+    OpenViewer(PathBuf),
+    CloseViewer,
+    StepViewer(i32),
+    RevealViewer,
     SelectImage {
         path: PathBuf,
         gesture: SelectionGesture,
@@ -74,6 +87,12 @@ pub struct AppModel {
     pub initial_folder: Option<PathBuf>,
     pub current_folder: Option<PathBuf>,
     pub library_query: Option<ListQuery>,
+    pub history: FolderHistory,
+    pub tree_root: Option<String>,
+    pub tree_roots: Vec<String>,
+    pub tree_children: HashMap<String, Vec<String>>,
+    pub tree_expanded: HashSet<String>,
+    pub sidebar_collapsed: bool,
     pub page: Page,
     pub library: Loadable<Vec<ListItem>>,
     pub visible_items: Vec<ListItem>,
@@ -92,6 +111,12 @@ impl AppModel {
             initial_folder,
             current_folder: None,
             library_query: None,
+            history: FolderHistory::default(),
+            tree_root: None,
+            tree_roots: Vec::new(),
+            tree_children: HashMap::new(),
+            tree_expanded: HashSet::new(),
+            sidebar_collapsed: false,
             page: Page::Library,
             library: Loadable::Idle,
             visible_items: Vec::new(),
@@ -110,6 +135,12 @@ impl AppModel {
             initial_folder: None,
             current_folder: None,
             library_query: None,
+            history: FolderHistory::default(),
+            tree_root: None,
+            tree_roots: Vec::new(),
+            tree_children: HashMap::new(),
+            tree_expanded: HashSet::new(),
+            sidebar_collapsed: false,
             page: Page::Library,
             library: Loadable::Idle,
             visible_items: Vec::new(),

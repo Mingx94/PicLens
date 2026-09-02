@@ -16,6 +16,7 @@ egui = { workspace = true }
 env_logger = { workspace = true }
 image = { workspace = true }
 log = { workspace = true }
+rfd = { workspace = true }
 
 [dev-dependencies]
 egui_kittest = { workspace = true }

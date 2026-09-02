@@ -1,6 +1,7 @@
 //! Bounded channel boundary between the UI thread and background work.
 
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
@@ -8,8 +9,8 @@ use std::time::{Duration, Instant};
 
 use piclens_domain::{AppSettingsPatch, ListItem, ListQuery, SortState};
 use piclens_infra::{
-    ensure_thumbnail_with_timeout, prune_thumbnail_cache_if_needed, scan_folder_cancellable,
-    CancellationToken, JsonSettingsStore, ScanError,
+    ensure_thumbnail_with_timeout, prune_thumbnail_cache_if_needed, scan_child_folders_cancellable,
+    scan_folder_cancellable, CancellationToken, JsonSettingsStore, ScanError,
 };
 
 use crate::images::{
@@ -21,12 +22,16 @@ const COMMAND_QUEUE_CAPACITY: usize = 64;
 const EVENT_QUEUE_CAPACITY: usize = 256;
 const COORDINATOR_WORKERS: usize = 1;
 const LIBRARY_SCAN_WORKERS: usize = 1;
+const FOLDER_PICKER_WORKERS: usize = 1;
+const FOLDER_PICKER_QUEUE_CAPACITY: usize = 1;
+const TREE_SCAN_WORKERS: usize = 1;
+const TREE_QUEUE_CAPACITY: usize = 32;
 const THUMBNAIL_WORKERS: usize = 8;
 const THUMBNAIL_QUEUE_CAPACITY: usize = 256;
 const THUMBNAIL_TIMEOUT: Duration = Duration::from_secs(15);
 const THUMBNAIL_CACHE_PRUNE_INTERVAL: Duration = Duration::from_secs(5);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct WorkIdentity {
     pub generation: u64,
     pub request_id: u64,
@@ -41,13 +46,26 @@ pub enum Command {
         identity: WorkIdentity,
         query: ListQuery,
     },
+    LoadTreeChildren {
+        identity: WorkIdentity,
+        parent: String,
+    },
     PersistLibrarySettings {
         include_subfolders: bool,
         sort: SortState,
         thumbnail_size: i32,
     },
+    PersistPickerFolder {
+        path: String,
+    },
+    PersistSidebar {
+        collapsed: bool,
+    },
     SyncThumbnails {
         requests: Vec<ThumbnailRequest>,
+    },
+    Reveal {
+        path: String,
     },
     Shutdown,
 }
@@ -63,12 +81,23 @@ pub enum Event {
         query: ListQuery,
         result: Result<Vec<ListItem>, String>,
     },
-    LibrarySettingsSaved {
+    TreeChildrenLoaded {
+        identity: WorkIdentity,
+        parent: String,
+        result: Result<Vec<String>, String>,
+    },
+    SettingsSaved {
         result: Result<(), String>,
+    },
+    FolderPicked {
+        path: Option<std::path::PathBuf>,
     },
     ThumbnailLoaded {
         request: ThumbnailRequest,
         result: Result<DecodedThumbnail, String>,
+    },
+    RevealCompleted {
+        result: Result<(), String>,
     },
     SmokeDeadlineElapsed,
 }
@@ -76,6 +105,200 @@ pub enum Event {
 struct ActiveScan {
     cancellation: CancellationToken,
     thread: JoinHandle<()>,
+}
+
+struct TreeJob {
+    identity: WorkIdentity,
+    parent: String,
+    cancellation: CancellationToken,
+}
+
+struct TreeWorker {
+    jobs: SyncSender<Option<TreeJob>>,
+    thread: Option<JoinHandle<()>>,
+    active: Arc<Mutex<HashMap<WorkIdentity, CancellationToken>>>,
+    events: SyncSender<Event>,
+    ctx: egui::Context,
+}
+
+impl TreeWorker {
+    fn spawn(events: SyncSender<Event>, ctx: egui::Context) -> Self {
+        debug_assert_eq!(TREE_SCAN_WORKERS, 1);
+        let (jobs, receiver) = mpsc::sync_channel::<Option<TreeJob>>(TREE_QUEUE_CAPACITY);
+        let worker_events = events.clone();
+        let worker_ctx = ctx.clone();
+        let active = Arc::new(Mutex::new(HashMap::new()));
+        let worker_active = Arc::clone(&active);
+        let thread = thread::Builder::new()
+            .name("piclens-tree-scan".into())
+            .spawn(move || {
+                while let Ok(Some(job)) = receiver.recv() {
+                    let result = scan_child_folders_cancellable(&job.parent, &job.cancellation)
+                        .map(|folders| folders.into_iter().map(|folder| folder.path).collect())
+                        .map_err(|error| format!("無法載入資料夾樹：{error}"));
+                    worker_active
+                        .lock()
+                        .unwrap_or_else(|error| error.into_inner())
+                        .remove(&job.identity);
+                    if !job.cancellation.is_canceled() {
+                        if let Err(error) = &result {
+                            piclens_infra::warn(format!(
+                                "egui folder tree scan failed; parent={}; error={error}",
+                                job.parent
+                            ));
+                        }
+                    }
+                    if !send_event(
+                        &worker_events,
+                        &worker_ctx,
+                        Event::TreeChildrenLoaded {
+                            identity: job.identity,
+                            parent: job.parent,
+                            result,
+                        },
+                    ) {
+                        return;
+                    }
+                }
+            })
+            .expect("PicLens tree scan worker can start");
+        Self {
+            jobs,
+            thread: Some(thread),
+            active,
+            events,
+            ctx,
+        }
+    }
+
+    fn load(&self, job: TreeJob) {
+        cancel_tree_jobs(&self.active, Some(job.identity.generation));
+        self.active
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .insert(job.identity, job.cancellation.clone());
+        match self.jobs.try_send(Some(job)) {
+            Ok(()) => {}
+            Err(mpsc::TrySendError::Full(Some(job))) => {
+                self.active
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner())
+                    .remove(&job.identity);
+                let _ = send_event(
+                    &self.events,
+                    &self.ctx,
+                    Event::TreeChildrenLoaded {
+                        identity: job.identity,
+                        parent: job.parent,
+                        result: Err("資料夾樹工作佇列已滿。".into()),
+                    },
+                );
+            }
+            Err(mpsc::TrySendError::Disconnected(Some(job))) => {
+                self.active
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner())
+                    .remove(&job.identity);
+                let _ = send_event(
+                    &self.events,
+                    &self.ctx,
+                    Event::TreeChildrenLoaded {
+                        identity: job.identity,
+                        parent: job.parent,
+                        result: Err("資料夾樹背景服務已停止。".into()),
+                    },
+                );
+            }
+            Err(mpsc::TrySendError::Full(None) | mpsc::TrySendError::Disconnected(None)) => {}
+        }
+    }
+
+    fn shutdown(&mut self) {
+        cancel_tree_jobs(&self.active, None);
+        let _ = self.jobs.send(None);
+        if self
+            .thread
+            .take()
+            .is_some_and(|thread| thread.join().is_err())
+        {
+            piclens_infra::warn("egui tree scan worker panicked during shutdown");
+        }
+    }
+}
+
+fn cancel_tree_jobs(
+    active: &Mutex<HashMap<WorkIdentity, CancellationToken>>,
+    keep_generation: Option<u64>,
+) {
+    active
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .retain(|identity, cancellation| {
+            let keep = keep_generation == Some(identity.generation);
+            if !keep {
+                cancellation.cancel();
+            }
+            keep
+        });
+}
+
+struct FolderPickerWorker {
+    dialogs: SyncSender<Option<rfd::FileDialog>>,
+    active: Arc<AtomicBool>,
+    thread: Option<JoinHandle<()>>,
+}
+
+impl FolderPickerWorker {
+    fn spawn(events: SyncSender<Event>, ctx: egui::Context) -> Self {
+        debug_assert_eq!(FOLDER_PICKER_WORKERS, 1);
+        let (dialogs, receiver) =
+            mpsc::sync_channel::<Option<rfd::FileDialog>>(FOLDER_PICKER_QUEUE_CAPACITY);
+        let active = Arc::new(AtomicBool::new(false));
+        let worker_active = Arc::clone(&active);
+        let thread = thread::Builder::new()
+            .name("piclens-folder-picker".into())
+            .spawn(move || {
+                while let Ok(Some(dialog)) = receiver.recv() {
+                    let path = dialog.pick_folder();
+                    worker_active.store(false, Ordering::Release);
+                    if !send_event(&events, &ctx, Event::FolderPicked { path }) {
+                        return;
+                    }
+                }
+            })
+            .expect("PicLens folder picker worker can start");
+        Self {
+            dialogs,
+            active,
+            thread: Some(thread),
+        }
+    }
+
+    fn choose(&self, dialog: rfd::FileDialog) -> Result<(), &'static str> {
+        if self
+            .active
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            return Err("資料夾選擇器已開啟。");
+        }
+        if self.dialogs.try_send(Some(dialog)).is_err() {
+            self.active.store(false, Ordering::Release);
+            return Err("資料夾選擇器背景服務忙碌中。");
+        }
+        Ok(())
+    }
+
+    fn shutdown(&mut self) {
+        let _ = self.dialogs.send(None);
+        if self
+            .thread
+            .take()
+            .is_some_and(|thread| thread.join().is_err())
+        {
+            piclens_infra::warn("egui folder picker worker panicked during shutdown");
+        }
+    }
 }
 
 struct ThumbnailJob {
@@ -321,6 +544,7 @@ pub struct Backend {
     commands: SyncSender<Command>,
     events: Receiver<Event>,
     thread: Option<JoinHandle<()>>,
+    folder_picker: FolderPickerWorker,
 }
 
 impl Backend {
@@ -329,6 +553,7 @@ impl Backend {
         debug_assert_eq!(LIBRARY_SCAN_WORKERS, 1);
         let (command_tx, command_rx) = mpsc::sync_channel(COMMAND_QUEUE_CAPACITY);
         let (event_tx, event_rx) = mpsc::sync_channel(EVENT_QUEUE_CAPACITY);
+        let folder_picker = FolderPickerWorker::spawn(event_tx.clone(), ctx.clone());
         let thread = thread::Builder::new()
             .name("piclens-backend".into())
             .spawn(move || coordinator_loop(command_rx, event_tx, ctx, smoke_after))
@@ -337,6 +562,7 @@ impl Backend {
             commands: command_tx,
             events: event_rx,
             thread: Some(thread),
+            folder_picker,
         }
     }
 
@@ -346,6 +572,10 @@ impl Backend {
 
     pub fn poll(&self) -> impl Iterator<Item = Event> + '_ {
         self.events.try_iter()
+    }
+
+    pub fn choose_folder(&self, dialog: rfd::FileDialog) -> Result<(), &'static str> {
+        self.folder_picker.choose(dialog)
     }
 
     #[cfg(test)]
@@ -362,6 +592,7 @@ impl Drop for Backend {
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
         }
+        self.folder_picker.shutdown();
     }
 }
 
@@ -454,6 +685,26 @@ fn persist_library_settings(
         .map_err(|error| format!("無法儲存圖庫設定：{error}"))
 }
 
+fn persist_picker_folder(store: &JsonSettingsStore, path: String) -> Result<(), String> {
+    store
+        .update(&AppSettingsPatch {
+            last_folder_path: Some(Some(path)),
+            ..Default::default()
+        })
+        .map(|_| ())
+        .map_err(|error| format!("無法儲存資料夾設定：{error}"))
+}
+
+fn persist_sidebar(store: &JsonSettingsStore, collapsed: bool) -> Result<(), String> {
+    store
+        .update(&AppSettingsPatch {
+            sidebar_collapsed: Some(collapsed),
+            ..Default::default()
+        })
+        .map(|_| ())
+        .map_err(|error| format!("無法儲存側欄設定：{error}"))
+}
+
 fn coordinator_loop(
     commands: Receiver<Command>,
     events: SyncSender<Event>,
@@ -467,6 +718,7 @@ fn coordinator_loop(
     }
 
     let mut active_scan = None;
+    let mut tree_worker = TreeWorker::spawn(events.clone(), ctx.clone());
     let mut thumbnail_pool = ThumbnailPool::spawn(events.clone(), ctx.clone());
     let mut smoke_state =
         smoke_after.map(|duration| SmokeState::WaitingForDeadline(Instant::now() + duration));
@@ -543,6 +795,13 @@ fn coordinator_loop(
                     }
                 }
             }
+            Command::LoadTreeChildren { identity, parent } => {
+                tree_worker.load(TreeJob {
+                    identity,
+                    parent,
+                    cancellation: CancellationToken::new(),
+                });
+            }
             Command::PersistLibrarySettings {
                 include_subfolders,
                 sort,
@@ -554,15 +813,35 @@ fn coordinator_loop(
                     sort,
                     thumbnail_size,
                 );
-                if !send_event(&events, &ctx, Event::LibrarySettingsSaved { result }) {
+                if !send_event(&events, &ctx, Event::SettingsSaved { result }) {
+                    break;
+                }
+            }
+            Command::PersistPickerFolder { path } => {
+                let result = persist_picker_folder(&JsonSettingsStore::new(), path);
+                if !send_event(&events, &ctx, Event::SettingsSaved { result }) {
+                    break;
+                }
+            }
+            Command::PersistSidebar { collapsed } => {
+                let result = persist_sidebar(&JsonSettingsStore::new(), collapsed);
+                if !send_event(&events, &ctx, Event::SettingsSaved { result }) {
                     break;
                 }
             }
             Command::SyncThumbnails { requests } => thumbnail_pool.sync(requests),
+            Command::Reveal { path } => {
+                let result = piclens_infra::reveal_in_file_manager(&path)
+                    .map_err(|error| format!("無法在檔案總管中顯示圖片：{error}"));
+                if !send_event(&events, &ctx, Event::RevealCompleted { result }) {
+                    break;
+                }
+            }
             Command::Shutdown => break,
         }
     }
     stop_active_scan(&mut active_scan);
+    tree_worker.shutdown();
     thumbnail_pool.shutdown();
 }
 
@@ -634,6 +913,42 @@ mod tests {
     }
 
     #[test]
+    fn tree_scan_runs_on_its_bounded_worker() {
+        let fixture =
+            std::env::temp_dir().join(format!("piclens-egui-tree-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&fixture);
+        std::fs::create_dir_all(fixture.join("child")).unwrap();
+        std::fs::write(fixture.join("file.txt"), b"ignored").unwrap();
+        let parent = fixture.to_string_lossy().into_owned();
+        let backend = Backend::spawn(egui::Context::default(), None);
+        backend
+            .send(Command::LoadTreeChildren {
+                identity: identity(10),
+                parent: parent.clone(),
+            })
+            .unwrap();
+
+        let Event::TreeChildrenLoaded {
+            identity: returned_identity,
+            parent: returned_parent,
+            result,
+        } = backend.recv_timeout(Duration::from_secs(2)).unwrap()
+        else {
+            panic!("expected tree event")
+        };
+        assert_eq!(returned_identity, identity(10));
+        assert_eq!(returned_parent, parent);
+        let children = result.unwrap();
+        assert_eq!(children.len(), 1);
+        assert!(piclens_domain::path_equals(
+            &children[0],
+            &fixture.join("child").to_string_lossy()
+        ));
+        drop(backend);
+        std::fs::remove_dir_all(fixture).unwrap();
+    }
+
+    #[test]
     fn smoke_deadline_wakes_backend_without_busy_polling() {
         let backend = Backend::spawn(egui::Context::default(), Some(Duration::from_millis(10)));
         assert_eq!(
@@ -682,6 +997,37 @@ mod tests {
     }
 
     #[test]
+    fn tree_generation_change_and_shutdown_cancel_owned_jobs() {
+        let stale = CancellationToken::new();
+        let current = CancellationToken::new();
+        let active = Mutex::new(HashMap::from([
+            (
+                WorkIdentity {
+                    generation: 1,
+                    request_id: 1,
+                },
+                stale.clone(),
+            ),
+            (
+                WorkIdentity {
+                    generation: 2,
+                    request_id: 2,
+                },
+                current.clone(),
+            ),
+        ]));
+
+        cancel_tree_jobs(&active, Some(2));
+        assert!(stale.is_canceled());
+        assert!(!current.is_canceled());
+        assert_eq!(active.lock().unwrap().len(), 1);
+
+        cancel_tree_jobs(&active, None);
+        assert!(current.is_canceled());
+        assert!(active.lock().unwrap().is_empty());
+    }
+
+    #[test]
     fn command_queue_is_bounded_and_never_blocks_sender() {
         let (sender, _receiver) = mpsc::sync_channel(COMMAND_QUEUE_CAPACITY);
         for request_id in 0..COMMAND_QUEUE_CAPACITY {
@@ -725,6 +1071,31 @@ mod tests {
         assert_eq!(loaded.last_folder_path.as_deref(), Some("C:/picker-root"));
         assert!(loaded.include_subfolders);
         assert_eq!(loaded.sort.direction, SortDirection::Desc);
+        assert_eq!(loaded.thumbnail_size, 220);
+        std::fs::remove_file(fixture).unwrap();
+    }
+
+    #[test]
+    fn picker_folder_persist_does_not_change_library_settings() {
+        let fixture = std::env::temp_dir().join(format!(
+            "piclens-egui-picker-settings-{}.json",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&fixture);
+        let store = JsonSettingsStore::with_path(&fixture);
+        store
+            .save(&AppSettings {
+                include_subfolders: true,
+                thumbnail_size: 220,
+                ..Default::default()
+            })
+            .unwrap();
+
+        persist_picker_folder(&store, "C:/picked".into()).unwrap();
+
+        let loaded = store.load();
+        assert_eq!(loaded.last_folder_path.as_deref(), Some("C:/picked"));
+        assert!(loaded.include_subfolders);
         assert_eq!(loaded.thumbnail_size, 220);
         std::fs::remove_file(fixture).unwrap();
     }

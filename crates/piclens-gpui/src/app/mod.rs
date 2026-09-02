@@ -1260,29 +1260,22 @@ impl PicLensApp {
     }
 
     fn open_viewer(&mut self, path: &str, window: &mut Window, cx: &mut Context<Self>) {
-        let images: Vec<ImageListItem> = self
-            .visible
-            .iter()
-            .filter_map(|item| item.as_image().cloned())
-            .collect();
-        let current_index = images
-            .iter()
-            .position(|img| path_equals(&img.path, path))
-            .map(|i| i as i32)
-            .unwrap_or(-1);
-        if current_index < 0 {
+        let Some(sequence) = ImageSequenceSnapshot::from_visible(
+            self.folder_path.clone().unwrap_or_default(),
+            self.settings.include_subfolders,
+            self.settings.sort,
+            &self.visible,
+            path,
+        ) else {
             return;
-        }
+        };
         self.viewer_loader.cancel(cx);
         // The gallery is covered. Release its decoder slots for the viewer;
         // close_viewer resumes visible thumbnail requests.
         for token in self.thumb_cancellations.values() {
             token.cancel();
         }
-        let is_animated = images
-            .get(current_index as usize)
-            .map(|img| img.is_animated)
-            .unwrap_or(false);
+        let is_animated = sequence.current().is_some_and(|img| img.is_animated);
         let message = if is_animated {
             Some("此動畫圖片目前不支援預覽。".into())
         } else {
@@ -1294,13 +1287,7 @@ impl PicLensApp {
             self.thumbs.get(path).cloned()
         };
         self.viewer = Some(ViewerState {
-            sequence: ImageSequenceSnapshot {
-                source_folder_path: self.folder_path.clone().unwrap_or_default(),
-                include_subfolders: self.settings.include_subfolders,
-                sort: self.settings.sort,
-                images,
-                current_index,
-            },
+            sequence,
             zoom: reset_zoom_state(),
             message,
             display_path,

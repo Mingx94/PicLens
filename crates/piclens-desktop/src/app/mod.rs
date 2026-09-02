@@ -1,12 +1,17 @@
 //! App state, frame lifecycle, event handling, and action reducer.
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
-use piclens_domain::{normalize_thumbnail_size, path_equals, sort_items, ListQuery, SortState};
+use piclens_domain::{
+    apply_tree_children, normalize_thumbnail_size, path_equals, replace_tree_for_picker,
+    sort_items, toggle_expand, ExpandAction, ListQuery, SortState,
+};
 
 use crate::backend::{Backend, Command, Event, WorkIdentity};
 use crate::images::ThumbnailLoader;
-use crate::model::{Action, AppModel, Loadable, SelectionGesture, SelectionState};
+use crate::model::{
+    Action, AppModel, Loadable, Page, SelectionGesture, SelectionState, ViewerState,
+};
 use crate::{theme, ui, LaunchOptions};
 
 struct Reducer {
@@ -14,9 +19,13 @@ struct Reducer {
     actions: VecDeque<Action>,
     commands: VecDeque<Command>,
     generation: u64,
+    tree_generation: u64,
     next_request_id: u64,
     pending_probe: Option<WorkIdentity>,
     pending_library: Option<WorkIdentity>,
+    pending_tree: HashMap<String, WorkIdentity>,
+    include_subfolders: bool,
+    sort: SortState,
     close_requested: bool,
 }
 
@@ -27,9 +36,13 @@ impl Reducer {
             actions: VecDeque::new(),
             commands: VecDeque::new(),
             generation: 0,
+            tree_generation: 0,
             next_request_id: 1,
             pending_probe: None,
             pending_library: None,
+            pending_tree: HashMap::new(),
+            include_subfolders: false,
+            sort: SortState::default(),
             close_requested: false,
         }
     }
@@ -43,9 +56,18 @@ impl Reducer {
         while let Some(action) = self.actions.pop_front() {
             applied += 1;
             match action {
-                Action::ChooseFolder => self.push_action(Action::ShowNotice(
-                    "資料夾選擇器會在圖庫垂直切片階段接上。".into(),
-                )),
+                Action::ChooseFolder => {}
+                Action::PickedFolder(path) => self.open_folder(path, true, true, true),
+                Action::RestoreFolder(path) => self.open_folder(path, true, false, true),
+                Action::NavigateFolder(path) => self.open_folder(path, false, false, true),
+                Action::NavigateHistory { back } => self.navigate_history(back),
+                Action::ToggleTreeFolder(path) => self.toggle_tree_folder(path),
+                Action::ToggleSidebar => {
+                    self.model.sidebar_collapsed = !self.model.sidebar_collapsed;
+                    self.commands.push_back(Command::PersistSidebar {
+                        collapsed: self.model.sidebar_collapsed,
+                    });
+                }
                 Action::RetryBackendProbe => self.push_action(Action::StartBackendProbe),
                 Action::DismissStatus => self.model.notice = None,
                 Action::ShowNotice(message) => self.model.notice = Some(message),
@@ -64,6 +86,10 @@ impl Reducer {
                 Action::SetSort(sort) => self.set_sort(sort),
                 Action::ToggleIncludeSubfolders => self.toggle_include_subfolders(),
                 Action::SetThumbnailSize(size) => self.set_thumbnail_size(size),
+                Action::OpenViewer(path) => self.open_viewer(path),
+                Action::CloseViewer => self.close_viewer(),
+                Action::StepViewer(delta) => self.step_viewer(delta),
+                Action::RevealViewer => self.reveal_viewer(),
                 Action::SelectImage { path, gesture } => self.select_image(&path, gesture),
                 Action::ClearSelection => self.model.selection = SelectionState::default(),
             }
@@ -90,6 +116,8 @@ impl Reducer {
         };
         self.next_request_id = self.next_request_id.wrapping_add(1).max(1);
         self.pending_library = Some(identity);
+        self.include_subfolders = query.include_subfolders;
+        self.sort = query.sort;
         self.model.current_folder = Some(query.folder_path.clone().into());
         self.model.library_query = Some(query.clone());
         self.model.library = Loadable::Loading;
@@ -97,6 +125,71 @@ impl Reducer {
         self.model.selection = SelectionState::default();
         self.commands
             .push_back(Command::LoadLibrary { identity, query });
+    }
+
+    fn open_folder(
+        &mut self,
+        path: std::path::PathBuf,
+        rebuild_tree: bool,
+        remember_picker: bool,
+        push_history: bool,
+    ) {
+        let path = path.to_string_lossy().into_owned();
+        if rebuild_tree {
+            self.tree_generation = self.tree_generation.wrapping_add(1).max(1);
+            self.pending_tree.clear();
+            replace_tree_for_picker(
+                true,
+                &mut self.model.tree_root,
+                &mut self.model.tree_roots,
+                &mut self.model.tree_children,
+                &mut self.model.tree_expanded,
+                &path,
+                Vec::new(),
+            );
+            self.request_tree_children(path.clone(), true);
+        }
+        if push_history {
+            self.model.history.push(path.clone());
+        }
+        if remember_picker {
+            self.commands
+                .push_back(Command::PersistPickerFolder { path: path.clone() });
+        }
+        self.start_library_load(ListQuery {
+            folder_path: path,
+            include_subfolders: self.include_subfolders,
+            sort: self.sort,
+        });
+    }
+
+    fn navigate_history(&mut self, back: bool) {
+        if let Some(path) = self.model.history.step(back).map(str::to_owned) {
+            self.open_folder(path.into(), false, false, false);
+        }
+    }
+
+    fn toggle_tree_folder(&mut self, path: String) {
+        match toggle_expand(&mut self.model.tree_expanded, &path) {
+            ExpandAction::Collapse => {}
+            ExpandAction::NeedChildren => self.request_tree_children(path, false),
+        }
+    }
+
+    fn request_tree_children(&mut self, parent: String, force: bool) {
+        if self.pending_tree.contains_key(&parent)
+            || (!force && self.model.tree_children.contains_key(&parent))
+        {
+            return;
+        }
+        let identity = WorkIdentity {
+            generation: self.tree_generation,
+            request_id: self.next_request_id,
+        };
+        self.next_request_id = self.next_request_id.wrapping_add(1).max(1);
+        self.pending_tree.insert(parent.clone(), identity);
+        self.commands
+            .push_back(Command::LoadTreeChildren { identity, parent });
     }
 
     fn rebuild_visible_items(&mut self) {
@@ -124,20 +217,15 @@ impl Reducer {
     }
 
     fn persist_library_settings(&mut self) {
-        let (include_subfolders, sort) = self
-            .model
-            .library_query
-            .as_ref()
-            .map(|query| (query.include_subfolders, query.sort))
-            .unwrap_or((false, SortState::default()));
         self.commands.push_back(Command::PersistLibrarySettings {
-            include_subfolders,
-            sort,
+            include_subfolders: self.include_subfolders,
+            sort: self.sort,
             thumbnail_size: self.model.thumbnail_size,
         });
     }
 
     fn set_sort(&mut self, sort: SortState) {
+        self.sort = sort;
         if let Some(query) = &mut self.model.library_query {
             query.sort = sort;
         }
@@ -151,6 +239,7 @@ impl Reducer {
             return;
         };
         query.include_subfolders = !query.include_subfolders;
+        self.include_subfolders = query.include_subfolders;
         self.start_library_load(query);
         self.persist_library_settings();
     }
@@ -158,6 +247,54 @@ impl Reducer {
     fn set_thumbnail_size(&mut self, size: i32) {
         self.model.thumbnail_size = normalize_thumbnail_size(f64::from(size));
         self.persist_library_settings();
+    }
+
+    fn open_viewer(&mut self, path: std::path::PathBuf) {
+        let Some(query) = self.model.library_query.as_ref() else {
+            return;
+        };
+        let current_path = path.to_string_lossy();
+        let Some(snapshot) = piclens_domain::ImageSequenceSnapshot::from_visible(
+            query.folder_path.clone(),
+            query.include_subfolders,
+            query.sort,
+            &self.model.visible_items,
+            &current_path,
+        ) else {
+            return;
+        };
+        self.model.viewer = Some(ViewerState {
+            snapshot,
+            preview: Loadable::Idle,
+        });
+        self.model.page = Page::Viewer;
+    }
+
+    fn close_viewer(&mut self) {
+        self.model.viewer = None;
+        self.model.page = Page::Library;
+    }
+
+    fn step_viewer(&mut self, delta: i32) {
+        let Some(viewer) = self.model.viewer.as_mut() else {
+            return;
+        };
+        viewer.snapshot.step(delta);
+        viewer.preview = Loadable::Idle;
+    }
+
+    fn reveal_viewer(&mut self) {
+        let Some(current) = self
+            .model
+            .viewer
+            .as_ref()
+            .and_then(|viewer| viewer.snapshot.current())
+        else {
+            return;
+        };
+        self.commands.push_back(Command::Reveal {
+            path: current.path.clone(),
+        });
     }
 
     fn select_image(&mut self, path: &std::path::Path, gesture: SelectionGesture) {
@@ -255,7 +392,22 @@ impl Reducer {
                 true
             }
             Event::LibraryLoaded { .. } => false,
-            Event::LibrarySettingsSaved { result } => {
+            Event::TreeChildrenLoaded {
+                identity,
+                parent,
+                result,
+            } if self.pending_tree.get(&parent) == Some(&identity) => {
+                self.pending_tree.remove(&parent);
+                match result {
+                    Ok(children) => {
+                        apply_tree_children(&mut self.model.tree_children, &parent, children)
+                    }
+                    Err(message) => self.model.notice = Some(message),
+                }
+                true
+            }
+            Event::TreeChildrenLoaded { .. } => false,
+            Event::SettingsSaved { result } => {
                 if let Err(message) = result {
                     self.model.notice = Some(message);
                     true
@@ -263,7 +415,16 @@ impl Reducer {
                     false
                 }
             }
+            Event::FolderPicked { .. } => false,
             Event::ThumbnailLoaded { .. } => false,
+            Event::RevealCompleted { result } => {
+                if let Err(message) = result {
+                    self.model.notice = Some(message);
+                    true
+                } else {
+                    false
+                }
+            }
             Event::SmokeDeadlineElapsed => {
                 self.close_requested = true;
                 true
@@ -282,11 +443,24 @@ impl Reducer {
                 query: query.clone(),
                 result: Err(message),
             }),
-            Command::PersistLibrarySettings { .. } => {
+            Command::LoadTreeChildren { identity, parent } => {
+                self.handle_event(Event::TreeChildrenLoaded {
+                    identity: *identity,
+                    parent: parent.clone(),
+                    result: Err(message),
+                })
+            }
+            Command::PersistLibrarySettings { .. }
+            | Command::PersistPickerFolder { .. }
+            | Command::PersistSidebar { .. } => {
                 self.model.notice = Some(message);
                 true
             }
             Command::SyncThumbnails { .. } => false,
+            Command::Reveal { .. } => {
+                self.model.notice = Some(message);
+                true
+            }
             Command::Shutdown => false,
         }
     }
@@ -304,6 +478,7 @@ pub struct PicLensApp {
     reducer: Reducer,
     backend: Backend,
     images: ThumbnailLoader,
+    folder_picker_open: bool,
 }
 
 impl PicLensApp {
@@ -315,22 +490,24 @@ impl PicLensApp {
             include_subfolders,
             sort,
             thumbnail_size,
+            sidebar_collapsed,
             smoke_after,
         } = options;
         let backend = Backend::spawn(creation.egui_ctx.clone(), smoke_after);
+        let mut reducer = Reducer::new(initial_folder);
+        reducer.include_subfolders = include_subfolders;
+        reducer.sort = sort;
+        reducer.model.thumbnail_size = thumbnail_size;
+        reducer.model.sidebar_collapsed = sidebar_collapsed;
         let mut app = Self {
-            reducer: Reducer::new(initial_folder),
+            reducer,
             backend,
             images: ThumbnailLoader::default(),
+            folder_picker_open: false,
         };
-        app.reducer.model.thumbnail_size = thumbnail_size;
         app.reducer.push_action(Action::StartBackendProbe);
         if let Some(folder) = app.reducer.model.initial_folder.clone() {
-            app.reducer.push_action(Action::LoadLibrary(ListQuery {
-                folder_path: folder.to_string_lossy().into_owned(),
-                include_subfolders,
-                sort,
-            }));
+            app.reducer.push_action(Action::RestoreFolder(folder));
         }
         app.reduce_and_dispatch(&creation.egui_ctx);
         app
@@ -340,6 +517,13 @@ impl PicLensApp {
         let mut changed = false;
         for event in self.backend.poll().collect::<Vec<_>>() {
             match event {
+                Event::FolderPicked { path } => {
+                    self.folder_picker_open = false;
+                    if let Some(path) = path {
+                        self.reducer.push_action(Action::PickedFolder(path));
+                        changed = true;
+                    }
+                }
                 Event::ThumbnailLoaded { request, result } => {
                     changed |= self.images.handle_result(&request, result, ctx);
                 }
@@ -386,9 +570,22 @@ impl eframe::App for PicLensApp {
         self.close_if_requested(ctx);
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         let mut frame_actions = Vec::new();
         let materialized = ui::show(&self.reducer.model, &self.images, ui, &mut frame_actions);
+        if !self.folder_picker_open && frame_actions.contains(&Action::ChooseFolder) {
+            frame_actions.retain(|action| *action != Action::ChooseFolder);
+            let mut dialog = rfd::FileDialog::new()
+                .set_title("選擇圖片資料夾")
+                .set_parent(frame);
+            if let Some(folder) = &self.reducer.model.current_folder {
+                dialog = dialog.set_directory(folder);
+            }
+            match self.backend.choose_folder(dialog) {
+                Ok(()) => self.folder_picker_open = true,
+                Err(message) => frame_actions.push(Action::ShowNotice(message.into())),
+            }
+        }
         self.reducer.actions.extend(frame_actions);
         if let Some(requests) = self
             .images
@@ -409,8 +606,12 @@ mod tests {
     fn next_probe(reducer: &mut Reducer) -> WorkIdentity {
         match reducer.commands.pop_front().unwrap() {
             Command::Probe { identity } => identity,
-            Command::LoadLibrary { .. } => panic!("expected probe command"),
-            Command::PersistLibrarySettings { .. } => panic!("expected probe command"),
+            Command::LoadLibrary { .. }
+            | Command::LoadTreeChildren { .. }
+            | Command::PersistLibrarySettings { .. }
+            | Command::PersistPickerFolder { .. }
+            | Command::PersistSidebar { .. }
+            | Command::Reveal { .. } => panic!("expected probe command"),
             Command::SyncThumbnails { .. } => panic!("expected probe command"),
             Command::Shutdown => panic!("expected probe command"),
         }
@@ -428,8 +629,12 @@ mod tests {
         match reducer.commands.pop_front().unwrap() {
             Command::LoadLibrary { identity, query } => (identity, query),
             Command::Probe { .. }
+            | Command::LoadTreeChildren { .. }
             | Command::PersistLibrarySettings { .. }
+            | Command::PersistPickerFolder { .. }
+            | Command::PersistSidebar { .. }
             | Command::SyncThumbnails { .. }
+            | Command::Reveal { .. }
             | Command::Shutdown => {
                 panic!("expected library command")
             }
@@ -445,7 +650,11 @@ mod tests {
             } => (include_subfolders, sort, thumbnail_size),
             Command::Probe { .. }
             | Command::LoadLibrary { .. }
+            | Command::LoadTreeChildren { .. }
+            | Command::PersistPickerFolder { .. }
+            | Command::PersistSidebar { .. }
             | Command::SyncThumbnails { .. }
+            | Command::Reveal { .. }
             | Command::Shutdown => {
                 panic!("expected settings command")
             }
@@ -453,16 +662,80 @@ mod tests {
     }
 
     #[test]
-    fn reducer_processes_actions_queued_by_actions_in_order() {
+    fn picker_sets_restore_authority_tree_and_history() {
         let mut reducer = Reducer::new(None);
-        reducer.push_action(Action::ChooseFolder);
+        reducer.push_action(Action::PickedFolder("C:/photos".into()));
 
-        assert_eq!(reducer.reduce_actions(), 2);
+        assert_eq!(reducer.reduce_actions(), 1);
+        assert_eq!(reducer.model.tree_root.as_deref(), Some("C:/photos"));
+        assert_eq!(reducer.model.tree_roots, vec!["C:/photos"]);
+        assert_eq!(reducer.model.history.current(), Some("C:/photos"));
+        assert!(matches!(
+            reducer.commands.pop_front(),
+            Some(Command::LoadTreeChildren { parent, .. }) if parent == "C:/photos"
+        ));
         assert_eq!(
-            reducer.model.notice.as_deref(),
-            Some("資料夾選擇器會在圖庫垂直切片階段接上。")
+            reducer.commands.pop_front(),
+            Some(Command::PersistPickerFolder {
+                path: "C:/photos".into()
+            })
         );
-        assert!(reducer.actions.is_empty());
+        assert!(matches!(
+            reducer.commands.pop_front(),
+            Some(Command::LoadLibrary { query, .. }) if query.folder_path == "C:/photos"
+        ));
+    }
+
+    #[test]
+    fn navigation_and_history_keep_picker_tree_unchanged() {
+        let mut reducer = Reducer::new(None);
+        reducer.push_action(Action::RestoreFolder("C:/photos".into()));
+        reducer.reduce_actions();
+        reducer.commands.clear();
+        let roots = reducer.model.tree_roots.clone();
+
+        reducer.push_action(Action::NavigateFolder("C:/photos/trip".into()));
+        reducer.reduce_actions();
+        assert_eq!(reducer.model.tree_roots, roots);
+        assert_eq!(reducer.model.history.current(), Some("C:/photos/trip"));
+        assert!(reducer.model.history.can_back());
+        assert!(matches!(
+            reducer.commands.pop_front(),
+            Some(Command::LoadLibrary { query, .. }) if query.folder_path == "C:/photos/trip"
+        ));
+
+        reducer.push_action(Action::NavigateHistory { back: true });
+        reducer.reduce_actions();
+        assert_eq!(reducer.model.history.current(), Some("C:/photos"));
+        assert_eq!(reducer.model.tree_roots, roots);
+        assert!(matches!(
+            reducer.commands.pop_front(),
+            Some(Command::LoadLibrary { query, .. }) if query.folder_path == "C:/photos"
+        ));
+    }
+
+    #[test]
+    fn newer_picker_root_rejects_stale_tree_children() {
+        let mut reducer = Reducer::new(None);
+        reducer.push_action(Action::RestoreFolder("C:/first".into()));
+        reducer.reduce_actions();
+        let Some(Command::LoadTreeChildren {
+            identity: first,
+            parent,
+        }) = reducer.commands.pop_front()
+        else {
+            panic!("expected tree command");
+        };
+
+        reducer.push_action(Action::RestoreFolder("C:/second".into()));
+        reducer.reduce_actions();
+        assert!(!reducer.handle_event(Event::TreeChildrenLoaded {
+            identity: first,
+            parent,
+            result: Ok(vec!["C:/first/child".into()]),
+        }));
+        assert_eq!(reducer.model.tree_root.as_deref(), Some("C:/second"));
+        assert!(!reducer.model.tree_children.contains_key("C:/first"));
     }
 
     #[test]
@@ -747,5 +1020,65 @@ mod tests {
 
         assert!(reducer.model.selection.ordered_paths.is_empty());
         assert_eq!(reducer.model.selection.range_anchor, None);
+    }
+
+    #[test]
+    fn viewer_keeps_visible_snapshot_while_library_changes() {
+        use piclens_domain::{ImageListItem, ListItem};
+
+        let image = |name: &str| {
+            ListItem::Image(ImageListItem {
+                path: format!("C:/gallery/{name}"),
+                name: name.into(),
+                extension: "png".into(),
+                modified_at_ms: None,
+                size_bytes: 1,
+                is_animated: false,
+            })
+        };
+        let mut reducer = Reducer::new(None);
+        reducer.model.library_query = Some(query("C:/gallery"));
+        reducer.model.visible_items = vec![image("a.png"), image("b.png")];
+
+        reducer.push_action(Action::OpenViewer("C:/gallery/a.png".into()));
+        reducer.reduce_actions();
+        reducer.model.visible_items.clear();
+        assert_eq!(reducer.model.page, Page::Viewer);
+        assert_eq!(
+            reducer.model.viewer.as_ref().unwrap().snapshot.images.len(),
+            2
+        );
+
+        reducer.push_action(Action::StepViewer(-1));
+        reducer.reduce_actions();
+        assert_eq!(
+            reducer
+                .model
+                .viewer
+                .as_ref()
+                .unwrap()
+                .snapshot
+                .current()
+                .map(|item| item.name.as_str()),
+            Some("b.png")
+        );
+
+        reducer.push_action(Action::RevealViewer);
+        reducer.reduce_actions();
+        assert_eq!(
+            reducer.commands.pop_front(),
+            Some(Command::Reveal {
+                path: "C:/gallery/b.png".into()
+            })
+        );
+        assert!(reducer.handle_event(Event::RevealCompleted {
+            result: Err("無法顯示".into())
+        }));
+        assert_eq!(reducer.model.notice.as_deref(), Some("無法顯示"));
+
+        reducer.push_action(Action::CloseViewer);
+        reducer.reduce_actions();
+        assert_eq!(reducer.model.page, Page::Library);
+        assert!(reducer.model.viewer.is_none());
     }
 }

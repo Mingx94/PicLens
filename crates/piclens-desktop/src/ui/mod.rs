@@ -1,10 +1,10 @@
 //! Window layout. Views append actions and do not perform side effects.
 
-use egui::{Align, AtomExt, Color32, Frame, Layout, Margin, RichText, Stroke};
-use piclens_domain::{path_equals, ListItem, SortDirection, SortKey, SortState};
+use egui::{AtomExt, Color32, Frame, Margin, RichText, Stroke};
+use piclens_domain::{path_equals, visible_tree_rows, ListItem, SortDirection, SortKey, SortState};
 
 use crate::images::{ThumbnailKey, ThumbnailLoader};
-use crate::model::{Action, AppModel, Loadable, SelectionGesture};
+use crate::model::{Action, AppModel, Loadable, Page, SelectionGesture};
 
 pub fn show(
     model: &AppModel,
@@ -13,6 +13,20 @@ pub fn show(
     actions: &mut Vec<Action>,
 ) -> Vec<ThumbnailKey> {
     let mut materialized = Vec::new();
+    if model.page == Page::Viewer {
+        viewer_input(ui, actions);
+        egui::CentralPanel::default()
+            .frame(
+                Frame::new()
+                    .fill(Color32::from_rgb(22, 24, 29))
+                    .inner_margin(Margin::same(20)),
+            )
+            .show(ui, |ui| {
+                viewer_content(model, images, ui, actions, &mut materialized)
+            });
+        return materialized;
+    }
+    navigation_input(ui, actions);
     egui::Panel::top("app-bar")
         .frame(
             Frame::new()
@@ -25,8 +39,33 @@ pub fn show(
                 ui.heading("PicLens");
                 ui.separator();
                 ui.label("本機圖片圖庫");
+                if !model.tree_roots.is_empty() {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let label = if model.sidebar_collapsed {
+                            "顯示資料夾樹"
+                        } else {
+                            "隱藏資料夾樹"
+                        };
+                        if ui.button(label).clicked() {
+                            actions.push(Action::ToggleSidebar);
+                        }
+                    });
+                }
             });
         });
+
+    if !model.sidebar_collapsed && !model.tree_roots.is_empty() {
+        egui::Panel::left("folder-tree")
+            .default_size(230.0)
+            .min_size(160.0)
+            .max_size(360.0)
+            .frame(
+                Frame::new()
+                    .fill(Color32::from_rgb(244, 246, 249))
+                    .inner_margin(Margin::symmetric(12, 16)),
+            )
+            .show(ui, |ui| folder_tree(model, ui, actions));
+    }
 
     egui::CentralPanel::default()
         .frame(
@@ -48,6 +87,18 @@ fn library_content(
     materialized: &mut Vec<ThumbnailKey>,
 ) {
     ui.horizontal(|ui| {
+        if ui
+            .add_enabled(model.history.can_back(), egui::Button::new("上一頁"))
+            .clicked()
+        {
+            actions.push(Action::NavigateHistory { back: true });
+        }
+        if ui
+            .add_enabled(model.history.can_forward(), egui::Button::new("下一頁"))
+            .clicked()
+        {
+            actions.push(Action::NavigateHistory { back: false });
+        }
         if ui.button("選擇資料夾").clicked() {
             actions.push(Action::ChooseFolder);
         }
@@ -56,7 +107,15 @@ fn library_content(
         }
         if let Some(folder) = &model.current_folder {
             ui.separator();
-            ui.label(folder.display().to_string());
+            let name = folder
+                .file_name()
+                .and_then(|name| name.to_str())
+                .map(str::to_owned)
+                .unwrap_or_else(|| folder.display().to_string());
+            ui.vertical(|ui| {
+                ui.label(RichText::new(name).strong());
+                ui.label(RichText::new(folder.display().to_string()).small());
+            });
         }
     });
     if let Some(query) = &model.library_query {
@@ -231,20 +290,14 @@ fn gallery_grid(
                         break;
                     };
                     match item {
-                        ListItem::Folder(_) => {
-                            Frame::group(ui.style())
-                                .fill(Color32::WHITE)
-                                .inner_margin(Margin::same(10))
-                                .show(ui, |ui| {
-                                    ui.allocate_ui_with_layout(
-                                        egui::vec2(tile_width, tile_height),
-                                        Layout::top_down(Align::Min),
-                                        |ui| {
-                                            ui.strong(item.name());
-                                            ui.label("資料夾");
-                                        },
-                                    );
-                                });
+                        ListItem::Folder(folder) => {
+                            let response = ui.add_sized(
+                                egui::vec2(tile_width, tile_height),
+                                egui::Button::new(format!("{}\n資料夾", folder.name)),
+                            );
+                            if response.clicked() {
+                                actions.push(Action::NavigateFolder(folder.path.clone().into()));
+                            }
                         }
                         ListItem::Image(image) => {
                             let key = ThumbnailKey::from_image(image, model.thumbnail_size as u32);
@@ -292,7 +345,9 @@ fn gallery_grid(
                                 })
                                 .inner
                                 .on_hover_text(hover);
-                            if response.clicked() {
+                            if response.double_clicked() {
+                                actions.push(Action::OpenViewer(image.path.clone().into()));
+                            } else if response.clicked() {
                                 let modifiers = ui.input(|input| input.modifiers);
                                 let gesture = if modifiers.shift {
                                     SelectionGesture::Range {
@@ -310,6 +365,169 @@ fn gallery_grid(
                             }
                         }
                     }
+                }
+            });
+        }
+    });
+}
+
+fn viewer_input(ui: &mut egui::Ui, actions: &mut Vec<Action>) {
+    let action = ui.input_mut(|input| {
+        if input.consume_key(egui::Modifiers::NONE, egui::Key::Escape) {
+            Some(Action::CloseViewer)
+        } else if input.consume_key(egui::Modifiers::NONE, egui::Key::ArrowLeft) {
+            Some(Action::StepViewer(-1))
+        } else if input.consume_key(egui::Modifiers::NONE, egui::Key::ArrowRight) {
+            Some(Action::StepViewer(1))
+        } else {
+            None
+        }
+    });
+    actions.extend(action);
+}
+
+fn viewer_content(
+    model: &AppModel,
+    images: &ThumbnailLoader,
+    ui: &mut egui::Ui,
+    actions: &mut Vec<Action>,
+    materialized: &mut Vec<ThumbnailKey>,
+) {
+    let Some(viewer) = &model.viewer else {
+        ui.label(RichText::new("檢視器狀態無效。").color(Color32::WHITE));
+        if ui.button("返回圖庫").clicked() {
+            actions.push(Action::CloseViewer);
+        }
+        return;
+    };
+    let Some(current) = viewer.snapshot.current() else {
+        ui.label(RichText::new("快照中沒有圖片。").color(Color32::WHITE));
+        if ui.button("返回圖庫").clicked() {
+            actions.push(Action::CloseViewer);
+        }
+        return;
+    };
+
+    ui.horizontal(|ui| {
+        if ui.button("返回圖庫").clicked() {
+            actions.push(Action::CloseViewer);
+        }
+        if ui.button("上一張").clicked() {
+            actions.push(Action::StepViewer(-1));
+        }
+        if ui.button("下一張").clicked() {
+            actions.push(Action::StepViewer(1));
+        }
+        if ui.button("在檔案總管中顯示").clicked() {
+            actions.push(Action::RevealViewer);
+        }
+        ui.separator();
+        ui.label(
+            RichText::new(format!(
+                "{} / {}  {}",
+                viewer.snapshot.current_index + 1,
+                viewer.snapshot.images.len(),
+                current.name
+            ))
+            .color(Color32::WHITE)
+            .strong(),
+        );
+    });
+    ui.add_space(16.0);
+
+    if current.is_animated {
+        ui.centered_and_justified(|ui| {
+            ui.label(
+                RichText::new("此動畫圖片目前不支援預覽。")
+                    .color(Color32::WHITE)
+                    .size(18.0),
+            );
+        });
+        return;
+    }
+
+    let key = ThumbnailKey::from_image(current, 1024);
+    materialized.push(key.clone());
+    if let Some(texture) = images.texture(&key) {
+        ui.centered_and_justified(|ui| {
+            ui.add(
+                egui::Image::from_texture(texture)
+                    .alt_text(current.name.clone())
+                    .max_size(ui.available_size())
+                    .maintain_aspect_ratio(true),
+            );
+        });
+    } else if let Some(message) = images.failure(&key) {
+        ui.centered_and_justified(|ui| {
+            ui.label(
+                RichText::new(format!("圖片載入失敗：{message}"))
+                    .color(Color32::from_rgb(255, 150, 150)),
+            );
+        });
+    } else {
+        ui.centered_and_justified(|ui| {
+            ui.spinner();
+            ui.label(RichText::new("正在載入圖片…").color(Color32::WHITE));
+        });
+    }
+}
+
+fn navigation_input(ui: &mut egui::Ui, actions: &mut Vec<Action>) {
+    let action = ui.input_mut(|input| {
+        if input.consume_key(egui::Modifiers::ALT, egui::Key::ArrowLeft)
+            || input.pointer.button_pressed(egui::PointerButton::Extra1)
+        {
+            Some(Action::NavigateHistory { back: true })
+        } else if input.consume_key(egui::Modifiers::ALT, egui::Key::ArrowRight)
+            || input.pointer.button_pressed(egui::PointerButton::Extra2)
+        {
+            Some(Action::NavigateHistory { back: false })
+        } else {
+            None
+        }
+    });
+    actions.extend(action);
+}
+
+fn folder_tree(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
+    ui.heading("資料夾");
+    ui.add_space(8.0);
+    egui::ScrollArea::vertical().show(ui, |ui| {
+        for row in visible_tree_rows(
+            &model.tree_roots,
+            &model.tree_children,
+            &model.tree_expanded,
+        ) {
+            let path = std::path::Path::new(&row.path);
+            let name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .map(str::to_owned)
+                .unwrap_or_else(|| row.path.clone());
+            ui.horizontal(|ui| {
+                ui.add_space(row.depth as f32 * 14.0);
+                if row.expandable {
+                    let label = if row.expanded { "收合" } else { "展開" };
+                    if ui
+                        .small_button(label)
+                        .on_hover_text(format!("{label} {name}"))
+                        .clicked()
+                    {
+                        actions.push(Action::ToggleTreeFolder(row.path.clone()));
+                    }
+                } else {
+                    ui.add_space(42.0);
+                }
+                let selected = model
+                    .current_folder
+                    .as_ref()
+                    .is_some_and(|current| path_equals(&current.to_string_lossy(), &row.path));
+                if ui
+                    .selectable_label(selected, &name)
+                    .on_hover_text(&row.path)
+                    .clicked()
+                {
+                    actions.push(Action::NavigateFolder(row.path.clone().into()));
                 }
             });
         }
@@ -378,6 +596,84 @@ mod tests {
         let _ = harness.get_by_label("2 個項目");
         let _ = harness.get_by_label_contains("album");
         let _ = harness.get_by_label_contains("image2.png");
+    }
+
+    #[test]
+    fn viewer_renders_only_the_current_preview_request() {
+        let mut model = crate::demo::loaded_library();
+        let query = model.library_query.as_ref().unwrap();
+        let snapshot = piclens_domain::ImageSequenceSnapshot::from_visible(
+            query.folder_path.clone(),
+            query.include_subfolders,
+            query.sort,
+            &model.visible_items,
+            "C:/fixture/image2.png",
+        )
+        .unwrap();
+        model.page = Page::Viewer;
+        model.viewer = Some(crate::model::ViewerState {
+            snapshot,
+            preview: Loadable::Idle,
+        });
+        let mut harness = Harness::new_ui_state(
+            move |ui, materialized: &mut Vec<ThumbnailKey>| {
+                let mut actions = Vec::new();
+                *materialized = show(&model, &ThumbnailLoader::default(), ui, &mut actions);
+            },
+            Vec::new(),
+        );
+        harness.step();
+
+        let _ = harness.get_by_label("返回圖庫");
+        let _ = harness.get_by_label_contains("image2.png");
+        assert_eq!(harness.state().len(), 1);
+        assert_eq!(harness.state()[0].longest_edge, 1024);
+    }
+
+    #[test]
+    fn folder_tile_emits_navigation_action() {
+        let model = crate::demo::loaded_library();
+        let mut harness = Harness::new_ui_state(
+            move |ui, actions: &mut Vec<Action>| {
+                show(&model, &ThumbnailLoader::default(), ui, actions);
+            },
+            Vec::new(),
+        );
+        harness.run();
+
+        harness.get_by_label_contains("album").click();
+        harness.run();
+
+        assert_eq!(
+            harness.state().as_slice(),
+            [Action::NavigateFolder("C:/fixture/album".into())]
+        );
+    }
+
+    #[test]
+    fn folder_tree_renders_fixed_root_and_expandable_child() {
+        let mut model = crate::demo::loaded_library();
+        model.tree_roots = vec!["C:/tree-root".into()];
+        model
+            .tree_children
+            .insert("C:/tree-root".into(), vec!["C:/tree-root/nested".into()]);
+        model.tree_expanded.insert("C:/tree-root".into());
+        let mut harness = Harness::new_ui_state(
+            move |ui, actions: &mut Vec<Action>| {
+                show(&model, &ThumbnailLoader::default(), ui, actions);
+            },
+            Vec::new(),
+        );
+        harness.run();
+
+        let _ = harness.get_by_label("tree-root");
+        harness.get_by_label("nested").click();
+        harness.run();
+
+        assert_eq!(
+            harness.state().as_slice(),
+            [Action::NavigateFolder("C:/tree-root/nested".into())]
+        );
     }
 
     #[test]

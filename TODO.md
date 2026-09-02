@@ -57,8 +57,8 @@ egui view -> Action -> App reducer -> Command -> background backend
 - [x] View 在繪製時只收集 `Action`；不得直接掃描磁碟、解碼圖片或執行檔案操作。
 - [x] App reducer 在繪製後依序套用 action，並正確處理 action 產生的新 action。
 - [x] Backend 使用 channel 接收 `Command`、回傳 `Event`，並在送出事件後呼叫 `request_repaint()`。
-- [ ] Blocking filesystem、image decode 與 helper process 全部離開 UI thread。
-- [ ] 所有佇列、worker 數量、timeout、cache 與 shutdown 都有明確界限。
+- [x] Blocking filesystem、image decode 與 helper process 全部離開 UI thread。
+- [x] 所有佇列、worker 數量、timeout、cache 與 shutdown 都有明確界限。
 - [x] Generation 或 request identity 不相符的 event 不得更新 UI state。
 - [x] Shutdown 會停止接收新工作、取消可取消工作並結束 background owner。
 - [x] 以 reducer 與 backend contract tests 驗證 event ordering、stale result、錯誤及 shutdown。
@@ -69,7 +69,7 @@ egui view -> Action -> App reducer -> Command -> background backend
 
 目標：完成從選擇資料夾到可捲動縮圖圖庫的第一條端到端路徑。
 
-- [ ] 實作資料夾選擇、startup restore、folder tree root 與 history navigation。
+- [x] 實作資料夾選擇、startup restore、folder tree root 與 history navigation。
 - [x] 實作目前資料夾、包含子資料夾、重新整理和單次 collection reset。
 - [x] 實作固定 grid gallery 與虛擬化；10,000 個 item 不為不可見 tile 建立持久 widget state。
 - [x] 實作搜尋、四種排序、自然排序、項目數與縮圖大小設定。
@@ -78,7 +78,7 @@ egui view -> Action -> App reducer -> Command -> background backend
 - [x] 只排程 visible/materialized 靜態圖片；tile unload 和 generation change 可取消或淘汰工作。Viewer open 的暫停與恢復由階段 4 單獨追蹤。
 - [x] 保留既有 thumbnail cache pruning 規則：單一 background owner、dirty 後每五秒清理、每輪保留快照中最新 2,000 筆。
 - [x] Animated GIF/WebP 顯示不支援預覽，不嘗試播放。
-- [ ] 加入 gallery headless tests，以及 navigation、selection、search、sort、cancel 和 stale thumbnail tests。
+- [x] 加入 gallery headless tests，以及 navigation、selection、search、sort、cancel 和 stale thumbnail tests。
 
 退出條件：使用者能完成資料夾導覽、搜尋、排序、選取和持續捲動；縮圖工作符合所有界限，且不阻塞 UI thread。
 
@@ -86,14 +86,14 @@ egui view -> Action -> App reducer -> Command -> background backend
 
 目標：達到目前 viewer 的導覽、輸入、記憶體與延遲契約。
 
-- [ ] 開啟 viewer 時建立 immutable visible-image sequence snapshot。
-- [ ] 實作上一張、下一張、Escape、鍵盤導覽、圖片名稱與 reveal-in-file-manager。
+- [x] 開啟 viewer 時建立 immutable visible-image sequence snapshot。
+- [x] 實作上一張、下一張、Escape、鍵盤導覽、圖片名稱與 reveal-in-file-manager。
 - [ ] 實作 pointer-anchor zoom、zoom clamp、reset、drag pan 與 canvas input interception。
-- [ ] Viewer 開啟時取消並暫停被遮住的 gallery thumbnail requests；關閉後恢復可見縮圖排程。
+- [x] Viewer 開啟時取消並暫停被遮住的 gallery thumbnail requests；關閉後恢復可見縮圖排程。
 - [ ] 每次只持有一個載入或預載工作；目前 preview 完成後才依序預載下一張與上一張。
 - [ ] 只保留目前與相鄰兩張 preview texture，共最多三張、12 MiB；淘汰或 close 時釋放 texture。
 - [ ] 快速 A-B-A、close/reopen、generation change 與 shutdown 只接受 identity 相符的結果。
-- [ ] 清晰 preview 維持最長邊 1024 px，完成後直接以完整不透明度繪製。
+- [x] 清晰 preview 維持最長邊 1024 px，完成後直接以完整不透明度繪製。
 - [ ] 記錄冷／暖快取和同一 viewer 內連續切換的首次清晰繪製時間及超標次數。
 - [ ] 測試 viewer snapshot、preload order、stale result、texture budget、zoom/pan、focus restore 與 unsupported animation。
 

@@ -78,9 +78,15 @@ fn create_folder_item(path: &Path) -> Option<FolderListItem> {
     })
 }
 
-fn direct_entries(folder: &Path) -> std::io::Result<Vec<PathBuf>> {
+fn direct_entries(
+    folder: &Path,
+    cancellation: &CancellationToken,
+) -> Result<Vec<PathBuf>, ScanError> {
     let mut entries = Vec::new();
     for entry in std::fs::read_dir(folder)? {
+        if cancellation.is_canceled() {
+            return Err(ScanError::Canceled);
+        }
         let entry = entry?;
         let path = entry.path();
         if is_symlink(&path) {
@@ -106,10 +112,7 @@ pub fn scan_folder_cancellable(
 
     let mut items = Vec::new();
     if !query.include_subfolders {
-        for path in direct_entries(&root)? {
-            if cancellation.is_canceled() {
-                return Err(ScanError::Canceled);
-            }
+        for path in direct_entries(&root, cancellation)? {
             if path.is_dir() {
                 if let Some(folder) = create_folder_item(&path) {
                     items.push(ListItem::Folder(folder));
@@ -160,10 +163,7 @@ pub fn scan_child_folders_cancellable(
         return Err(ScanError::DirectoryNotFound(folder_path.into()));
     }
     let mut folders = Vec::new();
-    for path in direct_entries(&root)? {
-        if cancellation.is_canceled() {
-            return Err(ScanError::Canceled);
-        }
+    for path in direct_entries(&root, cancellation)? {
         if let Some(folder) = create_folder_item(&path) {
             folders.push(ListItem::Folder(folder));
         }

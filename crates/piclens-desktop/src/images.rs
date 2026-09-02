@@ -286,6 +286,44 @@ mod tests {
     }
 
     #[test]
+    fn viewer_materialization_pauses_gallery_and_gallery_resumes_after_close() {
+        let gallery = ThumbnailKey::from_image(&image(), 160);
+        let viewer = ThumbnailKey::from_image(&image(), 1024);
+        let mut loader = ThumbnailLoader::default();
+
+        assert_eq!(
+            loader.sync_materialized(vec![gallery.clone()], 1),
+            Some(vec![ThumbnailRequest {
+                identity: ThumbnailRequestIdentity {
+                    generation: 1,
+                    request_id: 1,
+                },
+                key: gallery.clone(),
+            }])
+        );
+        assert_eq!(
+            loader.sync_materialized(vec![viewer.clone()], 1),
+            Some(vec![ThumbnailRequest {
+                identity: ThumbnailRequestIdentity {
+                    generation: 1,
+                    request_id: 2,
+                },
+                key: viewer,
+            }])
+        );
+        assert_eq!(
+            loader.sync_materialized(vec![gallery.clone()], 1),
+            Some(vec![ThumbnailRequest {
+                identity: ThumbnailRequestIdentity {
+                    generation: 1,
+                    request_id: 3,
+                },
+                key: gallery,
+            }])
+        );
+    }
+
+    #[test]
     fn source_identity_detects_file_size_changes() {
         let root = std::env::temp_dir().join(format!(
             "piclens-egui-thumbnail-identity-{}",
