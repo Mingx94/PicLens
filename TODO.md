@@ -74,10 +74,10 @@ egui view -> Action -> App reducer -> Command -> background backend
 - [x] 實作固定 grid gallery 與虛擬化；10,000 個 item 不為不可見 tile 建立持久 widget state。
 - [x] 實作搜尋、四種排序、自然排序、項目數與縮圖大小設定。
 - [x] 實作普通、Ctrl、Shift、Ctrl+Shift 選取，以及穩定 range anchor 和 selection order。
-- [ ] 實作 thumbnail image loader；cache key 包含來源 identity 與尺寸。
-- [ ] 只排程 visible/materialized 靜態圖片，tile unload、generation change 和 viewer open 可取消或淘汰工作。
-- [ ] 保留既有 thumbnail cache pruning 規則：單一 background owner、dirty 後每五秒清理、每輪保留快照中最新 2,000 筆。
-- [ ] Animated GIF/WebP 顯示不支援預覽，不嘗試播放。
+- [x] 實作 thumbnail image loader；cache key 包含來源 identity 與尺寸。
+- [x] 只排程 visible/materialized 靜態圖片；tile unload 和 generation change 可取消或淘汰工作。Viewer open 的暫停與恢復由階段 4 單獨追蹤。
+- [x] 保留既有 thumbnail cache pruning 規則：單一 background owner、dirty 後每五秒清理、每輪保留快照中最新 2,000 筆。
+- [x] Animated GIF/WebP 顯示不支援預覽，不嘗試播放。
 - [ ] 加入 gallery headless tests，以及 navigation、selection、search、sort、cancel 和 stale thumbnail tests。
 
 退出條件：使用者能完成資料夾導覽、搜尋、排序、選取和持續捲動；縮圖工作符合所有界限，且不阻塞 UI thread。

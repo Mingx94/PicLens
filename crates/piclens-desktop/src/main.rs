@@ -5,10 +5,30 @@ use std::time::Duration;
 
 use piclens_desktop::cli::{self, ParseOutcome};
 use piclens_desktop::LaunchOptions;
-use piclens_infra::{info, init_file_logger};
+use piclens_infra::{ensure_thumbnail, info, init_file_logger};
 
 fn main() -> eframe::Result<()> {
     let raw_args = std::env::args().collect::<Vec<_>>();
+    if raw_args.get(1).map(String::as_str) == Some("--thumbnail-worker") {
+        let result = raw_args
+            .get(2)
+            .ok_or_else(|| "thumbnail worker source path is missing".to_string())
+            .and_then(|source| {
+                raw_args
+                    .get(3)
+                    .ok_or_else(|| "thumbnail worker size is missing".to_string())
+                    .and_then(|size| {
+                        size.parse::<u32>()
+                            .map_err(|_| format!("invalid thumbnail worker size: {size}"))
+                    })
+                    .and_then(|size| ensure_thumbnail(source, size).map(|_| ()))
+            });
+        if let Err(error) = result {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
     let launch = match cli::parse(&raw_args) {
         Ok(ParseOutcome::Run(launch)) => launch,
         Ok(ParseOutcome::Print(text)) => {

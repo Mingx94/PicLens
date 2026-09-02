@@ -1,11 +1,18 @@
 //! Window layout. Views append actions and do not perform side effects.
 
-use egui::{Align, Color32, Frame, Layout, Margin, RichText, Stroke};
+use egui::{Align, AtomExt, Color32, Frame, Layout, Margin, RichText, Stroke};
 use piclens_domain::{path_equals, ListItem, SortDirection, SortKey, SortState};
 
+use crate::images::{ThumbnailKey, ThumbnailLoader};
 use crate::model::{Action, AppModel, Loadable, SelectionGesture};
 
-pub fn show(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
+pub fn show(
+    model: &AppModel,
+    images: &ThumbnailLoader,
+    ui: &mut egui::Ui,
+    actions: &mut Vec<Action>,
+) -> Vec<ThumbnailKey> {
+    let mut materialized = Vec::new();
     egui::Panel::top("app-bar")
         .frame(
             Frame::new()
@@ -28,11 +35,18 @@ pub fn show(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
                 .inner_margin(Margin::same(32)),
         )
         .show(ui, |ui| {
-            library_content(model, ui, actions);
+            library_content(model, images, ui, actions, &mut materialized);
         });
+    materialized
 }
 
-fn library_content(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
+fn library_content(
+    model: &AppModel,
+    images: &ThumbnailLoader,
+    ui: &mut egui::Ui,
+    actions: &mut Vec<Action>,
+    materialized: &mut Vec<ThumbnailKey>,
+) {
     ui.horizontal(|ui| {
         if ui.button("選擇資料夾").clicked() {
             actions.push(Action::ChooseFolder);
@@ -158,7 +172,7 @@ fn library_content(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action
                     });
                 });
             } else {
-                gallery_grid(model, ui, actions);
+                gallery_grid(model, images, ui, actions, materialized);
             }
         }
         Loadable::Failed(message) => {
@@ -194,7 +208,13 @@ fn sort_label(sort: SortState) -> &'static str {
     }
 }
 
-fn gallery_grid(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
+fn gallery_grid(
+    model: &AppModel,
+    images: &ThumbnailLoader,
+    ui: &mut egui::Ui,
+    actions: &mut Vec<Action>,
+    materialized: &mut Vec<ThumbnailKey>,
+) {
     const GAP: f32 = 8.0;
 
     let tile_width = model.thumbnail_size as f32;
@@ -227,25 +247,51 @@ fn gallery_grid(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) 
                                 });
                         }
                         ListItem::Image(image) => {
+                            let key = ThumbnailKey::from_image(image, model.thumbnail_size as u32);
+                            if !image.is_animated {
+                                materialized.push(key.clone());
+                            }
                             let selected = model
                                 .selection
                                 .ordered_paths
                                 .iter()
                                 .any(|path| path_equals(&path.to_string_lossy(), &image.path));
+                            let label = if image.is_animated {
+                                format!("{}\n動畫圖片\n不支援預覽", image.name)
+                            } else if images.failure(&key).is_some() {
+                                format!(
+                                    "{}\n{}\n縮圖載入失敗",
+                                    image.name,
+                                    image.extension.to_uppercase()
+                                )
+                            } else {
+                                format!("{}\n{}", image.name, image.extension.to_uppercase())
+                            };
+                            let hover = images
+                                .failure(&key)
+                                .map(str::to_owned)
+                                .unwrap_or_else(|| image.extension.to_uppercase());
                             let response = ui
                                 .push_id(&image.path, |ui| {
-                                    ui.add_sized(
-                                        egui::vec2(tile_width, tile_height),
-                                        egui::Button::new(format!(
-                                            "{}\n{}",
-                                            image.name,
-                                            image.extension.to_uppercase()
+                                    let button = if let Some(texture) = images.texture(&key) {
+                                        let preview_size = egui::vec2(
+                                            (tile_width * 0.55).max(48.0),
+                                            (tile_height - 16.0).max(48.0),
+                                        );
+                                        egui::Button::new((
+                                            egui::Image::from_texture(texture)
+                                                .alt_text(image.name.clone())
+                                                .atom_size(preview_size),
+                                            label,
                                         ))
-                                        .selected(selected),
-                                    )
+                                        .selected(selected)
+                                    } else {
+                                        egui::Button::new(label).selected(selected)
+                                    };
+                                    ui.add_sized(egui::vec2(tile_width, tile_height), button)
                                 })
                                 .inner
-                                .on_hover_text(image.extension.to_uppercase());
+                                .on_hover_text(hover);
                             if response.clicked() {
                                 let modifiers = ui.input(|input| input.modifiers);
                                 let gesture = if modifiers.shift {
@@ -303,7 +349,7 @@ mod tests {
         let model = crate::demo::empty_library();
         let mut harness = Harness::new_ui(move |ui| {
             let mut actions = Vec::new();
-            show(&model, ui, &mut actions);
+            show(&model, &ThumbnailLoader::default(), ui, &mut actions);
         });
         harness.run();
         let _ = harness.get_by_label("選擇資料夾");
@@ -314,7 +360,7 @@ mod tests {
         let model = crate::demo::startup_error("測試錯誤");
         let mut harness = Harness::new_ui(move |ui| {
             let mut actions = Vec::new();
-            show(&model, ui, &mut actions);
+            show(&model, &ThumbnailLoader::default(), ui, &mut actions);
         });
         harness.run();
         let _ = harness.get_by_label("測試錯誤");
@@ -326,7 +372,7 @@ mod tests {
         let model = crate::demo::loaded_library();
         let mut harness = Harness::new_ui(move |ui| {
             let mut actions = Vec::new();
-            show(&model, ui, &mut actions);
+            show(&model, &ThumbnailLoader::default(), ui, &mut actions);
         });
         harness.run();
         let _ = harness.get_by_label("2 個項目");
@@ -337,20 +383,47 @@ mod tests {
     #[test]
     fn renders_large_library_through_virtualized_rows() {
         let model = crate::demo::large_library(10_000);
-        let mut harness = Harness::new_ui(move |ui| {
-            let mut actions = Vec::new();
-            show(&model, ui, &mut actions);
-        });
+        let mut harness = Harness::new_ui_state(
+            move |ui, materialized: &mut Vec<ThumbnailKey>| {
+                let mut actions = Vec::new();
+                *materialized = show(&model, &ThumbnailLoader::default(), ui, &mut actions);
+            },
+            Vec::new(),
+        );
         harness.run();
         let _ = harness.get_by_label("10000 個項目");
         let _ = harness.get_by_label_contains("image0.png");
+        assert!(harness.state().len() < 100);
+    }
+
+    #[test]
+    fn animated_images_show_unsupported_state_without_thumbnail_request() {
+        let mut model = crate::demo::loaded_library();
+        for item in &mut model.visible_items {
+            if let ListItem::Image(image) = item {
+                image.is_animated = true;
+            }
+        }
+        let mut harness = Harness::new_ui_state(
+            move |ui, materialized: &mut Vec<ThumbnailKey>| {
+                let mut actions = Vec::new();
+                *materialized = show(&model, &ThumbnailLoader::default(), ui, &mut actions);
+            },
+            Vec::new(),
+        );
+        harness.run();
+
+        let _ = harness.get_by_label_contains("不支援預覽");
+        assert!(harness.state().is_empty());
     }
 
     #[test]
     fn image_clicks_emit_modifier_specific_selection_actions() {
         let model = crate::demo::loaded_library();
         let mut harness = Harness::new_ui_state(
-            move |ui, actions: &mut Vec<Action>| show(&model, ui, actions),
+            move |ui, actions: &mut Vec<Action>| {
+                show(&model, &ThumbnailLoader::default(), ui, actions);
+            },
             Vec::new(),
         );
         harness.run();

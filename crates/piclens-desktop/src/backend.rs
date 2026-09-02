@@ -1,17 +1,30 @@
 //! Bounded channel boundary between the UI thread and background work.
 
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::mpsc::{self, Receiver, SyncSender};
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use piclens_domain::{AppSettingsPatch, ListItem, ListQuery, SortState};
-use piclens_infra::{scan_folder_cancellable, CancellationToken, JsonSettingsStore, ScanError};
+use piclens_infra::{
+    ensure_thumbnail_with_timeout, prune_thumbnail_cache_if_needed, scan_folder_cancellable,
+    CancellationToken, JsonSettingsStore, ScanError,
+};
+
+use crate::images::{
+    decode_cached_thumbnail, DecodedThumbnail, ThumbnailRequest, ThumbnailRequestIdentity,
+};
 
 const SMOKE_CLOSE_GRACE: Duration = Duration::from_secs(2);
 const COMMAND_QUEUE_CAPACITY: usize = 64;
 const EVENT_QUEUE_CAPACITY: usize = 256;
 const COORDINATOR_WORKERS: usize = 1;
 const LIBRARY_SCAN_WORKERS: usize = 1;
+const THUMBNAIL_WORKERS: usize = 8;
+const THUMBNAIL_QUEUE_CAPACITY: usize = 256;
+const THUMBNAIL_TIMEOUT: Duration = Duration::from_secs(15);
+const THUMBNAIL_CACHE_PRUNE_INTERVAL: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WorkIdentity {
@@ -33,6 +46,9 @@ pub enum Command {
         sort: SortState,
         thumbnail_size: i32,
     },
+    SyncThumbnails {
+        requests: Vec<ThumbnailRequest>,
+    },
     Shutdown,
 }
 
@@ -50,12 +66,255 @@ pub enum Event {
     LibrarySettingsSaved {
         result: Result<(), String>,
     },
+    ThumbnailLoaded {
+        request: ThumbnailRequest,
+        result: Result<DecodedThumbnail, String>,
+    },
     SmokeDeadlineElapsed,
 }
 
 struct ActiveScan {
     cancellation: CancellationToken,
     thread: JoinHandle<()>,
+}
+
+struct ThumbnailJob {
+    request: ThumbnailRequest,
+    cancellation: CancellationToken,
+}
+
+#[derive(Default)]
+struct ThumbnailQueue {
+    jobs: VecDeque<ThumbnailJob>,
+    shutdown: bool,
+}
+
+struct ThumbnailPool {
+    queue: Arc<(Mutex<ThumbnailQueue>, Condvar)>,
+    active: Arc<Mutex<HashMap<ThumbnailRequestIdentity, CancellationToken>>>,
+    threads: Vec<JoinHandle<()>>,
+    events: SyncSender<Event>,
+    ctx: egui::Context,
+    cache_shutdown: Arc<(Mutex<bool>, Condvar)>,
+    cache_thread: Option<JoinHandle<()>>,
+}
+
+impl ThumbnailPool {
+    fn spawn(events: SyncSender<Event>, ctx: egui::Context) -> Self {
+        let queue = Arc::new((Mutex::new(ThumbnailQueue::default()), Condvar::new()));
+        let active = Arc::new(Mutex::new(HashMap::new()));
+        let worker_executable =
+            std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("piclens-desktop"));
+        let mut threads = Vec::with_capacity(THUMBNAIL_WORKERS);
+        for index in 0..THUMBNAIL_WORKERS {
+            let worker_queue = Arc::clone(&queue);
+            let worker_events = events.clone();
+            let worker_ctx = ctx.clone();
+            let worker_executable = worker_executable.clone();
+            threads.push(
+                thread::Builder::new()
+                    .name(format!("piclens-thumbnail-{index}"))
+                    .spawn(move || {
+                        thumbnail_worker_loop(
+                            worker_queue,
+                            worker_events,
+                            worker_ctx,
+                            worker_executable,
+                        )
+                    })
+                    .expect("PicLens thumbnail worker can start"),
+            );
+        }
+        let cache_shutdown = Arc::new((Mutex::new(false), Condvar::new()));
+        let cache_shutdown_for_thread = Arc::clone(&cache_shutdown);
+        let cache_thread = thread::Builder::new()
+            .name("piclens-thumbnail-cache".into())
+            .spawn(move || thumbnail_cache_loop(cache_shutdown_for_thread))
+            .expect("PicLens thumbnail cache owner can start");
+        Self {
+            queue,
+            active,
+            threads,
+            events,
+            ctx,
+            cache_shutdown,
+            cache_thread: Some(cache_thread),
+        }
+    }
+
+    fn sync(&self, requests: Vec<ThumbnailRequest>) {
+        let desired = requests
+            .iter()
+            .map(|request| request.identity)
+            .collect::<HashSet<_>>();
+        {
+            let mut active = self
+                .active
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            active.retain(|identity, cancellation| {
+                let keep = desired.contains(identity);
+                if !keep {
+                    cancellation.cancel();
+                }
+                keep
+            });
+        }
+
+        let (queue, wake) = &*self.queue;
+        let mut queue = queue.lock().unwrap_or_else(|error| error.into_inner());
+        queue
+            .jobs
+            .retain(|job| desired.contains(&job.request.identity));
+        let mut active = self
+            .active
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let mut rejected = Vec::new();
+        for request in requests {
+            if active.contains_key(&request.identity) {
+                continue;
+            }
+            if queue.jobs.len() >= THUMBNAIL_QUEUE_CAPACITY {
+                rejected.push(request);
+                continue;
+            }
+            let cancellation = CancellationToken::new();
+            active.insert(request.identity, cancellation.clone());
+            queue.jobs.push_back(ThumbnailJob {
+                request,
+                cancellation,
+            });
+        }
+        drop(active);
+        drop(queue);
+        wake.notify_all();
+        for request in rejected {
+            let _ = send_event(
+                &self.events,
+                &self.ctx,
+                Event::ThumbnailLoaded {
+                    request,
+                    result: Err("thumbnail queue is full".into()),
+                },
+            );
+        }
+    }
+
+    fn shutdown(&mut self) {
+        {
+            let mut active = self
+                .active
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            for cancellation in active.values() {
+                cancellation.cancel();
+            }
+            active.clear();
+        }
+        let (queue, wake) = &*self.queue;
+        {
+            let mut queue = queue.lock().unwrap_or_else(|error| error.into_inner());
+            queue.shutdown = true;
+            queue.jobs.clear();
+        }
+        wake.notify_all();
+        for thread in self.threads.drain(..) {
+            if thread.join().is_err() {
+                piclens_infra::warn("egui thumbnail worker panicked during shutdown");
+            }
+        }
+        let (shutdown, wake) = &*self.cache_shutdown;
+        *shutdown.lock().unwrap_or_else(|error| error.into_inner()) = true;
+        wake.notify_all();
+        if self
+            .cache_thread
+            .take()
+            .is_some_and(|thread| thread.join().is_err())
+        {
+            piclens_infra::warn("egui thumbnail cache owner panicked during shutdown");
+        }
+    }
+}
+
+fn thumbnail_cache_loop(shutdown: Arc<(Mutex<bool>, Condvar)>) {
+    let (shutdown, wake) = &*shutdown;
+    loop {
+        let stopped = shutdown.lock().unwrap_or_else(|error| error.into_inner());
+        let (stopped, _) = wake
+            .wait_timeout_while(stopped, THUMBNAIL_CACHE_PRUNE_INTERVAL, |stopped| !*stopped)
+            .unwrap_or_else(|error| error.into_inner());
+        if *stopped {
+            return;
+        }
+        drop(stopped);
+        prune_thumbnail_cache_if_needed();
+    }
+}
+
+fn thumbnail_worker_loop(
+    queue: Arc<(Mutex<ThumbnailQueue>, Condvar)>,
+    events: SyncSender<Event>,
+    ctx: egui::Context,
+    worker_executable: std::path::PathBuf,
+) {
+    loop {
+        let job = {
+            let (queue, wake) = &*queue;
+            let mut queue = queue.lock().unwrap_or_else(|error| error.into_inner());
+            while queue.jobs.is_empty() && !queue.shutdown {
+                queue = wake.wait(queue).unwrap_or_else(|error| error.into_inner());
+            }
+            if queue.shutdown {
+                return;
+            }
+            queue.jobs.pop_front()
+        };
+        let Some(job) = job else {
+            continue;
+        };
+        let result = load_thumbnail(&job, &worker_executable);
+        if let Err(error) = &result {
+            if !error.contains("canceled") {
+                piclens_infra::warn(format!(
+                    "egui thumbnail failed; source={}; size={}; error={error}",
+                    job.request.key.source.display(),
+                    job.request.key.longest_edge
+                ));
+            }
+        }
+        if !send_event(
+            &events,
+            &ctx,
+            Event::ThumbnailLoaded {
+                request: job.request,
+                result,
+            },
+        ) {
+            return;
+        }
+    }
+}
+
+fn load_thumbnail(
+    job: &ThumbnailJob,
+    worker_executable: &std::path::Path,
+) -> Result<DecodedThumbnail, String> {
+    if !job.request.key.source_matches_disk() {
+        return Err("thumbnail source changed since the library scan".into());
+    }
+    let source = job.request.key.source.to_string_lossy();
+    let cache_path = ensure_thumbnail_with_timeout(
+        &source,
+        job.request.key.longest_edge,
+        worker_executable,
+        THUMBNAIL_TIMEOUT,
+        &job.cancellation,
+    )?;
+    if !job.request.key.source_matches_disk() {
+        return Err("thumbnail source changed during decode".into());
+    }
+    decode_cached_thumbnail(&cache_path)
 }
 
 pub struct Backend {
@@ -208,6 +467,7 @@ fn coordinator_loop(
     }
 
     let mut active_scan = None;
+    let mut thumbnail_pool = ThumbnailPool::spawn(events.clone(), ctx.clone());
     let mut smoke_state =
         smoke_after.map(|duration| SmokeState::WaitingForDeadline(Instant::now() + duration));
     loop {
@@ -298,10 +558,12 @@ fn coordinator_loop(
                     break;
                 }
             }
+            Command::SyncThumbnails { requests } => thumbnail_pool.sync(requests),
             Command::Shutdown => break,
         }
     }
     stop_active_scan(&mut active_scan);
+    thumbnail_pool.shutdown();
 }
 
 #[cfg(test)]
@@ -465,5 +727,48 @@ mod tests {
         assert_eq!(loaded.sort.direction, SortDirection::Desc);
         assert_eq!(loaded.thumbnail_size, 220);
         std::fs::remove_file(fixture).unwrap();
+    }
+
+    #[test]
+    fn thumbnail_sync_cancels_requests_removed_from_materialized_snapshot() {
+        let (events, _event_rx) = mpsc::sync_channel(EVENT_QUEUE_CAPACITY);
+        let mut pool = ThumbnailPool::spawn(events, egui::Context::default());
+        let request = ThumbnailRequest {
+            identity: ThumbnailRequestIdentity {
+                generation: 3,
+                request_id: 7,
+            },
+            key: crate::images::ThumbnailKey {
+                source: "missing-thumbnail.png".into(),
+                modified_unix_ms: None,
+                file_size: 1,
+                longest_edge: 160,
+            },
+        };
+        pool.sync(vec![request.clone()]);
+        let observed = pool
+            .active
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .get(&request.identity)
+            .unwrap()
+            .clone();
+
+        pool.sync(Vec::new());
+
+        assert!(observed.is_canceled());
+        assert!(pool
+            .active
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_empty());
+        assert!(pool
+            .queue
+            .0
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .jobs
+            .is_empty());
+        pool.shutdown();
     }
 }

@@ -5,6 +5,7 @@ use std::collections::VecDeque;
 use piclens_domain::{normalize_thumbnail_size, path_equals, sort_items, ListQuery, SortState};
 
 use crate::backend::{Backend, Command, Event, WorkIdentity};
+use crate::images::ThumbnailLoader;
 use crate::model::{Action, AppModel, Loadable, SelectionGesture, SelectionState};
 use crate::{theme, ui, LaunchOptions};
 
@@ -262,6 +263,7 @@ impl Reducer {
                     false
                 }
             }
+            Event::ThumbnailLoaded { .. } => false,
             Event::SmokeDeadlineElapsed => {
                 self.close_requested = true;
                 true
@@ -284,6 +286,7 @@ impl Reducer {
                 self.model.notice = Some(message);
                 true
             }
+            Command::SyncThumbnails { .. } => false,
             Command::Shutdown => false,
         }
     }
@@ -300,6 +303,7 @@ fn selected_index(paths: &[std::path::PathBuf], target: &std::path::Path) -> Opt
 pub struct PicLensApp {
     reducer: Reducer,
     backend: Backend,
+    images: ThumbnailLoader,
 }
 
 impl PicLensApp {
@@ -317,6 +321,7 @@ impl PicLensApp {
         let mut app = Self {
             reducer: Reducer::new(initial_folder),
             backend,
+            images: ThumbnailLoader::default(),
         };
         app.reducer.model.thumbnail_size = thumbnail_size;
         app.reducer.push_action(Action::StartBackendProbe);
@@ -331,10 +336,15 @@ impl PicLensApp {
         app
     }
 
-    fn handle_events(&mut self) -> bool {
+    fn handle_events(&mut self, ctx: &egui::Context) -> bool {
         let mut changed = false;
         for event in self.backend.poll().collect::<Vec<_>>() {
-            changed |= self.reducer.handle_event(event);
+            match event {
+                Event::ThumbnailLoaded { request, result } => {
+                    changed |= self.images.handle_result(&request, result, ctx);
+                }
+                event => changed |= self.reducer.handle_event(event),
+            }
         }
         changed
     }
@@ -343,9 +353,14 @@ impl PicLensApp {
         let mut changed = self.reducer.reduce_actions() > 0;
         while let Some(command) = self.reducer.commands.pop_front() {
             if let Err(error) = self.backend.send(command.clone()) {
-                changed |= self
-                    .reducer
-                    .fail_command(&command, format!("背景服務無法接收工作：{error}"));
+                let message = format!("背景服務無法接收工作：{error}");
+                match &command {
+                    Command::SyncThumbnails { requests } => {
+                        self.images.fail_requests(requests, &message);
+                        changed = true;
+                    }
+                    _ => changed |= self.reducer.fail_command(&command, message),
+                }
             }
         }
         if changed {
@@ -364,7 +379,7 @@ impl PicLensApp {
 
 impl eframe::App for PicLensApp {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        if self.handle_events() {
+        if self.handle_events(ctx) {
             ctx.request_repaint();
         }
         self.reduce_and_dispatch(ctx);
@@ -373,8 +388,16 @@ impl eframe::App for PicLensApp {
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let mut frame_actions = Vec::new();
-        ui::show(&self.reducer.model, ui, &mut frame_actions);
+        let materialized = ui::show(&self.reducer.model, &self.images, ui, &mut frame_actions);
         self.reducer.actions.extend(frame_actions);
+        if let Some(requests) = self
+            .images
+            .sync_materialized(materialized, self.reducer.generation)
+        {
+            self.reducer
+                .commands
+                .push_back(Command::SyncThumbnails { requests });
+        }
         self.reduce_and_dispatch(ui.ctx());
     }
 }
@@ -388,6 +411,7 @@ mod tests {
             Command::Probe { identity } => identity,
             Command::LoadLibrary { .. } => panic!("expected probe command"),
             Command::PersistLibrarySettings { .. } => panic!("expected probe command"),
+            Command::SyncThumbnails { .. } => panic!("expected probe command"),
             Command::Shutdown => panic!("expected probe command"),
         }
     }
@@ -403,7 +427,10 @@ mod tests {
     fn next_library_load(reducer: &mut Reducer) -> (WorkIdentity, ListQuery) {
         match reducer.commands.pop_front().unwrap() {
             Command::LoadLibrary { identity, query } => (identity, query),
-            Command::Probe { .. } | Command::PersistLibrarySettings { .. } | Command::Shutdown => {
+            Command::Probe { .. }
+            | Command::PersistLibrarySettings { .. }
+            | Command::SyncThumbnails { .. }
+            | Command::Shutdown => {
                 panic!("expected library command")
             }
         }
@@ -416,7 +443,10 @@ mod tests {
                 sort,
                 thumbnail_size,
             } => (include_subfolders, sort, thumbnail_size),
-            Command::Probe { .. } | Command::LoadLibrary { .. } | Command::Shutdown => {
+            Command::Probe { .. }
+            | Command::LoadLibrary { .. }
+            | Command::SyncThumbnails { .. }
+            | Command::Shutdown => {
                 panic!("expected settings command")
             }
         }
