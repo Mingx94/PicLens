@@ -13,16 +13,21 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use eframe::egui;
-use piclens_domain::{normalize_window_size, MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH};
+use piclens_domain::{
+    normalize_window_size, SortState, DEFAULT_THUMBNAIL_SIZE, MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH,
+};
 use piclens_infra::JsonSettingsStore;
 
 use crate::app::PicLensApp;
 
 const APP_ICON_PNG: &[u8] = include_bytes!("../../../assets/Square150x150Logo.scale-200.png");
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LaunchOptions {
     pub initial_folder: Option<PathBuf>,
+    pub include_subfolders: bool,
+    pub sort: SortState,
+    pub thumbnail_size: i32,
     pub smoke_after: Option<Duration>,
 }
 
@@ -39,7 +44,10 @@ pub fn run(options: LaunchOptions) -> eframe::Result<()> {
         .or_else(|| stored.last_folder_path.map(PathBuf::from));
     let options = LaunchOptions {
         initial_folder,
-        ..options
+        include_subfolders: stored.include_subfolders,
+        sort: stored.sort,
+        thumbnail_size: stored.thumbnail_size,
+        smoke_after: options.smoke_after,
     };
 
     let viewport = egui::ViewportBuilder::default()
@@ -69,6 +77,18 @@ pub fn run(options: LaunchOptions) -> eframe::Result<()> {
         native_options,
         Box::new(move |creation| Ok(Box::new(PicLensApp::new(creation, options)))),
     )
+}
+
+impl Default for LaunchOptions {
+    fn default() -> Self {
+        Self {
+            initial_folder: None,
+            include_subfolders: false,
+            sort: SortState::default(),
+            thumbnail_size: DEFAULT_THUMBNAIL_SIZE,
+            smoke_after: None,
+        }
+    }
 }
 
 fn app_icon() -> egui::IconData {

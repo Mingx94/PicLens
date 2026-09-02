@@ -44,9 +44,9 @@ The first implementation pins egui and eframe 0.36.1. eframe 0.36 uses separate 
 
 ### Background execution
 
-The initial backend uses blocking standard-library channels and explicitly owned threads. PicLens work is primarily filesystem traversal, image decode, and helper processes. Tokio is not added without a concrete async service that benefits from it.
+The initial backend uses bounded standard-library channels and explicitly owned threads. Its single coordinator owns at most one cancellable library-scan worker. A newer load cancels and joins the previous scan before starting another. PicLens work is primarily filesystem traversal, image decode, and helper processes. Tokio is not added without a concrete async service that benefits from it.
 
-The production backend will reuse the existing cancellation and bounded decoder rules. It may own a small coordinator thread plus the existing bounded workers. It must not create one unbounded thread per thumbnail or file.
+Thumbnail and viewer work will reuse the existing cancellation and bounded decoder rules. The backend must not create one unbounded thread per thumbnail or file.
 
 ### State ownership
 
@@ -101,4 +101,4 @@ Persistent product state must not be hidden in egui widget memory. Short-lived w
 
 ## Local implementation evidence
 
-On 2026-09-02, `piclens-desktop` passed 11 unit/headless tests and scoped clippy with warnings denied. The tests cover reducer ordering, actions that enqueue actions, bounded command delivery, request-identity rejection, backend errors, and shutdown ownership. An isolated Windows wgpu app smoke reached App creation, received the background smoke deadline, processed the root viewport close request, and exited with status 0 without using the two-second fallback. This proves local startup and graceful smoke close. It is not evidence of image-texture behavior, accessibility, interaction, visual correctness, or clean Windows/Linux runner compatibility; those checks remain open.
+On 2026-09-02, `piclens-desktop` passed 22 unit/headless tests and scoped clippy with warnings denied. The tests cover reducer ordering, actions that enqueue actions, bounded command delivery, request-identity rejection, backend errors, scan cancellation, shutdown ownership, collection reset, reload, stale library results, in-memory search, four sort modes, settings compatibility, loaded/error states, and a 10,000-item virtualized grid. An isolated Windows wgpu app smoke loaded a disposable folder through the background scan worker, reported two supported items, processed the root viewport close request, and exited with status 0 without using the two-second fallback. This proves local startup, background folder loading, and graceful smoke close. It is not evidence of image-texture behavior, accessibility, interaction, visual correctness, or clean Windows/Linux runner compatibility; those checks remain open.

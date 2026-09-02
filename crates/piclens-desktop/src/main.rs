@@ -42,5 +42,6 @@ fn main() -> eframe::Result<()> {
     piclens_desktop::run(LaunchOptions {
         initial_folder: launch.folder.map(PathBuf::from),
         smoke_after: launch.smoke_ms.map(Duration::from_millis),
+        ..Default::default()
     })
 }

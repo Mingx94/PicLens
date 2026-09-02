@@ -70,9 +70,9 @@ egui view -> Action -> App reducer -> Command -> background backend
 目標：完成從選擇資料夾到可捲動縮圖圖庫的第一條端到端路徑。
 
 - [ ] 實作資料夾選擇、startup restore、folder tree root 與 history navigation。
-- [ ] 實作目前資料夾、包含子資料夾、重新整理和單次 collection reset。
-- [ ] 實作固定 grid gallery 與虛擬化；10,000 個 item 不為不可見 tile 建立持久 widget state。
-- [ ] 實作搜尋、四種排序、自然排序、項目數與縮圖大小設定。
+- [x] 實作目前資料夾、包含子資料夾、重新整理和單次 collection reset。
+- [x] 實作固定 grid gallery 與虛擬化；10,000 個 item 不為不可見 tile 建立持久 widget state。
+- [x] 實作搜尋、四種排序、自然排序、項目數與縮圖大小設定。
 - [ ] 實作普通、Ctrl、Shift、Ctrl+Shift 選取，以及穩定 range anchor 和 selection order。
 - [ ] 實作 thumbnail image loader；cache key 包含來源 identity 與尺寸。
 - [ ] 只排程 visible/materialized 靜態圖片，tile unload、generation change 和 viewer open 可取消或淘汰工作。
