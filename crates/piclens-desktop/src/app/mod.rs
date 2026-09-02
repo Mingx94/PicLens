@@ -3,8 +3,9 @@
 use std::collections::{HashMap, VecDeque};
 
 use piclens_domain::{
-    apply_tree_children, normalize_thumbnail_size, path_equals, replace_tree_for_picker,
-    sort_items, toggle_expand, ExpandAction, ListQuery, SortState,
+    apply_tree_children, clamp_zoom, normalize_thumbnail_size, pan_offset, path_equals,
+    replace_tree_for_picker, reset_zoom_state, sort_items, toggle_expand, zoom_at_point,
+    ExpandAction, ListQuery, Point, SortState,
 };
 
 use crate::backend::{Backend, Command, Event, WorkIdentity};
@@ -89,6 +90,14 @@ impl Reducer {
                 Action::OpenViewer(path) => self.open_viewer(path),
                 Action::CloseViewer => self.close_viewer(),
                 Action::StepViewer(delta) => self.step_viewer(delta),
+                Action::AdjustViewerZoom(delta) => self.adjust_viewer_zoom(delta),
+                Action::ZoomViewerAt {
+                    pointer,
+                    viewport_center,
+                    delta,
+                } => self.zoom_viewer_at(pointer, viewport_center, delta),
+                Action::PanViewer(delta) => self.pan_viewer(delta),
+                Action::ResetViewerZoom => self.reset_viewer_zoom(),
                 Action::RevealViewer => self.reveal_viewer(),
                 Action::SelectImage { path, gesture } => self.select_image(&path, gesture),
                 Action::ClearSelection => self.model.selection = SelectionState::default(),
@@ -266,6 +275,7 @@ impl Reducer {
         self.model.viewer = Some(ViewerState {
             snapshot,
             preview: Loadable::Idle,
+            zoom: reset_zoom_state(),
         });
         self.model.page = Page::Viewer;
     }
@@ -281,6 +291,46 @@ impl Reducer {
         };
         viewer.snapshot.step(delta);
         viewer.preview = Loadable::Idle;
+        viewer.zoom = reset_zoom_state();
+    }
+
+    fn adjust_viewer_zoom(&mut self, delta: i32) {
+        let Some(viewer) = self.model.viewer.as_mut() else {
+            return;
+        };
+        viewer.zoom.zoom = clamp_zoom(if delta > 0 {
+            viewer.zoom.zoom * piclens_domain::ZOOM_STEP
+        } else {
+            viewer.zoom.zoom / piclens_domain::ZOOM_STEP
+        });
+    }
+
+    fn zoom_viewer_at(&mut self, pointer: Point, viewport_center: Point, delta: i32) {
+        let Some(viewer) = self.model.viewer.as_mut() else {
+            return;
+        };
+        viewer.zoom = zoom_at_point(
+            viewer.zoom.zoom,
+            viewer.zoom.offset,
+            viewport_center,
+            pointer,
+            delta,
+        );
+    }
+
+    fn pan_viewer(&mut self, delta: Point) {
+        let Some(viewer) = self.model.viewer.as_mut() else {
+            return;
+        };
+        if viewer.zoom.zoom > 1.01 {
+            viewer.zoom.offset = pan_offset(viewer.zoom.offset, delta);
+        }
+    }
+
+    fn reset_viewer_zoom(&mut self) {
+        if let Some(viewer) = self.model.viewer.as_mut() {
+            viewer.zoom = reset_zoom_state();
+        }
     }
 
     fn reveal_viewer(&mut self) {
@@ -474,6 +524,11 @@ fn selected_index(paths: &[std::path::PathBuf], target: &std::path::Path) -> Opt
     paths.iter().position(|path| paths_equal(path, target))
 }
 
+fn request_gallery_focus(ctx: &egui::Context) {
+    ctx.memory_mut(|memory| memory.request_focus(ui::gallery_focus_id()));
+    ctx.request_repaint();
+}
+
 pub struct PicLensApp {
     reducer: Reducer,
     backend: Backend,
@@ -586,6 +641,7 @@ impl eframe::App for PicLensApp {
                 Err(message) => frame_actions.push(Action::ShowNotice(message.into())),
             }
         }
+        let restore_gallery_focus = frame_actions.contains(&Action::CloseViewer);
         self.reducer.actions.extend(frame_actions);
         if let Some(requests) = self
             .images
@@ -596,12 +652,34 @@ impl eframe::App for PicLensApp {
                 .push_back(Command::SyncThumbnails { requests });
         }
         self.reduce_and_dispatch(ui.ctx());
+        if restore_gallery_focus {
+            request_gallery_focus(ui.ctx());
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn viewer_close_focus_request_targets_the_gallery_search() {
+        use egui_kittest::{kittest::Queryable, Harness};
+
+        let model = crate::demo::loaded_library();
+        let mut harness = Harness::new_ui(move |ui| {
+            let mut actions = Vec::new();
+            ui::show(&model, &ThumbnailLoader::default(), ui, &mut actions);
+        });
+        harness.run();
+
+        request_gallery_focus(&harness.ctx);
+        harness.run();
+
+        assert!(harness
+            .get_by_role(egui::accesskit::Role::TextInput)
+            .is_focused());
+    }
 
     fn next_probe(reducer: &mut Reducer) -> WorkIdentity {
         match reducer.commands.pop_front().unwrap() {
@@ -1049,8 +1127,27 @@ mod tests {
             2
         );
 
+        reducer.push_action(Action::ZoomViewerAt {
+            viewport_center: Point { x: 200.0, y: 150.0 },
+            pointer: Point { x: 260.0, y: 180.0 },
+            delta: 1,
+        });
+        reducer.push_action(Action::PanViewer(Point { x: 5.0, y: 3.0 }));
+        reducer.reduce_actions();
+        assert_eq!(
+            reducer.model.viewer.as_ref().unwrap().zoom,
+            piclens_domain::ZoomState {
+                zoom: piclens_domain::ZOOM_STEP,
+                offset: Point { x: -7.0, y: -3.0 },
+            }
+        );
+
         reducer.push_action(Action::StepViewer(-1));
         reducer.reduce_actions();
+        assert_eq!(
+            reducer.model.viewer.as_ref().unwrap().zoom,
+            reset_zoom_state()
+        );
         assert_eq!(
             reducer
                 .model

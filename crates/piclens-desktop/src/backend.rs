@@ -833,6 +833,11 @@ fn coordinator_loop(
             Command::Reveal { path } => {
                 let result = piclens_infra::reveal_in_file_manager(&path)
                     .map_err(|error| format!("無法在檔案總管中顯示圖片：{error}"));
+                if let Err(error) = &result {
+                    piclens_infra::warn(format!(
+                        "egui viewer reveal failed; path={path}; error={error}"
+                    ));
+                }
                 if !send_event(&events, &ctx, Event::RevealCompleted { result }) {
                     break;
                 }

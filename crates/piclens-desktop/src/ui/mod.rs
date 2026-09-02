@@ -1,10 +1,17 @@
 //! Window layout. Views append actions and do not perform side effects.
 
 use egui::{AtomExt, Color32, Frame, Margin, RichText, Stroke};
-use piclens_domain::{path_equals, visible_tree_rows, ListItem, SortDirection, SortKey, SortState};
+use piclens_domain::{
+    is_fit_view, path_equals, visible_tree_rows, ImageSequenceSnapshot, ListItem, Point,
+    SortDirection, SortKey, SortState,
+};
 
 use crate::images::{ThumbnailKey, ThumbnailLoader};
 use crate::model::{Action, AppModel, Loadable, Page, SelectionGesture};
+
+pub(crate) fn gallery_focus_id() -> egui::Id {
+    egui::Id::new("piclens-library-search")
+}
 
 pub fn show(
     model: &AppModel,
@@ -14,7 +21,7 @@ pub fn show(
 ) -> Vec<ThumbnailKey> {
     let mut materialized = Vec::new();
     if model.page == Page::Viewer {
-        viewer_input(ui, actions);
+        viewer_input(model, ui, actions);
         egui::CentralPanel::default()
             .frame(
                 Frame::new()
@@ -123,7 +130,11 @@ fn library_content(
         ui.horizontal(|ui| {
             let mut search = model.search.clone();
             if ui
-                .add(egui::TextEdit::singleline(&mut search).hint_text("搜尋名稱或路徑…"))
+                .add(
+                    egui::TextEdit::singleline(&mut search)
+                        .id(gallery_focus_id())
+                        .hint_text("搜尋名稱或路徑…"),
+                )
                 .changed()
             {
                 actions.push(Action::SetSearch(search));
@@ -371,13 +382,17 @@ fn gallery_grid(
     });
 }
 
-fn viewer_input(ui: &mut egui::Ui, actions: &mut Vec<Action>) {
+fn viewer_input(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
+    let can_step = model
+        .viewer
+        .as_ref()
+        .is_none_or(|viewer| is_fit_view(viewer.zoom.zoom, viewer.zoom.offset));
     let action = ui.input_mut(|input| {
         if input.consume_key(egui::Modifiers::NONE, egui::Key::Escape) {
             Some(Action::CloseViewer)
-        } else if input.consume_key(egui::Modifiers::NONE, egui::Key::ArrowLeft) {
+        } else if can_step && input.consume_key(egui::Modifiers::NONE, egui::Key::ArrowLeft) {
             Some(Action::StepViewer(-1))
-        } else if input.consume_key(egui::Modifiers::NONE, egui::Key::ArrowRight) {
+        } else if can_step && input.consume_key(egui::Modifiers::NONE, egui::Key::ArrowRight) {
             Some(Action::StepViewer(1))
         } else {
             None
@@ -418,6 +433,18 @@ fn viewer_content(
         if ui.button("下一張").clicked() {
             actions.push(Action::StepViewer(1));
         }
+        if ui.button("縮小").clicked() {
+            actions.push(Action::AdjustViewerZoom(-1));
+        }
+        if ui
+            .button(format!("重設 {:.0}%", viewer.zoom.zoom * 100.0))
+            .clicked()
+        {
+            actions.push(Action::ResetViewerZoom);
+        }
+        if ui.button("放大").clicked() {
+            actions.push(Action::AdjustViewerZoom(1));
+        }
         if ui.button("在檔案總管中顯示").clicked() {
             actions.push(Action::RevealViewer);
         }
@@ -435,41 +462,126 @@ fn viewer_content(
     });
     ui.add_space(16.0);
 
+    let key = ThumbnailKey::from_image(current, 1024);
+    materialized.extend(viewer_preview_keys(&viewer.snapshot, images));
+    let (canvas, response) =
+        ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Image, true, current.name.clone())
+    });
+    let painter = ui.painter().with_clip_rect(canvas);
+    painter.rect_filled(canvas, 0.0, Color32::from_rgb(22, 24, 29));
+
     if current.is_animated {
-        ui.centered_and_justified(|ui| {
-            ui.label(
-                RichText::new("此動畫圖片目前不支援預覽。")
-                    .color(Color32::WHITE)
-                    .size(18.0),
-            );
-        });
-        return;
+        paint_viewer_message(
+            &painter,
+            canvas,
+            "此動畫圖片目前不支援預覽。",
+            Color32::WHITE,
+        );
+    } else if let Some(texture) = images.texture(&key) {
+        let texture_size = texture.size_vec2();
+        let fit_scale = (canvas.width() / texture_size.x)
+            .min(canvas.height() / texture_size.y)
+            .max(0.0);
+        let image_size = texture_size * fit_scale * viewer.zoom.zoom as f32;
+        let center =
+            canvas.center() + egui::vec2(viewer.zoom.offset.x as f32, viewer.zoom.offset.y as f32);
+        painter.image(
+            texture.id(),
+            egui::Rect::from_center_size(center, image_size),
+            egui::Rect::from_min_max(egui::Pos2::ZERO, egui::pos2(1.0, 1.0)),
+            Color32::WHITE,
+        );
+    } else if let Some(message) = images.failure(&key) {
+        paint_viewer_message(
+            &painter,
+            canvas,
+            &format!("圖片載入失敗：{message}"),
+            Color32::from_rgb(255, 150, 150),
+        );
+    } else {
+        paint_viewer_message(&painter, canvas, "正在載入圖片…", Color32::WHITE);
     }
 
-    let key = ThumbnailKey::from_image(current, 1024);
-    materialized.push(key.clone());
-    if let Some(texture) = images.texture(&key) {
-        ui.centered_and_justified(|ui| {
-            ui.add(
-                egui::Image::from_texture(texture)
-                    .alt_text(current.name.clone())
-                    .max_size(ui.available_size())
-                    .maintain_aspect_ratio(true),
-            );
+    if response.hovered() {
+        let scroll_y = ui.input_mut(|input| {
+            let scroll_y = input.smooth_scroll_delta.y;
+            input.smooth_scroll_delta.y = 0.0;
+            scroll_y
         });
-    } else if let Some(message) = images.failure(&key) {
-        ui.centered_and_justified(|ui| {
-            ui.label(
-                RichText::new(format!("圖片載入失敗：{message}"))
-                    .color(Color32::from_rgb(255, 150, 150)),
-            );
-        });
-    } else {
-        ui.centered_and_justified(|ui| {
-            ui.spinner();
-            ui.label(RichText::new("正在載入圖片…").color(Color32::WHITE));
-        });
+        if scroll_y != 0.0 {
+            let pointer = response.hover_pos().unwrap_or_else(|| canvas.center());
+            actions.push(Action::ZoomViewerAt {
+                pointer: Point {
+                    x: f64::from(pointer.x),
+                    y: f64::from(pointer.y),
+                },
+                viewport_center: Point {
+                    x: f64::from(canvas.center().x),
+                    y: f64::from(canvas.center().y),
+                },
+                delta: if scroll_y > 0.0 { 1 } else { -1 },
+            });
+        }
     }
+    if response.dragged() && viewer.zoom.zoom > 1.01 {
+        let delta = ui.input(|input| input.pointer.delta());
+        if delta != egui::Vec2::ZERO {
+            actions.push(Action::PanViewer(Point {
+                x: f64::from(delta.x),
+                y: f64::from(delta.y),
+            }));
+        }
+    }
+}
+
+fn viewer_preview_keys(
+    snapshot: &ImageSequenceSnapshot,
+    images: &ThumbnailLoader,
+) -> Vec<ThumbnailKey> {
+    let Some(current) = snapshot.current().filter(|image| !image.is_animated) else {
+        return Vec::new();
+    };
+    let current_key = ThumbnailKey::from_image(current, 1024);
+    let mut keys = vec![current_key.clone()];
+    if !images.is_settled(&current_key) {
+        return keys;
+    }
+
+    let len = snapshot.images.len() as i32;
+    for delta in [1, -1] {
+        let index = (snapshot.current_index + delta).rem_euclid(len) as usize;
+        let neighbor = &snapshot.images[index];
+        if neighbor.is_animated {
+            continue;
+        }
+        let key = ThumbnailKey::from_image(neighbor, 1024);
+        if keys.contains(&key) {
+            continue;
+        }
+        let settled = images.is_settled(&key);
+        keys.push(key);
+        if !settled {
+            break;
+        }
+    }
+    keys
+}
+
+fn paint_viewer_message(
+    painter: &egui::Painter,
+    canvas: egui::Rect,
+    message: &str,
+    color: Color32,
+) {
+    painter.text(
+        canvas.center(),
+        egui::Align2::CENTER_CENTER,
+        message,
+        egui::FontId::proportional(18.0),
+        color,
+    );
 }
 
 fn navigation_input(ui: &mut egui::Ui, actions: &mut Vec<Action>) {
@@ -614,6 +726,7 @@ mod tests {
         model.viewer = Some(crate::model::ViewerState {
             snapshot,
             preview: Loadable::Idle,
+            zoom: piclens_domain::reset_zoom_state(),
         });
         let mut harness = Harness::new_ui_state(
             move |ui, materialized: &mut Vec<ThumbnailKey>| {
@@ -625,9 +738,93 @@ mod tests {
         harness.step();
 
         let _ = harness.get_by_label("返回圖庫");
-        let _ = harness.get_by_label_contains("image2.png");
+        let _ = harness.get_by_label("image2.png");
         assert_eq!(harness.state().len(), 1);
         assert_eq!(harness.state()[0].longest_edge, 1024);
+    }
+
+    #[test]
+    fn viewer_previews_load_current_then_next_then_previous_within_three_textures() {
+        let model = crate::demo::large_library(3);
+        let query = model.library_query.as_ref().unwrap();
+        let snapshot = ImageSequenceSnapshot::from_visible(
+            query.folder_path.clone(),
+            query.include_subfolders,
+            query.sort,
+            &model.visible_items,
+            "C:/fixture/image1.png",
+        )
+        .unwrap();
+        let mut loader = ThumbnailLoader::default();
+        let ctx = egui::Context::default();
+        let ready = || crate::images::DecodedThumbnail {
+            width: 1,
+            height: 1,
+            rgba: vec![255, 255, 255, 255],
+        };
+
+        let current = viewer_preview_keys(&snapshot, &loader);
+        assert_eq!(current.len(), 1);
+        assert!(current[0].source.ends_with("image1.png"));
+        let request = loader.sync_materialized(current, 1).unwrap().remove(0);
+        assert!(loader.handle_result(&request, Ok(ready()), &ctx));
+
+        let current_and_next = viewer_preview_keys(&snapshot, &loader);
+        assert_eq!(current_and_next.len(), 2);
+        assert!(current_and_next[1].source.ends_with("image2.png"));
+        let request = loader
+            .sync_materialized(current_and_next, 1)
+            .unwrap()
+            .remove(0);
+        assert!(loader.handle_result(&request, Ok(ready()), &ctx));
+
+        let all = viewer_preview_keys(&snapshot, &loader);
+        assert_eq!(all.len(), 3);
+        assert!(all[2].source.ends_with("image0.png"));
+        assert!(all.iter().all(|key| key.longest_edge == 1024));
+    }
+
+    #[test]
+    fn zoomed_viewer_blocks_arrow_navigation_but_keeps_controls_and_escape() {
+        let mut model = crate::demo::loaded_library();
+        let query = model.library_query.as_ref().unwrap();
+        let snapshot = ImageSequenceSnapshot::from_visible(
+            query.folder_path.clone(),
+            query.include_subfolders,
+            query.sort,
+            &model.visible_items,
+            "C:/fixture/image2.png",
+        )
+        .unwrap();
+        model.page = Page::Viewer;
+        model.viewer = Some(crate::model::ViewerState {
+            snapshot,
+            preview: Loadable::Idle,
+            zoom: piclens_domain::ZoomState {
+                zoom: piclens_domain::ZOOM_STEP,
+                offset: Point::default(),
+            },
+        });
+        let mut harness = Harness::new_ui_state(
+            move |ui, actions: &mut Vec<Action>| {
+                show(&model, &ThumbnailLoader::default(), ui, actions);
+            },
+            Vec::new(),
+        );
+        harness.run();
+
+        harness.key_press(egui::Key::ArrowRight);
+        harness.run();
+        assert!(harness.state().is_empty());
+
+        harness.get_by_label("放大").click();
+        harness.run();
+        harness.key_press(egui::Key::Escape);
+        harness.run();
+        assert_eq!(
+            harness.state().as_slice(),
+            [Action::AdjustViewerZoom(1), Action::CloseViewer]
+        );
     }
 
     #[test]

@@ -88,14 +88,14 @@ egui view -> Action -> App reducer -> Command -> background backend
 
 - [x] 開啟 viewer 時建立 immutable visible-image sequence snapshot。
 - [x] 實作上一張、下一張、Escape、鍵盤導覽、圖片名稱與 reveal-in-file-manager。
-- [ ] 實作 pointer-anchor zoom、zoom clamp、reset、drag pan 與 canvas input interception。
+- [x] 實作 pointer-anchor zoom、zoom clamp、reset、drag pan 與 canvas input interception。
 - [x] Viewer 開啟時取消並暫停被遮住的 gallery thumbnail requests；關閉後恢復可見縮圖排程。
-- [ ] 每次只持有一個載入或預載工作；目前 preview 完成後才依序預載下一張與上一張。
-- [ ] 只保留目前與相鄰兩張 preview texture，共最多三張、12 MiB；淘汰或 close 時釋放 texture。
-- [ ] 快速 A-B-A、close/reopen、generation change 與 shutdown 只接受 identity 相符的結果。
+- [x] 每次只持有一個載入或預載工作；目前 preview 完成後才依序預載下一張與上一張。
+- [x] 只保留目前與相鄰兩張 preview texture，共最多三張、12 MiB；淘汰或 close 時釋放 texture。
+- [x] 快速 A-B-A、close/reopen、generation change 與 shutdown 只接受 identity 相符的結果。
 - [x] 清晰 preview 維持最長邊 1024 px，完成後直接以完整不透明度繪製。
 - [ ] 記錄冷／暖快取和同一 viewer 內連續切換的首次清晰繪製時間及超標次數。
-- [ ] 測試 viewer snapshot、preload order、stale result、texture budget、zoom/pan、focus restore 與 unsupported animation。
+- [x] 測試 viewer snapshot、preload order、stale result、texture budget、zoom/pan、focus restore 與 unsupported animation。
 
 退出條件：viewer 功能與 runtime invariants 完成，且代表性 Release smoke 可產生可信的 500ms 指標。
 

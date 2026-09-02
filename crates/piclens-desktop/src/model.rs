@@ -4,11 +4,11 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use piclens_domain::{
-    FileOperationBatchResult, FolderHistory, ImageSequenceSnapshot, ListItem, ListQuery, SortState,
-    DEFAULT_THUMBNAIL_SIZE,
+    FileOperationBatchResult, FolderHistory, ImageSequenceSnapshot, ListItem, ListQuery, Point,
+    SortState, ZoomState, DEFAULT_THUMBNAIL_SIZE,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Action {
     ChooseFolder,
     PickedFolder(PathBuf),
@@ -32,6 +32,14 @@ pub enum Action {
     OpenViewer(PathBuf),
     CloseViewer,
     StepViewer(i32),
+    AdjustViewerZoom(i32),
+    ZoomViewerAt {
+        pointer: Point,
+        viewport_center: Point,
+        delta: i32,
+    },
+    PanViewer(Point),
+    ResetViewerZoom,
     RevealViewer,
     SelectImage {
         path: PathBuf,
@@ -80,6 +88,7 @@ pub enum DialogState {
 pub struct ViewerState {
     pub snapshot: ImageSequenceSnapshot,
     pub preview: Loadable<PathBuf>,
+    pub zoom: ZoomState,
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -63,9 +63,14 @@ pub struct DecodedThumbnail {
 }
 
 impl DecodedThumbnail {
-    fn color_image(&self) -> Result<egui::ColorImage, String> {
+    fn color_image(&self, longest_edge: u32) -> Result<egui::ColorImage, String> {
         let expected_len = self.width as usize * self.height as usize * 4;
-        if self.width == 0 || self.height == 0 || self.rgba.len() != expected_len {
+        if self.width == 0
+            || self.height == 0
+            || self.width > longest_edge
+            || self.height > longest_edge
+            || self.rgba.len() != expected_len
+        {
             return Err("thumbnail decoder returned invalid RGBA dimensions".into());
         }
         Ok(egui::ColorImage::from_rgba_unmultiplied(
@@ -110,6 +115,13 @@ impl ThumbnailLoader {
             Some(ThumbnailEntry::Failed { message, .. }) => Some(message),
             _ => None,
         }
+    }
+
+    pub fn is_settled(&self, key: &ThumbnailKey) -> bool {
+        matches!(
+            self.entries.get(key),
+            Some(ThumbnailEntry::Ready(_) | ThumbnailEntry::Failed { .. })
+        )
     }
 
     pub fn sync_materialized(
@@ -175,17 +187,18 @@ impl ThumbnailLoader {
             return false;
         }
 
-        let entry = match result.and_then(|thumbnail| thumbnail.color_image()) {
-            Ok(image) => ThumbnailEntry::Ready(ctx.load_texture(
-                texture_name(&request.key),
-                image,
-                egui::TextureOptions::LINEAR,
-            )),
-            Err(message) => ThumbnailEntry::Failed {
-                generation: request.identity.generation,
-                message,
-            },
-        };
+        let entry =
+            match result.and_then(|thumbnail| thumbnail.color_image(request.key.longest_edge)) {
+                Ok(image) => ThumbnailEntry::Ready(ctx.load_texture(
+                    texture_name(&request.key),
+                    image,
+                    egui::TextureOptions::LINEAR,
+                )),
+                Err(message) => ThumbnailEntry::Failed {
+                    generation: request.identity.generation,
+                    message,
+                },
+            };
         self.entries.insert(request.key.clone(), entry);
         true
     }
@@ -259,6 +272,30 @@ mod tests {
     }
 
     #[test]
+    fn decoded_texture_cannot_exceed_its_requested_edge() {
+        let key = ThumbnailKey::from_image(&image(), 16);
+        let mut loader = ThumbnailLoader::default();
+        let request = loader
+            .sync_materialized(vec![key.clone()], 1)
+            .unwrap()
+            .remove(0);
+
+        assert!(loader.handle_result(
+            &request,
+            Ok(DecodedThumbnail {
+                width: 17,
+                height: 1,
+                rgba: vec![255; 17 * 4],
+            }),
+            &egui::Context::default(),
+        ));
+        assert_eq!(
+            loader.failure(&key),
+            Some("thumbnail decoder returned invalid RGBA dimensions")
+        );
+    }
+
+    #[test]
     fn materialized_sync_replaces_pending_generation_and_ignores_stale_result() {
         let key = ThumbnailKey::from_image(&image(), 160);
         let mut loader = ThumbnailLoader::default();
@@ -283,6 +320,26 @@ mod tests {
         assert_eq!(loader.sync_materialized(vec![key], 1).unwrap().len(), 1);
         assert!(loader.sync_materialized(Vec::new(), 1).unwrap().is_empty());
         assert!(loader.sync_materialized(Vec::new(), 1).is_none());
+    }
+
+    #[test]
+    fn close_and_reopen_same_image_rejects_the_old_request() {
+        let key = ThumbnailKey::from_image(&image(), 1024);
+        let mut loader = ThumbnailLoader::default();
+        let first = loader
+            .sync_materialized(vec![key.clone()], 1)
+            .unwrap()
+            .remove(0);
+        loader.sync_materialized(Vec::new(), 1);
+        let second = loader
+            .sync_materialized(vec![key.clone()], 1)
+            .unwrap()
+            .remove(0);
+
+        assert_ne!(first.identity, second.identity);
+        assert!(!loader.handle_result(&first, Err("stale".into()), &egui::Context::default()));
+        assert!(loader.handle_result(&second, Err("current".into()), &egui::Context::default()));
+        assert_eq!(loader.failure(&key), Some("current"));
     }
 
     #[test]
