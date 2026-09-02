@@ -9,7 +9,7 @@ use piclens_domain::{
     FileOperationResult, FileOperationStatus,
 };
 
-use crate::platform::{move_to_trash, PlatformError};
+use crate::platform::{move_to_trash_cancellable, PlatformError};
 use crate::CancellationToken;
 
 fn make_result(
@@ -82,7 +82,7 @@ pub fn trash_paths_cancellable(
             items.push(linked_path(path, None));
             continue;
         }
-        match move_to_trash(path) {
+        match move_to_trash_cancellable(path, cancellation) {
             Ok(()) => items.push(make_result(
                 path,
                 FileOperationStatus::Trashed,
@@ -455,6 +455,19 @@ pub fn apply_drop_rename_cancellable(
             ));
             continue;
         }
+        let target = Path::new(&item.target_path);
+        let parent = target.parent().unwrap_or_else(|| Path::new("."));
+        let existing = existing_directory_files(parent);
+        if target_name_exists(&existing, &item.target_path, &item.source_path) || target.exists() {
+            items.push(make_result(
+                &item.source_path,
+                FileOperationStatus::Skipped,
+                Some(item.target_path.clone()),
+                Some("target_exists".into()),
+                None,
+            ));
+            continue;
+        }
         match fs::rename(&item.source_path, &item.target_path) {
             Ok(()) => items.push(make_result(
                 &item.source_path,
@@ -493,6 +506,35 @@ mod cancellation_tests {
     }
 
     #[test]
+    fn canceled_conversion_does_not_modify_a_disposable_fixture() {
+        let root = std::env::temp_dir().join(format!(
+            "piclens-convert-cancel-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let source = root.join("image.png");
+        let target = root.join("image.jpg");
+        image::RgbaImage::from_pixel(2, 2, image::Rgba([20, 40, 60, 255]))
+            .save(&source)
+            .unwrap();
+        let original = std::fs::read(&source).unwrap();
+        let cancellation = CancellationToken::new();
+        cancellation.cancel();
+
+        let batch =
+            convert_to_jpg_cancellable(&[source.to_string_lossy().into_owned()], &cancellation);
+
+        assert_eq!(batch.canceled(), 1);
+        assert_eq!(std::fs::read(&source).unwrap(), original);
+        assert!(!target.exists());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn canceled_drop_plan_keeps_source_and_target_context() {
         let token = CancellationToken::new();
         token.cancel();
@@ -508,5 +550,39 @@ mod cancellation_tests {
         let batch = apply_drop_rename_cancellable(&plan, &token);
         assert_eq!(batch.canceled(), 1);
         assert_eq!(batch.items[0].target_path.as_deref(), Some("base-01.jpg"));
+    }
+
+    #[test]
+    fn drop_apply_skips_a_target_created_after_planning() {
+        let root = std::env::temp_dir().join(format!(
+            "piclens-drop-collision-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let source = root.join("source.jpg");
+        let target = root.join("base-01.jpg");
+        std::fs::write(&source, b"source").unwrap();
+        let plan = DropTargetBatchRenamePlan {
+            total: 1,
+            items: vec![piclens_domain::DropTargetBatchRenamePlanItem {
+                source_path: source.to_string_lossy().into_owned(),
+                target_path: target.to_string_lossy().into_owned(),
+                should_skip: false,
+                reason: None,
+            }],
+        };
+        std::fs::write(&target, b"existing").unwrap();
+
+        let batch = apply_drop_rename(&plan);
+
+        assert_eq!(batch.skipped(), 1);
+        assert_eq!(batch.items[0].reason.as_deref(), Some("target_exists"));
+        assert_eq!(std::fs::read(&source).unwrap(), b"source");
+        assert_eq!(std::fs::read(&target).unwrap(), b"existing");
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

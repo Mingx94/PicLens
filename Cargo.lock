@@ -5630,6 +5630,7 @@ dependencies = [
  "piclens-domain",
  "piclens-infra",
  "rfd",
+ "serde_json",
 ]
 
 [[package]]

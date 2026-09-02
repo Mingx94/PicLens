@@ -4,6 +4,7 @@ pub mod app;
 pub mod backend;
 pub mod cli;
 pub mod demo;
+pub mod diagnostics;
 pub mod images;
 pub mod model;
 pub mod theme;
@@ -25,11 +26,14 @@ const APP_ICON_PNG: &[u8] = include_bytes!("../../../assets/Square150x150Logo.sc
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LaunchOptions {
     pub initial_folder: Option<PathBuf>,
+    pub initial_viewer: Option<PathBuf>,
     pub include_subfolders: bool,
     pub sort: SortState,
     pub thumbnail_size: i32,
     pub sidebar_collapsed: bool,
     pub smoke_after: Option<Duration>,
+    pub metrics_output: Option<PathBuf>,
+    pub performance_viewer: bool,
 }
 
 pub fn run(options: LaunchOptions) -> eframe::Result<()> {
@@ -45,11 +49,14 @@ pub fn run(options: LaunchOptions) -> eframe::Result<()> {
         .or_else(|| restorable_folder(stored.last_folder_path));
     let options = LaunchOptions {
         initial_folder,
+        initial_viewer: options.initial_viewer,
         include_subfolders: stored.include_subfolders,
         sort: stored.sort,
         thumbnail_size: stored.thumbnail_size,
         sidebar_collapsed: stored.sidebar_collapsed,
         smoke_after: options.smoke_after,
+        metrics_output: options.metrics_output,
+        performance_viewer: options.performance_viewer,
     };
 
     let viewport = egui::ViewportBuilder::default()
@@ -91,11 +98,14 @@ impl Default for LaunchOptions {
     fn default() -> Self {
         Self {
             initial_folder: None,
+            initial_viewer: None,
             include_subfolders: false,
             sort: SortState::default(),
             thumbnail_size: DEFAULT_THUMBNAIL_SIZE,
             sidebar_collapsed: false,
             smoke_after: None,
+            metrics_output: None,
+            performance_viewer: false,
         }
     }
 }

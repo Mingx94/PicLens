@@ -3,6 +3,9 @@
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct LaunchArgs {
     pub folder: Option<String>,
+    pub viewer: Option<String>,
+    pub metrics: Option<String>,
+    pub performance_viewer: bool,
     pub smoke_ms: Option<u64>,
     pub data_root: Option<String>,
 }
@@ -17,6 +20,9 @@ const HELP: &str = "PicLens - desktop image viewer and organizer\n\n\
 Usage: piclens-desktop [OPTIONS]\n\n\
 Options:\n\
   -f, --folder <PATH>          Open a folder without changing saved startup state\n\
+      --viewer <PATH>          Open this image in the viewer after loading\n\
+      --metrics <PATH>         Write release-run metrics as JSON\n\
+      --performance-viewer     Run forward/backward navigation (requires --viewer)\n\
       --data-root <PATH>       Use an isolated PicLens profile\n\
       --smoke-ms <MILLISECONDS> Quit automatically after the given time\n\
   -h, --help                   Print help\n\
@@ -42,6 +48,8 @@ pub fn parse(args: &[String]) -> Result<ParseOutcome, String> {
         if let Some((name, value)) = split_value(arg) {
             match name {
                 "--folder" => launch.folder = Some(value.into()),
+                "--viewer" => launch.viewer = Some(value.into()),
+                "--metrics" => launch.metrics = Some(value.into()),
                 "--data-root" => launch.data_root = Some(value.into()),
                 "--smoke-ms" => {
                     launch.smoke_ms = Some(
@@ -65,6 +73,9 @@ pub fn parse(args: &[String]) -> Result<ParseOutcome, String> {
                 )));
             }
             "-f" | "--folder" => launch.folder = Some(take_value(args, &mut index, arg)?),
+            "--viewer" => launch.viewer = Some(take_value(args, &mut index, arg)?),
+            "--metrics" => launch.metrics = Some(take_value(args, &mut index, arg)?),
+            "--performance-viewer" => launch.performance_viewer = true,
             "--data-root" => launch.data_root = Some(take_value(args, &mut index, arg)?),
             "--smoke-ms" => {
                 let value = take_value(args, &mut index, arg)?;
@@ -77,6 +88,9 @@ pub fn parse(args: &[String]) -> Result<ParseOutcome, String> {
             _ => return Err(format!("unknown option: {arg}")),
         }
         index += 1;
+    }
+    if launch.performance_viewer && launch.viewer.is_none() {
+        return Err("--performance-viewer requires --viewer".into());
     }
     Ok(ParseOutcome::Run(launch))
 }
@@ -92,6 +106,10 @@ mod tests {
             "--folder=photos".into(),
             "--data-root".into(),
             "profile".into(),
+            "--viewer=photos/a.jpg".into(),
+            "--metrics".into(),
+            "metrics.json".into(),
+            "--performance-viewer".into(),
             "--smoke-ms".into(),
             "250".into(),
         ];
@@ -100,6 +118,9 @@ mod tests {
         };
         assert_eq!(parsed.folder.as_deref(), Some("photos"));
         assert_eq!(parsed.data_root.as_deref(), Some("profile"));
+        assert_eq!(parsed.viewer.as_deref(), Some("photos/a.jpg"));
+        assert_eq!(parsed.metrics.as_deref(), Some("metrics.json"));
+        assert!(parsed.performance_viewer);
         assert_eq!(parsed.smoke_ms, Some(250));
     }
 
@@ -108,5 +129,6 @@ mod tests {
         assert!(parse(&["piclens-desktop".into(), "--unknown".into()]).is_err());
         assert!(parse(&["piclens-desktop".into(), "--folder".into()]).is_err());
         assert!(parse(&["piclens-desktop".into(), "--smoke-ms=x".into()]).is_err());
+        assert!(parse(&["piclens-desktop".into(), "--performance-viewer".into()]).is_err());
     }
 }

@@ -37,8 +37,8 @@
 - Viewer 使用開啟當下的 immutable image-sequence snapshot；主 library 後續 reload 不得直接改變已開啟 viewer 的 navigation list。
 - Viewer 開啟時取消並暫停被遮住的 gallery thumbnail requests，關閉後恢復可見縮圖排程；共用 decoder 的實體程序總數上限仍為八個。
 - Viewer 只持有一個目前載入或預載工作。目前圖片的 1024-pixel preview 完成後，才依序預載 snapshot 中相鄰的下一張與上一張靜態圖片；不得掃描整個序列預載或建立無界的像素快取。
-- 安全預覽 PNG 在 background executor 解碼成 GPUI BGRA pixels；UI render 不再讀取或解碼清晰預覽檔。只保留目前與相鄰兩張的像素，共最多三張、12 MiB；切換淘汰與 close 同時釋放對應 GPU atlas entries。重用前須在背景比對來源路徑、mtime、檔案大小與預覽尺寸形成的 cache key。
-- 清晰預覽完成後以完整不透明度繪製，不再等待淡入。每次選取只記錄一次成功的清晰繪製，500ms 目標包含背景處理與 GPUI paint submission，但不宣稱量到 OS compositor 的實際呈現時間。
+- 安全預覽 PNG 在 background executor 解碼成 frontend pixel buffer；UI render 不再讀取或解碼清晰預覽檔。只保留目前與相鄰兩張的像素，共最多三張、12 MiB；切換淘汰與 close 同時釋放對應 GPU texture。重用前須在背景比對來源路徑、mtime、檔案大小與預覽尺寸形成的 cache key。
+- 清晰預覽完成後以完整不透明度繪製，不再等待淡入。每次選取只記錄一次成功的清晰繪製，500ms 目標包含背景處理與 frontend paint submission，但不宣稱量到 OS compositor 的實際呈現時間。
 - 效能驗證須涵蓋同一 Viewer 內連續前後切換；不得以逐次重啟單張圖片的結果代替。持續顯示縮圖、未完成清晰繪製的選取必須計為失敗，不能從樣本中略過；日誌與 metrics 必須標示 Debug／Release。
 - 切換到正在預載的圖片時沿用該工作；其他切換、動畫提示、close、generation change 與 shutdown 必須取消過期工作。只有 request identity 相符的結果能清除工作或更新畫面，包含快速 A-B-A 與關閉後重開同張圖片的情況。
 - Viewer canvas 從 pointer press 起攔截 zoom/pan input，避免事件穿透到底層 gallery 或啟動 drag/drop rename。
@@ -50,6 +50,7 @@
 ## File operations
 
 - Trash-like operations 必須送到 OS recycle bin/trash。Linux 使用 `gio trash`，不可 fallback 為永久刪除。
+- 外部 trash helper 必須有 bounded timeout；取消或逾時時必須 kill 並 reap child process。
 - JPG 與 lossless WebP conversion 保留原檔；target collision 必須略過，不覆寫。
 - Lossless WebP conversion 略過 JPG、JPEG、既有 WebP 與 animated images。
 - Same-basename cleanup 必須保留 JPG/JPEG 與 WebP，只將其他同 basename 格式移至 trash。

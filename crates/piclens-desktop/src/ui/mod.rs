@@ -1,13 +1,17 @@
 //! Window layout. Views append actions and do not perform side effects.
 
+use std::path::PathBuf;
+
 use egui::{AtomExt, Color32, Frame, Margin, RichText, Stroke};
 use piclens_domain::{
-    is_fit_view, path_equals, visible_tree_rows, ImageSequenceSnapshot, ListItem, Point,
-    SortDirection, SortKey, SortState,
+    is_fit_view, path_equals, visible_tree_rows, FileOperationStatus, ImageSequenceSnapshot,
+    ListItem, Point, SortDirection, SortKey, SortState,
 };
 
 use crate::images::{ThumbnailKey, ThumbnailLoader};
-use crate::model::{Action, AppModel, Loadable, Page, SelectionGesture};
+use crate::model::{
+    Action, AppModel, ConversionKind, DialogState, Loadable, Page, SelectionGesture,
+};
 
 pub(crate) fn gallery_focus_id() -> egui::Id {
     egui::Id::new("piclens-library-search")
@@ -31,9 +35,17 @@ pub fn show(
             .show(ui, |ui| {
                 viewer_content(model, images, ui, actions, &mut materialized)
             });
+        show_dialog(model, ui.ctx(), actions);
         return materialized;
     }
-    navigation_input(ui, actions);
+    if model.dialog.is_none() {
+        navigation_input(ui, actions);
+    }
+    if model.drag.is_some()
+        && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
+    {
+        actions.push(Action::CancelDrag);
+    }
     egui::Panel::top("app-bar")
         .frame(
             Frame::new()
@@ -83,6 +95,8 @@ pub fn show(
         .show(ui, |ui| {
             library_content(model, images, ui, actions, &mut materialized);
         });
+    show_dialog(model, ui.ctx(), actions);
+    paint_drag_preview(model, ui.ctx());
     materialized
 }
 
@@ -230,6 +244,28 @@ fn library_content(
                 {
                     actions.push(Action::ClearSelection);
                 }
+                let visible_image_count = model
+                    .visible_items
+                    .iter()
+                    .filter(|item| item.as_image().is_some())
+                    .count();
+                ui.add_enabled_ui(visible_image_count > 0, |ui| {
+                    ui.menu_button("批次操作", |ui| {
+                        if ui.button("目前結果轉 JPG").clicked() {
+                            actions.push(Action::RequestConversion(ConversionKind::Jpg));
+                            ui.close();
+                        }
+                        if ui.button("目前結果轉無損 WebP").clicked() {
+                            actions.push(Action::RequestConversion(ConversionKind::Webp));
+                            ui.close();
+                        }
+                        ui.separator();
+                        if ui.button("清除目前結果的同名格式").clicked() {
+                            actions.push(Action::RequestCleanup);
+                            ui.close();
+                        }
+                    });
+                });
             });
             ui.add_space(8.0);
             if model.visible_items.is_empty() {
@@ -291,6 +327,7 @@ fn gallery_grid(
     let tile_height = (tile_width * 0.58).max(76.0);
     let columns = (((ui.available_width() + GAP) / (tile_width + GAP)).floor() as usize).max(1);
     let rows = model.visible_items.len().div_ceil(columns);
+    let mut hovered_target = None;
     egui::ScrollArea::vertical().show_rows(ui, tile_height + GAP, rows, |ui, visible_rows| {
         for row in visible_rows {
             ui.horizontal(|ui| {
@@ -352,10 +389,75 @@ fn gallery_grid(
                                     } else {
                                         egui::Button::new(label).selected(selected)
                                     };
+                                    let button = if model.drag.as_ref().is_some_and(|drag| {
+                                        drag.dragging
+                                            && drag.target.as_ref().is_some_and(|target| {
+                                                path_equals(&target.to_string_lossy(), &image.path)
+                                            })
+                                    }) {
+                                        button.stroke(Stroke::new(
+                                            3.0,
+                                            Color32::from_rgb(35, 110, 210),
+                                        ))
+                                    } else {
+                                        button
+                                    };
                                     ui.add_sized(egui::vec2(tile_width, tile_height), button)
                                 })
                                 .inner
                                 .on_hover_text(hover);
+                            let primary_pressed = ui.input(|input| {
+                                input.pointer.button_pressed(egui::PointerButton::Primary)
+                                    && !input.pointer.button_released(egui::PointerButton::Primary)
+                            });
+                            if response.hovered() && primary_pressed && !response.clicked() {
+                                if let Some(pointer) = response.interact_pointer_pos() {
+                                    actions.push(Action::StartDrag {
+                                        source: image.path.clone().into(),
+                                        pointer: Point {
+                                            x: pointer.x as f64,
+                                            y: pointer.y as f64,
+                                        },
+                                    });
+                                }
+                            }
+                            if model.drag.is_some()
+                                && ui.rect_contains_pointer(response.rect)
+                                && model.drag.as_ref().is_some_and(|drag| {
+                                    !drag.sources.iter().any(|source| {
+                                        path_equals(&source.to_string_lossy(), &image.path)
+                                    })
+                                })
+                            {
+                                hovered_target = Some(PathBuf::from(&image.path));
+                            }
+                            let scope = context_action_scope(model, &image.path);
+                            response.context_menu(|ui| {
+                                if !selected {
+                                    actions.push(Action::SelectImage {
+                                        path: image.path.clone().into(),
+                                        gesture: SelectionGesture::Replace,
+                                    });
+                                }
+                                if ui.button("在檔案管理器中顯示").clicked() {
+                                    actions.push(Action::RevealPath(image.path.clone().into()));
+                                    ui.close();
+                                }
+                                if ui
+                                    .add_enabled(scope.len() == 1, egui::Button::new("重新命名"))
+                                    .clicked()
+                                {
+                                    actions.push(Action::OpenRename);
+                                    ui.close();
+                                }
+                                if ui
+                                    .button(format!("移至回收筒（{} 張）", scope.len()))
+                                    .clicked()
+                                {
+                                    actions.push(Action::RequestTrash);
+                                    ui.close();
+                                }
+                            });
                             if response.double_clicked() {
                                 actions.push(Action::OpenViewer(image.path.clone().into()));
                             } else if response.clicked() {
@@ -379,7 +481,280 @@ fn gallery_grid(
                 }
             });
         }
+        if model.drag.as_ref().is_some_and(|drag| drag.dragging) {
+            let pointer = ui.input(|input| input.pointer.interact_pos());
+            if let Some(pointer) = pointer {
+                let clip = ui.clip_rect();
+                let step = edge_autoscroll_step(pointer.y, clip.top(), clip.bottom());
+                if step != 0.0 {
+                    ui.scroll_with_delta(egui::vec2(0.0, -step));
+                    ui.ctx().request_repaint();
+                }
+            }
+        }
     });
+    if model.drag.is_some() {
+        let (pointer, released, down) = ui.input(|input| {
+            (
+                input.pointer.interact_pos(),
+                input.pointer.any_released(),
+                input.pointer.any_down(),
+            )
+        });
+        if let Some(pointer) = pointer {
+            actions.push(Action::UpdateDrag {
+                pointer: Point {
+                    x: pointer.x as f64,
+                    y: pointer.y as f64,
+                },
+                target: hovered_target,
+            });
+        }
+        if released {
+            actions.push(Action::FinishDrag);
+        } else if !down {
+            actions.push(Action::CancelDrag);
+        }
+    }
+}
+
+fn context_action_scope(model: &AppModel, clicked_path: &str) -> Vec<std::path::PathBuf> {
+    if model
+        .selection
+        .ordered_paths
+        .iter()
+        .any(|path| path_equals(&path.to_string_lossy(), clicked_path))
+    {
+        model.selection.ordered_paths.clone()
+    } else {
+        vec![clicked_path.into()]
+    }
+}
+
+fn show_dialog(model: &AppModel, ctx: &egui::Context, actions: &mut Vec<Action>) {
+    let Some(dialog) = &model.dialog else {
+        return;
+    };
+    let response = egui::Modal::new(egui::Id::new("piclens-dialog")).show(ctx, |ui| {
+        ui.set_min_width(360.0);
+        match dialog {
+            DialogState::Rename { source, basename } => {
+                ui.heading("重新命名圖片");
+                ui.label("只修改檔名；副檔名會保留。");
+                let mut draft = basename.clone();
+                if ui.text_edit_singleline(&mut draft).changed() {
+                    actions.push(Action::SetRenameBasename(draft));
+                }
+                if let Some(extension) = source.extension().and_then(|extension| extension.to_str())
+                {
+                    ui.label(format!("副檔名：.{extension}"));
+                }
+                ui.horizontal(|ui| {
+                    if ui.button("取消").clicked() {
+                        actions.push(Action::CloseDialog);
+                    }
+                    if ui
+                        .add_enabled(!basename.trim().is_empty(), egui::Button::new("重新命名"))
+                        .clicked()
+                    {
+                        actions.push(Action::ConfirmRename);
+                    }
+                });
+            }
+            DialogState::TrashConfirmation { paths } => {
+                ui.heading("移至回收筒");
+                ui.label(format!(
+                    "將 {} 張圖片移至作業系統回收筒。取消不會修改檔案。",
+                    paths.len()
+                ));
+                ui.horizontal(|ui| {
+                    if ui.button("取消").clicked() {
+                        actions.push(Action::CloseDialog);
+                    }
+                    if ui.button("移至回收筒").clicked() {
+                        actions.push(Action::ConfirmTrash);
+                    }
+                });
+            }
+            DialogState::ConversionConfirmation { kind, paths } => {
+                ui.heading(conversion_label(*kind));
+                ui.label(conversion_confirmation(*kind, paths.len()));
+                ui.horizontal(|ui| {
+                    if ui.button("取消").clicked() {
+                        actions.push(Action::CloseDialog);
+                    }
+                    if ui.button("開始轉換").clicked() {
+                        actions.push(Action::ConfirmConversion);
+                    }
+                });
+            }
+            DialogState::CleanupConfirmation { paths } => {
+                ui.heading("清除同名格式");
+                ui.label(format!(
+                    "將檢查目前結果的 {} 張圖片。JPG/JPEG 與 WebP 會保留；其他同名格式會移至作業系統回收筒。取消不會修改檔案。",
+                    paths.len()
+                ));
+                ui.horizontal(|ui| {
+                    if ui.button("取消").clicked() {
+                        actions.push(Action::CloseDialog);
+                    }
+                    if ui.button("開始清除").clicked() {
+                        actions.push(Action::ConfirmCleanup);
+                    }
+                });
+            }
+            DialogState::DropRenameConfirmation { plan } => {
+                ui.heading("依目標重新命名");
+                ui.label(format!(
+                    "確認後才會重新命名 {} 張圖片。目標衝突會略過，不會覆寫檔案。",
+                    plan.total
+                ));
+                egui::ScrollArea::vertical()
+                    .max_height(260.0)
+                    .show(ui, |ui| {
+                        for item in &plan.items {
+                            let source = file_name(&item.source_path);
+                            let target = file_name(&item.target_path);
+                            let suffix = if item.should_skip { "（略過）" } else { "" };
+                            ui.label(format!("{source} → {target}{suffix}"));
+                        }
+                    });
+                ui.horizontal(|ui| {
+                    if ui.button("取消").clicked() {
+                        actions.push(Action::CloseDialog);
+                    }
+                    if ui.button("確認重新命名").clicked() {
+                        actions.push(Action::ConfirmDropRename);
+                    }
+                });
+            }
+            DialogState::Progress { title, message } => {
+                ui.heading(title);
+                ui.label(message);
+                if ui.button("取消").clicked() {
+                    actions.push(Action::CancelFileOperation);
+                }
+            }
+            DialogState::BatchResult(result) => {
+                ui.heading("檔案操作結果");
+                ui.label(format!(
+                    "共 {}；成功 {}；略過 {}；取消 {}；失敗 {}",
+                    result.total(),
+                    result.succeeded(),
+                    result.skipped(),
+                    result.canceled(),
+                    result.failed()
+                ));
+                egui::ScrollArea::vertical()
+                    .max_height(300.0)
+                    .show(ui, |ui| {
+                        for item in &result.items {
+                            let name = std::path::Path::new(&item.path)
+                                .file_name()
+                                .and_then(|name| name.to_str())
+                                .unwrap_or(&item.path);
+                            ui.label(format!("{}：{}", file_operation_label(item.status), name));
+                            if let Some(message) = &item.message {
+                                ui.small(message);
+                            }
+                        }
+                    });
+                if ui.button("關閉").clicked() {
+                    actions.push(Action::CloseDialog);
+                }
+            }
+        }
+    });
+    if response.should_close() {
+        actions.push(if matches!(dialog, DialogState::Progress { .. }) {
+            Action::CancelFileOperation
+        } else {
+            Action::CloseDialog
+        });
+    }
+}
+
+fn file_operation_label(status: FileOperationStatus) -> &'static str {
+    match status {
+        FileOperationStatus::Converted => "已轉換",
+        FileOperationStatus::Trashed => "已移至回收筒",
+        FileOperationStatus::Renamed => "已重新命名",
+        FileOperationStatus::Canceled => "已取消",
+        FileOperationStatus::Skipped => "已略過",
+        FileOperationStatus::Failed => "失敗",
+    }
+}
+
+fn conversion_label(kind: ConversionKind) -> &'static str {
+    match kind {
+        ConversionKind::Jpg => "轉 JPG",
+        ConversionKind::Webp => "轉無損 WebP",
+    }
+}
+
+fn conversion_confirmation(kind: ConversionKind, count: usize) -> String {
+    match kind {
+        ConversionKind::Jpg => format!(
+            "將目前結果的 {count} 張圖片轉為 JPG。原始檔案會保留，且不會覆寫既有目標檔。取消不會修改檔案。"
+        ),
+        ConversionKind::Webp => format!(
+            "將目前結果的 {count} 張圖片轉為無損 WebP。原始檔案會保留；JPG/JPEG、WebP 與動畫圖片會略過，且不會覆寫既有目標檔。取消不會修改檔案。"
+        ),
+    }
+}
+
+const AUTOSCROLL_EDGE: f32 = 72.0;
+const AUTOSCROLL_MAX_STEP: f32 = 48.0;
+
+fn edge_autoscroll_step(pointer_y: f32, top: f32, bottom: f32) -> f32 {
+    if bottom <= top || pointer_y < top || pointer_y > bottom {
+        return 0.0;
+    }
+    let top_distance = pointer_y - top;
+    if top_distance < AUTOSCROLL_EDGE {
+        return -AUTOSCROLL_MAX_STEP * (1.0 - top_distance / AUTOSCROLL_EDGE);
+    }
+    let bottom_distance = bottom - pointer_y;
+    if bottom_distance < AUTOSCROLL_EDGE {
+        return AUTOSCROLL_MAX_STEP * (1.0 - bottom_distance / AUTOSCROLL_EDGE);
+    }
+    0.0
+}
+
+fn file_name(path: &str) -> &str {
+    std::path::Path::new(path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(path)
+}
+
+fn paint_drag_preview(model: &AppModel, ctx: &egui::Context) {
+    let Some(drag) = &model.drag else {
+        return;
+    };
+    if !drag.dragging {
+        return;
+    }
+    let target = drag
+        .target
+        .as_ref()
+        .and_then(|path| path.file_name())
+        .and_then(|name| name.to_str())
+        .map(|name| format!("放到 {name}"))
+        .unwrap_or_else(|| "移到另一張圖片上".into());
+    egui::Area::new(egui::Id::new("piclens-drag-preview"))
+        .order(egui::Order::Tooltip)
+        .fixed_pos(egui::pos2(
+            drag.pointer.x as f32 + 16.0,
+            drag.pointer.y as f32 + 16.0,
+        ))
+        .interactable(false)
+        .show(ctx, |ui| {
+            Frame::popup(ui.style()).show(ui, |ui| {
+                ui.label(RichText::new(format!("{} 張圖片", drag.sources.len())).strong());
+                ui.small(target);
+            });
+        });
 }
 
 fn viewer_input(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
@@ -711,6 +1086,105 @@ mod tests {
     }
 
     #[test]
+    fn rename_dialog_requires_an_explicit_action() {
+        let mut model = crate::demo::loaded_library();
+        model.dialog = Some(DialogState::Rename {
+            source: "C:/fixture/image2.png".into(),
+            basename: "image2".into(),
+        });
+        let mut harness = Harness::new_ui_state(
+            move |ui, actions: &mut Vec<Action>| {
+                show(&model, &ThumbnailLoader::default(), ui, actions);
+            },
+            Vec::new(),
+        );
+        harness.run();
+
+        let _ = harness.get_by_label("重新命名圖片");
+        assert!(harness.state().is_empty());
+        harness.get_by_label("取消").click();
+        harness.run();
+        assert_eq!(harness.state().as_slice(), [Action::CloseDialog]);
+    }
+
+    #[test]
+    fn image_press_starts_pending_drag_without_changing_selection() {
+        let model = crate::demo::loaded_library();
+        let mut harness = Harness::new_ui_state(
+            move |ui, actions: &mut Vec<Action>| {
+                show(&model, &ThumbnailLoader::default(), ui, actions);
+            },
+            Vec::new(),
+        );
+        harness.run();
+        let center = harness.get_by_label_contains("image2.png").rect().center();
+
+        harness.drag_at(center);
+        harness.run();
+        assert!(harness
+            .state()
+            .iter()
+            .any(|action| matches!(action, Action::StartDrag { .. })));
+        assert!(!harness
+            .state()
+            .iter()
+            .any(|action| matches!(action, Action::SelectImage { .. })));
+        harness.drop_at(center);
+    }
+
+    #[test]
+    fn drag_autoscroll_is_bounded_and_zero_in_the_middle() {
+        assert_eq!(edge_autoscroll_step(0.0, 0.0, 400.0), -48.0);
+        assert_eq!(edge_autoscroll_step(36.0, 0.0, 400.0), -24.0);
+        assert_eq!(edge_autoscroll_step(200.0, 0.0, 400.0), 0.0);
+        assert_eq!(edge_autoscroll_step(364.0, 0.0, 400.0), 24.0);
+        assert_eq!(edge_autoscroll_step(400.0, 0.0, 400.0), 48.0);
+    }
+
+    fn dragging_model() -> AppModel {
+        let mut model = crate::demo::loaded_library();
+        model.drag = Some(crate::model::DragSession {
+            sources: vec!["C:/fixture/image2.png".into()],
+            origin: Point { x: 10.0, y: 10.0 },
+            pointer: Point { x: 30.0, y: 30.0 },
+            target: None,
+            dragging: true,
+            replaces_selection: false,
+        });
+        model
+    }
+
+    #[test]
+    fn escape_cancels_the_drag_session() {
+        let model = dragging_model();
+        let mut harness = Harness::new_ui_state(
+            move |ui, actions: &mut Vec<Action>| {
+                show(&model, &ThumbnailLoader::default(), ui, actions);
+            },
+            Vec::new(),
+        );
+        harness.drag_at(egui::pos2(1.0, 1.0));
+        harness.key_press(egui::Key::Escape);
+        harness.run();
+
+        assert!(harness.state().contains(&Action::CancelDrag));
+    }
+
+    #[test]
+    fn capture_lost_cancels_the_drag_session() {
+        let model = dragging_model();
+        let mut harness = Harness::new_ui_state(
+            move |ui, actions: &mut Vec<Action>| {
+                show(&model, &ThumbnailLoader::default(), ui, actions);
+            },
+            Vec::new(),
+        );
+        harness.run();
+
+        assert!(harness.state().contains(&Action::CancelDrag));
+    }
+
+    #[test]
     fn viewer_renders_only_the_current_preview_request() {
         let mut model = crate::demo::loaded_library();
         let query = model.library_query.as_ref().unwrap();
@@ -946,8 +1420,14 @@ mod tests {
             });
         harness.run();
 
+        let selection_actions = harness
+            .state()
+            .iter()
+            .filter(|action| matches!(action, Action::SelectImage { .. }))
+            .cloned()
+            .collect::<Vec<_>>();
         assert_eq!(
-            harness.state().as_slice(),
+            selection_actions,
             [
                 Action::SelectImage {
                     path: "C:/fixture/image2.png".into(),
@@ -966,6 +1446,24 @@ mod tests {
                     gesture: SelectionGesture::Range { additive: true },
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn context_scope_keeps_selected_group_and_replaces_unselected_target() {
+        let mut model = crate::demo::large_library(3);
+        model.selection.ordered_paths = vec![
+            "C:/fixture/image0.png".into(),
+            "C:/fixture/image1.png".into(),
+        ];
+
+        assert_eq!(
+            context_action_scope(&model, "C:/fixture/image0.png"),
+            model.selection.ordered_paths
+        );
+        assert_eq!(
+            context_action_scope(&model, "C:/fixture/image2.png"),
+            vec![std::path::PathBuf::from("C:/fixture/image2.png")]
         );
     }
 }

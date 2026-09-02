@@ -4,8 +4,8 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use piclens_domain::{
-    FileOperationBatchResult, FolderHistory, ImageSequenceSnapshot, ListItem, ListQuery, Point,
-    SortState, ZoomState, DEFAULT_THUMBNAIL_SIZE,
+    DropTargetBatchRenamePlan, FileOperationBatchResult, FolderHistory, ImageSequenceSnapshot,
+    ListItem, ListQuery, Point, SortState, ZoomState, DEFAULT_THUMBNAIL_SIZE,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -41,6 +41,29 @@ pub enum Action {
     PanViewer(Point),
     ResetViewerZoom,
     RevealViewer,
+    RevealPath(PathBuf),
+    OpenRename,
+    SetRenameBasename(String),
+    ConfirmRename,
+    RequestTrash,
+    ConfirmTrash,
+    RequestConversion(ConversionKind),
+    ConfirmConversion,
+    RequestCleanup,
+    ConfirmCleanup,
+    StartDrag {
+        source: PathBuf,
+        pointer: Point,
+    },
+    UpdateDrag {
+        pointer: Point,
+        target: Option<PathBuf>,
+    },
+    FinishDrag,
+    CancelDrag,
+    ConfirmDropRename,
+    CancelFileOperation,
+    CloseDialog,
     SelectImage {
         path: PathBuf,
         gesture: SelectionGesture,
@@ -53,6 +76,12 @@ pub enum SelectionGesture {
     Replace,
     Toggle,
     Range { additive: bool },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConversionKind {
+    Jpg,
+    Webp,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -77,10 +106,39 @@ pub struct SelectionState {
     pub range_anchor: Option<PathBuf>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct DragSession {
+    pub sources: Vec<PathBuf>,
+    pub origin: Point,
+    pub pointer: Point,
+    pub target: Option<PathBuf>,
+    pub dragging: bool,
+    pub replaces_selection: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DialogState {
-    Confirmation { title: String, message: String },
-    Rename { source: PathBuf, basename: String },
+    Rename {
+        source: PathBuf,
+        basename: String,
+    },
+    TrashConfirmation {
+        paths: Vec<PathBuf>,
+    },
+    ConversionConfirmation {
+        kind: ConversionKind,
+        paths: Vec<PathBuf>,
+    },
+    CleanupConfirmation {
+        paths: Vec<PathBuf>,
+    },
+    DropRenameConfirmation {
+        plan: DropTargetBatchRenamePlan,
+    },
+    Progress {
+        title: String,
+        message: String,
+    },
     BatchResult(FileOperationBatchResult),
 }
 
@@ -108,6 +166,7 @@ pub struct AppModel {
     pub search: String,
     pub thumbnail_size: i32,
     pub selection: SelectionState,
+    pub drag: Option<DragSession>,
     pub dialog: Option<DialogState>,
     pub viewer: Option<ViewerState>,
     pub backend: Loadable<()>,
@@ -132,6 +191,7 @@ impl AppModel {
             search: String::new(),
             thumbnail_size: DEFAULT_THUMBNAIL_SIZE,
             selection: SelectionState::default(),
+            drag: None,
             dialog: None,
             viewer: None,
             backend: Loadable::Loading,
@@ -156,6 +216,7 @@ impl AppModel {
             search: String::new(),
             thumbnail_size: DEFAULT_THUMBNAIL_SIZE,
             selection: SelectionState::default(),
+            drag: None,
             dialog: None,
             viewer: None,
             backend: Loadable::Failed(message.into()),

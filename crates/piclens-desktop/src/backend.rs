@@ -7,10 +7,16 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-use piclens_domain::{AppSettingsPatch, ListItem, ListQuery, SortState};
+use piclens_domain::{
+    AppSettingsPatch, DropTargetBatchRenamePlan, FileOperationBatchResult, FileOperationStatus,
+    ListItem, ListQuery, SortState,
+};
 use piclens_infra::{
-    ensure_thumbnail_with_timeout, prune_thumbnail_cache_if_needed, scan_child_folders_cancellable,
-    scan_folder_cancellable, CancellationToken, JsonSettingsStore, ScanError,
+    apply_drop_rename_cancellable, cleanup_same_basename_cancellable, convert_to_jpg_cancellable,
+    convert_to_lossless_webp_cancellable, ensure_thumbnail_with_timeout,
+    prune_thumbnail_cache_if_needed, rename_image_cancellable, scan_child_folders_cancellable,
+    scan_folder_cancellable, trash_paths_cancellable, CancellationToken, JsonSettingsStore,
+    ScanError,
 };
 
 use crate::images::{
@@ -35,6 +41,29 @@ const THUMBNAIL_CACHE_PRUNE_INTERVAL: Duration = Duration::from_secs(5);
 pub struct WorkIdentity {
     pub generation: u64,
     pub request_id: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FileOperation {
+    Rename {
+        source: String,
+        new_file_name: String,
+    },
+    Trash {
+        paths: Vec<String>,
+    },
+    ConvertJpg {
+        paths: Vec<String>,
+    },
+    ConvertWebp {
+        paths: Vec<String>,
+    },
+    CleanupSameBasename {
+        paths: Vec<String>,
+    },
+    DropRename {
+        plan: DropTargetBatchRenamePlan,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -66,6 +95,13 @@ pub enum Command {
     },
     Reveal {
         path: String,
+    },
+    StartFileOperation {
+        identity: WorkIdentity,
+        operation: FileOperation,
+    },
+    CancelFileOperation {
+        identity: WorkIdentity,
     },
     Shutdown,
 }
@@ -99,10 +135,20 @@ pub enum Event {
     RevealCompleted {
         result: Result<(), String>,
     },
+    FileOperationCompleted {
+        identity: WorkIdentity,
+        result: Result<FileOperationBatchResult, String>,
+    },
     SmokeDeadlineElapsed,
 }
 
 struct ActiveScan {
+    cancellation: CancellationToken,
+    thread: JoinHandle<()>,
+}
+
+struct ActiveFileOperation {
+    identity: WorkIdentity,
     cancellation: CancellationToken,
     thread: JoinHandle<()>,
 }
@@ -623,6 +669,93 @@ fn reap_finished_scan(active_scan: &mut Option<ActiveScan>) {
     }
 }
 
+fn stop_active_file_operation(active: &mut Option<ActiveFileOperation>) {
+    let Some(operation) = active.take() else {
+        return;
+    };
+    operation.cancellation.cancel();
+    if operation.thread.join().is_err() {
+        piclens_infra::warn("egui file operation worker panicked during shutdown");
+    }
+}
+
+fn reap_finished_file_operation(active: &mut Option<ActiveFileOperation>) {
+    if active
+        .as_ref()
+        .is_some_and(|operation| operation.thread.is_finished())
+    {
+        stop_active_file_operation(active);
+    }
+}
+
+fn start_file_operation(
+    identity: WorkIdentity,
+    operation: FileOperation,
+    events: SyncSender<Event>,
+    ctx: egui::Context,
+) -> Result<ActiveFileOperation, String> {
+    let cancellation = CancellationToken::new();
+    let worker_cancellation = cancellation.clone();
+    let thread = thread::Builder::new()
+        .name("piclens-file-operation".into())
+        .spawn(move || {
+            let result = match operation {
+                FileOperation::Rename {
+                    source,
+                    new_file_name,
+                } => FileOperationBatchResult {
+                    items: vec![rename_image_cancellable(
+                        &source,
+                        &new_file_name,
+                        &worker_cancellation,
+                    )],
+                },
+                FileOperation::Trash { paths } => {
+                    trash_paths_cancellable(&paths, &worker_cancellation)
+                }
+                FileOperation::ConvertJpg { paths } => {
+                    convert_to_jpg_cancellable(&paths, &worker_cancellation)
+                }
+                FileOperation::ConvertWebp { paths } => {
+                    convert_to_lossless_webp_cancellable(&paths, &worker_cancellation)
+                }
+                FileOperation::CleanupSameBasename { paths } => {
+                    cleanup_same_basename_cancellable(&paths, &worker_cancellation)
+                }
+                FileOperation::DropRename { plan } => {
+                    apply_drop_rename_cancellable(&plan, &worker_cancellation)
+                }
+            };
+            for item in result
+                .items
+                .iter()
+                .filter(|item| item.status == FileOperationStatus::Failed)
+            {
+                piclens_infra::warn(format!(
+                    "egui file operation failed; source={}; target={}; reason={}; error={}",
+                    item.path,
+                    item.target_path.as_deref().unwrap_or(""),
+                    item.reason.as_deref().unwrap_or("unknown"),
+                    item.message.as_deref().unwrap_or("")
+                ));
+            }
+            let _ = send_event(
+                &events,
+                &ctx,
+                Event::FileOperationCompleted {
+                    identity,
+                    result: Ok(result),
+                },
+            );
+        })
+        .map_err(|error| format!("無法啟動檔案操作：{error}"))?;
+    Ok(ActiveFileOperation {
+        identity,
+        cancellation,
+        thread,
+    })
+}
+
 fn start_library_scan(
     identity: WorkIdentity,
     query: ListQuery,
@@ -718,12 +851,14 @@ fn coordinator_loop(
     }
 
     let mut active_scan = None;
+    let mut active_file_operation = None;
     let mut tree_worker = TreeWorker::spawn(events.clone(), ctx.clone());
     let mut thumbnail_pool = ThumbnailPool::spawn(events.clone(), ctx.clone());
     let mut smoke_state =
         smoke_after.map(|duration| SmokeState::WaitingForDeadline(Instant::now() + duration));
     loop {
         reap_finished_scan(&mut active_scan);
+        reap_finished_file_operation(&mut active_file_operation);
         let command = match smoke_state {
             Some(SmokeState::WaitingForDeadline(deadline))
             | Some(SmokeState::WaitingForCloseFallback(deadline)) => {
@@ -834,17 +969,52 @@ fn coordinator_loop(
                 let result = piclens_infra::reveal_in_file_manager(&path)
                     .map_err(|error| format!("無法在檔案總管中顯示圖片：{error}"));
                 if let Err(error) = &result {
-                    piclens_infra::warn(format!(
-                        "egui viewer reveal failed; path={path}; error={error}"
-                    ));
+                    piclens_infra::warn(format!("egui reveal failed; path={path}; error={error}"));
                 }
                 if !send_event(&events, &ctx, Event::RevealCompleted { result }) {
                     break;
                 }
             }
+            Command::StartFileOperation {
+                identity,
+                operation,
+            } => {
+                stop_active_file_operation(&mut active_file_operation);
+                match start_file_operation(identity, operation, events.clone(), ctx.clone()) {
+                    Ok(operation) => active_file_operation = Some(operation),
+                    Err(message) => {
+                        piclens_infra::warn(format!(
+                            "egui file operation could not start; error={message}"
+                        ));
+                        if !send_event(
+                            &events,
+                            &ctx,
+                            Event::FileOperationCompleted {
+                                identity,
+                                result: Err(message),
+                            },
+                        ) {
+                            break;
+                        }
+                    }
+                }
+            }
+            Command::CancelFileOperation { identity } => {
+                if active_file_operation
+                    .as_ref()
+                    .is_some_and(|operation| operation.identity == identity)
+                {
+                    active_file_operation
+                        .as_ref()
+                        .unwrap()
+                        .cancellation
+                        .cancel();
+                }
+            }
             Command::Shutdown => break,
         }
     }
+    stop_active_file_operation(&mut active_file_operation);
     stop_active_scan(&mut active_scan);
     tree_worker.shutdown();
     thumbnail_pool.shutdown();
@@ -854,6 +1024,160 @@ fn coordinator_loop(
 mod tests {
     use super::*;
     use piclens_domain::{AppSettings, SortDirection};
+
+    #[test]
+    fn rename_runs_behind_the_file_operation_command_boundary() {
+        let root = std::env::temp_dir().join(format!(
+            "piclens-egui-rename-command-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let source = root.join("old.png");
+        let target = root.join("new.png");
+        std::fs::write(&source, b"image").unwrap();
+        let backend = Backend::spawn(egui::Context::default(), None);
+        let identity = WorkIdentity {
+            generation: 1,
+            request_id: 9,
+        };
+
+        backend
+            .send(Command::StartFileOperation {
+                identity,
+                operation: FileOperation::Rename {
+                    source: source.to_string_lossy().into_owned(),
+                    new_file_name: "new.png".into(),
+                },
+            })
+            .unwrap();
+        let event = backend.recv_timeout(Duration::from_secs(2)).unwrap();
+        let Event::FileOperationCompleted {
+            identity: completed,
+            result: Ok(result),
+        } = event
+        else {
+            panic!("expected successful file operation event")
+        };
+        assert_eq!(completed, identity);
+        assert_eq!(result.succeeded(), 1);
+        assert!(!source.exists());
+        assert!(target.exists());
+
+        drop(backend);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn conversion_preserves_source_and_skips_an_existing_target() {
+        let root = std::env::temp_dir().join(format!(
+            "piclens-egui-convert-command-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let source = root.join("image.png");
+        let target = root.join("image.jpg");
+        image::RgbaImage::from_pixel(2, 2, image::Rgba([20, 40, 60, 255]))
+            .save(&source)
+            .unwrap();
+        let backend = Backend::spawn(egui::Context::default(), None);
+
+        let run = |request_id| {
+            let identity = WorkIdentity {
+                generation: 1,
+                request_id,
+            };
+            backend
+                .send(Command::StartFileOperation {
+                    identity,
+                    operation: FileOperation::ConvertJpg {
+                        paths: vec![source.to_string_lossy().into_owned()],
+                    },
+                })
+                .unwrap();
+            let Event::FileOperationCompleted {
+                identity: completed,
+                result: Ok(result),
+            } = backend.recv_timeout(Duration::from_secs(2)).unwrap()
+            else {
+                panic!("expected successful file operation event")
+            };
+            assert_eq!(completed, identity);
+            result
+        };
+
+        let first = run(10);
+        assert_eq!(first.succeeded(), 1);
+        assert!(source.exists());
+        assert!(target.exists());
+        let target_bytes = std::fs::read(&target).unwrap();
+
+        let second = run(11);
+        assert_eq!(second.skipped(), 1);
+        assert_eq!(second.items[0].reason.as_deref(), Some("target_exists"));
+        assert_eq!(std::fs::read(&target).unwrap(), target_bytes);
+
+        drop(backend);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn conversion_continues_after_a_failed_item() {
+        let root = std::env::temp_dir().join(format!(
+            "piclens-egui-convert-partial-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let invalid = root.join("invalid.png");
+        let valid = root.join("valid.png");
+        std::fs::write(&invalid, b"not an image").unwrap();
+        let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../assets/Square44x44Logo.targetsize-48_altform-lightunplated.png");
+        std::fs::copy(fixture, &valid).unwrap();
+        let backend = Backend::spawn(egui::Context::default(), None);
+        let identity = WorkIdentity {
+            generation: 1,
+            request_id: 12,
+        };
+
+        backend
+            .send(Command::StartFileOperation {
+                identity,
+                operation: FileOperation::ConvertJpg {
+                    paths: vec![
+                        invalid.to_string_lossy().into_owned(),
+                        valid.to_string_lossy().into_owned(),
+                    ],
+                },
+            })
+            .unwrap();
+        let Event::FileOperationCompleted {
+            identity: completed,
+            result: Ok(result),
+        } = backend.recv_timeout(Duration::from_secs(2)).unwrap()
+        else {
+            panic!("expected successful batch event")
+        };
+
+        assert_eq!(completed, identity);
+        assert_eq!(result.failed(), 1);
+        assert_eq!(result.succeeded(), 1);
+        assert!(!root.join("invalid.jpg").exists());
+        assert!(root.join("valid.jpg").exists());
+        drop(backend);
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     fn identity(request_id: u64) -> WorkIdentity {
         WorkIdentity {

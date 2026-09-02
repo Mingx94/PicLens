@@ -35,10 +35,32 @@ Metrics schema 2 defines:
 - `viewerSharpPaintMaxMilliseconds`, `viewerSharpPaintCount`, and `viewerSharpTargetMisses`: maximum, selection count, and count over the approved `viewerSharpTargetMilliseconds` value of 500. Repaints of one selection do not increment these counts. A missing paint is not a pass.
 - `viewerOpenMilliseconds`: process metrics startup to viewer open, unchanged.
 
+遷移中的 `piclens-desktop` 會在相同欄位之外寫入 `frontEnd: "eframe-egui-wgpu"`。其 sharp-paint 時間止於 egui painter 接受 texture 的該次 frame；它和 GPUI 指標一樣不量測 GPU completion 或 OS compositor presentation。
+
 The viewer has a 500ms target for its existing sharp preview quality. Report cold and warm cache results separately with the hardware and fixture. The target is not a universal guarantee for arbitrary files or storage. The app records misses but does not fail its exit code; `thresholdGateEnabled` remains false. Gallery latency, scrolling, and memory still have no approved numerical gate. Historical Qt measurements under `docs/archive/performance/` do not prove this checkout.
 
 ## Continuous viewer navigation
 
 Single-image launches do not validate repeated navigation. Add `--performance-viewer` with `--viewer`, `--metrics`, and a visible window to step forward and backward in the same viewer. The workload holds each selection for 650ms, takes up to 64 steps in each direction, and checks the initial and final selections too. It uses the viewer controls' navigation method; it does not inject OS keyboard or mouse input.
 
+egui migration frontend 使用相同 workload：
+
+```powershell
+cargo build -p piclens-desktop --release --locked
+target\release\piclens-desktop.exe --folder <representative-folder> --viewer <image-in-folder> --performance-viewer --metrics <output.json> --smoke-ms 35000 --data-root <isolated-profile>
+```
+
 For a 23-image library, allow at least 35 seconds (`--smoke-ms 35000`) and require the completion log, 47 `viewerNavigationCheckedSelections`, 47 `viewerSharpPaintCount`, zero `viewerNavigationUnpaintedSelections`, and zero `viewerSharpTargetMisses`. A selection still showing its placeholder is a failure even if other images painted quickly. `viewerSharpPaintSamplesMilliseconds` retains the first 256 timings for distributions. Run Debug and Release separately if both are used; use isolated cold and warm profiles and verify source hashes.
+
+## egui Viewer representative evidence — 2026-09-02
+
+The Windows Release run used the user-supplied `D:\____iiirs` library at base commit `b53db313` plus the current working-tree metrics changes. The visible 1280×800 window used display scale 1.0. The library contained 207 images and 184.17 MiB: 129 JPG, 53 WebP, and 25 PNG. Its sorted file-name, byte-length, and file-content manifest SHA-256 was `bdf3b5f003273c1dfa41724fac585b41308b5822e8d10d0f0d73d084696eaa2c`.
+
+The host used Windows 11 Home 10.0.26200 build 26200, an Intel Core i5-12400 with 6 cores and 12 logical processors, and an NVIDIA GeForce RTX 3060 Ti with driver 32.0.16.1656. Source images were on a 1 TB Crucial MX500 SATA SSD. The isolated PicLens profile and preview cache were on the 50 GiB file-backed virtual F drive.
+
+| Release run | Library ready | Viewer open | First sharp paint | Maximum sharp paint | Painted / checked | Unpainted | Over 500ms |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Cold PicLens profile | 425ms | 425ms | 146ms | 146ms | 129 / 129 | 0 | 0 |
+| Warm PicLens profile | 36ms | 36ms | 12ms | 12ms | 129 / 129 | 0 | 0 |
+
+Both runs completed the same Viewer workload: up to 64 steps forward and backward plus the initial and final selections. The cold run used a fresh PicLens profile; it did not flush the Windows filesystem cache. The warm run reused that profile. Both app logs contained the workload completion event and no unpainted-selection warning. `thresholdGateEnabled` remained false.

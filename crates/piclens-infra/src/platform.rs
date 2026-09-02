@@ -1,8 +1,18 @@
 use std::path::Path;
 use std::process::Command;
 
+#[cfg(any(target_os = "linux", test))]
+use std::process::{Child, ExitStatus};
+#[cfg(any(target_os = "linux", test))]
+use std::time::{Duration, Instant};
+
 use piclens_domain::has_link_or_junction_component;
 use thiserror::Error;
+
+use crate::CancellationToken;
+
+#[cfg(target_os = "linux")]
+const HELPER_TIMEOUT: Duration = Duration::from_secs(15);
 
 #[derive(Debug, Error)]
 pub enum PlatformError {
@@ -11,6 +21,15 @@ pub enum PlatformError {
 }
 
 pub fn move_to_trash(path: &str) -> Result<(), PlatformError> {
+    move_to_trash_cancellable(path, &CancellationToken::new())
+}
+
+pub fn move_to_trash_cancellable(
+    path: &str,
+    cancellation: &CancellationToken,
+) -> Result<(), PlatformError> {
+    #[cfg(not(target_os = "linux"))]
+    let _ = cancellation;
     if has_link_or_junction_component(path) {
         return Err(PlatformError::Message(
             "Trash path cannot contain a symbolic link or junction.".into(),
@@ -27,7 +46,7 @@ pub fn move_to_trash(path: &str) -> Result<(), PlatformError> {
     }
     #[cfg(target_os = "linux")]
     {
-        trash_linux(path)
+        trash_linux(path, cancellation)
     }
     #[cfg(not(any(windows, target_os = "linux")))]
     {
@@ -75,18 +94,53 @@ fn trash_windows(path: &Path) -> Result<(), PlatformError> {
 }
 
 #[cfg(target_os = "linux")]
-fn trash_linux(path: &Path) -> Result<(), PlatformError> {
-    let output = Command::new("gio")
+fn trash_linux(path: &Path, cancellation: &CancellationToken) -> Result<(), PlatformError> {
+    let child = Command::new("gio")
         .args(["trash", &path.to_string_lossy()])
-        .output()
+        .spawn()
         .map_err(|e| PlatformError::Message(format!("gio trash failed: {e}")))?;
-    if !output.status.success() {
+    let status = wait_for_helper(child, HELPER_TIMEOUT, cancellation)?;
+    if !status.success() {
         return Err(PlatformError::Message(format!(
-            "gio trash failed: {}",
-            String::from_utf8_lossy(&output.stdout)
+            "gio trash failed with status {status}"
         )));
     }
     Ok(())
+}
+
+#[cfg(any(target_os = "linux", test))]
+fn wait_for_helper(
+    mut child: Child,
+    timeout: Duration,
+    cancellation: &CancellationToken,
+) -> Result<ExitStatus, PlatformError> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        if cancellation.is_canceled() {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(PlatformError::Message("helper canceled".into()));
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => return Ok(status),
+            Ok(None) if Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Ok(None) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(PlatformError::Message(format!(
+                    "helper timed out after {} ms",
+                    timeout.as_millis()
+                )));
+            }
+            Err(error) => {
+                return Err(PlatformError::Message(format!(
+                    "helper wait failed: {error}"
+                )));
+            }
+        }
+    }
 }
 
 pub fn reveal_in_file_manager(path: &str) -> Result<(), PlatformError> {
@@ -130,5 +184,41 @@ pub fn reveal_in_file_manager(path: &str) -> Result<(), PlatformError> {
         Err(PlatformError::Message(
             "Reveal is only supported on Windows and Linux.".into(),
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(windows)]
+    fn stalled_child() -> Child {
+        Command::new("powershell")
+            .args(["-NoProfile", "-Command", "Start-Sleep -Seconds 5"])
+            .spawn()
+            .unwrap()
+    }
+
+    #[cfg(unix)]
+    fn stalled_child() -> Child {
+        Command::new("sh").args(["-c", "sleep 5"]).spawn().unwrap()
+    }
+
+    #[test]
+    fn stalled_helper_is_killed_at_timeout() {
+        let result = wait_for_helper(
+            stalled_child(),
+            Duration::from_millis(50),
+            &CancellationToken::new(),
+        );
+        assert!(result.unwrap_err().to_string().contains("timed out"));
+    }
+
+    #[test]
+    fn canceled_helper_is_killed() {
+        let cancellation = CancellationToken::new();
+        cancellation.cancel();
+        let result = wait_for_helper(stalled_child(), Duration::from_secs(1), &cancellation);
+        assert!(result.unwrap_err().to_string().contains("canceled"));
     }
 }

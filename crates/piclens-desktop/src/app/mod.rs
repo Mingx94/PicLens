@@ -1,18 +1,26 @@
 //! App state, frame lifecycle, event handling, and action reducer.
 
 use std::collections::{HashMap, VecDeque};
+use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 use piclens_domain::{
     apply_tree_children, clamp_zoom, normalize_thumbnail_size, pan_offset, path_equals,
-    replace_tree_for_picker, reset_zoom_state, sort_items, toggle_expand, zoom_at_point,
-    ExpandAction, ListQuery, Point, SortState,
+    replace_tree_for_picker, reset_zoom_state, sort_items, toggle_expand, validate_image_file_name,
+    zoom_at_point, ExpandAction, ListItem, ListQuery, Point, SortState,
 };
+use piclens_infra::plan_drop_rename;
 
-use crate::backend::{Backend, Command, Event, WorkIdentity};
+use crate::backend::{Backend, Command, Event, FileOperation, WorkIdentity};
+use crate::diagnostics::RuntimeMetrics;
 use crate::images::ThumbnailLoader;
 use crate::model::{
-    Action, AppModel, Loadable, Page, SelectionGesture, SelectionState, ViewerState,
+    Action, AppModel, ConversionKind, DialogState, DragSession, Loadable, Page, SelectionGesture,
+    SelectionState, ViewerState,
 };
+
+const CONVERSION_CONFIRMATION_THRESHOLD: usize = 50;
+const DRAG_THRESHOLD: f64 = 8.0;
 use crate::{theme, ui, LaunchOptions};
 
 struct Reducer {
@@ -25,6 +33,7 @@ struct Reducer {
     pending_probe: Option<WorkIdentity>,
     pending_library: Option<WorkIdentity>,
     pending_tree: HashMap<String, WorkIdentity>,
+    pending_file_operation: Option<WorkIdentity>,
     include_subfolders: bool,
     sort: SortState,
     close_requested: bool,
@@ -42,6 +51,7 @@ impl Reducer {
             pending_probe: None,
             pending_library: None,
             pending_tree: HashMap::new(),
+            pending_file_operation: None,
             include_subfolders: false,
             sort: SortState::default(),
             close_requested: false,
@@ -82,6 +92,7 @@ impl Reducer {
                 Action::SetSearch(search) => {
                     self.model.search = search;
                     self.model.selection = SelectionState::default();
+                    self.model.drag = None;
                     self.rebuild_visible_items();
                 }
                 Action::SetSort(sort) => self.set_sort(sort),
@@ -99,8 +110,28 @@ impl Reducer {
                 Action::PanViewer(delta) => self.pan_viewer(delta),
                 Action::ResetViewerZoom => self.reset_viewer_zoom(),
                 Action::RevealViewer => self.reveal_viewer(),
+                Action::RevealPath(path) => self.reveal_path(path),
+                Action::OpenRename => self.open_rename(),
+                Action::SetRenameBasename(basename) => self.set_rename_basename(basename),
+                Action::ConfirmRename => self.confirm_rename(),
+                Action::RequestTrash => self.request_trash(),
+                Action::ConfirmTrash => self.confirm_trash(),
+                Action::RequestConversion(kind) => self.request_conversion(kind),
+                Action::ConfirmConversion => self.confirm_conversion(),
+                Action::RequestCleanup => self.request_cleanup(),
+                Action::ConfirmCleanup => self.confirm_cleanup(),
+                Action::StartDrag { source, pointer } => self.start_drag(source, pointer),
+                Action::UpdateDrag { pointer, target } => self.update_drag(pointer, target),
+                Action::FinishDrag => self.finish_drag(),
+                Action::CancelDrag => self.model.drag = None,
+                Action::ConfirmDropRename => self.confirm_drop_rename(),
+                Action::CancelFileOperation => self.cancel_file_operation(),
+                Action::CloseDialog => self.model.dialog = None,
                 Action::SelectImage { path, gesture } => self.select_image(&path, gesture),
-                Action::ClearSelection => self.model.selection = SelectionState::default(),
+                Action::ClearSelection => {
+                    self.model.selection = SelectionState::default();
+                    self.model.drag = None;
+                }
             }
         }
         applied
@@ -132,6 +163,7 @@ impl Reducer {
         self.model.library = Loadable::Loading;
         self.model.visible_items.clear();
         self.model.selection = SelectionState::default();
+        self.model.drag = None;
         self.commands
             .push_back(Command::LoadLibrary { identity, query });
     }
@@ -239,6 +271,7 @@ impl Reducer {
             query.sort = sort;
         }
         self.model.selection = SelectionState::default();
+        self.model.drag = None;
         self.rebuild_visible_items();
         self.persist_library_settings();
     }
@@ -277,6 +310,7 @@ impl Reducer {
             preview: Loadable::Idle,
             zoom: reset_zoom_state(),
         });
+        self.model.drag = None;
         self.model.page = Page::Viewer;
     }
 
@@ -342,9 +376,289 @@ impl Reducer {
         else {
             return;
         };
+        self.reveal_path(current.path.clone().into());
+    }
+
+    fn reveal_path(&mut self, path: PathBuf) {
         self.commands.push_back(Command::Reveal {
-            path: current.path.clone(),
+            path: path.to_string_lossy().into_owned(),
         });
+    }
+
+    fn open_rename(&mut self) {
+        let [source] = self.model.selection.ordered_paths.as_slice() else {
+            self.model.notice = Some("重新命名僅適用單張選取圖片。".into());
+            return;
+        };
+        let basename = source
+            .file_stem()
+            .and_then(|name| name.to_str())
+            .unwrap_or_default()
+            .to_owned();
+        self.model.dialog = Some(DialogState::Rename {
+            source: source.clone(),
+            basename,
+        });
+    }
+
+    fn set_rename_basename(&mut self, basename: String) {
+        if let Some(DialogState::Rename {
+            basename: current, ..
+        }) = &mut self.model.dialog
+        {
+            *current = basename;
+        }
+    }
+
+    fn confirm_rename(&mut self) {
+        let Some(DialogState::Rename { source, basename }) = &self.model.dialog else {
+            return;
+        };
+        let Some(extension) = source.extension().and_then(|extension| extension.to_str()) else {
+            self.model.notice = Some("來源圖片沒有可保留的副檔名。".into());
+            return;
+        };
+        let new_file_name = format!("{}.{}", basename.trim(), extension);
+        if !validate_image_file_name(&new_file_name).is_valid {
+            self.model.notice = Some("檔名不可為空白，也不可包含路徑或保留字元。".into());
+            return;
+        }
+        self.start_file_operation(
+            "重新命名",
+            format!("正在重新命名 {}…", source.display()),
+            FileOperation::Rename {
+                source: source.to_string_lossy().into_owned(),
+                new_file_name,
+            },
+        );
+    }
+
+    fn request_trash(&mut self) {
+        if self.model.selection.ordered_paths.is_empty() {
+            self.model.notice = Some("請先選取圖片。".into());
+            return;
+        }
+        self.model.dialog = Some(DialogState::TrashConfirmation {
+            paths: self.model.selection.ordered_paths.clone(),
+        });
+    }
+
+    fn confirm_trash(&mut self) {
+        let Some(DialogState::TrashConfirmation { paths }) = &self.model.dialog else {
+            return;
+        };
+        self.start_file_operation(
+            "移至回收筒",
+            format!("正在處理 {} 張圖片…", paths.len()),
+            FileOperation::Trash {
+                paths: paths
+                    .iter()
+                    .map(|path| path.to_string_lossy().into_owned())
+                    .collect(),
+            },
+        );
+    }
+
+    fn visible_image_paths(&self) -> Vec<PathBuf> {
+        self.model
+            .visible_items
+            .iter()
+            .filter_map(ListItem::as_image)
+            .map(|image| PathBuf::from(&image.path))
+            .collect()
+    }
+
+    fn request_conversion(&mut self, kind: ConversionKind) {
+        let paths = self.visible_image_paths();
+        if paths.is_empty() {
+            self.model.notice = Some(format!(
+                "{}：目前結果沒有可處理的圖片。",
+                conversion_label(kind)
+            ));
+            return;
+        }
+        if paths.len() >= CONVERSION_CONFIRMATION_THRESHOLD {
+            self.model.dialog = Some(DialogState::ConversionConfirmation { kind, paths });
+        } else {
+            self.start_conversion(kind, paths);
+        }
+    }
+
+    fn confirm_conversion(&mut self) {
+        let Some(DialogState::ConversionConfirmation { kind, paths }) = &self.model.dialog else {
+            return;
+        };
+        self.start_conversion(*kind, paths.clone());
+    }
+
+    fn start_conversion(&mut self, kind: ConversionKind, paths: Vec<PathBuf>) {
+        let count = paths.len();
+        let paths = paths
+            .iter()
+            .map(|path| path.to_string_lossy().into_owned())
+            .collect();
+        let operation = match kind {
+            ConversionKind::Jpg => FileOperation::ConvertJpg { paths },
+            ConversionKind::Webp => FileOperation::ConvertWebp { paths },
+        };
+        self.start_file_operation(
+            conversion_label(kind),
+            format!("正在處理 {count} 張圖片…"),
+            operation,
+        );
+    }
+
+    fn request_cleanup(&mut self) {
+        let paths = self.visible_image_paths();
+        if paths.is_empty() {
+            self.model.notice = Some("同名格式清除：目前結果沒有可處理的圖片。".into());
+            return;
+        }
+        self.model.dialog = Some(DialogState::CleanupConfirmation { paths });
+    }
+
+    fn confirm_cleanup(&mut self) {
+        let Some(DialogState::CleanupConfirmation { paths }) = &self.model.dialog else {
+            return;
+        };
+        self.start_file_operation(
+            "清除同名格式",
+            format!("正在檢查 {} 張圖片…", paths.len()),
+            FileOperation::CleanupSameBasename {
+                paths: paths
+                    .iter()
+                    .map(|path| path.to_string_lossy().into_owned())
+                    .collect(),
+            },
+        );
+    }
+
+    fn start_drag(&mut self, source: PathBuf, pointer: Point) {
+        if self.pending_file_operation.is_some() || self.model.dialog.is_some() {
+            return;
+        }
+        let source_is_selected = self
+            .model
+            .selection
+            .ordered_paths
+            .iter()
+            .any(|path| paths_equal(path, &source));
+        let sources = if source_is_selected {
+            self.model.selection.ordered_paths.clone()
+        } else {
+            vec![source]
+        };
+        self.model.drag = Some(DragSession {
+            sources,
+            origin: pointer,
+            pointer,
+            target: None,
+            dragging: false,
+            replaces_selection: !source_is_selected,
+        });
+    }
+
+    fn update_drag(&mut self, pointer: Point, target: Option<PathBuf>) {
+        let visible = self.visible_image_paths();
+        let replacement = {
+            let Some(drag) = &mut self.model.drag else {
+                return;
+            };
+            if !drag
+                .sources
+                .iter()
+                .all(|source| visible.iter().any(|path| paths_equal(path, source)))
+            {
+                self.model.drag = None;
+                return;
+            }
+            drag.pointer = pointer;
+            let dx = pointer.x - drag.origin.x;
+            let dy = pointer.y - drag.origin.y;
+            let was_dragging = drag.dragging;
+            drag.dragging |= dx * dx + dy * dy >= DRAG_THRESHOLD * DRAG_THRESHOLD;
+            drag.target = drag.dragging.then_some(target).flatten().filter(|target| {
+                !drag
+                    .sources
+                    .iter()
+                    .any(|source| paths_equal(source, target))
+            });
+            (!was_dragging && drag.dragging && drag.replaces_selection)
+                .then(|| drag.sources.clone())
+        };
+        if let Some(sources) = replacement {
+            self.model.selection.ordered_paths = sources.clone();
+            self.model.selection.range_anchor = sources.first().cloned();
+        }
+    }
+
+    fn finish_drag(&mut self) {
+        let Some(drag) = self.model.drag.take() else {
+            return;
+        };
+        if !drag.dragging {
+            return;
+        }
+        let Some(target) = drag.target else {
+            return;
+        };
+        let sources = drag
+            .sources
+            .iter()
+            .map(|path| path.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        let plan = plan_drop_rename(&sources, target.to_string_lossy().as_ref());
+        if plan.items.is_empty() {
+            self.model.notice = Some("拖放來源中沒有可重新命名的圖片。".into());
+            return;
+        }
+        self.model.dialog = Some(DialogState::DropRenameConfirmation { plan });
+    }
+
+    fn confirm_drop_rename(&mut self) {
+        let Some(DialogState::DropRenameConfirmation { plan }) = &self.model.dialog else {
+            return;
+        };
+        let plan = plan.clone();
+        self.start_file_operation(
+            "依目標重新命名",
+            format!("正在處理 {} 張圖片…", plan.total),
+            FileOperation::DropRename { plan },
+        );
+    }
+
+    fn start_file_operation(&mut self, title: &str, message: String, operation: FileOperation) {
+        if self.pending_file_operation.is_some() {
+            self.model.notice = Some("檔案操作仍在進行中。".into());
+            return;
+        }
+        let identity = WorkIdentity {
+            generation: self.generation,
+            request_id: self.next_request_id,
+        };
+        self.next_request_id = self.next_request_id.wrapping_add(1).max(1);
+        self.pending_file_operation = Some(identity);
+        self.model.drag = None;
+        self.model.dialog = Some(DialogState::Progress {
+            title: title.into(),
+            message,
+        });
+        self.commands.push_back(Command::StartFileOperation {
+            identity,
+            operation,
+        });
+    }
+
+    fn cancel_file_operation(&mut self) {
+        let Some(identity) = self.pending_file_operation else {
+            return;
+        };
+        self.model.dialog = Some(DialogState::Progress {
+            title: "取消檔案操作".into(),
+            message: "正在取消；已開始的項目會先完成…".into(),
+        });
+        self.commands
+            .push_back(Command::CancelFileOperation { identity });
     }
 
     fn select_image(&mut self, path: &std::path::Path, gesture: SelectionGesture) {
@@ -468,13 +782,29 @@ impl Reducer {
             Event::FolderPicked { .. } => false,
             Event::ThumbnailLoaded { .. } => false,
             Event::RevealCompleted { result } => {
-                if let Err(message) = result {
-                    self.model.notice = Some(message);
-                    true
-                } else {
-                    false
-                }
+                self.model.notice = Some(match result {
+                    Ok(()) => "已在檔案管理器中顯示。".into(),
+                    Err(message) => message,
+                });
+                true
             }
+            Event::FileOperationCompleted { identity, result }
+                if self.pending_file_operation == Some(identity) =>
+            {
+                self.pending_file_operation = None;
+                self.model.selection = SelectionState::default();
+                self.model.drag = None;
+                match result {
+                    Ok(result) => self.model.dialog = Some(DialogState::BatchResult(result)),
+                    Err(message) => {
+                        self.model.dialog = None;
+                        self.model.notice = Some(message);
+                    }
+                }
+                self.push_action(Action::ReloadLibrary);
+                true
+            }
+            Event::FileOperationCompleted { .. } => false,
             Event::SmokeDeadlineElapsed => {
                 self.close_requested = true;
                 true
@@ -511,6 +841,13 @@ impl Reducer {
                 self.model.notice = Some(message);
                 true
             }
+            Command::StartFileOperation { identity, .. } => {
+                self.handle_event(Event::FileOperationCompleted {
+                    identity: *identity,
+                    result: Err(message),
+                })
+            }
+            Command::CancelFileOperation { .. } => false,
             Command::Shutdown => false,
         }
     }
@@ -518,6 +855,13 @@ impl Reducer {
 
 fn paths_equal(left: &std::path::Path, right: &std::path::Path) -> bool {
     path_equals(&left.to_string_lossy(), &right.to_string_lossy())
+}
+
+fn conversion_label(kind: ConversionKind) -> &'static str {
+    match kind {
+        ConversionKind::Jpg => "轉 JPG",
+        ConversionKind::Webp => "轉無損 WebP",
+    }
 }
 
 fn selected_index(paths: &[std::path::PathBuf], target: &std::path::Path) -> Option<usize> {
@@ -529,11 +873,42 @@ fn request_gallery_focus(ctx: &egui::Context) {
     ctx.request_repaint();
 }
 
+const VIEWER_SELECTION_HOLD: Duration = Duration::from_millis(650);
+
+struct ViewerSelectionMetric {
+    index: i32,
+    path: String,
+    started: Instant,
+    preview_recorded: bool,
+    painted: bool,
+}
+
+struct ViewerNavigationWorkload {
+    steps: usize,
+    checked: usize,
+    next_check: Instant,
+}
+
+fn viewer_navigation_delta(checked: usize, steps: usize) -> Option<i32> {
+    if checked < steps {
+        Some(1)
+    } else if checked < steps * 2 {
+        Some(-1)
+    } else {
+        None
+    }
+}
+
 pub struct PicLensApp {
     reducer: Reducer,
     backend: Backend,
     images: ThumbnailLoader,
     folder_picker_open: bool,
+    initial_viewer: Option<PathBuf>,
+    performance_viewer: bool,
+    navigation_workload: Option<ViewerNavigationWorkload>,
+    viewer_selection: Option<ViewerSelectionMetric>,
+    metrics: Option<RuntimeMetrics>,
 }
 
 impl PicLensApp {
@@ -547,6 +922,9 @@ impl PicLensApp {
             thumbnail_size,
             sidebar_collapsed,
             smoke_after,
+            initial_viewer,
+            performance_viewer,
+            metrics_output,
         } = options;
         let backend = Backend::spawn(creation.egui_ctx.clone(), smoke_after);
         let mut reducer = Reducer::new(initial_folder);
@@ -559,6 +937,11 @@ impl PicLensApp {
             backend,
             images: ThumbnailLoader::default(),
             folder_picker_open: false,
+            initial_viewer,
+            performance_viewer,
+            navigation_workload: None,
+            viewer_selection: None,
+            metrics: metrics_output.map(RuntimeMetrics::new),
         };
         app.reducer.push_action(Action::StartBackendProbe);
         if let Some(folder) = app.reducer.model.initial_folder.clone() {
@@ -614,6 +997,202 @@ impl PicLensApp {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
     }
+
+    fn record_library_ready(&mut self) {
+        let Loadable::Ready(items) = &self.reducer.model.library else {
+            return;
+        };
+        if let Some(metrics) = &mut self.metrics {
+            metrics.library_ready(
+                items.len(),
+                items
+                    .iter()
+                    .filter(|item| item.as_image().is_some())
+                    .count(),
+            );
+        }
+    }
+
+    fn begin_viewer_selection(&mut self) {
+        let Some(viewer) = &self.reducer.model.viewer else {
+            self.viewer_selection = None;
+            return;
+        };
+        let Some(current) = viewer.snapshot.current() else {
+            self.viewer_selection = None;
+            return;
+        };
+        self.viewer_selection = Some(ViewerSelectionMetric {
+            index: viewer.snapshot.current_index,
+            path: current.path.clone(),
+            started: Instant::now(),
+            preview_recorded: false,
+            painted: false,
+        });
+    }
+
+    fn observe_viewer_selection(&mut self) {
+        let current = self.reducer.model.viewer.as_ref().and_then(|viewer| {
+            viewer.snapshot.current().map(|image| {
+                (
+                    viewer.snapshot.current_index,
+                    image.path.clone(),
+                    viewer.snapshot.images.len(),
+                )
+            })
+        });
+        let Some((index, path, image_count)) = current else {
+            self.viewer_selection = None;
+            return;
+        };
+        let changed = self.viewer_selection.as_ref().is_none_or(|selection| {
+            selection.index != index || !path_equals(&selection.path, &path)
+        });
+        if changed {
+            self.begin_viewer_selection();
+            if let Some(metrics) = &mut self.metrics {
+                metrics.viewer_opened();
+            }
+            if self.performance_viewer && self.navigation_workload.is_none() {
+                let steps = image_count.min(64);
+                if steps > 0 {
+                    piclens_infra::info("egui viewer navigation workload started");
+                    self.navigation_workload = Some(ViewerNavigationWorkload {
+                        steps,
+                        checked: 0,
+                        next_check: Instant::now() + VIEWER_SELECTION_HOLD,
+                    });
+                }
+            }
+        }
+    }
+
+    fn open_initial_viewer_if_ready(&mut self, ctx: &egui::Context) {
+        let Some(path) = self.initial_viewer.clone() else {
+            return;
+        };
+        let Loadable::Ready(_) = &self.reducer.model.library else {
+            return;
+        };
+        let found = self
+            .reducer
+            .model
+            .visible_items
+            .iter()
+            .filter_map(|item| item.as_image())
+            .any(|image| path_equals(&image.path, &path.to_string_lossy()));
+        self.initial_viewer = None;
+        if !found {
+            piclens_infra::warn(format!(
+                "egui initial viewer image is not visible; path={}",
+                path.display()
+            ));
+            return;
+        }
+        self.reducer.push_action(Action::OpenViewer(path));
+        self.reduce_and_dispatch(ctx);
+        self.observe_viewer_selection();
+    }
+
+    fn drive_viewer_navigation(&mut self, ctx: &egui::Context) {
+        let now = Instant::now();
+        let Some(workload) = self.navigation_workload.as_ref() else {
+            return;
+        };
+        if now < workload.next_check {
+            ctx.request_repaint_after(workload.next_check - now);
+            return;
+        }
+
+        let painted = self
+            .viewer_selection
+            .as_ref()
+            .is_some_and(|selection| selection.painted);
+        if let Some(metrics) = &mut self.metrics {
+            metrics.viewer_navigation_checked(painted);
+        }
+        if !painted {
+            let index = self
+                .reducer
+                .model
+                .viewer
+                .as_ref()
+                .map(|viewer| viewer.snapshot.current_index)
+                .unwrap_or_default();
+            piclens_infra::warn(format!(
+                "egui viewer navigation selection did not paint; index={index}"
+            ));
+        }
+
+        let workload = self.navigation_workload.as_mut().unwrap();
+        let delta = viewer_navigation_delta(workload.checked, workload.steps);
+        workload.checked += 1;
+        workload.next_check = now + VIEWER_SELECTION_HOLD;
+        if let Some(delta) = delta {
+            self.reducer.push_action(Action::StepViewer(delta));
+            self.reduce_and_dispatch(ctx);
+            self.begin_viewer_selection();
+            ctx.request_repaint_after(VIEWER_SELECTION_HOLD);
+        } else {
+            self.navigation_workload = None;
+            piclens_infra::info("egui viewer navigation workload completed");
+        }
+    }
+
+    fn current_viewer_texture_ready(&self) -> bool {
+        self.reducer
+            .model
+            .viewer
+            .as_ref()
+            .and_then(|viewer| viewer.snapshot.current())
+            .filter(|image| !image.is_animated)
+            .map(|image| crate::images::ThumbnailKey::from_image(image, 1024))
+            .is_some_and(|key| self.images.texture(&key).is_some())
+    }
+
+    fn record_viewer_preview_ready(&mut self) {
+        if !self.current_viewer_texture_ready() {
+            return;
+        }
+        let Some(selection) = self
+            .viewer_selection
+            .as_mut()
+            .filter(|selection| !selection.preview_recorded)
+        else {
+            return;
+        };
+        selection.preview_recorded = true;
+        let elapsed = selection.started.elapsed().as_millis();
+        piclens_infra::info(format!(
+            "egui viewer decoded preview ready in {elapsed} ms: {}",
+            selection.path
+        ));
+        if let Some(metrics) = &mut self.metrics {
+            metrics.viewer_preview_ready(elapsed);
+        }
+    }
+
+    fn record_viewer_sharp_paint(&mut self) {
+        if !self.current_viewer_texture_ready() {
+            return;
+        }
+        let Some(selection) = self
+            .viewer_selection
+            .as_mut()
+            .filter(|selection| !selection.painted)
+        else {
+            return;
+        };
+        selection.painted = true;
+        let elapsed = selection.started.elapsed().as_millis();
+        piclens_infra::info(format!(
+            "egui viewer sharp preview painted in {elapsed} ms: {}",
+            selection.path
+        ));
+        if let Some(metrics) = &mut self.metrics {
+            metrics.viewer_sharp_painted(elapsed);
+        }
+    }
 }
 
 impl eframe::App for PicLensApp {
@@ -622,12 +1201,26 @@ impl eframe::App for PicLensApp {
             ctx.request_repaint();
         }
         self.reduce_and_dispatch(ctx);
+        self.record_library_ready();
+        self.open_initial_viewer_if_ready(ctx);
+        self.observe_viewer_selection();
+        self.drive_viewer_navigation(ctx);
         self.close_if_requested(ctx);
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        if let Some(metrics) = &mut self.metrics {
+            let size = ui.max_rect().size();
+            metrics.window_ready(
+                size.x.max(0.0).round() as u32,
+                size.y.max(0.0).round() as u32,
+                ui.ctx().pixels_per_point(),
+            );
+        }
+        self.record_viewer_preview_ready();
         let mut frame_actions = Vec::new();
         let materialized = ui::show(&self.reducer.model, &self.images, ui, &mut frame_actions);
+        self.record_viewer_sharp_paint();
         if !self.folder_picker_open && frame_actions.contains(&Action::ChooseFolder) {
             frame_actions.retain(|action| *action != Action::ChooseFolder);
             let mut dialog = rfd::FileDialog::new()
@@ -652,8 +1245,20 @@ impl eframe::App for PicLensApp {
                 .push_back(Command::SyncThumbnails { requests });
         }
         self.reduce_and_dispatch(ui.ctx());
+        self.observe_viewer_selection();
         if restore_gallery_focus {
             request_gallery_focus(ui.ctx());
+        }
+    }
+
+    fn on_exit(&mut self) {
+        if let Some(metrics) = &self.metrics {
+            match metrics.write_snapshot() {
+                Ok(()) => piclens_infra::info("egui runtime metrics written"),
+                Err(error) => piclens_infra::warn(format!(
+                    "failed to write egui runtime metrics; error={error}"
+                )),
+            }
         }
     }
 }
@@ -661,6 +1266,27 @@ impl eframe::App for PicLensApp {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn viewer_navigation_checks_initial_forward_and_backward_selections() {
+        let steps = 3;
+        let deltas = (0..=steps * 2)
+            .map(|checked| viewer_navigation_delta(checked, steps))
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            deltas,
+            vec![
+                Some(1),
+                Some(1),
+                Some(1),
+                Some(-1),
+                Some(-1),
+                Some(-1),
+                None
+            ]
+        );
+    }
 
     #[test]
     fn viewer_close_focus_request_targets_the_gallery_search() {
@@ -689,7 +1315,9 @@ mod tests {
             | Command::PersistLibrarySettings { .. }
             | Command::PersistPickerFolder { .. }
             | Command::PersistSidebar { .. }
-            | Command::Reveal { .. } => panic!("expected probe command"),
+            | Command::Reveal { .. }
+            | Command::StartFileOperation { .. }
+            | Command::CancelFileOperation { .. } => panic!("expected probe command"),
             Command::SyncThumbnails { .. } => panic!("expected probe command"),
             Command::Shutdown => panic!("expected probe command"),
         }
@@ -713,6 +1341,8 @@ mod tests {
             | Command::PersistSidebar { .. }
             | Command::SyncThumbnails { .. }
             | Command::Reveal { .. }
+            | Command::StartFileOperation { .. }
+            | Command::CancelFileOperation { .. }
             | Command::Shutdown => {
                 panic!("expected library command")
             }
@@ -733,6 +1363,8 @@ mod tests {
             | Command::PersistSidebar { .. }
             | Command::SyncThumbnails { .. }
             | Command::Reveal { .. }
+            | Command::StartFileOperation { .. }
+            | Command::CancelFileOperation { .. }
             | Command::Shutdown => {
                 panic!("expected settings command")
             }
@@ -863,6 +1495,14 @@ mod tests {
         let mut reducer = Reducer::new(None);
         reducer.model.selection.ordered_paths.push("old.png".into());
         reducer.model.selection.range_anchor = Some("old.png".into());
+        reducer.model.drag = Some(DragSession {
+            sources: vec!["old.png".into()],
+            origin: Point::default(),
+            pointer: Point::default(),
+            target: None,
+            dragging: true,
+            replaces_selection: false,
+        });
         reducer.push_action(Action::LoadLibrary(query("new-folder")));
 
         assert_eq!(reducer.reduce_actions(), 1);
@@ -872,6 +1512,7 @@ mod tests {
         assert_eq!(reducer.model.library, Loadable::Loading);
         assert!(reducer.model.selection.ordered_paths.is_empty());
         assert_eq!(reducer.model.selection.range_anchor, None);
+        assert!(reducer.model.drag.is_none());
         assert_eq!(
             reducer.model.current_folder.as_deref(),
             Some(std::path::Path::new("new-folder"))
@@ -1098,6 +1739,279 @@ mod tests {
 
         assert!(reducer.model.selection.ordered_paths.is_empty());
         assert_eq!(reducer.model.selection.range_anchor, None);
+    }
+
+    #[test]
+    fn rename_uses_the_single_selection_and_reloads_after_result() {
+        use piclens_domain::{FileOperationResult, FileOperationStatus, ImageListItem, ListItem};
+
+        let path = PathBuf::from("C:/gallery/old.png");
+        let mut reducer = Reducer::new(None);
+        reducer.model.visible_items = vec![ListItem::Image(ImageListItem {
+            path: path.to_string_lossy().into_owned(),
+            name: "old.png".into(),
+            extension: "png".into(),
+            modified_at_ms: None,
+            size_bytes: 1,
+            is_animated: false,
+        })];
+        reducer.push_action(Action::SelectImage {
+            path: path.clone(),
+            gesture: SelectionGesture::Replace,
+        });
+        reducer.push_action(Action::OpenRename);
+        reducer.push_action(Action::SetRenameBasename("new".into()));
+        reducer.push_action(Action::ConfirmRename);
+        reducer.reduce_actions();
+
+        let (identity, operation) = match reducer.commands.pop_front().unwrap() {
+            Command::StartFileOperation {
+                identity,
+                operation,
+            } => (identity, operation),
+            command => panic!("expected rename command, got {command:?}"),
+        };
+        assert_eq!(
+            operation,
+            FileOperation::Rename {
+                source: path.to_string_lossy().into_owned(),
+                new_file_name: "new.png".into(),
+            }
+        );
+        assert!(matches!(
+            reducer.model.dialog,
+            Some(DialogState::Progress { .. })
+        ));
+
+        assert!(reducer.handle_event(Event::FileOperationCompleted {
+            identity,
+            result: Ok(piclens_domain::FileOperationBatchResult {
+                items: vec![FileOperationResult {
+                    path: path.to_string_lossy().into_owned(),
+                    status: FileOperationStatus::Renamed,
+                    target_path: Some("C:/gallery/new.png".into()),
+                    reason: None,
+                    message: None,
+                }],
+            }),
+        }));
+        assert!(reducer.model.selection.ordered_paths.is_empty());
+        assert!(matches!(
+            reducer.model.dialog,
+            Some(DialogState::BatchResult(_))
+        ));
+        assert_eq!(reducer.actions.pop_front(), Some(Action::ReloadLibrary));
+    }
+
+    #[test]
+    fn trash_cancel_closes_confirmation_without_starting_work() {
+        use piclens_domain::{ImageListItem, ListItem};
+
+        let mut reducer = Reducer::new(None);
+        reducer.model.visible_items = ["a.png", "b.png"]
+            .into_iter()
+            .map(|name| {
+                ListItem::Image(ImageListItem {
+                    path: format!("C:/gallery/{name}"),
+                    name: name.into(),
+                    extension: "png".into(),
+                    modified_at_ms: None,
+                    size_bytes: 1,
+                    is_animated: false,
+                })
+            })
+            .collect();
+        reducer.push_action(Action::SelectImage {
+            path: "C:/gallery/a.png".into(),
+            gesture: SelectionGesture::Replace,
+        });
+        reducer.push_action(Action::SelectImage {
+            path: "C:/gallery/b.png".into(),
+            gesture: SelectionGesture::Toggle,
+        });
+        reducer.push_action(Action::RequestTrash);
+        reducer.push_action(Action::CloseDialog);
+        reducer.reduce_actions();
+
+        assert!(reducer.model.dialog.is_none());
+        assert!(reducer.commands.is_empty());
+        assert_eq!(reducer.model.selection.ordered_paths.len(), 2);
+    }
+
+    #[test]
+    fn conversion_uses_visible_results_and_confirms_at_fifty() {
+        let visible_items = crate::demo::large_library(50).visible_items;
+        let mut reducer = Reducer::new(None);
+        reducer.model.visible_items = visible_items;
+        reducer.model.selection.ordered_paths = vec!["C:/fixture/image0.png".into()];
+        reducer.push_action(Action::RequestConversion(ConversionKind::Webp));
+        reducer.reduce_actions();
+
+        assert!(reducer.commands.is_empty());
+        assert!(matches!(
+            &reducer.model.dialog,
+            Some(DialogState::ConversionConfirmation { kind, paths })
+                if *kind == ConversionKind::Webp && paths.len() == 50
+        ));
+
+        reducer.push_action(Action::ConfirmConversion);
+        reducer.reduce_actions();
+        assert!(matches!(
+            reducer.commands.pop_front(),
+            Some(Command::StartFileOperation {
+                operation: FileOperation::ConvertWebp { paths },
+                ..
+            }) if paths.len() == 50
+        ));
+
+        let mut reducer = Reducer::new(None);
+        reducer.model.visible_items = crate::demo::large_library(49).visible_items;
+        reducer.push_action(Action::RequestConversion(ConversionKind::Jpg));
+        reducer.reduce_actions();
+        assert!(matches!(
+            reducer.commands.pop_front(),
+            Some(Command::StartFileOperation {
+                operation: FileOperation::ConvertJpg { paths },
+                ..
+            }) if paths.len() == 49
+        ));
+    }
+
+    #[test]
+    fn cleanup_cancel_closes_confirmation_without_starting_work() {
+        let mut reducer = Reducer::new(None);
+        reducer.model.visible_items = crate::demo::large_library(2).visible_items;
+        reducer.push_action(Action::RequestCleanup);
+        reducer.push_action(Action::CloseDialog);
+        reducer.reduce_actions();
+
+        assert!(reducer.model.dialog.is_none());
+        assert!(reducer.commands.is_empty());
+    }
+
+    #[test]
+    fn drag_drop_builds_a_preview_and_waits_for_confirmation() {
+        use piclens_domain::{ImageListItem, ListItem};
+
+        let root = std::env::temp_dir().join(format!(
+            "piclens-egui-drag-plan-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let paths = ["one.jpg", "two.png", "base.webp"].map(|name| root.join(name));
+        for path in &paths {
+            std::fs::write(path, b"fixture").unwrap();
+        }
+        let mut reducer = Reducer::new(None);
+        reducer.model.visible_items = paths
+            .iter()
+            .map(|path| {
+                ListItem::Image(ImageListItem {
+                    path: path.to_string_lossy().into_owned(),
+                    name: path.file_name().unwrap().to_string_lossy().into_owned(),
+                    extension: path.extension().unwrap().to_string_lossy().into_owned(),
+                    modified_at_ms: None,
+                    size_bytes: 7,
+                    is_animated: false,
+                })
+            })
+            .collect();
+        reducer.model.selection.ordered_paths = paths[..2].to_vec();
+        reducer.model.selection.range_anchor = Some(paths[0].clone());
+        reducer.push_action(Action::StartDrag {
+            source: paths[0].clone(),
+            pointer: Point { x: 10.0, y: 10.0 },
+        });
+        reducer.reduce_actions();
+        assert!(reducer
+            .model
+            .drag
+            .as_ref()
+            .is_some_and(|drag| !drag.dragging));
+
+        reducer.push_action(Action::UpdateDrag {
+            pointer: Point { x: 13.0, y: 10.0 },
+            target: Some(paths[2].clone()),
+        });
+        reducer.reduce_actions();
+        assert!(reducer
+            .model
+            .drag
+            .as_ref()
+            .is_some_and(|drag| !drag.dragging && drag.target.is_none()));
+
+        reducer.push_action(Action::UpdateDrag {
+            pointer: Point { x: 30.0, y: 30.0 },
+            target: Some(paths[2].clone()),
+        });
+        reducer.push_action(Action::FinishDrag);
+        reducer.reduce_actions();
+
+        let Some(DialogState::DropRenameConfirmation { plan }) = &reducer.model.dialog else {
+            panic!("expected drop rename preview")
+        };
+        assert_eq!(plan.total, 2);
+        assert!(plan.items[0].target_path.ends_with("base-01.jpg"));
+        assert!(plan.items[1].target_path.ends_with("base-02.png"));
+        assert!(paths.iter().all(|path| path.exists()));
+        assert!(reducer.commands.is_empty());
+
+        reducer.push_action(Action::ConfirmDropRename);
+        reducer.reduce_actions();
+        assert!(matches!(
+            reducer.commands.pop_front(),
+            Some(Command::StartFileOperation {
+                operation: FileOperation::DropRename { plan },
+                ..
+            }) if plan.total == 2
+        ));
+        assert!(paths.iter().all(|path| path.exists()));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn drag_threshold_preserves_selection_until_dragging_starts() {
+        let mut reducer = Reducer::new(None);
+        reducer.model.visible_items = crate::demo::large_library(3).visible_items;
+        reducer.model.selection.ordered_paths = vec!["C:/fixture/image0.png".into()];
+        reducer.model.selection.range_anchor = Some("C:/fixture/image0.png".into());
+        reducer.push_action(Action::StartDrag {
+            source: "C:/fixture/image1.png".into(),
+            pointer: Point { x: 10.0, y: 10.0 },
+        });
+        reducer.push_action(Action::UpdateDrag {
+            pointer: Point { x: 13.0, y: 14.0 },
+            target: Some("C:/fixture/image2.png".into()),
+        });
+        reducer.reduce_actions();
+
+        assert_eq!(
+            reducer.model.selection.ordered_paths,
+            vec![PathBuf::from("C:/fixture/image0.png")]
+        );
+        assert!(reducer
+            .model
+            .drag
+            .as_ref()
+            .is_some_and(|drag| !drag.dragging && drag.target.is_none()));
+
+        reducer.push_action(Action::UpdateDrag {
+            pointer: Point { x: 20.0, y: 10.0 },
+            target: Some("C:/fixture/image2.png".into()),
+        });
+        reducer.reduce_actions();
+        assert_eq!(
+            reducer.model.selection.ordered_paths,
+            vec![PathBuf::from("C:/fixture/image1.png")]
+        );
+        assert!(reducer.model.drag.as_ref().is_some_and(|drag| {
+            drag.dragging
+                && drag.target.as_deref() == Some(std::path::Path::new("C:/fixture/image2.png"))
+        }));
     }
 
     #[test]

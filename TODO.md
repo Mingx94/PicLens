@@ -94,7 +94,7 @@ egui view -> Action -> App reducer -> Command -> background backend
 - [x] 只保留目前與相鄰兩張 preview texture，共最多三張、12 MiB；淘汰或 close 時釋放 texture。
 - [x] 快速 A-B-A、close/reopen、generation change 與 shutdown 只接受 identity 相符的結果。
 - [x] 清晰 preview 維持最長邊 1024 px，完成後直接以完整不透明度繪製。
-- [ ] 記錄冷／暖快取和同一 viewer 內連續切換的首次清晰繪製時間及超標次數。
+- [x] 記錄冷／暖快取和同一 viewer 內連續切換的首次清晰繪製時間及超標次數。詳見 [Performance](docs/performance.md)。
 - [x] 測試 viewer snapshot、preload order、stale result、texture budget、zoom/pan、focus restore 與 unsupported animation。
 
 退出條件：viewer 功能與 runtime invariants 完成，且代表性 Release smoke 可產生可信的 500ms 指標。
@@ -103,16 +103,16 @@ egui view -> Action -> App reducer -> Command -> background backend
 
 目標：恢復所有會修改使用者檔案的功能，並維持保守操作規則。
 
-- [ ] 實作圖片 context menu 與 selection-aware action scope。
-- [ ] 實作單張重新命名、移至回收筒與 reveal-in-file-manager。
-- [ ] 實作 JPG、lossless WebP 轉換與同 basename 格式清除。
-- [ ] 實作確認、進度、結果與錯誤 dialog；confirmation 不得 auto-confirm。
-- [ ] 批次操作回報總數、成功、略過、失敗與逐項結果；單項失敗不停止其他項目。
-- [ ] 所有 collision 都略過且不覆寫；trash-like operation 不可 fallback 為永久刪除。
-- [ ] 實作 drag threshold、preview、drop target、autoscroll、cancel 和 capture-lost cleanup。
-- [ ] 實作 drop-target rename preview、最小可用序號與確認後才執行的流程。
-- [ ] 操作完成後 reload gallery，並清除 stale selection、anchor 和 drag session。
-- [ ] 使用 disposable copied fixture 測試成功、取消、collision、部分失敗及 helper timeout。
+- [x] 實作圖片 context menu 與 selection-aware action scope。
+- [x] 實作單張重新命名、移至回收筒與 reveal-in-file-manager。
+- [x] 實作 JPG、lossless WebP 轉換與同 basename 格式清除。
+- [x] 實作確認、進度、結果與錯誤 dialog；confirmation 不得 auto-confirm。
+- [x] 批次操作回報總數、成功、略過、失敗與逐項結果；單項失敗不停止其他項目。
+- [x] Conversion 與 drop-target collision 略過；single rename existing target 拒絕；所有操作均不覆寫。Trash-like operation 不可 fallback 為永久刪除。
+- [x] 實作 drag threshold、preview、drop target、autoscroll、cancel 和 capture-lost cleanup。
+- [x] 實作 drop-target rename preview、最小可用序號與確認後才執行的流程。
+- [x] 操作完成後 reload gallery，並清除 stale selection、anchor 和 drag session。
+- [x] 使用 disposable copied fixture 測試成功、取消、collision、部分失敗及 helper timeout。
 
 退出條件：所有檔案操作都可由 UI 完成，且測試證明取消不修改檔案、失敗不中斷批次、不覆寫、不永久刪除。
 
