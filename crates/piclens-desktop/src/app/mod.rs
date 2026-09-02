@@ -2,10 +2,10 @@
 
 use std::collections::VecDeque;
 
-use piclens_domain::{normalize_thumbnail_size, sort_items, ListQuery, SortState};
+use piclens_domain::{normalize_thumbnail_size, path_equals, sort_items, ListQuery, SortState};
 
 use crate::backend::{Backend, Command, Event, WorkIdentity};
-use crate::model::{Action, AppModel, Loadable, SelectionState};
+use crate::model::{Action, AppModel, Loadable, SelectionGesture, SelectionState};
 use crate::{theme, ui, LaunchOptions};
 
 struct Reducer {
@@ -63,6 +63,8 @@ impl Reducer {
                 Action::SetSort(sort) => self.set_sort(sort),
                 Action::ToggleIncludeSubfolders => self.toggle_include_subfolders(),
                 Action::SetThumbnailSize(size) => self.set_thumbnail_size(size),
+                Action::SelectImage { path, gesture } => self.select_image(&path, gesture),
+                Action::ClearSelection => self.model.selection = SelectionState::default(),
             }
         }
         applied
@@ -157,6 +159,73 @@ impl Reducer {
         self.persist_library_settings();
     }
 
+    fn select_image(&mut self, path: &std::path::Path, gesture: SelectionGesture) {
+        let visible_images = self
+            .model
+            .visible_items
+            .iter()
+            .filter_map(|item| item.as_image())
+            .map(|image| std::path::PathBuf::from(&image.path))
+            .collect::<Vec<_>>();
+        let Some(target_index) = visible_images
+            .iter()
+            .position(|item| paths_equal(item, path))
+        else {
+            return;
+        };
+        let target = visible_images[target_index].clone();
+        match gesture {
+            SelectionGesture::Replace => {
+                self.model.selection.ordered_paths.clear();
+                self.model.selection.ordered_paths.push(target.clone());
+                self.model.selection.range_anchor = Some(target);
+            }
+            SelectionGesture::Toggle => {
+                if let Some(index) = selected_index(&self.model.selection.ordered_paths, &target) {
+                    self.model.selection.ordered_paths.remove(index);
+                } else {
+                    self.model.selection.ordered_paths.push(target.clone());
+                }
+                self.model.selection.range_anchor = Some(target);
+            }
+            SelectionGesture::Range { additive } => {
+                let anchor_index = self
+                    .model
+                    .selection
+                    .range_anchor
+                    .as_ref()
+                    .and_then(|anchor| {
+                        visible_images
+                            .iter()
+                            .position(|item| paths_equal(item, anchor))
+                    })
+                    .unwrap_or(target_index);
+                if self
+                    .model
+                    .selection
+                    .range_anchor
+                    .as_ref()
+                    .is_none_or(|anchor| !paths_equal(anchor, &visible_images[anchor_index]))
+                {
+                    self.model.selection.range_anchor = Some(target.clone());
+                }
+                if !additive {
+                    self.model.selection.ordered_paths.clear();
+                }
+                let (start, end) = if anchor_index <= target_index {
+                    (anchor_index, target_index)
+                } else {
+                    (target_index, anchor_index)
+                };
+                for range_path in &visible_images[start..=end] {
+                    if selected_index(&self.model.selection.ordered_paths, range_path).is_none() {
+                        self.model.selection.ordered_paths.push(range_path.clone());
+                    }
+                }
+            }
+        }
+    }
+
     fn handle_event(&mut self, event: Event) -> bool {
         match event {
             Event::ProbeCompleted { identity, result } if self.pending_probe == Some(identity) => {
@@ -218,6 +287,14 @@ impl Reducer {
             Command::Shutdown => false,
         }
     }
+}
+
+fn paths_equal(left: &std::path::Path, right: &std::path::Path) -> bool {
+    path_equals(&left.to_string_lossy(), &right.to_string_lossy())
+}
+
+fn selected_index(paths: &[std::path::PathBuf], target: &std::path::Path) -> Option<usize> {
+    paths.iter().position(|path| paths_equal(path, target))
 }
 
 pub struct PicLensApp {
@@ -539,5 +616,106 @@ mod tests {
         assert_eq!(reducer.model.thumbnail_size, 240);
         let (_, _, saved_size) = next_persist(&mut reducer);
         assert_eq!(saved_size, 240);
+    }
+
+    #[test]
+    fn selection_replace_toggle_and_range_keep_stable_anchor_and_order() {
+        use piclens_domain::{FolderListItem, ImageListItem, ListItem};
+
+        let image = |name: &str| {
+            ListItem::Image(ImageListItem {
+                path: format!("C:/gallery/{name}.png"),
+                name: format!("{name}.png"),
+                extension: "png".into(),
+                modified_at_ms: None,
+                size_bytes: 1,
+                is_animated: false,
+            })
+        };
+        let path = |name: &str| std::path::PathBuf::from(format!("C:/gallery/{name}.png"));
+        let mut reducer = Reducer::new(None);
+        reducer.model.visible_items = vec![
+            image("a"),
+            ListItem::Folder(FolderListItem {
+                path: "C:/gallery/folder".into(),
+                name: "folder".into(),
+                modified_at_ms: None,
+            }),
+            image("b"),
+            image("c"),
+            image("d"),
+        ];
+
+        reducer.push_action(Action::SelectImage {
+            path: path("a"),
+            gesture: SelectionGesture::Replace,
+        });
+        reducer.push_action(Action::SelectImage {
+            path: path("b"),
+            gesture: SelectionGesture::Toggle,
+        });
+        reducer.push_action(Action::SelectImage {
+            path: path("a"),
+            gesture: SelectionGesture::Toggle,
+        });
+        reducer.reduce_actions();
+        assert_eq!(reducer.model.selection.ordered_paths, vec![path("b")]);
+        assert_eq!(reducer.model.selection.range_anchor, Some(path("a")));
+
+        reducer.push_action(Action::SelectImage {
+            path: path("c"),
+            gesture: SelectionGesture::Range { additive: false },
+        });
+        reducer.reduce_actions();
+        assert_eq!(
+            reducer.model.selection.ordered_paths,
+            vec![path("a"), path("b"), path("c")]
+        );
+        assert_eq!(reducer.model.selection.range_anchor, Some(path("a")));
+
+        reducer.push_action(Action::ClearSelection);
+        reducer.push_action(Action::SelectImage {
+            path: path("b"),
+            gesture: SelectionGesture::Replace,
+        });
+        reducer.push_action(Action::SelectImage {
+            path: path("d"),
+            gesture: SelectionGesture::Toggle,
+        });
+        reducer.push_action(Action::SelectImage {
+            path: path("b"),
+            gesture: SelectionGesture::Range { additive: true },
+        });
+        reducer.reduce_actions();
+        assert_eq!(
+            reducer.model.selection.ordered_paths,
+            vec![path("b"), path("d"), path("c")]
+        );
+        assert_eq!(reducer.model.selection.range_anchor, Some(path("d")));
+    }
+
+    #[test]
+    fn selection_ignores_folders_and_non_visible_paths() {
+        use piclens_domain::{FolderListItem, ListItem};
+
+        let mut reducer = Reducer::new(None);
+        reducer.model.visible_items = vec![ListItem::Folder(FolderListItem {
+            path: "C:/gallery/folder".into(),
+            name: "folder".into(),
+            modified_at_ms: None,
+        })];
+        reducer.push_action(Action::SelectImage {
+            path: "C:/gallery/folder".into(),
+            gesture: SelectionGesture::Replace,
+        });
+        reducer.push_action(Action::SelectImage {
+            path: "C:/gallery/missing.png".into(),
+            gesture: SelectionGesture::Replace,
+        });
+
+        reducer.reduce_actions();
+
+        assert!(reducer.model.selection.ordered_paths.is_empty());
+        assert_eq!(reducer.model.selection.range_anchor, None);
     }
 }

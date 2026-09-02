@@ -1,9 +1,9 @@
 //! Window layout. Views append actions and do not perform side effects.
 
 use egui::{Align, Color32, Frame, Layout, Margin, RichText, Stroke};
-use piclens_domain::{ListItem, SortDirection, SortKey, SortState};
+use piclens_domain::{path_equals, ListItem, SortDirection, SortKey, SortState};
 
-use crate::model::{Action, AppModel, Loadable};
+use crate::model::{Action, AppModel, Loadable, SelectionGesture};
 
 pub fn show(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
     egui::Panel::top("app-bar")
@@ -134,7 +134,19 @@ fn library_content(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action
             });
         }
         Loadable::Ready(items) => {
-            ui.label(format!("{} 個項目", model.visible_items.len()));
+            ui.horizontal(|ui| {
+                ui.label(format!("{} 個項目", model.visible_items.len()));
+                ui.separator();
+                ui.label(format!(
+                    "選取 {} 張圖片",
+                    model.selection.ordered_paths.len()
+                ));
+                if !model.selection.ordered_paths.is_empty()
+                    && ui.small_button("清除選取").clicked()
+                {
+                    actions.push(Action::ClearSelection);
+                }
+            });
             ui.add_space(8.0);
             if model.visible_items.is_empty() {
                 ui.vertical_centered(|ui| {
@@ -146,7 +158,7 @@ fn library_content(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action
                     });
                 });
             } else {
-                gallery_grid(&model.visible_items, model.thumbnail_size, ui);
+                gallery_grid(model, ui, actions);
             }
         }
         Loadable::Failed(message) => {
@@ -182,42 +194,76 @@ fn sort_label(sort: SortState) -> &'static str {
     }
 }
 
-fn gallery_grid(items: &[ListItem], thumbnail_size: i32, ui: &mut egui::Ui) {
+fn gallery_grid(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
     const GAP: f32 = 8.0;
 
-    let tile_width = thumbnail_size as f32;
+    let tile_width = model.thumbnail_size as f32;
     let tile_height = (tile_width * 0.58).max(76.0);
     let columns = (((ui.available_width() + GAP) / (tile_width + GAP)).floor() as usize).max(1);
-    let rows = items.len().div_ceil(columns);
+    let rows = model.visible_items.len().div_ceil(columns);
     egui::ScrollArea::vertical().show_rows(ui, tile_height + GAP, rows, |ui, visible_rows| {
         for row in visible_rows {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = GAP;
                 for column in 0..columns {
                     let index = row * columns + column;
-                    let Some(item) = items.get(index) else {
+                    let Some(item) = model.visible_items.get(index) else {
                         break;
                     };
-                    Frame::group(ui.style())
-                        .fill(Color32::WHITE)
-                        .inner_margin(Margin::same(10))
-                        .show(ui, |ui| {
-                            ui.allocate_ui_with_layout(
-                                egui::vec2(tile_width, tile_height),
-                                Layout::top_down(Align::Min),
-                                |ui| {
-                                    ui.strong(item.name());
-                                    match item {
-                                        ListItem::Folder(_) => {
+                    match item {
+                        ListItem::Folder(_) => {
+                            Frame::group(ui.style())
+                                .fill(Color32::WHITE)
+                                .inner_margin(Margin::same(10))
+                                .show(ui, |ui| {
+                                    ui.allocate_ui_with_layout(
+                                        egui::vec2(tile_width, tile_height),
+                                        Layout::top_down(Align::Min),
+                                        |ui| {
+                                            ui.strong(item.name());
                                             ui.label("資料夾");
-                                        }
-                                        ListItem::Image(image) => {
-                                            ui.label(image.extension.to_uppercase());
-                                        }
+                                        },
+                                    );
+                                });
+                        }
+                        ListItem::Image(image) => {
+                            let selected = model
+                                .selection
+                                .ordered_paths
+                                .iter()
+                                .any(|path| path_equals(&path.to_string_lossy(), &image.path));
+                            let response = ui
+                                .push_id(&image.path, |ui| {
+                                    ui.add_sized(
+                                        egui::vec2(tile_width, tile_height),
+                                        egui::Button::new(format!(
+                                            "{}\n{}",
+                                            image.name,
+                                            image.extension.to_uppercase()
+                                        ))
+                                        .selected(selected),
+                                    )
+                                })
+                                .inner
+                                .on_hover_text(image.extension.to_uppercase());
+                            if response.clicked() {
+                                let modifiers = ui.input(|input| input.modifiers);
+                                let gesture = if modifiers.shift {
+                                    SelectionGesture::Range {
+                                        additive: modifiers.ctrl,
                                     }
-                                },
-                            );
-                        });
+                                } else if modifiers.ctrl {
+                                    SelectionGesture::Toggle
+                                } else {
+                                    SelectionGesture::Replace
+                                };
+                                actions.push(Action::SelectImage {
+                                    path: image.path.clone().into(),
+                                    gesture,
+                                });
+                            }
+                        }
+                    }
                 }
             });
         }
@@ -284,8 +330,8 @@ mod tests {
         });
         harness.run();
         let _ = harness.get_by_label("2 個項目");
-        let _ = harness.get_by_label("album");
-        let _ = harness.get_by_label("image2.png");
+        let _ = harness.get_by_label_contains("album");
+        let _ = harness.get_by_label_contains("image2.png");
     }
 
     #[test]
@@ -297,6 +343,63 @@ mod tests {
         });
         harness.run();
         let _ = harness.get_by_label("10000 個項目");
-        let _ = harness.get_by_label("image0.png");
+        let _ = harness.get_by_label_contains("image0.png");
+    }
+
+    #[test]
+    fn image_clicks_emit_modifier_specific_selection_actions() {
+        let model = crate::demo::loaded_library();
+        let mut harness = Harness::new_ui_state(
+            move |ui, actions: &mut Vec<Action>| show(&model, ui, actions),
+            Vec::new(),
+        );
+        harness.run();
+
+        harness.get_by_label_contains("image2.png").click();
+        harness.run();
+        harness
+            .get_by_label_contains("image2.png")
+            .click_modifiers(egui::Modifiers {
+                ctrl: true,
+                ..Default::default()
+            });
+        harness.run();
+        harness
+            .get_by_label_contains("image2.png")
+            .click_modifiers(egui::Modifiers {
+                shift: true,
+                ..Default::default()
+            });
+        harness.run();
+        harness
+            .get_by_label_contains("image2.png")
+            .click_modifiers(egui::Modifiers {
+                ctrl: true,
+                shift: true,
+                ..Default::default()
+            });
+        harness.run();
+
+        assert_eq!(
+            harness.state().as_slice(),
+            [
+                Action::SelectImage {
+                    path: "C:/fixture/image2.png".into(),
+                    gesture: SelectionGesture::Replace,
+                },
+                Action::SelectImage {
+                    path: "C:/fixture/image2.png".into(),
+                    gesture: SelectionGesture::Toggle,
+                },
+                Action::SelectImage {
+                    path: "C:/fixture/image2.png".into(),
+                    gesture: SelectionGesture::Range { additive: false },
+                },
+                Action::SelectImage {
+                    path: "C:/fixture/image2.png".into(),
+                    gesture: SelectionGesture::Range { additive: true },
+                },
+            ]
+        );
     }
 }

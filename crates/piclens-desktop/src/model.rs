@@ -20,6 +20,18 @@ pub enum Action {
     SetSort(SortState),
     ToggleIncludeSubfolders,
     SetThumbnailSize(i32),
+    SelectImage {
+        path: PathBuf,
+        gesture: SelectionGesture,
+    },
+    ClearSelection,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelectionGesture {
+    Replace,
+    Toggle,
+    Range { additive: bool },
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
