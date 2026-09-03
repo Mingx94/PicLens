@@ -14,10 +14,10 @@ egui view -> Action -> App reducer -> Command -> background backend
 
 ## 完成規則
 
-- [ ] 每個已勾選項目都有可重現的測試、smoke、量測或決策紀錄。
-- [ ] 階段退出前，受影響的 Cargo format、build、check、test 與 clippy gates 全部通過。
-- [ ] Runtime 行為變更使用隔離的 `PICLENS_DATA_ROOT` 執行真實 app smoke，並檢查 app log。
-- [ ] Headless render 只證明 layout 可建立；它不取代真實輸入、accessibility、平台整合或像素驗證。
+- [x] 每個已勾選項目都有可重現的測試、smoke、量測或決策紀錄。
+- [x] 階段退出前，受影響的 Cargo format、build、check、test 與 clippy gates 全部通過。
+- [x] Runtime 行為變更使用隔離的 `PICLENS_DATA_ROOT` 執行真實 app smoke，並檢查 app log。
+- [x] Headless render 只證明 layout 可建立；它不取代真實輸入、accessibility、平台整合或像素驗證。
 - [x] 遷移期間不刪除 GPUI frontend，也不改變預設 app，直到「階段 7：正式切換」完成。
 
 ## 階段 0：凍結基線與架構決策
@@ -159,15 +159,15 @@ egui view -> Action -> App reducer -> Command -> background backend
 
 目標：取得本機 build 無法取代的安裝、互動、效能與發佈證據。
 
-- [ ] 在 clean Windows runner 執行 MSI install、launch、replace、uninstall 與 profile preservation lifecycle。腳本：`scripts/test-msi-lifecycle.ps1`；需明確傳入 `-ConfirmSystemChanges`。
+- [x] 在 clean Windows runner 執行 MSI install、launch、replace、uninstall 與 profile preservation lifecycle。腳本：`scripts/test-msi-lifecycle.ps1`；[Windows packages run 33756956796](https://github.com/Mingx94/PicLens/actions/runs/33756956796) 已使用 `-ConfirmSystemChanges` 通過。
 - [ ] 在 clean Ubuntu runner 執行 DEB build 與 lifecycle。腳本：`scripts/build-deb.sh`、`scripts/test-linux-package-lifecycle.sh`。
 - [ ] 在 clean Fedora runner 執行 RPM build 與 lifecycle。腳本：`scripts/build-rpm.sh`、`scripts/test-linux-package-lifecycle.sh`。
 - [x] 使用原生 UI automation 檢查 1280×800 與 800×600 的 delayed tooltip、accessibility name、focus restore、dialog、drag、scroll 與檔案操作結果。
 - [x] 在大型 disposable image library 執行 Release metrics，記錄 CPU/GPU、storage、display scale，並驗證持續捲動、search 與 viewer open。腳本：`scripts/measure-performance.ps1`；證據：`docs/performance.md`。
 - [x] `v3.0.0` 沒有產品核准的正式效能門檻，因此不加入自動 performance gate；現有 metrics 維持觀測用途。
 - [x] `v3.0.0` 沒有受保護的 code-signing identity，因此 release assets 維持 unsigned，並在 Release body 明確標示。
-- [ ] 經使用者明確授權後，建立匹配 Cargo version 的 annotated `v<version>` tag 並 push。
-- [ ] 確認 hosted Windows release workflow 的 MSI lifecycle job 成功，且 GitHub Release 包含 MSI、portable ZIP 與兩個 SHA-256 checksum files。
+- [x] 經使用者明確授權後，建立匹配 Cargo version 的 annotated `v3.0.0` tag，指向 `ac544e4d` 並 push。
+- [x] Hosted Windows release workflow 的 MSI lifecycle job 已成功；[GitHub Release v3.0.0](https://github.com/Mingx94/PicLens/releases/tag/v3.0.0) 包含 MSI、portable ZIP 與兩個 SHA-256 checksum files，下載後重新計算的雜湊均相符。
 
 退出條件：所有支援平台都有 package lifecycle、真實互動與效能證據，且 release artifacts 完整可追溯。
 

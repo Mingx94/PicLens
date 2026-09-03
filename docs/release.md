@@ -69,4 +69,13 @@ Local compilation or archive creation does not complete a release. Completion re
 
 Code signing is not configured. Do not describe these assets as signed. A successful workflow proves that Windows packaging, MSI install／launch／replace／uninstall, isolated profile preservation, and upload completed. It does not prove ordinary interactive use, GPU behavior, or visual correctness.
 
+## v3.0.0 release evidence
+
+Annotated tag `v3.0.0` points to commit `ac544e4d`. [Windows packages run 33756956796](https://github.com/Mingx94/PicLens/actions/runs/33756956796) completed on a clean Windows 2025 runner. It passed MSI install, launch, replace, uninstall, isolated profile preservation, portable ZIP creation, artifact upload, and GitHub Release publication.
+
+[GitHub Release v3.0.0](https://github.com/Mingx94/PicLens/releases/tag/v3.0.0) contains the four expected unsigned assets. Independent downloads produced these payload hashes, which match their published checksum files:
+
+- MSI: `60dd879387260b5c92d049f4eee0dcfc0603458dafb12f0a9e5d88d911aff74b`
+- ZIP: `4e15af1d2b0e8c5466d81b6eaa4640171f49f8704eae1a7c09d9e5edf3973256`
+
 Review [Licensing and redistribution](licensing.md) for every release candidate.
