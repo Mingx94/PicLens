@@ -2,6 +2,7 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use piclens_domain::{
@@ -12,7 +13,7 @@ use piclens_domain::{
 use piclens_infra::plan_drop_rename;
 
 use crate::backend::{Backend, Command, Event, FileOperation, WorkIdentity};
-use crate::diagnostics::RuntimeMetrics;
+use crate::diagnostics::{ProcessSampler, RuntimeMetrics};
 use crate::images::ThumbnailLoader;
 use crate::model::{
     Action, AppModel, ConversionKind, DialogState, DragSession, Loadable, Page, SelectionGesture,
@@ -21,6 +22,10 @@ use crate::model::{
 
 const CONVERSION_CONFIRMATION_THRESHOLD: usize = 50;
 const DRAG_THRESHOLD: f64 = 8.0;
+const WINDOW_SIZE_PERSIST_DELAY: Duration = Duration::from_millis(250);
+const SCREENSHOT_DELAY: Duration = Duration::from_millis(750);
+const PERFORMANCE_SCROLL_INTERVAL: Duration = Duration::from_millis(33);
+const PERFORMANCE_SCROLL_STEPS: usize = 60;
 use crate::{theme, ui, LaunchOptions};
 
 struct Reducer {
@@ -105,6 +110,10 @@ impl Reducer {
                 Action::SelectAllVisible => self.select_all_visible(),
                 Action::MoveGallerySelection(delta) => self.move_gallery_selection(delta),
                 Action::SelectGalleryBoundary { end } => self.select_gallery_boundary(end),
+                Action::ClearGalleryScrollTarget => {
+                    self.model.gallery_scroll_target = None;
+                    self.model.gallery_scroll_delta = None;
+                }
                 Action::OpenFocusedItem => self.open_focused_item(),
                 Action::OpenViewer(path) => self.open_viewer(path),
                 Action::CloseViewer => self.close_viewer(),
@@ -845,6 +854,7 @@ impl Reducer {
         let Some(item) = self.model.visible_items.get(index) else {
             return;
         };
+        self.model.gallery_scroll_target = Some(index);
         let path = PathBuf::from(item.path());
         let is_image = item.as_image().is_some();
         self.model.selection = SelectionState {
@@ -938,6 +948,13 @@ impl Reducer {
                 }
             }
             Event::FolderPicked { .. } => false,
+            Event::ScreenshotSaved { result } => match result {
+                Ok(_) => false,
+                Err(message) => {
+                    self.model.notice = Some(message);
+                    true
+                }
+            },
             Event::ThumbnailLoaded { .. } => false,
             Event::RevealCompleted { result } => {
                 self.model.notice = Some(match result {
@@ -994,7 +1011,12 @@ impl Reducer {
             }
             Command::PersistLibrarySettings { .. }
             | Command::PersistPickerFolder { .. }
-            | Command::PersistSidebar { .. } => {
+            | Command::PersistSidebar { .. }
+            | Command::PersistWindowSize { .. } => {
+                self.model.notice = Some(message);
+                true
+            }
+            Command::SaveScreenshot { .. } => {
                 self.model.notice = Some(message);
                 true
             }
@@ -1055,6 +1077,12 @@ struct ViewerNavigationWorkload {
     next_check: Instant,
 }
 
+struct GalleryScrollWorkload {
+    started: Instant,
+    step: usize,
+    next_step: Instant,
+}
+
 fn viewer_navigation_delta(checked: usize, steps: usize) -> Option<i32> {
     if checked < steps {
         Some(1)
@@ -1065,6 +1093,16 @@ fn viewer_navigation_delta(checked: usize, steps: usize) -> Option<i32> {
     }
 }
 
+fn performance_scroll_delta(step: usize) -> Option<f32> {
+    if step >= PERFORMANCE_SCROLL_STEPS {
+        None
+    } else if (step / 15).is_multiple_of(2) {
+        Some(360.0)
+    } else {
+        Some(-360.0)
+    }
+}
+
 pub struct PicLensApp {
     reducer: Reducer,
     backend: Backend,
@@ -1072,10 +1110,18 @@ pub struct PicLensApp {
     pending_focus: Option<egui::Id>,
     folder_picker_open: bool,
     initial_viewer: Option<PathBuf>,
+    screenshot_output: Option<PathBuf>,
+    screenshot_deadline: Option<Instant>,
+    performance_scroll: bool,
+    scroll_workload: Option<GalleryScrollWorkload>,
     performance_viewer: bool,
     navigation_workload: Option<ViewerNavigationWorkload>,
     viewer_selection: Option<ViewerSelectionMetric>,
-    metrics: Option<RuntimeMetrics>,
+    metrics: Option<Arc<RuntimeMetrics>>,
+    metrics_sampler: Option<ProcessSampler>,
+    window_size: Option<(u32, u32)>,
+    persisted_window_size: Option<(u32, u32)>,
+    window_size_deadline: Option<Instant>,
 }
 
 impl PicLensApp {
@@ -1084,21 +1130,30 @@ impl PicLensApp {
         theme::install(&creation.egui_ctx);
         let LaunchOptions {
             initial_folder,
+            initial_search,
             include_subfolders,
             sort,
             thumbnail_size,
             sidebar_collapsed,
             smoke_after,
             initial_viewer,
+            screenshot_output,
+            performance_scroll,
             performance_viewer,
             metrics_output,
         } = options;
         let backend = Backend::spawn(creation.egui_ctx.clone(), smoke_after);
         let mut reducer = Reducer::new(initial_folder);
+        reducer.model.search = initial_search.unwrap_or_default();
         reducer.include_subfolders = include_subfolders;
         reducer.sort = sort;
         reducer.model.thumbnail_size = thumbnail_size;
         reducer.model.sidebar_collapsed = sidebar_collapsed;
+        let metrics = metrics_output.map(|output| Arc::new(RuntimeMetrics::new(output)));
+        let metrics_sampler = metrics.as_ref().map(|metrics| metrics.start_sampler());
+        let screenshot_deadline = screenshot_output
+            .as_ref()
+            .map(|_| Instant::now() + SCREENSHOT_DELAY);
         let mut app = Self {
             reducer,
             backend,
@@ -1106,10 +1161,18 @@ impl PicLensApp {
             pending_focus: None,
             folder_picker_open: false,
             initial_viewer,
+            screenshot_output,
+            screenshot_deadline,
+            performance_scroll,
+            scroll_workload: None,
             performance_viewer,
             navigation_workload: None,
             viewer_selection: None,
-            metrics: metrics_output.map(RuntimeMetrics::new),
+            metrics,
+            metrics_sampler,
+            window_size: None,
+            persisted_window_size: None,
+            window_size_deadline: None,
         };
         app.reducer.push_action(Action::StartBackendProbe);
         if let Some(folder) = app.reducer.model.initial_folder.clone() {
@@ -1132,7 +1195,16 @@ impl PicLensApp {
                     }
                 }
                 Event::ThumbnailLoaded { request, result } => {
-                    changed |= self.images.handle_result(&request, result, ctx);
+                    let accepted = self.images.handle_result(&request, result, ctx);
+                    if accepted
+                        && request.key.longest_edge != 1024
+                        && self.images.texture(&request.key).is_some()
+                    {
+                        if let Some(metrics) = &self.metrics {
+                            metrics.thumbnail_ready();
+                        }
+                    }
+                    changed |= accepted;
                 }
                 event => changed |= self.reducer.handle_event(event),
             }
@@ -1151,6 +1223,11 @@ impl PicLensApp {
         while let Some(command) = self.reducer.commands.pop_front() {
             if let Err(error) = self.backend.send(command.clone()) {
                 let message = format!("背景服務無法接收工作：{error}");
+                if matches!(command, Command::PersistWindowSize { .. }) {
+                    self.persisted_window_size = None;
+                    self.window_size_deadline = Some(Instant::now() + WINDOW_SIZE_PERSIST_DELAY);
+                    ctx.request_repaint_after(WINDOW_SIZE_PERSIST_DELAY);
+                }
                 match &command {
                     Command::SyncThumbnails { requests } => {
                         self.images.fail_requests(requests, &message);
@@ -1165,6 +1242,37 @@ impl PicLensApp {
         }
     }
 
+    fn observe_window_size(&mut self, ctx: &egui::Context, size: (u32, u32)) {
+        if self.window_size == Some(size) {
+            return;
+        }
+        self.window_size = Some(size);
+        self.window_size_deadline = Some(Instant::now() + WINDOW_SIZE_PERSIST_DELAY);
+        ctx.request_repaint_after(WINDOW_SIZE_PERSIST_DELAY);
+    }
+
+    fn persist_window_size_if_due(&mut self, ctx: &egui::Context) {
+        let Some(deadline) = self.window_size_deadline else {
+            return;
+        };
+        let now = Instant::now();
+        if now < deadline {
+            ctx.request_repaint_after(deadline - now);
+            return;
+        }
+        self.window_size_deadline = None;
+        let Some((width, height)) = self.window_size else {
+            return;
+        };
+        if self.persisted_window_size == Some((width, height)) {
+            return;
+        }
+        self.persisted_window_size = Some((width, height));
+        self.reducer
+            .commands
+            .push_back(Command::PersistWindowSize { width, height });
+    }
+
     fn close_if_requested(&mut self, ctx: &egui::Context) {
         if self.reducer.close_requested {
             self.reducer.close_requested = false;
@@ -1173,19 +1281,119 @@ impl PicLensApp {
         }
     }
 
+    fn request_screenshot_if_due(&mut self, ctx: &egui::Context) {
+        let Some(deadline) = self.screenshot_deadline else {
+            return;
+        };
+        let now = Instant::now();
+        if now < deadline {
+            ctx.request_repaint_after(deadline - now);
+            return;
+        }
+        self.screenshot_deadline = None;
+        let Some(path) = self.screenshot_output.clone() else {
+            return;
+        };
+        piclens_infra::info(format!(
+            "egui screenshot requested; path={}",
+            path.display()
+        ));
+        ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::new(path)));
+    }
+
+    fn queue_screenshot_save(&mut self, ui: &egui::Ui) {
+        let Some(expected_path) = self.screenshot_output.clone() else {
+            return;
+        };
+        let capture = ui.input(|input| {
+            input.raw.events.iter().find_map(|event| {
+                let egui::Event::Screenshot {
+                    user_data, image, ..
+                } = event
+                else {
+                    return None;
+                };
+                let requested_path = user_data
+                    .data
+                    .as_ref()
+                    .and_then(|data| data.downcast_ref::<PathBuf>())?;
+                (requested_path == &expected_path).then(|| Arc::clone(image))
+            })
+        });
+        let Some(image) = capture else {
+            return;
+        };
+        self.screenshot_output = None;
+        self.reducer.commands.push_back(Command::SaveScreenshot {
+            path: expected_path,
+            image,
+        });
+    }
+
     fn record_library_ready(&mut self) {
-        let Loadable::Ready(items) = &self.reducer.model.library else {
+        let Loadable::Ready(_) = &self.reducer.model.library else {
             return;
         };
         if let Some(metrics) = &mut self.metrics {
             metrics.library_ready(
-                items.len(),
-                items
+                self.reducer.model.visible_items.len(),
+                self.reducer
+                    .model
+                    .visible_items
                     .iter()
                     .filter(|item| item.as_image().is_some())
                     .count(),
             );
+            if !self.reducer.model.search.is_empty() {
+                metrics.search_applied();
+            }
         }
+    }
+
+    fn start_performance_scroll_if_ready(&mut self, ctx: &egui::Context) {
+        if !self.performance_scroll
+            || self.scroll_workload.is_some()
+            || self.reducer.model.page != Page::Library
+            || self.reducer.model.visible_items.is_empty()
+        {
+            return;
+        }
+        self.performance_scroll = false;
+        let now = Instant::now();
+        self.scroll_workload = Some(GalleryScrollWorkload {
+            started: now,
+            step: 0,
+            next_step: now + PERFORMANCE_SCROLL_INTERVAL,
+        });
+        piclens_infra::info("egui performance scroll workload started");
+        ctx.request_repaint_after(PERFORMANCE_SCROLL_INTERVAL);
+    }
+
+    fn drive_performance_scroll(&mut self, ctx: &egui::Context) {
+        let now = Instant::now();
+        let Some(workload) = self.scroll_workload.as_mut() else {
+            return;
+        };
+        if now < workload.next_step {
+            ctx.request_repaint_after(workload.next_step - now);
+            return;
+        }
+        if let Some(delta) = performance_scroll_delta(workload.step) {
+            workload.step += 1;
+            workload.next_step = now + PERFORMANCE_SCROLL_INTERVAL;
+            self.reducer.model.gallery_scroll_delta = Some(delta);
+            ctx.request_repaint_after(PERFORMANCE_SCROLL_INTERVAL);
+            return;
+        }
+
+        let elapsed = workload.started.elapsed().as_millis();
+        self.scroll_workload = None;
+        if let Some(metrics) = &self.metrics {
+            metrics.scroll_completed(elapsed);
+        }
+        piclens_infra::info(format!(
+            "egui performance scroll workload completed in {elapsed} ms"
+        ));
     }
 
     fn begin_viewer_selection(&mut self) {
@@ -1375,23 +1583,29 @@ impl eframe::App for PicLensApp {
         if self.handle_events(ctx) {
             ctx.request_repaint();
         }
+        self.persist_window_size_if_due(ctx);
         self.reduce_and_dispatch(ctx);
         self.record_library_ready();
+        self.start_performance_scroll_if_ready(ctx);
+        self.drive_performance_scroll(ctx);
         self.open_initial_viewer_if_ready(ctx);
         self.observe_viewer_selection();
         self.drive_viewer_navigation(ctx);
+        self.request_screenshot_if_due(ctx);
         self.close_if_requested(ctx);
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        let size = ui.max_rect().size();
+        let window_size = (
+            size.x.max(0.0).round() as u32,
+            size.y.max(0.0).round() as u32,
+        );
+        self.observe_window_size(ui.ctx(), window_size);
         if let Some(metrics) = &mut self.metrics {
-            let size = ui.max_rect().size();
-            metrics.window_ready(
-                size.x.max(0.0).round() as u32,
-                size.y.max(0.0).round() as u32,
-                ui.ctx().pixels_per_point(),
-            );
+            metrics.window_ready(window_size.0, window_size.1, ui.ctx().pixels_per_point());
         }
+        self.queue_screenshot_save(ui);
         self.record_viewer_preview_ready();
         let mut frame_actions = Vec::new();
         let materialized = ui::show(&self.reducer.model, &self.images, ui, &mut frame_actions);
@@ -1442,6 +1656,22 @@ impl eframe::App for PicLensApp {
     }
 
     fn on_exit(&mut self) {
+        if let Some(mut sampler) = self.metrics_sampler.take() {
+            sampler.stop();
+        }
+        if let Some((width, height)) = self
+            .window_size
+            .filter(|size| self.persisted_window_size != Some(*size))
+        {
+            if let Err(error) = self
+                .backend
+                .send(Command::PersistWindowSize { width, height })
+            {
+                piclens_infra::warn(format!(
+                    "failed to queue final egui window size; error={error}"
+                ));
+            }
+        }
         if let Some(metrics) = &self.metrics {
             match metrics.write_snapshot() {
                 Ok(()) => piclens_infra::info("egui runtime metrics written"),
@@ -1476,6 +1706,22 @@ mod tests {
                 None
             ]
         );
+    }
+
+    #[test]
+    fn performance_scroll_runs_two_down_and_up_legs() {
+        let deltas = (0..=PERFORMANCE_SCROLL_STEPS)
+            .map(performance_scroll_delta)
+            .collect::<Vec<_>>();
+
+        assert_eq!(deltas[0], Some(360.0));
+        assert_eq!(deltas[14], Some(360.0));
+        assert_eq!(deltas[15], Some(-360.0));
+        assert_eq!(deltas[29], Some(-360.0));
+        assert_eq!(deltas[30], Some(360.0));
+        assert_eq!(deltas[45], Some(-360.0));
+        assert_eq!(deltas[59], Some(-360.0));
+        assert_eq!(deltas[60], None);
     }
 
     #[test]
@@ -1528,6 +1774,8 @@ mod tests {
             | Command::PersistLibrarySettings { .. }
             | Command::PersistPickerFolder { .. }
             | Command::PersistSidebar { .. }
+            | Command::PersistWindowSize { .. }
+            | Command::SaveScreenshot { .. }
             | Command::Reveal { .. }
             | Command::StartFileOperation { .. }
             | Command::CancelFileOperation { .. } => panic!("expected probe command"),
@@ -1552,6 +1800,8 @@ mod tests {
             | Command::PersistLibrarySettings { .. }
             | Command::PersistPickerFolder { .. }
             | Command::PersistSidebar { .. }
+            | Command::PersistWindowSize { .. }
+            | Command::SaveScreenshot { .. }
             | Command::SyncThumbnails { .. }
             | Command::Reveal { .. }
             | Command::StartFileOperation { .. }
@@ -1574,6 +1824,8 @@ mod tests {
             | Command::LoadTreeChildren { .. }
             | Command::PersistPickerFolder { .. }
             | Command::PersistSidebar { .. }
+            | Command::PersistWindowSize { .. }
+            | Command::SaveScreenshot { .. }
             | Command::SyncThumbnails { .. }
             | Command::Reveal { .. }
             | Command::StartFileOperation { .. }

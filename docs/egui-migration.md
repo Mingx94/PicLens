@@ -92,6 +92,25 @@ Persistent product state must not be hidden in egui widget memory. Short-lived w
 | Accessibility | Names, roles, states, actions and focus restoration | Product/testing docs | All UI modules |
 | Packaging | MSI, portable, DEB and RPM paths | Release docs | Scripts + CI |
 
+## 2026-09-03 parity review
+
+本次 review 對照產品規格、runtime invariants、GPUI frontend、egui frontend、共用 domain／infra、測試與發佈腳本。`cargo test --workspace --locked` 通過 164 項測試：`piclens-desktop` 81、`piclens-gpui` 46、`piclens-domain` 23、`piclens-infra` 14。測試過程只有 Windows incremental cache 無法 finalize 的 note，沒有測試失敗。
+
+| 範圍 | 結論 | 差異或後續工作 |
+|---|---|---|
+| 啟動、folder picker、startup restore、history 與 folder tree | 功能相符 | clean Windows／Ubuntu／Fedora 的 wgpu 啟動仍屬平台驗證，不是本機 test 的結論。 |
+| 搜尋、排序、recursive mode、thumbnail size 與 selection | 功能相符 | egui 與 GPUI 都支援暫時性 search、recursive 與 sidebar CLI override。 |
+| Thumbnail pipeline 與 cache pruning | contract 相符 | 真實大型圖庫的取消、資源與長時間 pruning 行為仍需 Release metrics。 |
+| Viewer snapshot、navigation、zoom、pan、preload 與 texture budget | contract 相符 | 像素品質、高 DPI 與 compositor presentation 仍需真實 app 檢查。 |
+| Context action、rename、trash、conversion、batch result 與 drop rename | 功能相符 | 實際 OS recycle bin、drag/drop 與 helper process 行為仍由平台 smoke 驗證。 |
+| 快捷鍵、滑鼠側鍵、focus 與 accessibility | 功能相符 | egui 會在鍵盤游標移到虛擬化 viewport 外時，將目標 row 捲入畫面。 |
+| Settings schema、路徑與相容讀取 | 功能相符 | egui 會讀取既有視窗大小，resize 停止後由 background backend 保存正規化後的新大小。 |
+| 原生選單列 | 接受差異 | 產品規格未要求原生選單列；egui 以視窗內控制、context menu 與同等快捷鍵提供產品操作。 |
+| Screenshot、performance workload 與 metrics | 功能相符 | egui 支援 automated screenshot、60 次持續捲動 workload，以及 CPU、記憶體、thumbnail、search、scroll metrics；大型圖庫的 Release 測量與外部 GPU／storage 記錄仍待階段 8 驗證。 |
+| 預設 frontend、文件、package 與 CI | 尚未切換 | 這是遷移期間刻意保留的差異；正式切換項目已分別列在 `TODO.md` 階段 7。 |
+
+這份 review 完成 code、contract 與 test 層的差異盤點。它不取代真實輸入、視覺、高 DPI、效能、clean-runner package lifecycle 或 hosted release 驗證；這些項目仍維持未勾選。
+
 ## Evidence still required
 
 - A repeatable GPUI behavior baseline for the main product flow.
@@ -102,3 +121,7 @@ Persistent product state must not be hidden in egui widget memory. Short-lived w
 ## Local implementation evidence
 
 On 2026-09-02, workspace check, build, 110 tests, and clippy with warnings denied passed. The 31 `piclens-desktop` unit/headless tests cover reducer ordering, actions that enqueue actions, bounded command delivery, request-identity rejection, backend errors, scan cancellation, shutdown ownership, collection reset, reload, stale library results, in-memory search, four sort modes, settings compatibility, loaded/error states, a 10,000-item virtualized grid with fewer than 100 materialized thumbnail requests, stable selection anchor and order, plain/Ctrl/Shift/Ctrl+Shift selection action mapping, thumbnail source identity, generation rejection, unload cancellation, and animated-image exclusion. The 10 `piclens-infra` tests include decoder cancellation, timeout, and cache pruning. An isolated Windows wgpu app smoke loaded one valid PNG through the background scan and thumbnail workers, produced one PNG in the isolated thumbnail cache, processed the root viewport close request, and exited with status 0 without using the two-second fallback. This proves local startup, background folder loading, thumbnail decode/cache production, and graceful smoke close. It is not evidence of texture paint quality, accessibility, interaction, visual correctness, cache pruning timing under load, or clean Windows/Linux runner compatibility; those checks remain open.
+
+On 2026-09-03, an isolated Windows wgpu smoke loaded 240 copied PNG fixtures and ran temporary search, the 60-step continuous-scroll workload, automated screenshot capture, and schema 2 metrics in one process. The process exited with status 0, saved a 1280×800 PNG, recorded 96 completed thumbnail requests plus search, scroll, CPU, working-set, window, and display-scale fields, and logged screenshot save and workload completion before shutdown. This validates the automated diagnostics path in a Debug build. It does not replace Release measurement on a representative library, external GPU and storage records, visual comparison, or clean-runner validation.
+
+On 2026-09-03, an explicitly authorized copy of the existing Windows PicLens profile was used for an isolated egui compatibility smoke. The 2,004-file copy matched the source manifest before launch. egui restored the saved folder, sort, recursive mode, 180-pixel thumbnail size, expanded sidebar, and 2176×1224 window; existing cache names and the complete prior log prefix were preserved. The run appended only to the copied log, created no new quarantined settings file, and exited without an app-log warning or error. The production profile and settings hashes remained unchanged after the run. The copied profile and screenshot were moved to the Recycle Bin after validation and are not repository content.

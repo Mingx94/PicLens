@@ -5631,6 +5631,7 @@ dependencies = [
  "piclens-infra",
  "rfd",
  "serde_json",
+ "sysinfo",
 ]
 
 [[package]]

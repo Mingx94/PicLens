@@ -3,8 +3,13 @@
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct LaunchArgs {
     pub folder: Option<String>,
+    pub search: Option<String>,
+    pub include_subfolders: bool,
+    pub sidebar_closed: bool,
     pub viewer: Option<String>,
+    pub screenshot: Option<String>,
     pub metrics: Option<String>,
+    pub performance_scroll: bool,
     pub performance_viewer: bool,
     pub smoke_ms: Option<u64>,
     pub data_root: Option<String>,
@@ -20,8 +25,13 @@ const HELP: &str = "PicLens - desktop image viewer and organizer\n\n\
 Usage: piclens-desktop [OPTIONS]\n\n\
 Options:\n\
   -f, --folder <PATH>          Open a folder without changing saved startup state\n\
+      --search <TEXT>          Apply a temporary search filter\n\
+      --include-subfolders     Include child folders for this run\n\
+      --sidebar-closed         Start with the sidebar closed for this run\n\
       --viewer <PATH>          Open this image in the viewer after loading\n\
+      --screenshot <PATH>      Save an automated window screenshot\n\
       --metrics <PATH>         Write release-run metrics as JSON\n\
+      --performance-scroll     Run the continuous gallery scroll workload\n\
       --performance-viewer     Run forward/backward navigation (requires --viewer)\n\
       --data-root <PATH>       Use an isolated PicLens profile\n\
       --smoke-ms <MILLISECONDS> Quit automatically after the given time\n\
@@ -48,7 +58,9 @@ pub fn parse(args: &[String]) -> Result<ParseOutcome, String> {
         if let Some((name, value)) = split_value(arg) {
             match name {
                 "--folder" => launch.folder = Some(value.into()),
+                "--search" => launch.search = Some(value.into()),
                 "--viewer" => launch.viewer = Some(value.into()),
+                "--screenshot" => launch.screenshot = Some(value.into()),
                 "--metrics" => launch.metrics = Some(value.into()),
                 "--data-root" => launch.data_root = Some(value.into()),
                 "--smoke-ms" => {
@@ -73,8 +85,13 @@ pub fn parse(args: &[String]) -> Result<ParseOutcome, String> {
                 )));
             }
             "-f" | "--folder" => launch.folder = Some(take_value(args, &mut index, arg)?),
+            "--search" => launch.search = Some(take_value(args, &mut index, arg)?),
+            "--include-subfolders" => launch.include_subfolders = true,
+            "--sidebar-closed" => launch.sidebar_closed = true,
             "--viewer" => launch.viewer = Some(take_value(args, &mut index, arg)?),
+            "--screenshot" => launch.screenshot = Some(take_value(args, &mut index, arg)?),
             "--metrics" => launch.metrics = Some(take_value(args, &mut index, arg)?),
+            "--performance-scroll" => launch.performance_scroll = true,
             "--performance-viewer" => launch.performance_viewer = true,
             "--data-root" => launch.data_root = Some(take_value(args, &mut index, arg)?),
             "--smoke-ms" => {
@@ -104,11 +121,18 @@ mod tests {
         let args = vec![
             "piclens-desktop".into(),
             "--folder=photos".into(),
+            "--search".into(),
+            "jpg".into(),
+            "--include-subfolders".into(),
+            "--sidebar-closed".into(),
             "--data-root".into(),
             "profile".into(),
             "--viewer=photos/a.jpg".into(),
+            "--screenshot".into(),
+            "window.png".into(),
             "--metrics".into(),
             "metrics.json".into(),
+            "--performance-scroll".into(),
             "--performance-viewer".into(),
             "--smoke-ms".into(),
             "250".into(),
@@ -117,9 +141,14 @@ mod tests {
             panic!("expected launch arguments")
         };
         assert_eq!(parsed.folder.as_deref(), Some("photos"));
+        assert_eq!(parsed.search.as_deref(), Some("jpg"));
+        assert!(parsed.include_subfolders);
+        assert!(parsed.sidebar_closed);
         assert_eq!(parsed.data_root.as_deref(), Some("profile"));
         assert_eq!(parsed.viewer.as_deref(), Some("photos/a.jpg"));
+        assert_eq!(parsed.screenshot.as_deref(), Some("window.png"));
         assert_eq!(parsed.metrics.as_deref(), Some("metrics.json"));
+        assert!(parsed.performance_scroll);
         assert!(parsed.performance_viewer);
         assert_eq!(parsed.smoke_ms, Some(250));
     }

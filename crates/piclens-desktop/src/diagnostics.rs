@@ -1,21 +1,27 @@
-//! Release-run viewer paint metrics for the egui frontend.
+//! Release-run performance metrics, including the viewer's 500ms paint target.
 
 use std::fs;
 use std::path::PathBuf;
-use std::time::Instant;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread::{self, JoinHandle};
+use std::time::{Duration, Instant};
 
 use serde_json::json;
+use sysinfo::{Pid, System};
 
+#[derive(Debug)]
 pub struct RuntimeMetrics {
     output: PathBuf,
     started: Instant,
-    state: MetricState,
+    state: Mutex<MetricState>,
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct MetricState {
     startup_ms: Option<u128>,
     library_ready_ms: Option<u128>,
+    first_thumbnail_ms: Option<u128>,
     viewer_open_ms: Option<u128>,
     viewer_preview_ready_ms: Option<u128>,
     viewer_sharp_paint_ms: Option<u128>,
@@ -25,10 +31,39 @@ struct MetricState {
     viewer_sharp_paint_samples_ms: Vec<u128>,
     viewer_navigation_checked: usize,
     viewer_navigation_unpainted: usize,
+    search_ms: Option<u128>,
+    scroll_ms: Option<u128>,
     row_count: usize,
     image_count: usize,
+    completed_thumbnails: usize,
+    peak_working_set_bytes: u64,
+    cpu_percent_total: f64,
+    process_sample_count: u64,
     window_size: Option<String>,
     display_scale: Option<f32>,
+}
+
+pub struct ProcessSampler {
+    stop: Arc<AtomicBool>,
+    thread: Option<JoinHandle<()>>,
+}
+
+impl ProcessSampler {
+    pub fn stop(&mut self) {
+        self.stop.store(true, Ordering::Release);
+        if let Some(thread) = self.thread.take() {
+            thread.thread().unpark();
+            if thread.join().is_err() {
+                piclens_infra::warn("egui metrics sampler panicked during shutdown");
+            }
+        }
+    }
+}
+
+impl Drop for ProcessSampler {
+    fn drop(&mut self) {
+        self.stop();
+    }
 }
 
 impl RuntimeMetrics {
@@ -36,78 +71,167 @@ impl RuntimeMetrics {
         Self {
             output: output.into(),
             started: Instant::now(),
-            state: MetricState::default(),
+            state: Mutex::new(MetricState::default()),
         }
     }
 
-    pub fn window_ready(&mut self, width: u32, height: u32, display_scale: f32) {
-        self.state
+    pub fn start_sampler(self: &Arc<Self>) -> ProcessSampler {
+        let metrics = Arc::clone(self);
+        let stop = Arc::new(AtomicBool::new(false));
+        let thread_stop = Arc::clone(&stop);
+        let thread = thread::Builder::new()
+            .name("piclens-metrics".into())
+            .spawn(move || {
+                while !thread_stop.load(Ordering::Acquire) {
+                    metrics.sample_process();
+                    thread::park_timeout(Duration::from_millis(100));
+                }
+            })
+            .expect("PicLens metrics sampler can start");
+        ProcessSampler {
+            stop,
+            thread: Some(thread),
+        }
+    }
+
+    pub fn window_ready(&self, width: u32, height: u32, display_scale: f32) {
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        state
             .startup_ms
             .get_or_insert(self.started.elapsed().as_millis());
-        self.state.window_size = Some(format!("{width}x{height}"));
-        self.state.display_scale = Some(display_scale);
+        state.window_size = Some(format!("{width}x{height}"));
+        state.display_scale = Some(display_scale);
     }
 
-    pub fn library_ready(&mut self, rows: usize, images: usize) {
-        self.state
+    pub fn library_ready(&self, rows: usize, images: usize) {
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        state
             .library_ready_ms
             .get_or_insert(self.started.elapsed().as_millis());
-        self.state.row_count = rows;
-        self.state.image_count = images;
+        state.row_count = rows;
+        state.image_count = images;
     }
 
-    pub fn viewer_opened(&mut self) {
+    pub fn sample_process(&self) {
+        let mut system = System::new_all();
+        system.refresh_all();
+        let Some(process) = system.process(Pid::from_u32(std::process::id())) else {
+            return;
+        };
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        state.peak_working_set_bytes = state.peak_working_set_bytes.max(process.memory());
+        state.cpu_percent_total += f64::from(process.cpu_usage());
+        state.process_sample_count += 1;
+    }
+
+    pub fn thumbnail_ready(&self) {
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        state
+            .first_thumbnail_ms
+            .get_or_insert(self.started.elapsed().as_millis());
+        state.completed_thumbnails += 1;
+    }
+
+    pub fn viewer_opened(&self) {
         self.state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
             .viewer_open_ms
             .get_or_insert(self.started.elapsed().as_millis());
     }
 
-    pub fn viewer_preview_ready(&mut self, elapsed_ms: u128) {
-        self.state.viewer_preview_ready_ms.get_or_insert(elapsed_ms);
+    pub fn search_applied(&self) {
+        self.state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .search_ms
+            .get_or_insert(self.started.elapsed().as_millis());
     }
 
-    pub fn viewer_sharp_painted(&mut self, elapsed_ms: u128) {
-        self.state.viewer_sharp_paint_ms.get_or_insert(elapsed_ms);
-        self.state.viewer_sharp_paint_max_ms = self.state.viewer_sharp_paint_max_ms.max(elapsed_ms);
-        self.state.viewer_sharp_paint_count += 1;
-        self.state.viewer_sharp_target_misses += usize::from(elapsed_ms > 500);
-        if self.state.viewer_sharp_paint_samples_ms.len() < 256 {
-            self.state.viewer_sharp_paint_samples_ms.push(elapsed_ms);
+    pub fn viewer_preview_ready(&self, elapsed_ms: u128) {
+        self.state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .viewer_preview_ready_ms
+            .get_or_insert(elapsed_ms);
+    }
+
+    pub fn viewer_sharp_painted(&self, elapsed_ms: u128) {
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        state.viewer_sharp_paint_ms.get_or_insert(elapsed_ms);
+        state.viewer_sharp_paint_max_ms = state.viewer_sharp_paint_max_ms.max(elapsed_ms);
+        state.viewer_sharp_paint_count += 1;
+        state.viewer_sharp_target_misses += usize::from(elapsed_ms > 500);
+        if state.viewer_sharp_paint_samples_ms.len() < 256 {
+            state.viewer_sharp_paint_samples_ms.push(elapsed_ms);
         }
     }
 
-    pub fn viewer_navigation_checked(&mut self, painted: bool) {
-        self.state.viewer_navigation_checked += 1;
-        self.state.viewer_navigation_unpainted += usize::from(!painted);
+    pub fn viewer_navigation_checked(&self, painted: bool) {
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        state.viewer_navigation_checked += 1;
+        state.viewer_navigation_unpainted += usize::from(!painted);
+    }
+
+    pub fn scroll_completed(&self, elapsed_ms: u128) {
+        self.state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .scroll_ms = Some(elapsed_ms);
     }
 
     pub fn write_snapshot(&self) -> Result<(), String> {
+        self.sample_process();
+        let state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        let mut system = System::new_all();
+        system.refresh_all();
+        let process = system.process(Pid::from_u32(std::process::id()));
+        let working_set_bytes = process.map(|item| item.memory()).unwrap_or_default();
+        let cpu_name = system
+            .cpus()
+            .first()
+            .map(|cpu| cpu.brand().to_string())
+            .unwrap_or_else(|| "unknown".into());
         let value = json!({
             "schemaVersion": 2,
             "frontEnd": "eframe-egui-wgpu",
             "buildProfile": if cfg!(debug_assertions) { "debug" } else { "release" },
             "version": env!("CARGO_PKG_VERSION"),
             "commit": option_env!("PICLENS_BUILD_COMMIT").unwrap_or("working-tree"),
-            "os": std::env::consts::OS,
+            "os": System::long_os_version().unwrap_or_else(|| std::env::consts::OS.into()),
+            "cpu": cpu_name,
             "gpu": "record externally",
             "storage": "record fixture storage externally",
-            "windowSize": self.state.window_size,
-            "displayScale": self.state.display_scale,
+            "windowSize": state.window_size,
+            "displayScale": state.display_scale,
             "elapsedMilliseconds": self.started.elapsed().as_millis(),
-            "startupMilliseconds": self.state.startup_ms,
-            "libraryReadyMilliseconds": self.state.library_ready_ms,
-            "viewerOpenMilliseconds": self.state.viewer_open_ms,
-            "viewerPreviewReadyMilliseconds": self.state.viewer_preview_ready_ms,
-            "viewerSharpPaintMilliseconds": self.state.viewer_sharp_paint_ms,
-            "viewerSharpPaintMaxMilliseconds": self.state.viewer_sharp_paint_max_ms,
-            "viewerSharpPaintCount": self.state.viewer_sharp_paint_count,
+            "startupMilliseconds": state.startup_ms,
+            "libraryReadyMilliseconds": state.library_ready_ms,
+            "firstThumbnailMilliseconds": state.first_thumbnail_ms,
+            "continuousScrollMilliseconds": state.scroll_ms,
+            "searchMilliseconds": state.search_ms,
+            "viewerOpenMilliseconds": state.viewer_open_ms,
+            "viewerPreviewReadyMilliseconds": state.viewer_preview_ready_ms,
+            "viewerSharpPaintMilliseconds": state.viewer_sharp_paint_ms,
+            "viewerSharpPaintMaxMilliseconds": state.viewer_sharp_paint_max_ms,
+            "viewerSharpPaintCount": state.viewer_sharp_paint_count,
             "viewerSharpTargetMilliseconds": 500,
-            "viewerSharpTargetMisses": self.state.viewer_sharp_target_misses,
-            "viewerSharpPaintSamplesMilliseconds": self.state.viewer_sharp_paint_samples_ms,
-            "viewerNavigationCheckedSelections": self.state.viewer_navigation_checked,
-            "viewerNavigationUnpaintedSelections": self.state.viewer_navigation_unpainted,
-            "rowCount": self.state.row_count,
-            "imageCount": self.state.image_count,
+            "viewerSharpTargetMisses": state.viewer_sharp_target_misses,
+            "viewerSharpPaintSamplesMilliseconds": state.viewer_sharp_paint_samples_ms,
+            "viewerNavigationCheckedSelections": state.viewer_navigation_checked,
+            "viewerNavigationUnpaintedSelections": state.viewer_navigation_unpainted,
+            "rowCount": state.row_count,
+            "imageCount": state.image_count,
+            "completedThumbnailRequests": state.completed_thumbnails,
+            "processCpuPercentAtExit": process.map(|item| item.cpu_usage()).unwrap_or_default(),
+            "averageCpuUtilizationPercent": if state.process_sample_count == 0 {
+                0.0
+            } else {
+                state.cpu_percent_total / state.process_sample_count as f64
+            },
+            "workingSetBytes": working_set_bytes,
+            "peakWorkingSetBytes": state.peak_working_set_bytes.max(working_set_bytes),
+            "logicalProcessorCount": system.cpus().len(),
             "thresholdGateEnabled": false
         });
         if let Some(parent) = self
@@ -135,18 +259,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn sharp_paint_counts_misses_and_unpainted_selections() {
-        let mut metrics = RuntimeMetrics::new("unused.json");
+    fn records_workloads_and_viewer_target_misses() {
+        let metrics = RuntimeMetrics::new("unused.json");
+        metrics.thumbnail_ready();
+        metrics.thumbnail_ready();
+        metrics.search_applied();
+        metrics.scroll_completed(1_980);
         metrics.viewer_sharp_painted(120);
         metrics.viewer_sharp_painted(501);
         metrics.viewer_navigation_checked(true);
         metrics.viewer_navigation_checked(false);
 
+        let state = metrics.state.lock().unwrap();
         assert_eq!(metrics.output(), std::path::Path::new("unused.json"));
-        assert_eq!(metrics.state.viewer_sharp_paint_ms, Some(120));
-        assert_eq!(metrics.state.viewer_sharp_paint_max_ms, 501);
-        assert_eq!(metrics.state.viewer_sharp_target_misses, 1);
-        assert_eq!(metrics.state.viewer_navigation_checked, 2);
-        assert_eq!(metrics.state.viewer_navigation_unpainted, 1);
+        assert!(state.first_thumbnail_ms.is_some());
+        assert_eq!(state.completed_thumbnails, 2);
+        assert!(state.search_ms.is_some());
+        assert_eq!(state.scroll_ms, Some(1_980));
+        assert_eq!(state.viewer_sharp_paint_ms, Some(120));
+        assert_eq!(state.viewer_sharp_paint_max_ms, 501);
+        assert_eq!(state.viewer_sharp_target_misses, 1);
+        assert_eq!(state.viewer_navigation_checked, 2);
+        assert_eq!(state.viewer_navigation_unpainted, 1);
     }
 }

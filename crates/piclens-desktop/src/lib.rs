@@ -26,13 +26,16 @@ const APP_ICON_PNG: &[u8] = include_bytes!("../../../assets/Square150x150Logo.sc
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LaunchOptions {
     pub initial_folder: Option<PathBuf>,
+    pub initial_search: Option<String>,
     pub initial_viewer: Option<PathBuf>,
     pub include_subfolders: bool,
     pub sort: SortState,
     pub thumbnail_size: i32,
     pub sidebar_collapsed: bool,
     pub smoke_after: Option<Duration>,
+    pub screenshot_output: Option<PathBuf>,
     pub metrics_output: Option<PathBuf>,
+    pub performance_scroll: bool,
     pub performance_viewer: bool,
 }
 
@@ -44,20 +47,7 @@ pub fn run(options: LaunchOptions) -> eframe::Result<()> {
         .map(|(width, height)| normalize_window_size(width, height))
         .unwrap_or((1280, 800));
 
-    let initial_folder = options
-        .initial_folder
-        .or_else(|| restorable_folder(stored.last_folder_path));
-    let options = LaunchOptions {
-        initial_folder,
-        initial_viewer: options.initial_viewer,
-        include_subfolders: stored.include_subfolders,
-        sort: stored.sort,
-        thumbnail_size: stored.thumbnail_size,
-        sidebar_collapsed: stored.sidebar_collapsed,
-        smoke_after: options.smoke_after,
-        metrics_output: options.metrics_output,
-        performance_viewer: options.performance_viewer,
-    };
+    let options = resolve_launch_options(options, stored);
 
     let viewport = egui::ViewportBuilder::default()
         .with_title("PicLens")
@@ -88,6 +78,20 @@ pub fn run(options: LaunchOptions) -> eframe::Result<()> {
     )
 }
 
+fn resolve_launch_options(
+    mut options: LaunchOptions,
+    stored: piclens_domain::AppSettings,
+) -> LaunchOptions {
+    options.initial_folder = options
+        .initial_folder
+        .or_else(|| restorable_folder(stored.last_folder_path));
+    options.include_subfolders |= stored.include_subfolders;
+    options.sort = stored.sort;
+    options.thumbnail_size = stored.thumbnail_size;
+    options.sidebar_collapsed |= stored.sidebar_collapsed;
+    options
+}
+
 fn restorable_folder(last_folder_path: Option<String>) -> Option<PathBuf> {
     last_folder_path
         .map(PathBuf::from)
@@ -98,13 +102,16 @@ impl Default for LaunchOptions {
     fn default() -> Self {
         Self {
             initial_folder: None,
+            initial_search: None,
             initial_viewer: None,
             include_subfolders: false,
             sort: SortState::default(),
             thumbnail_size: DEFAULT_THUMBNAIL_SIZE,
             sidebar_collapsed: false,
             smoke_after: None,
+            screenshot_output: None,
             metrics_output: None,
+            performance_scroll: false,
             performance_viewer: false,
         }
     }
@@ -142,5 +149,26 @@ mod tests {
             restorable_folder(Some(fixture.to_string_lossy().into_owned())),
             None
         );
+    }
+
+    #[test]
+    fn temporary_launch_overrides_merge_without_replacing_stored_library_settings() {
+        let resolved = resolve_launch_options(
+            LaunchOptions {
+                initial_search: Some("jpg".into()),
+                include_subfolders: true,
+                sidebar_collapsed: true,
+                ..Default::default()
+            },
+            piclens_domain::AppSettings {
+                thumbnail_size: 220,
+                ..Default::default()
+            },
+        );
+
+        assert_eq!(resolved.initial_search.as_deref(), Some("jpg"));
+        assert!(resolved.include_subfolders);
+        assert!(resolved.sidebar_collapsed);
+        assert_eq!(resolved.thumbnail_size, 220);
     }
 }

@@ -502,7 +502,29 @@ fn gallery_grid(
     let columns = (((ui.available_width() + GAP) / (tile_width + GAP)).floor() as usize).max(1);
     let rows = model.visible_items.len().div_ceil(columns);
     let mut hovered_target = None;
-    egui::ScrollArea::vertical().show_rows(ui, tile_height + GAP, rows, |ui, visible_rows| {
+    let scroll_id = ui.make_persistent_id("piclens-gallery-scroll");
+    let mut scroll_area = egui::ScrollArea::vertical().id_salt("piclens-gallery-scroll");
+    let current_offset =
+        egui::scroll_area::State::load(ui.ctx(), scroll_id).map_or(0.0, |state| state.offset.y);
+    if let Some(index) = model
+        .gallery_scroll_target
+        .filter(|index| *index < model.visible_items.len())
+    {
+        let row_stride = tile_height + ui.spacing().item_spacing.y;
+        let offset = scroll_offset_for_row(
+            current_offset,
+            ui.available_height(),
+            row_stride,
+            index / columns,
+        );
+        scroll_area = scroll_area.vertical_scroll_offset(offset);
+    } else if let Some(delta) = model.gallery_scroll_delta {
+        scroll_area = scroll_area.vertical_scroll_offset((current_offset + delta).max(0.0));
+    }
+    if model.gallery_scroll_target.is_some() || model.gallery_scroll_delta.is_some() {
+        actions.push(Action::ClearGalleryScrollTarget);
+    }
+    scroll_area.show_rows(ui, tile_height, rows, |ui, visible_rows| {
         for row in visible_rows {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = GAP;
@@ -702,6 +724,23 @@ fn gallery_grid(
         } else if !down {
             actions.push(Action::CancelDrag);
         }
+    }
+}
+
+fn scroll_offset_for_row(
+    current_offset: f32,
+    viewport_height: f32,
+    row_stride: f32,
+    row: usize,
+) -> f32 {
+    let row_top = row as f32 * row_stride;
+    let row_bottom = row_top + row_stride;
+    if row_top < current_offset {
+        row_top
+    } else if row_bottom > current_offset + viewport_height {
+        (row_bottom - viewport_height).max(0.0)
+    } else {
+        current_offset
     }
 }
 
@@ -1365,6 +1404,13 @@ mod tests {
         assert_eq!(edge_autoscroll_step(400.0, 0.0, 400.0), 48.0);
     }
 
+    #[test]
+    fn keyboard_scroll_offset_keeps_the_target_row_in_view() {
+        assert_eq!(scroll_offset_for_row(100.0, 300.0, 80.0, 0), 0.0);
+        assert_eq!(scroll_offset_for_row(100.0, 300.0, 80.0, 3), 100.0);
+        assert_eq!(scroll_offset_for_row(100.0, 300.0, 80.0, 8), 420.0);
+    }
+
     fn dragging_model() -> AppModel {
         let mut model = crate::demo::loaded_library();
         model.drag = Some(crate::model::DragSession {
@@ -1587,6 +1633,24 @@ mod tests {
         let _ = harness.get_by_label("10000 個項目");
         let _ = harness.get_by_label_contains("image0.png");
         assert!(harness.state().len() < 100);
+    }
+
+    #[test]
+    fn keyboard_scroll_materializes_a_target_outside_the_initial_viewport() {
+        let mut model = crate::demo::large_library(10_000);
+        model.gallery_scroll_target = Some(9_999);
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1280.0, 800.0))
+            .build_ui_state(
+                move |ui, actions: &mut Vec<Action>| {
+                    show(&model, &ThumbnailLoader::default(), ui, actions);
+                },
+                Vec::new(),
+            );
+        harness.run();
+
+        let _ = harness.get_by_label_contains("image9999.png");
+        assert!(harness.state().contains(&Action::ClearGalleryScrollTarget));
     }
 
     #[test]

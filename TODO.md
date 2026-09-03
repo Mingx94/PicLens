@@ -135,8 +135,13 @@ egui view -> Action -> App reducer -> Command -> background backend
 
 目標：讓 egui frontend 成為唯一正式 app，並清理遷移期間的雙重路徑。
 
-- [ ] 執行完整 GPUI／egui parity review，所有差異都有產品核准或明確缺陷項目。
-- [ ] 使用既有 settings、cache 和 log profile 驗證向前資料相容；不得破壞或靜默重設使用者設定。
+- [x] 執行完整 GPUI／egui parity review，所有差異都有產品核准或明確缺陷項目。詳見 [egui migration design](docs/egui-migration.md#2026-09-03-parity-review)。
+- [x] 補齊 egui settings parity：視窗 resize 後以 background command 保存正規化後的視窗大小，不可在 UI thread 寫檔。
+- [x] 補齊 egui 虛擬化圖庫的鍵盤捲動：游標移到未 materialize 的項目時，目標項目必須進入 viewport。
+- [x] 補齊 egui 暫時性 `--search`、`--include-subfolders` 與 `--sidebar-closed` CLI override。
+- [x] 補齊 egui automated screenshot 與持續捲動 workload。
+- [x] 補齊 egui CPU、記憶體、thumbnail、search 和 scroll metrics。
+- [x] 使用既有 settings、cache 和 log profile 驗證向前資料相容；不得破壞或靜默重設使用者設定。
 - [ ] 更新 root workspace default member、README、architecture、development、testing、design 與 release 文件。
 - [ ] 更新 screenshot、performance、package、smoke 與 CI scripts，使其執行 `piclens-desktop`。
 - [ ] 更新 Windows MSI、portable archive、DEB 與 RPM 的 binary、desktop entry、icon 和 metadata。

@@ -61,9 +61,14 @@ fn main() -> eframe::Result<()> {
 
     piclens_desktop::run(LaunchOptions {
         initial_folder: launch.folder.map(PathBuf::from),
+        initial_search: launch.search,
         initial_viewer: launch.viewer.map(PathBuf::from),
+        include_subfolders: launch.include_subfolders,
+        sidebar_collapsed: launch.sidebar_closed,
         smoke_after: launch.smoke_ms.map(Duration::from_millis),
+        screenshot_output: launch.screenshot.map(PathBuf::from),
         metrics_output: launch.metrics.map(PathBuf::from),
+        performance_scroll: launch.performance_scroll,
         performance_viewer: launch.performance_viewer,
         ..Default::default()
     })

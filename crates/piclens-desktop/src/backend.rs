@@ -1,6 +1,7 @@
 //! Bounded channel boundary between the UI thread and background work.
 
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::sync::{Arc, Condvar, Mutex};
@@ -90,6 +91,14 @@ pub enum Command {
     PersistSidebar {
         collapsed: bool,
     },
+    PersistWindowSize {
+        width: u32,
+        height: u32,
+    },
+    SaveScreenshot {
+        path: PathBuf,
+        image: Arc<egui::ColorImage>,
+    },
     SyncThumbnails {
         requests: Vec<ThumbnailRequest>,
     },
@@ -127,6 +136,9 @@ pub enum Event {
     },
     FolderPicked {
         path: Option<std::path::PathBuf>,
+    },
+    ScreenshotSaved {
+        result: Result<PathBuf, String>,
     },
     ThumbnailLoaded {
         request: ThumbnailRequest,
@@ -650,6 +662,29 @@ fn send_event(events: &SyncSender<Event>, ctx: &egui::Context, event: Event) -> 
     true
 }
 
+fn save_screenshot(path: &Path, capture: &egui::ColorImage) -> Result<PathBuf, String> {
+    let width = u32::try_from(capture.size[0]).map_err(|_| "截圖寬度超出支援範圍。".to_string())?;
+    let height =
+        u32::try_from(capture.size[1]).map_err(|_| "截圖高度超出支援範圍。".to_string())?;
+    if width == 0 || height == 0 || capture.pixels.len() != capture.size[0] * capture.size[1] {
+        return Err("截圖資料的尺寸無效。".into());
+    }
+    let rgba = capture
+        .pixels
+        .iter()
+        .flat_map(egui::Color32::to_srgba_unmultiplied)
+        .collect::<Vec<_>>();
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        std::fs::create_dir_all(parent).map_err(|error| format!("無法建立截圖資料夾：{error}"))?;
+    }
+    image::save_buffer(path, &rgba, width, height, image::ColorType::Rgba8)
+        .map_err(|error| format!("無法儲存截圖：{error}"))?;
+    Ok(path.to_path_buf())
+}
+
 fn stop_active_scan(active_scan: &mut Option<ActiveScan>) {
     let Some(scan) = active_scan.take() else {
         return;
@@ -838,6 +873,17 @@ fn persist_sidebar(store: &JsonSettingsStore, collapsed: bool) -> Result<(), Str
         .map_err(|error| format!("無法儲存側欄設定：{error}"))
 }
 
+fn persist_window_size(store: &JsonSettingsStore, width: u32, height: u32) -> Result<(), String> {
+    store
+        .update(&AppSettingsPatch {
+            window_width: Some(width),
+            window_height: Some(height),
+            ..Default::default()
+        })
+        .map(|_| ())
+        .map_err(|error| format!("無法儲存視窗大小：{error}"))
+}
+
 fn coordinator_loop(
     commands: Receiver<Command>,
     events: SyncSender<Event>,
@@ -964,6 +1010,28 @@ fn coordinator_loop(
                     break;
                 }
             }
+            Command::PersistWindowSize { width, height } => {
+                let result = persist_window_size(&JsonSettingsStore::new(), width, height);
+                if !send_event(&events, &ctx, Event::SettingsSaved { result }) {
+                    break;
+                }
+            }
+            Command::SaveScreenshot { path, image } => {
+                let result = save_screenshot(&path, &image);
+                match &result {
+                    Ok(path) => piclens_infra::info(format!(
+                        "egui screenshot saved; path={}",
+                        path.display()
+                    )),
+                    Err(error) => piclens_infra::warn(format!(
+                        "egui screenshot failed; path={}; error={error}",
+                        path.display()
+                    )),
+                }
+                if !send_event(&events, &ctx, Event::ScreenshotSaved { result }) {
+                    break;
+                }
+            }
             Command::SyncThumbnails { requests } => thumbnail_pool.sync(requests),
             Command::Reveal { path } => {
                 let result = piclens_infra::reveal_in_file_manager(&path)
@@ -1024,6 +1092,27 @@ fn coordinator_loop(
 mod tests {
     use super::*;
     use piclens_domain::{AppSettings, SortDirection};
+
+    #[test]
+    fn screenshot_is_encoded_as_png_by_the_backend_helper() {
+        let root = std::env::temp_dir().join(format!(
+            "piclens-egui-screenshot-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let path = root.join("capture.png");
+        let capture = egui::ColorImage::filled([2, 1], egui::Color32::from_rgb(12, 34, 56));
+
+        assert_eq!(save_screenshot(&path, &capture).unwrap(), path);
+        let saved = image::open(&path).unwrap().into_rgba8();
+        assert_eq!(saved.dimensions(), (2, 1));
+        assert_eq!(saved.get_pixel(0, 0).0, [12, 34, 56, 255]);
+
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn rename_runs_behind_the_file_operation_command_boundary() {
@@ -1426,6 +1515,32 @@ mod tests {
         assert_eq!(loaded.last_folder_path.as_deref(), Some("C:/picked"));
         assert!(loaded.include_subfolders);
         assert_eq!(loaded.thumbnail_size, 220);
+        std::fs::remove_file(fixture).unwrap();
+    }
+
+    #[test]
+    fn window_size_persist_is_normalized_without_changing_other_settings() {
+        let fixture = std::env::temp_dir().join(format!(
+            "piclens-egui-window-settings-{}.json",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&fixture);
+        let store = JsonSettingsStore::with_path(&fixture);
+        store
+            .save(&AppSettings {
+                last_folder_path: Some("C:/picker-root".into()),
+                sidebar_collapsed: true,
+                ..Default::default()
+            })
+            .unwrap();
+
+        persist_window_size(&store, 320, 200).unwrap();
+
+        let loaded = store.load();
+        assert_eq!(loaded.last_folder_path.as_deref(), Some("C:/picker-root"));
+        assert!(loaded.sidebar_collapsed);
+        assert_eq!(loaded.window_width, Some(800));
+        assert_eq!(loaded.window_height, Some(600));
         std::fs::remove_file(fixture).unwrap();
     }
 
