@@ -4,7 +4,9 @@ PicLens is a desktop image viewer and organizer built with Rust, GPUI, and gpui-
 
 ## Communication Standard
 
-- Use ASD-STE100 Simplified Technical English.
+- Write in Traditional Chinese and follow ASD-STE100.
+- Use `zhtw-mcp` for terms that are not used in Taiwan.
+- Do not apply these language rules to code, identifiers, API names, or required technical terms.
 - Apply Zinsser's four principles: Simplicity, Brevity, Clarity, Humanity.
 
 ## Core Workflow

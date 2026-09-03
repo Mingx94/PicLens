@@ -1384,15 +1384,6 @@ impl eframe::App for PicLensApp {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        if let Some(target) = self.pending_focus.take() {
-            let target_is_visible = (target == ui::gallery_focus_id()
-                && self.reducer.model.page == Page::Library)
-                || (target == ui::rename_focus_id()
-                    && matches!(self.reducer.model.dialog, Some(DialogState::Rename { .. })));
-            if target_is_visible {
-                request_focus(ui.ctx(), target);
-            }
-        }
         if let Some(metrics) = &mut self.metrics {
             let size = ui.max_rect().size();
             metrics.window_ready(
@@ -1404,6 +1395,15 @@ impl eframe::App for PicLensApp {
         self.record_viewer_preview_ready();
         let mut frame_actions = Vec::new();
         let materialized = ui::show(&self.reducer.model, &self.images, ui, &mut frame_actions);
+        if let Some(target) = self.pending_focus.take() {
+            let target_is_visible = (target == ui::gallery_focus_id()
+                && self.reducer.model.page == Page::Library)
+                || (target == ui::rename_focus_id()
+                    && matches!(self.reducer.model.dialog, Some(DialogState::Rename { .. })));
+            if target_is_visible {
+                request_focus(ui.ctx(), target);
+            }
+        }
         self.record_viewer_sharp_paint();
         if !self.folder_picker_open && frame_actions.contains(&Action::ChooseFolder) {
             frame_actions.retain(|action| *action != Action::ChooseFolder);
