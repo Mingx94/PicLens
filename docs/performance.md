@@ -64,3 +64,23 @@ The host used Windows 11 Home 10.0.26200 build 26200, an Intel Core i5-12400 wit
 | Warm PicLens profile | 36ms | 36ms | 12ms | 12ms | 129 / 129 | 0 | 0 |
 
 Both runs completed the same Viewer workload: up to 64 steps forward and backward plus the initial and final selections. The cold run used a fresh PicLens profile; it did not flush the Windows filesystem cache. The warm run reused that profile. Both app logs contained the workload completion event and no unpainted-selection warning. `thresholdGateEnabled` remained false.
+
+## 大型 disposable 圖庫證據 — 2026-09-03
+
+Windows Release 量測使用 commit `858886e5` 與當時尚未提交的量測腳本變更。測試資料位於隔離的 `target` 目錄。它有 100 個子資料夾及 10,000 個 `.jpg` 檔案，邏輯大小為 300.27 MiB。每個檔案都是 repository 圖示 `Square150x150Logo.scale-200.png` 的副本；原始檔案 SHA-256 是 `d3e6ed592ce9ff3183eb4a479cbdb7005ee1fa24168e64fb692aedcda5be8a25`。因此，本次結果可證明大型清單、遞迴掃描、搜尋、縮圖排程及 Viewer 開啟行為，但不能代表多種格式或大型影像的解碼效能。
+
+主機使用 Windows 11 Home 10.0.26200、Intel Core i5-12400（12 個邏輯處理器）及 NVIDIA GeForce RTX 3060 Ti，顯示卡驅動程式版本為 32.0.16.1656。測試資料位於 50 GiB 的 `Microsoft 虛擬磁碟`，介面為 SCSI，檔案系統為 ReFS。四次可見視窗量測皆為 1280×800，display scale 為 1.0。GPU 資料只記錄裝置與驅動程式；本次沒有量測 GPU 使用率或 compositor presentation。
+
+Gallery 與 Viewer 使用不同的 PicLens profile。冷啟動會先移除對應 profile；暖啟動會重用同一個 profile。這個流程不會清除 Windows 檔案系統快取。
+
+| Gallery Release run | Library ready | First thumbnail | Completed thumbnails | Search | Continuous scroll | 平均程序 CPU | Peak working set |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Cold PicLens profile | 442ms | 634ms | 80 | 442ms | 2,187ms | 267.15% | 227.57 MiB |
+| Warm PicLens profile | 444ms | 449ms | 114 | 444ms | 2,317ms | 185.53% | 227.04 MiB |
+
+| Viewer Release run | Library ready | Viewer open | Preview ready | First sharp paint | Painted / over 500ms | 平均程序 CPU | Peak working set |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Cold PicLens profile | 414ms | 426ms | 143ms | 144ms | 1 / 0 | 216.98% | 226.64 MiB |
+| Warm PicLens profile | 629ms | 633ms | 12ms | 13ms | 1 / 0 | 216.67% | 226.98 MiB |
+
+`averageCpuUtilizationPercent` 是未按 12 個邏輯處理器正規化的程序數值，因此可能超過 100%。四次執行都讀到 10,000 個項目。Gallery 冷／暖執行都有非空的 search 與 continuous-scroll metrics。Viewer 冷／暖執行都有非空的 open、preview-ready 與 sharp-paint metrics。四張 PNG 截圖均為 1280×800，內容可正常辨識；兩個隔離 profile 的記錄沒有 `WARN`、`ERROR` 或 panic。`thresholdGateEnabled` 維持 `false`，此結果不建立新的正式效能門檻。

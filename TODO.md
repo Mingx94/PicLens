@@ -160,7 +160,7 @@ egui view -> Action -> App reducer -> Command -> background backend
 - [ ] 在 clean Ubuntu runner 執行 DEB build 與 lifecycle。腳本：`scripts/build-deb.sh`、`scripts/test-linux-package-lifecycle.sh`。
 - [ ] 在 clean Fedora runner 執行 RPM build 與 lifecycle。腳本：`scripts/build-rpm.sh`、`scripts/test-linux-package-lifecycle.sh`。
 - [x] 使用原生 UI automation 檢查 1280×800 與 800×600 的 delayed tooltip、accessibility name、focus restore、dialog、drag、scroll 與檔案操作結果。
-- [ ] 在大型 disposable image library 執行 Release metrics，記錄 CPU/GPU、storage、display scale，並驗證持續捲動、search 與 viewer open。腳本：`scripts/measure-performance.ps1`。
+- [x] 在大型 disposable image library 執行 Release metrics，記錄 CPU/GPU、storage、display scale，並驗證持續捲動、search 與 viewer open。腳本：`scripts/measure-performance.ps1`；證據：`docs/performance.md`。
 - [ ] 產品核准正式效能門檻後，才加入自動 performance gate；現有 metrics 不設未經核准的門檻。
 - [ ] 若要簽署 release assets，設定受保護的 code-signing identity 與 timestamp service；未設定前所有 assets 標示 unsigned。
 - [ ] 經使用者明確授權後，建立匹配 Cargo version 的 annotated `v<version>` tag 並 push。
