@@ -32,7 +32,7 @@ try {
     if (-not $smoke.WaitForExit(30000) -or $smoke.ExitCode -ne 0) { throw "Installed app launch failed" }
     Invoke-Msi i replace
     Invoke-Msi x uninstall
-    $installed = false
+    $installed = $false
     if (Test-Path -LiteralPath $installedExecutable) { throw "PicLens.exe remained after uninstall" }
     if (-not (Test-Path -LiteralPath $sentinel)) { throw "Uninstall removed the isolated user profile" }
     Write-Host "MSI install, launch, replace, uninstall, and profile preservation passed"
