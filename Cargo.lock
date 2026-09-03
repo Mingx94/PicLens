@@ -2524,7 +2524,7 @@ dependencies = [
 
 [[package]]
 name = "piclens-desktop"
-version = "0.1.2"
+version = "3.0.0"
 dependencies = [
  "eframe",
  "egui",
@@ -2541,7 +2541,7 @@ dependencies = [
 
 [[package]]
 name = "piclens-domain"
-version = "0.1.2"
+version = "3.0.0"
 dependencies = [
  "serde",
  "thiserror 2.0.20",
@@ -2549,7 +2549,7 @@ dependencies = [
 
 [[package]]
 name = "piclens-infra"
-version = "0.1.2"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "chrono",
