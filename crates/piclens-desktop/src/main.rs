@@ -40,6 +40,10 @@ fn main() -> eframe::Result<()> {
             std::process::exit(2);
         }
     };
+    if let Err(error) = cli::validate_performance_batch_fixture(&launch) {
+        eprintln!("error: {error}");
+        std::process::exit(2);
+    }
 
     if let Some(data_root) = &launch.data_root {
         std::env::set_var("PICLENS_DATA_ROOT", data_root);
@@ -70,6 +74,7 @@ fn main() -> eframe::Result<()> {
         metrics_output: launch.metrics.map(PathBuf::from),
         performance_scroll: launch.performance_scroll,
         performance_viewer: launch.performance_viewer,
+        performance_batch_jpg: launch.performance_batch_jpg,
         ..Default::default()
     })
 }

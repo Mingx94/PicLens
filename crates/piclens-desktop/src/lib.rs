@@ -37,6 +37,7 @@ pub struct LaunchOptions {
     pub metrics_output: Option<PathBuf>,
     pub performance_scroll: bool,
     pub performance_viewer: bool,
+    pub performance_batch_jpg: bool,
 }
 
 pub fn run(options: LaunchOptions) -> eframe::Result<()> {
@@ -113,6 +114,7 @@ impl Default for LaunchOptions {
             metrics_output: None,
             performance_scroll: false,
             performance_viewer: false,
+            performance_batch_jpg: false,
         }
     }
 }

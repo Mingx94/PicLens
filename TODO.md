@@ -128,9 +128,9 @@ egui view -> Action -> App reducer -> Command -> background backend
 - [x] 對照現有 design system 完成 spacing、typography、color、selection、loading、error 與 disabled state。
 - [x] 建立主要頁面、panel、dialog、empty、loading 和 error state 的 headless render suite。
 - [x] 使用 Windows 真實 app 檢查 1280×800 layout、圖片品質、拖放、tooltip 與視覺狀態。
-- [ ] 使用 Windows 真實 app 完成高 DPI 像素驗證；headless display-scale test 不取代這項證據。
+- [x] 使用 Windows 真實 app 完成高 DPI 像素驗證；證據見 [Performance](docs/performance.md#windows-高-dpi-像素證據--2026-09-03)。
 - [x] 檢查 Windows idle、持續捲動、搜尋和 viewer navigation 的 CPU、GPU 與記憶體行為；證據見 [Performance](docs/performance.md#windows-egui-runtime-evidence--2026-09-03)。
-- [ ] 使用 disposable copied fixture 檢查 Windows 批次操作期間的 CPU、GPU 與記憶體行為。
+- [x] 使用 disposable copied fixture 檢查 Windows 批次操作期間的 CPU、GPU 與記憶體行為；證據見 [Performance](docs/performance.md#windows-批次操作證據--2026-09-03)。
 
 退出條件：功能對照表沒有未說明缺口；headless、互動、accessibility 與真實 app 視覺驗證各自完成。
 

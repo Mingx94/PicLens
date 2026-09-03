@@ -1083,6 +1083,10 @@ struct GalleryScrollWorkload {
     next_step: Instant,
 }
 
+struct BatchJpgWorkload {
+    started: Instant,
+}
+
 fn viewer_navigation_delta(checked: usize, steps: usize) -> Option<i32> {
     if checked < steps {
         Some(1)
@@ -1103,6 +1107,10 @@ fn performance_scroll_delta(step: usize) -> Option<f32> {
     }
 }
 
+fn performance_batch_count_is_safe(count: usize) -> bool {
+    (1..CONVERSION_CONFIRMATION_THRESHOLD).contains(&count)
+}
+
 pub struct PicLensApp {
     reducer: Reducer,
     backend: Backend,
@@ -1116,6 +1124,8 @@ pub struct PicLensApp {
     scroll_workload: Option<GalleryScrollWorkload>,
     performance_viewer: bool,
     navigation_workload: Option<ViewerNavigationWorkload>,
+    performance_batch_jpg: bool,
+    batch_jpg_workload: Option<BatchJpgWorkload>,
     viewer_selection: Option<ViewerSelectionMetric>,
     metrics: Option<Arc<RuntimeMetrics>>,
     metrics_sampler: Option<ProcessSampler>,
@@ -1140,6 +1150,7 @@ impl PicLensApp {
             screenshot_output,
             performance_scroll,
             performance_viewer,
+            performance_batch_jpg,
             metrics_output,
         } = options;
         let backend = Backend::spawn(creation.egui_ctx.clone(), smoke_after);
@@ -1167,6 +1178,8 @@ impl PicLensApp {
             scroll_workload: None,
             performance_viewer,
             navigation_workload: None,
+            performance_batch_jpg,
+            batch_jpg_workload: None,
             viewer_selection: None,
             metrics,
             metrics_sampler,
@@ -1205,6 +1218,47 @@ impl PicLensApp {
                         }
                     }
                     changed |= accepted;
+                }
+                Event::FileOperationCompleted { identity, result }
+                    if self.batch_jpg_workload.is_some()
+                        && self.reducer.pending_file_operation == Some(identity) =>
+                {
+                    let elapsed = self
+                        .batch_jpg_workload
+                        .take()
+                        .expect("checked above")
+                        .started
+                        .elapsed()
+                        .as_millis();
+                    if let Some(metrics) = &self.metrics {
+                        match &result {
+                            Ok(batch) => metrics.batch_completed(
+                                elapsed,
+                                batch.total(),
+                                batch.succeeded(),
+                                batch.skipped(),
+                                batch.canceled(),
+                                batch.failed(),
+                            ),
+                            Err(_) => metrics.batch_completed(elapsed, 0, 0, 0, 0, 1),
+                        }
+                    }
+                    match &result {
+                        Ok(batch) => piclens_infra::info(format!(
+                            "egui performance JPG batch completed in {elapsed} ms; total={}; succeeded={}; skipped={}; canceled={}; failed={}",
+                            batch.total(),
+                            batch.succeeded(),
+                            batch.skipped(),
+                            batch.canceled(),
+                            batch.failed()
+                        )),
+                        Err(error) => piclens_infra::warn(format!(
+                            "egui performance JPG batch failed in {elapsed} ms; error={error}"
+                        )),
+                    }
+                    changed |= self
+                        .reducer
+                        .handle_event(Event::FileOperationCompleted { identity, result });
                 }
                 event => changed |= self.reducer.handle_event(event),
             }
@@ -1367,6 +1421,32 @@ impl PicLensApp {
         });
         piclens_infra::info("egui performance scroll workload started");
         ctx.request_repaint_after(PERFORMANCE_SCROLL_INTERVAL);
+    }
+
+    fn start_performance_batch_if_ready(&mut self, ctx: &egui::Context) {
+        if !self.performance_batch_jpg
+            || self.batch_jpg_workload.is_some()
+            || self.reducer.pending_file_operation.is_some()
+            || self.reducer.model.dialog.is_some()
+            || !matches!(&self.reducer.model.library, Loadable::Ready(_))
+        {
+            return;
+        }
+        self.performance_batch_jpg = false;
+        let count = self.reducer.visible_image_paths().len();
+        if !performance_batch_count_is_safe(count) {
+            piclens_infra::warn(format!(
+                "egui performance JPG batch requires 1..49 visible images; count={count}"
+            ));
+            return;
+        }
+        self.batch_jpg_workload = Some(BatchJpgWorkload {
+            started: Instant::now(),
+        });
+        piclens_infra::info(format!("egui performance JPG batch started; count={count}"));
+        self.reducer
+            .push_action(Action::RequestConversion(ConversionKind::Jpg));
+        ctx.request_repaint();
     }
 
     fn drive_performance_scroll(&mut self, ctx: &egui::Context) {
@@ -1584,6 +1664,7 @@ impl eframe::App for PicLensApp {
             ctx.request_repaint();
         }
         self.persist_window_size_if_due(ctx);
+        self.start_performance_batch_if_ready(ctx);
         self.reduce_and_dispatch(ctx);
         self.record_library_ready();
         self.start_performance_scroll_if_ready(ctx);
@@ -1722,6 +1803,14 @@ mod tests {
         assert_eq!(deltas[45], Some(-360.0));
         assert_eq!(deltas[59], Some(-360.0));
         assert_eq!(deltas[60], None);
+    }
+
+    #[test]
+    fn performance_batch_stays_below_the_confirmation_threshold() {
+        assert!(!performance_batch_count_is_safe(0));
+        assert!(performance_batch_count_is_safe(1));
+        assert!(performance_batch_count_is_safe(49));
+        assert!(!performance_batch_count_is_safe(50));
     }
 
     #[test]

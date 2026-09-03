@@ -24,13 +24,14 @@ $env:PICLENS_DATA_ROOT = "F:\PicLens\artifacts\desktop-performance"
 cargo run -p piclens-desktop --release -- --folder <representative-folder>
 ```
 
-Record the commit, locked egui/eframe versions, OS, CPU/GPU, storage type, image count and formats, cold or warm cache state, window size, and display scale. Exercise startup, first useful gallery content, sustained scrolling, search, folder navigation, viewer open, and shutdown. The built-in schema 3 metrics capture process CPU, working set, library, thumbnail, search, scroll, and viewer timings. Use an external profiler for GPU and frame behavior.
+Record the commit, locked egui/eframe versions, OS, CPU/GPU, storage type, image count and formats, cold or warm cache state, window size, and display scale. Exercise startup, first useful gallery content, sustained scrolling, search, folder navigation, viewer open, batch operations, and shutdown. The built-in schema 4 metrics capture process CPU, working set, library, thumbnail, search, scroll, viewer, and diagnostic batch timings. Use an external profiler for GPU and frame behavior.
 
 Run paint measurements with the app window visible. A hidden Windows launch can complete decoding without painting; null paint metrics from such a run are not evidence of meeting the target. A fresh PicLens profile makes the application cache cold, but does not flush the OS file cache. Restarting with the same profile tests the warm disk cache, not the in-process pixel cache.
 
-Metrics schema 3 defines:
+Metrics schema 4 defines:
 
-- `averageCpuUtilizationPercent` reuses one `sysinfo::System` across samples and waits 250ms between samples, which is longer than the platform minimum CPU update interval. Schema 2 recreated `System` for every sample; its CPU averages are invalid and must not be used as performance evidence. Other stored schema 2 fields remain usable according to their definitions.
+- `averageCpuUtilizationPercent` reuses one `sysinfo::System` across samples and waits 250ms between samples, which is longer than the platform minimum CPU update interval. Schema 2 recreated `System` for every sample; its CPU averages are invalid and must not be used as performance evidence. Schema 3 first corrected this sampler. Other stored schema 2 fields remain usable according to their definitions.
+- `batchOperationMilliseconds`, `batchTotal`, `batchSucceeded`, `batchSkipped`, `batchCanceled`, and `batchFailed`: diagnostic JPG batch time and final item counts. `--performance-batch-jpg` requires `--folder` to resolve to a child of `--data-root`, and it rejects 50 or more visible images so the diagnostic cannot bypass the normal confirmation threshold.
 
 - `viewerPreviewReadyMilliseconds`: first successful selection to decoded safe preview pixels. Schema 1 stopped at PNG file readiness; do not compare the two as the same measurement.
 - `viewerSharpPaintMilliseconds`: first successful selection to its first full-opacity sharp paint submission, after egui accepts the preview texture for that frame. This includes preview production, pixel decode, scheduling, and paint submission. It does not measure GPU completion or OS compositor presentation.
@@ -99,4 +100,30 @@ Gallery 與 Viewer 使用不同的 PicLens profile。冷啟動會先移除對應
 
 Built-in CPU 是整次程序的平均值；external CPU 是 Windows 累積 process CPU time 除以較短的取樣視窗，因此兩者不應當成同一統計量直接比較。它們都未按 12 個邏輯處理器正規化。idle GPU 的零值只表示取樣期間沒有量到 GPU Engine 使用率，不表示 renderer 沒有使用 GPU。
 
-Search plus scroll run 投影 129 張 JPG，search 為 42ms，60-step scroll 為 2,074ms。Viewer run 在同一個 viewer 內檢查 53 次切換；54 次 sharp paint 全部完成，首次與最大 sharp paint 都是 150ms，沒有未繪製項目或 500ms 超標。1280×800、display scale 1.0 的 Gallery 與混合格式 Viewer 截圖可正常辨識，圖片比例、清晰預覽、控制列與暗色畫布沒有明顯錯位。這不取代真實高 DPI 像素驗證，也不涵蓋批次操作資源行為。
+Search plus scroll run 投影 129 張 JPG，search 為 42ms，60-step scroll 為 2,074ms。Viewer run 在同一個 viewer 內檢查 53 次切換；54 次 sharp paint 全部完成，首次與最大 sharp paint 都是 150ms，沒有未繪製項目或 500ms 超標。1280×800、display scale 1.0 的 Gallery 與混合格式 Viewer 截圖可正常辨識，圖片比例、清晰預覽、控制列與暗色畫布沒有明顯錯位。這不取代真實高 DPI 像素驗證。
+
+## Windows 高 DPI 像素證據 — 2026-09-03
+
+在 2560×1440 顯示器上，暫時把 Windows 顯示縮放從 100% 改為 150%，再啟動目前 working tree 的 Windows Release app。測試使用隔離 profile 與 `D:\____iiirs` 的 207 張混合格式圖片。完成後已在 Windows 設定畫面確認縮放還原為 100%。
+
+app metrics 記錄 `displayScale: 1.5` 與 `windowSize: "1280x800"`。內建 Gallery 截圖是 1920×1200 像素，符合 1.5 倍的實體像素尺寸。使用 Computer Use 在真實視窗檢查 header、sidebar、搜尋、排序、縮圖 slider、批次控制與縮圖 grid；文字及控制項沒有重疊或裁切，縮圖沒有變形。
+
+在同一個高 DPI 視窗中開啟 PNG Viewer，確認控制列、直向圖片比例與 sharp preview。按下放大後，狀態從 100% 變成 120%，圖片保持正確比例；切到下一張時回到 100%，然後可返回 Gallery。兩次 sharp paint 分別為 143ms 與 1ms，沒有超過 500ms。隔離 app log 沒有 `WARN`、`ERROR` 或 panic。
+
+## Windows 批次操作證據 — 2026-09-03
+
+使用 [`scripts/measure-windows-batch-performance.ps1`](../scripts/measure-windows-batch-performance.ps1) 建立隔離的 copied fixture，並在可見的 Windows Release app 中執行 JPG 轉換。指令範例：
+
+```powershell
+.\scripts\measure-windows-batch-performance.ps1 -SourcePng <representative-png> -OutputDirectory <new-output-directory>
+```
+
+本次 fixture 有 49 份相同 PNG，共 127.43 MiB。原始檔案 SHA-256 是 `70f8144a3a6492c9ff330b2ce0739fe87107b13ceee632e24f92e41a736c84e3`。fixture 位於隔離 `--data-root` 的子目錄；程式不會對原始檔案執行轉換。執行結果如下：
+
+| JPG batch | 耗時 | 成功／總數 | 略過／取消／失敗 | 整次程序平均 CPU | External batch CPU window | Peak working set | GPU Engine evidence |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Windows Release | 2,775ms | 49 / 49 | 0 / 0 / 0 | 37.40% | 119.37% | 212.39 MiB | 27 samples；2 non-zero；1.35% maximum |
+
+External CPU 與 GPU 的取樣視窗由 app log 的批次開始及完成事件界定，實際視窗為 3,128ms。CPU 百分比未按 12 個邏輯處理器正規化，因此 119.37% 表示批次平均使用超過一個邏輯處理器。整次程序平均 CPU 包含載入、批次與批次完成後的 idle 時間，不應與較短的 external batch window 直接比較。
+
+轉換後，fixture 保留 49 張 PNG，並新增 49 張 JPG。應用程式重新掃描後讀到 98 張圖片。1280×800、display scale 1.0 的截圖顯示批次進度 dialog 與 49 張原始圖片；隔離 app log 記錄批次完成，且沒有 `WARN`、`ERROR` 或 panic。這項結果證明本次 copied fixture 的行為及資源觀測，不建立正式效能門檻。

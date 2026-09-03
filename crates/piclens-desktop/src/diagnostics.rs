@@ -11,7 +11,7 @@ use serde_json::json;
 use sysinfo::{Pid, ProcessesToUpdate, System};
 
 const PROCESS_SAMPLE_INTERVAL: Duration = Duration::from_millis(250);
-const METRICS_SCHEMA_VERSION: u8 = 3;
+const METRICS_SCHEMA_VERSION: u8 = 4;
 
 #[derive(Debug)]
 pub struct RuntimeMetrics {
@@ -37,6 +37,12 @@ struct MetricState {
     viewer_navigation_unpainted: usize,
     search_ms: Option<u128>,
     scroll_ms: Option<u128>,
+    batch_operation_ms: Option<u128>,
+    batch_total: usize,
+    batch_succeeded: usize,
+    batch_skipped: usize,
+    batch_canceled: usize,
+    batch_failed: usize,
     row_count: usize,
     image_count: usize,
     completed_thumbnails: usize,
@@ -200,6 +206,24 @@ impl RuntimeMetrics {
             .scroll_ms = Some(elapsed_ms);
     }
 
+    pub fn batch_completed(
+        &self,
+        elapsed_ms: u128,
+        total: usize,
+        succeeded: usize,
+        skipped: usize,
+        canceled: usize,
+        failed: usize,
+    ) {
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        state.batch_operation_ms = Some(elapsed_ms);
+        state.batch_total = total;
+        state.batch_succeeded = succeeded;
+        state.batch_skipped = skipped;
+        state.batch_canceled = canceled;
+        state.batch_failed = failed;
+    }
+
     pub fn write_snapshot(&self) -> Result<(), String> {
         self.sample_process();
         let (working_set_bytes, process_cpu_percent, cpu_name, logical_processor_count) = {
@@ -220,7 +244,7 @@ impl RuntimeMetrics {
             )
         };
         let state = self.state.lock().unwrap_or_else(|error| error.into_inner());
-        let value = json!({
+        let mut value = json!({
             "schemaVersion": METRICS_SCHEMA_VERSION,
             "frontEnd": "eframe-egui-wgpu",
             "buildProfile": if cfg!(debug_assertions) { "debug" } else { "release" },
@@ -262,6 +286,16 @@ impl RuntimeMetrics {
             "logicalProcessorCount": logical_processor_count,
             "thresholdGateEnabled": false
         });
+        let object = value.as_object_mut().expect("JSON object");
+        object.insert(
+            "batchOperationMilliseconds".into(),
+            serde_json::to_value(state.batch_operation_ms).expect("serializable metric"),
+        );
+        object.insert("batchTotal".into(), state.batch_total.into());
+        object.insert("batchSucceeded".into(), state.batch_succeeded.into());
+        object.insert("batchSkipped".into(), state.batch_skipped.into());
+        object.insert("batchCanceled".into(), state.batch_canceled.into());
+        object.insert("batchFailed".into(), state.batch_failed.into());
         if let Some(parent) = self
             .output
             .parent()
@@ -293,6 +327,7 @@ mod tests {
         metrics.thumbnail_ready();
         metrics.search_applied();
         metrics.scroll_completed(1_980);
+        metrics.batch_completed(250, 4, 2, 1, 0, 1);
         metrics.viewer_sharp_painted(120);
         metrics.viewer_sharp_painted(501);
         metrics.viewer_navigation_checked(true);
@@ -304,11 +339,17 @@ mod tests {
         assert_eq!(state.completed_thumbnails, 2);
         assert!(state.search_ms.is_some());
         assert_eq!(state.scroll_ms, Some(1_980));
+        assert_eq!(state.batch_operation_ms, Some(250));
+        assert_eq!(state.batch_total, 4);
+        assert_eq!(state.batch_succeeded, 2);
+        assert_eq!(state.batch_skipped, 1);
+        assert_eq!(state.batch_canceled, 0);
+        assert_eq!(state.batch_failed, 1);
         assert_eq!(state.viewer_sharp_paint_ms, Some(120));
         assert_eq!(state.viewer_sharp_paint_max_ms, 501);
         assert_eq!(state.viewer_sharp_target_misses, 1);
         assert_eq!(state.viewer_navigation_checked, 2);
         assert_eq!(state.viewer_navigation_unpainted, 1);
-        assert_eq!(METRICS_SCHEMA_VERSION, 3);
+        assert_eq!(METRICS_SCHEMA_VERSION, 4);
     }
 }

@@ -36,6 +36,14 @@ For an automated launch-only check, add `--smoke-ms 4000`. This proves that the 
 
 For runtime changes, also check the affected mouse, keyboard, focus, resize, scrolling, error, and cancellation paths in the real app. Inspect `Logs/PicLens.log` under the isolated data root.
 
+Windows 批次資源量測使用 disposable copied fixture：
+
+```powershell
+.\scripts\measure-windows-batch-performance.ps1 -SourcePng <representative-png>
+```
+
+此腳本只接受 1 至 49 份副本，要求 fixture 位於隔離 profile 內，並檢查來源 PNG 保留、JPG 數量、批次結果、app log、CPU、GPU 與 peak working set 證據。
+
 ## Current gaps
 
 - There is no branch or pull-request CI. Run the workspace gates locally.
