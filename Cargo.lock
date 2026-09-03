@@ -2537,6 +2537,7 @@ dependencies = [
  "rfd",
  "serde_json",
  "sysinfo",
+ "windows 0.61.3",
 ]
 
 [[package]]

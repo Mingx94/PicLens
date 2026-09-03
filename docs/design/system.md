@@ -14,7 +14,7 @@ The gallery uses `egui::ScrollArea::show_rows` to virtualize fixed grid rows. Ke
 
 ## Palette
 
-The app is light-only until a complete dark theme and runtime selection exist. Shared semantic colors live in `theme::install`; views must not create a second palette.
+The app follows the operating-system light or dark preference. On Windows, it checks high-contrast mode at startup and once per second while running. High-contrast mode uses the current Windows system colors. Shared semantic colors live in `theme.rs`; views must not create a second palette.
 
 | Role | Value |
 |---|---|
@@ -32,7 +32,7 @@ The app is light-only until a complete dark theme and runtime selection exist. S
 | Viewer error surface | `#1F2937` |
 | Modal backdrop | black at 35% opacity |
 
-The app does not connect its palette to operating-system high-contrast or dark-mode preferences. Do not claim automatic support until that connection exists.
+The table documents the light palette. The dark palette keeps the same semantic roles with darker surfaces and brighter foreground colors.
 
 ## Typography and assets
 

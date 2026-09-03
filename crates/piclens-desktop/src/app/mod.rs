@@ -1660,6 +1660,7 @@ impl PicLensApp {
 
 impl eframe::App for PicLensApp {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        theme::sync_system_accessibility(ctx);
         if self.handle_events(ctx) {
             ctx.request_repaint();
         }

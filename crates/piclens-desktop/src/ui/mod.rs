@@ -12,6 +12,7 @@ use crate::images::{ThumbnailKey, ThumbnailLoader};
 use crate::model::{
     Action, AppModel, ConversionKind, DialogState, Loadable, Page, SelectionGesture,
 };
+use crate::theme;
 
 pub(crate) fn gallery_focus_id() -> egui::Id {
     egui::Id::new("piclens-library-search")
@@ -30,6 +31,8 @@ pub fn show(
     actions: &mut Vec<Action>,
 ) -> Vec<ThumbnailKey> {
     let mut materialized = Vec::new();
+    let entered_page = entered_page(ui.ctx(), model.page);
+    let palette = theme::palette(ui.ctx());
     application_input(ui, actions);
     if model.page == Page::Viewer {
         if model.dialog.is_none() {
@@ -38,11 +41,11 @@ pub fn show(
         egui::CentralPanel::default()
             .frame(
                 Frame::new()
-                    .fill(Color32::from_rgb(17, 20, 26))
+                    .fill(palette.viewer_canvas)
                     .inner_margin(Margin::same(20)),
             )
             .show(ui, |ui| {
-                viewer_content(model, images, ui, actions, &mut materialized)
+                viewer_content(model, images, ui, actions, &mut materialized, entered_page)
             });
         show_dialog(model, ui.ctx(), actions);
         return materialized;
@@ -59,8 +62,8 @@ pub fn show(
     egui::Panel::top("app-bar")
         .frame(
             Frame::new()
-                .fill(Color32::from_rgb(252, 252, 253))
-                .stroke(Stroke::new(1.0, Color32::from_rgb(225, 228, 233)))
+                .fill(palette.command_surface)
+                .stroke(Stroke::new(1.0, palette.border))
                 .inner_margin(Margin::symmetric(if compact { 12 } else { 20 }, 12)),
         )
         .show(ui, |ui| {
@@ -90,7 +93,7 @@ pub fn show(
             .max_size(360.0)
             .frame(
                 Frame::new()
-                    .fill(Color32::from_rgb(244, 246, 249))
+                    .fill(palette.sidebar)
                     .inner_margin(Margin::symmetric(12, 16)),
             )
             .show(ui, |ui| folder_tree(model, ui, actions));
@@ -99,7 +102,7 @@ pub fn show(
     egui::CentralPanel::default()
         .frame(
             Frame::new()
-                .fill(Color32::WHITE)
+                .fill(palette.content)
                 .inner_margin(Margin::same(if compact { 16 } else { 32 })),
         )
         .show(ui, |ui| {
@@ -108,6 +111,20 @@ pub fn show(
     show_dialog(model, ui.ctx(), actions);
     paint_drag_preview(model, ui.ctx());
     materialized
+}
+
+fn entered_page(ctx: &egui::Context, page: Page) -> bool {
+    let id = egui::Id::new("piclens-current-page");
+    ctx.data_mut(|data| {
+        let previous = data.get_temp::<Page>(id);
+        data.insert_temp(id, page);
+        previous != Some(page)
+    })
+}
+
+fn mark_live(ui: &egui::Ui, response: &egui::Response, live: egui::accesskit::Live) {
+    ui.ctx()
+        .accesskit_node_builder(response.id, |node| node.set_live(live));
 }
 
 fn application_input(ui: &mut egui::Ui, actions: &mut Vec<Action>) {
@@ -245,7 +262,7 @@ fn library_content(
     ui.add_space(12.0);
 
     let tile_width = model.thumbnail_size as f32;
-    let tile_height = (tile_width * 0.58).max(76.0);
+    let tile_height = gallery_tile_height(tile_width);
     let columns = (((ui.available_width() + 8.0) / (tile_width + 8.0)).floor() as usize).max(1);
     let page_rows = ((ui.available_height() / (tile_height + 8.0)).floor() as usize).max(1);
     gallery_input(model, ui, actions, columns, page_rows);
@@ -261,7 +278,8 @@ fn library_content(
             ui.vertical_centered(|ui| {
                 ui.add_space(60.0);
                 ui.spinner();
-                ui.label("正在載入圖庫…");
+                let response = ui.label("正在載入圖庫…");
+                mark_live(ui, &response, egui::accesskit::Live::Polite);
             });
         }
         Loadable::Ready(items) => {
@@ -317,7 +335,9 @@ fn library_content(
         Loadable::Failed(message) => {
             ui.vertical_centered(|ui| {
                 ui.add_space(48.0);
-                ui.label(RichText::new(message).color(Color32::from_rgb(183, 35, 35)));
+                let response =
+                    ui.label(RichText::new(message).color(theme::palette(ui.ctx()).danger));
+                mark_live(ui, &response, egui::accesskit::Live::Assertive);
                 if ui.button("重新載入").clicked() {
                     actions.push(Action::ReloadLibrary);
                 }
@@ -330,7 +350,8 @@ fn library_content(
     if let Some(notice) = &model.notice {
         ui.add_space(12.0);
         ui.horizontal_wrapped(|ui| {
-            ui.label(notice);
+            let response = ui.label(notice);
+            mark_live(ui, &response, egui::accesskit::Live::Polite);
             if ui.small_button("關閉").clicked() {
                 actions.push(Action::DismissStatus);
             }
@@ -498,7 +519,7 @@ fn gallery_grid(
     const GAP: f32 = 8.0;
 
     let tile_width = model.thumbnail_size as f32;
-    let tile_height = (tile_width * 0.58).max(76.0);
+    let tile_height = gallery_tile_height(tile_width);
     let columns = (((ui.available_width() + GAP) / (tile_width + GAP)).floor() as usize).max(1);
     let rows = model.visible_items.len().div_ceil(columns);
     let mut hovered_target = None;
@@ -564,32 +585,31 @@ fn gallery_grid(
                             let label = if image.is_animated {
                                 format!("{}\n動畫圖片\n不支援預覽", image.name)
                             } else if images.failure(&key).is_some() {
-                                format!(
-                                    "{}\n{}\n縮圖載入失敗",
-                                    image.name,
-                                    image.extension.to_uppercase()
-                                )
+                                format!("{}\n縮圖載入失敗", image.name)
                             } else {
-                                format!("{}\n{}", image.name, image.extension.to_uppercase())
+                                image.name.clone()
                             };
                             let hover = images
                                 .failure(&key)
                                 .map(|failure| format!("{}\n{failure}", image.path))
                                 .unwrap_or_else(|| image.path.clone());
+                            let accessible_label = label.clone();
                             let response = ui
                                 .push_id(&image.path, |ui| {
                                     let button = if let Some(texture) = images.texture(&key) {
                                         let preview_size = egui::vec2(
-                                            (tile_width * 0.55).max(48.0),
-                                            (tile_height - 16.0).max(48.0),
+                                            (tile_width - 24.0).max(48.0),
+                                            (tile_height - 46.0).max(36.0),
                                         );
-                                        egui::Button::new((
+                                        let contents = egui::AtomLayout::new((
                                             egui::Image::from_texture(texture)
                                                 .alt_text(image.name.clone())
                                                 .atom_size(preview_size),
                                             label,
                                         ))
-                                        .selected(selected)
+                                        .direction(egui::Direction::TopDown);
+                                        egui::Button::new(egui::Atom::layout(contents))
+                                            .selected(selected)
                                     } else {
                                         egui::Button::new(label).selected(selected)
                                     }
@@ -602,7 +622,7 @@ fn gallery_grid(
                                     }) {
                                         button.stroke(Stroke::new(
                                             3.0,
-                                            Color32::from_rgb(35, 110, 210),
+                                            theme::palette(ui.ctx()).drag_target,
                                         ))
                                     } else {
                                         button
@@ -611,6 +631,14 @@ fn gallery_grid(
                                 })
                                 .inner
                                 .on_hover_text(hover);
+                            response.widget_info(|| {
+                                egui::WidgetInfo::selected(
+                                    egui::WidgetType::Button,
+                                    true,
+                                    selected,
+                                    accessible_label.clone(),
+                                )
+                            });
                             let primary_pressed = ui.input(|input| {
                                 input.pointer.button_pressed(egui::PointerButton::Primary)
                                     && !input.pointer.button_released(egui::PointerButton::Primary)
@@ -644,27 +672,34 @@ fn gallery_grid(
                                         gesture: SelectionGesture::Replace,
                                     });
                                 }
-                                if ui.button("開啟檢視").clicked() {
+                                let open = ui.button("開啟檢視");
+                                if open.clicked() {
                                     actions.push(Action::OpenViewer(image.path.clone().into()));
                                     ui.close();
                                 }
-                                if ui.button("在檔案管理器中顯示").clicked() {
+                                let reveal = ui.button("在檔案管理器中顯示");
+                                if reveal.clicked() {
                                     actions.push(Action::RevealPath(image.path.clone().into()));
                                     ui.close();
                                 }
-                                if ui
-                                    .add_enabled(scope.len() == 1, egui::Button::new("重新命名"))
-                                    .clicked()
-                                {
+                                let rename =
+                                    ui.add_enabled(scope.len() == 1, egui::Button::new("重新命名"));
+                                if rename.clicked() {
                                     actions.push(Action::OpenRename);
                                     ui.close();
                                 }
-                                if ui
-                                    .button(format!("移至回收筒（{} 張）", scope.len()))
-                                    .clicked()
-                                {
+                                let trash = ui.button(format!("移至回收筒（{} 張）", scope.len()));
+                                if trash.clicked() {
                                     actions.push(Action::RequestTrash);
                                     ui.close();
+                                }
+                                let menu_has_focus = ui.memory(|memory| {
+                                    [open.id, reveal.id, rename.id, trash.id]
+                                        .into_iter()
+                                        .any(|id| memory.has_focus(id))
+                                });
+                                if !menu_has_focus {
+                                    open.request_focus();
                                 }
                             });
                             if response.double_clicked() {
@@ -725,6 +760,10 @@ fn gallery_grid(
             actions.push(Action::CancelDrag);
         }
     }
+}
+
+fn gallery_tile_height(tile_width: f32) -> f32 {
+    (tile_width * 0.8).max(104.0)
 }
 
 fn scroll_offset_for_row(
@@ -1045,24 +1084,38 @@ fn viewer_content(
     ui: &mut egui::Ui,
     actions: &mut Vec<Action>,
     materialized: &mut Vec<ThumbnailKey>,
+    focus_primary: bool,
 ) {
+    let palette = theme::palette(ui.ctx());
     let Some(viewer) = &model.viewer else {
-        ui.label(RichText::new("檢視器狀態無效。").color(Color32::WHITE));
-        if ui.button("返回圖庫").clicked() {
+        ui.label(RichText::new("檢視器狀態無效。").color(palette.viewer_text));
+        let response = ui.button("返回圖庫");
+        if focus_primary {
+            response.request_focus();
+        }
+        if response.clicked() {
             actions.push(Action::CloseViewer);
         }
         return;
     };
     let Some(current) = viewer.snapshot.current() else {
-        ui.label(RichText::new("快照中沒有圖片。").color(Color32::WHITE));
-        if ui.button("返回圖庫").clicked() {
+        ui.label(RichText::new("快照中沒有圖片。").color(palette.viewer_text));
+        let response = ui.button("返回圖庫");
+        if focus_primary {
+            response.request_focus();
+        }
+        if response.clicked() {
             actions.push(Action::CloseViewer);
         }
         return;
     };
 
     ui.horizontal_wrapped(|ui| {
-        if ui.button("返回圖庫").clicked() {
+        let back = ui.button("返回圖庫");
+        if focus_primary {
+            back.request_focus();
+        }
+        if back.clicked() {
             actions.push(Action::CloseViewer);
         }
         if ui.button("上一張").clicked() {
@@ -1094,7 +1147,7 @@ fn viewer_content(
                 viewer.snapshot.images.len(),
                 current.name
             ))
-            .color(Color32::WHITE)
+            .color(palette.viewer_text)
             .strong(),
         );
     });
@@ -1108,14 +1161,14 @@ fn viewer_content(
         egui::WidgetInfo::labeled(egui::WidgetType::Image, true, current.name.clone())
     });
     let painter = ui.painter().with_clip_rect(canvas);
-    painter.rect_filled(canvas, 0.0, Color32::from_rgb(17, 20, 26));
+    painter.rect_filled(canvas, 0.0, palette.viewer_canvas);
 
     if current.is_animated {
         paint_viewer_message(
             &painter,
             canvas,
             "此動畫圖片目前不支援預覽。",
-            Color32::WHITE,
+            palette.viewer_text,
         );
     } else if let Some(texture) = images.texture(&key) {
         let texture_size = texture.size_vec2();
@@ -1129,17 +1182,17 @@ fn viewer_content(
             texture.id(),
             egui::Rect::from_center_size(center, image_size),
             egui::Rect::from_min_max(egui::Pos2::ZERO, egui::pos2(1.0, 1.0)),
-            Color32::WHITE,
+            palette.viewer_text,
         );
     } else if let Some(message) = images.failure(&key) {
         paint_viewer_message(
             &painter,
             canvas,
             &format!("圖片載入失敗：{message}"),
-            Color32::from_rgb(255, 150, 150),
+            palette.viewer_error,
         );
     } else {
-        paint_viewer_message(&painter, canvas, "正在載入圖片…", Color32::WHITE);
+        paint_viewer_message(&painter, canvas, "正在載入圖片…", palette.viewer_text);
     }
 
     if response.hovered() {
@@ -1242,12 +1295,14 @@ fn navigation_input(ui: &mut egui::Ui, actions: &mut Vec<Action>) {
 fn folder_tree(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
     ui.heading("資料夾");
     ui.add_space(8.0);
-    egui::ScrollArea::vertical().show(ui, |ui| {
-        for row in visible_tree_rows(
-            &model.tree_roots,
-            &model.tree_children,
-            &model.tree_expanded,
-        ) {
+    let rows = visible_tree_rows(
+        &model.tree_roots,
+        &model.tree_children,
+        &model.tree_expanded,
+    );
+    let row_height = ui.spacing().interact_size.y;
+    egui::ScrollArea::vertical().show_rows(ui, row_height, rows.len(), |ui, visible| {
+        for row in &rows[visible] {
             let path = std::path::Path::new(&row.path);
             let name = path
                 .file_name()
@@ -1258,11 +1313,17 @@ fn folder_tree(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
                 ui.add_space(row.depth as f32 * 14.0);
                 if row.expandable {
                     let label = if row.expanded { "收合" } else { "展開" };
-                    if ui
+                    let response = ui
                         .small_button(label)
-                        .on_hover_text(format!("{label} {name}"))
-                        .clicked()
-                    {
+                        .on_hover_text(format!("{label} {name}"));
+                    response.widget_info(|| {
+                        egui::WidgetInfo::labeled(
+                            egui::WidgetType::Button,
+                            true,
+                            format!("{label} {name}"),
+                        )
+                    });
+                    if response.clicked() {
                         actions.push(Action::ToggleTreeFolder(row.path.clone()));
                     }
                 } else {
@@ -1285,20 +1346,20 @@ fn folder_tree(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
 }
 
 fn backend_status(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
+    let palette = theme::palette(ui.ctx());
     match &model.backend {
         Loadable::Idle | Loadable::Loading => {
             ui.spinner();
-            ui.label("正在啟動背景服務…");
+            let response = ui.label("正在啟動背景服務…");
+            mark_live(ui, &response, egui::accesskit::Live::Polite);
         }
         Loadable::Ready(()) => {
-            ui.label(RichText::new("背景服務已就緒").color(Color32::from_rgb(30, 130, 76)));
+            let response = ui.label(RichText::new("背景服務已就緒").color(palette.positive));
+            mark_live(ui, &response, egui::accesskit::Live::Polite);
         }
         Loadable::Failed(message) => {
-            ui.label(
-                RichText::new(message)
-                    .color(Color32::from_rgb(183, 35, 35))
-                    .strong(),
-            );
+            let response = ui.label(RichText::new(message).color(palette.danger).strong());
+            mark_live(ui, &response, egui::accesskit::Live::Assertive);
             if ui.button("再試一次").clicked() {
                 actions.push(Action::RetryBackendProbe);
             }
@@ -1479,9 +1540,11 @@ mod tests {
             },
             Vec::new(),
         );
-        harness.step();
+        harness.run();
 
-        let _ = harness.get_by_role_and_label(egui::accesskit::Role::Button, "返回圖庫");
+        assert!(harness
+            .get_by_role_and_label(egui::accesskit::Role::Button, "返回圖庫")
+            .is_focused());
         let _ = harness.get_by_role_and_label(egui::accesskit::Role::Image, "image2.png");
         assert_eq!(harness.state().len(), 1);
         assert_eq!(harness.state()[0].longest_edge, 1024);
@@ -1617,6 +1680,25 @@ mod tests {
             harness.state().as_slice(),
             [Action::NavigateFolder("C:/tree-root/nested".into())]
         );
+    }
+
+    #[test]
+    fn folder_tree_materializes_only_visible_rows() {
+        let mut model = crate::demo::loaded_library();
+        model.tree_roots = (0..10_000)
+            .map(|index| format!("C:/tree/root-{index:05}"))
+            .collect();
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1280.0, 800.0))
+            .build_ui(move |ui| {
+                let mut actions = Vec::new();
+                show(&model, &ThumbnailLoader::default(), ui, &mut actions);
+            });
+        harness.run();
+
+        let materialized = harness.query_all_by_label_contains("root-").count();
+        assert!(materialized > 0);
+        assert!(materialized < 100, "materialized {materialized} tree rows");
     }
 
     #[test]
@@ -1824,6 +1906,46 @@ mod tests {
     }
 
     #[test]
+    fn context_menu_focuses_its_primary_action() {
+        let model = crate::demo::loaded_library();
+        let mut harness = Harness::new_ui(move |ui| {
+            let mut actions = Vec::new();
+            show(&model, &ThumbnailLoader::default(), ui, &mut actions);
+        });
+        harness.run();
+
+        harness
+            .get_by_label_contains("image2.png")
+            .click_secondary();
+        harness.run();
+
+        assert!(harness.get_by_label("開啟檢視").is_focused());
+    }
+
+    #[test]
+    fn dynamic_statuses_expose_accesskit_live_semantics() {
+        let mut model = crate::demo::loaded_library();
+        model.backend = Loadable::Failed("背景服務測試錯誤".into());
+        model.notice = Some("測試通知".into());
+        let mut harness = Harness::new_ui(move |ui| {
+            let mut actions = Vec::new();
+            show(&model, &ThumbnailLoader::default(), ui, &mut actions);
+        });
+        harness.run();
+
+        let error = harness.get_by_label("背景服務測試錯誤");
+        assert_eq!(
+            egui_kittest::kittest::NodeT::accesskit_node(&error).live(),
+            egui::accesskit::Live::Assertive
+        );
+        let notice = harness.get_by_label("測試通知");
+        assert_eq!(
+            egui_kittest::kittest::NodeT::accesskit_node(&notice).live(),
+            egui::accesskit::Live::Polite
+        );
+    }
+
+    #[test]
     fn tab_focus_follows_the_visible_primary_control_order() {
         let model = crate::demo::loaded_library();
         let mut harness = Harness::new_ui(move |ui| {
@@ -1900,7 +2022,7 @@ mod tests {
         {
             image.name = format!("{long_name}.png");
         }
-        let long_image_label = format!("{long_name}.png\nPNG");
+        let long_image_label = format!("{long_name}.png");
         let tile_width = model.thumbnail_size as f32;
         let mut harness = Harness::builder()
             .with_size(egui::vec2(800.0, 600.0))
