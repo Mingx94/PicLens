@@ -28,8 +28,8 @@ egui view -> Action -> App reducer -> Command -> background backend
 - [x] 定義 `Action`、`Command`、`Event`、request identity 與 generation 的責任及命名規則。
 - [ ] 決定 eframe renderer；以 `wgpu` 為預設候選，驗證 Windows 與 Linux 的啟動、圖片 texture、縮放和 GPU 相容性後記錄結論。
 - [x] 決定背景執行模型；比較有界 worker pool 與 Tokio runtime，不為了模仿參考專案而引入無使用需求的 async runtime。
-- [ ] 記錄 GPUI 基線：啟動、選擇資料夾、搜尋、排序、選取、viewer、重新命名、回收筒及一項轉換操作。
-- [ ] 以代表性圖庫記錄 gallery 載入、持續捲動、viewer 冷／暖快取切換與 500ms 清晰預覽指標。
+- [x] 記錄 GPUI 基線：啟動、選擇資料夾、搜尋、排序、選取、viewer、重新命名、回收筒及一項轉換操作。詳見 [GPUI migration snapshot](docs/archive/gpui-experiment.md#frozen-v012-behavior-baseline)。
+- [ ] 以代表性圖庫記錄 gallery 載入、持續捲動、viewer 冷／暖快取切換與 500ms 清晰預覽指標。`v0.1.2` Viewer 基線已重建；原版 Gallery workload 在大量 thumbnail tasks 下未完成，詳見 [GPUI migration snapshot](docs/archive/gpui-experiment.md#reproduced-release-metrics)。
 - [x] 列出 GPUI frontend 的功能、快捷鍵、dialog、focus、drag/drop、accessibility 與平台整合對照表。
 
 退出條件：架構決策可供實作，且有足夠基線可判斷遷移是否造成行為或效能退化。
