@@ -39,5 +39,5 @@ For runtime changes, also check the affected mouse, keyboard, focus, resize, scr
 ## Current gaps
 
 - There is no branch or pull-request CI. Run the workspace gates locally.
-- The release workflow only builds and publishes the Windows MSI, portable ZIP, and checksums. It does not test install, upgrade, or uninstall behavior, and it does not build Linux packages.
+- The release workflow builds the Windows MSI, runs its install／launch／replace／uninstall／profile-preservation lifecycle on the clean hosted runner, then publishes the MSI, portable ZIP, and checksums. It does not build Linux packages.
 - `egui_kittest` can inspect AccessKit roles, names, states, actions, and focus. It does not replace a native assistive-technology check or a real launch.

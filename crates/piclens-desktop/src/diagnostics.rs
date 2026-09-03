@@ -8,12 +8,16 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use serde_json::json;
-use sysinfo::{Pid, System};
+use sysinfo::{Pid, ProcessesToUpdate, System};
+
+const PROCESS_SAMPLE_INTERVAL: Duration = Duration::from_millis(250);
+const METRICS_SCHEMA_VERSION: u8 = 3;
 
 #[derive(Debug)]
 pub struct RuntimeMetrics {
     output: PathBuf,
     started: Instant,
+    system: Mutex<System>,
     state: Mutex<MetricState>,
 }
 
@@ -68,9 +72,13 @@ impl Drop for ProcessSampler {
 
 impl RuntimeMetrics {
     pub fn new(output: impl Into<PathBuf>) -> Self {
+        let mut system = System::new_all();
+        let pid = Pid::from_u32(std::process::id());
+        system.refresh_processes(ProcessesToUpdate::Some(&[pid]));
         Self {
             output: output.into(),
             started: Instant::now(),
+            system: Mutex::new(system),
             state: Mutex::new(MetricState::default()),
         }
     }
@@ -83,8 +91,11 @@ impl RuntimeMetrics {
             .name("piclens-metrics".into())
             .spawn(move || {
                 while !thread_stop.load(Ordering::Acquire) {
+                    thread::park_timeout(PROCESS_SAMPLE_INTERVAL);
+                    if thread_stop.load(Ordering::Acquire) {
+                        break;
+                    }
                     metrics.sample_process();
-                    thread::park_timeout(Duration::from_millis(100));
                 }
             })
             .expect("PicLens metrics sampler can start");
@@ -113,14 +124,23 @@ impl RuntimeMetrics {
     }
 
     pub fn sample_process(&self) {
-        let mut system = System::new_all();
-        system.refresh_all();
-        let Some(process) = system.process(Pid::from_u32(std::process::id())) else {
+        let pid = Pid::from_u32(std::process::id());
+        let sample = {
+            let mut system = self
+                .system
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            system.refresh_processes(ProcessesToUpdate::Some(&[pid]));
+            system
+                .process(pid)
+                .map(|process| (process.memory(), process.cpu_usage()))
+        };
+        let Some((memory, cpu_usage)) = sample else {
             return;
         };
         let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
-        state.peak_working_set_bytes = state.peak_working_set_bytes.max(process.memory());
-        state.cpu_percent_total += f64::from(process.cpu_usage());
+        state.peak_working_set_bytes = state.peak_working_set_bytes.max(memory);
+        state.cpu_percent_total += f64::from(cpu_usage);
         state.process_sample_count += 1;
     }
 
@@ -182,18 +202,26 @@ impl RuntimeMetrics {
 
     pub fn write_snapshot(&self) -> Result<(), String> {
         self.sample_process();
+        let (working_set_bytes, process_cpu_percent, cpu_name, logical_processor_count) = {
+            let system = self
+                .system
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            let process = system.process(Pid::from_u32(std::process::id()));
+            (
+                process.map(|item| item.memory()).unwrap_or_default(),
+                process.map(|item| item.cpu_usage()).unwrap_or_default(),
+                system
+                    .cpus()
+                    .first()
+                    .map(|cpu| cpu.brand().to_string())
+                    .unwrap_or_else(|| "unknown".into()),
+                system.cpus().len(),
+            )
+        };
         let state = self.state.lock().unwrap_or_else(|error| error.into_inner());
-        let mut system = System::new_all();
-        system.refresh_all();
-        let process = system.process(Pid::from_u32(std::process::id()));
-        let working_set_bytes = process.map(|item| item.memory()).unwrap_or_default();
-        let cpu_name = system
-            .cpus()
-            .first()
-            .map(|cpu| cpu.brand().to_string())
-            .unwrap_or_else(|| "unknown".into());
         let value = json!({
-            "schemaVersion": 2,
+            "schemaVersion": METRICS_SCHEMA_VERSION,
             "frontEnd": "eframe-egui-wgpu",
             "buildProfile": if cfg!(debug_assertions) { "debug" } else { "release" },
             "version": env!("CARGO_PKG_VERSION"),
@@ -223,7 +251,7 @@ impl RuntimeMetrics {
             "rowCount": state.row_count,
             "imageCount": state.image_count,
             "completedThumbnailRequests": state.completed_thumbnails,
-            "processCpuPercentAtExit": process.map(|item| item.cpu_usage()).unwrap_or_default(),
+            "processCpuPercentAtExit": process_cpu_percent,
             "averageCpuUtilizationPercent": if state.process_sample_count == 0 {
                 0.0
             } else {
@@ -231,7 +259,7 @@ impl RuntimeMetrics {
             },
             "workingSetBytes": working_set_bytes,
             "peakWorkingSetBytes": state.peak_working_set_bytes.max(working_set_bytes),
-            "logicalProcessorCount": system.cpus().len(),
+            "logicalProcessorCount": logical_processor_count,
             "thresholdGateEnabled": false
         });
         if let Some(parent) = self
@@ -281,5 +309,6 @@ mod tests {
         assert_eq!(state.viewer_sharp_target_misses, 1);
         assert_eq!(state.viewer_navigation_checked, 2);
         assert_eq!(state.viewer_navigation_unpainted, 1);
+        assert_eq!(METRICS_SCHEMA_VERSION, 3);
     }
 }

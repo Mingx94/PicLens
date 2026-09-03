@@ -26,10 +26,11 @@ egui view -> Action -> App reducer -> Command -> background backend
 
 - [x] 建立遷移設計紀錄，定義 `piclens-desktop -> piclens-infra -> piclens-domain` 的依賴方向。
 - [x] 定義 `Action`、`Command`、`Event`、request identity 與 generation 的責任及命名規則。
-- [ ] 決定 eframe renderer；以 `wgpu` 為預設候選，驗證 Windows 與 Linux 的啟動、圖片 texture、縮放和 GPU 相容性後記錄結論。
+- [x] Windows frontend 固定使用 `wgpu`；啟動、圖片 texture、縮放與 GPU Engine 已有實機證據。
+- [ ] 在 Linux 驗證 `wgpu` 啟動、圖片 texture、縮放和 GPU 相容性後，完成跨平台 renderer 結論。
 - [x] 決定背景執行模型；比較有界 worker pool 與 Tokio runtime，不為了模仿參考專案而引入無使用需求的 async runtime。
 - [x] 記錄 GPUI 基線：啟動、選擇資料夾、搜尋、排序、選取、viewer、重新命名、回收筒及一項轉換操作。詳見 [GPUI migration snapshot](docs/archive/gpui-experiment.md#frozen-v012-behavior-baseline)。
-- [ ] 以代表性圖庫記錄 gallery 載入、持續捲動、viewer 冷／暖快取切換與 500ms 清晰預覽指標。`v0.1.2` Viewer 基線已重建；原版 Gallery workload 在大量 thumbnail tasks 下未完成，詳見 [GPUI migration snapshot](docs/archive/gpui-experiment.md#reproduced-release-metrics)。
+- [x] 以代表性圖庫重建 `v0.1.2` Viewer 冷／暖快取與 500ms 指標，並記錄原版 Gallery workload 會被大量 thumbnail tasks 淘汰，故無法取得有效持續捲動值；不得修改 frozen baseline 來補造結果。詳見 [GPUI migration snapshot](docs/archive/gpui-experiment.md#reproduced-release-metrics)。
 - [x] 列出 GPUI frontend 的功能、快捷鍵、dialog、focus、drag/drop、accessibility 與平台整合對照表。
 
 退出條件：架構決策可供實作，且有足夠基線可判斷遷移是否造成行為或效能退化。
@@ -126,8 +127,10 @@ egui view -> Action -> App reducer -> Command -> background backend
 - [x] 驗證 1280×800、800×600、常用 display scale 與長繁體中文文字。
 - [x] 對照現有 design system 完成 spacing、typography、color、selection、loading、error 與 disabled state。
 - [x] 建立主要頁面、panel、dialog、empty、loading 和 error state 的 headless render suite。
-- [ ] 使用真實 app 檢查 layout、圖片品質、高 DPI、拖放、tooltip 與視覺狀態。
-- [ ] 檢查 idle、持續捲動、搜尋、viewer navigation 和批次操作期間的 CPU、GPU 與記憶體行為。
+- [x] 使用 Windows 真實 app 檢查 1280×800 layout、圖片品質、拖放、tooltip 與視覺狀態。
+- [ ] 使用 Windows 真實 app 完成高 DPI 像素驗證；headless display-scale test 不取代這項證據。
+- [x] 檢查 Windows idle、持續捲動、搜尋和 viewer navigation 的 CPU、GPU 與記憶體行為；證據見 [Performance](docs/performance.md#windows-egui-runtime-evidence--2026-09-03)。
+- [ ] 使用 disposable copied fixture 檢查 Windows 批次操作期間的 CPU、GPU 與記憶體行為。
 
 退出條件：功能對照表沒有未說明缺口；headless、互動、accessibility 與真實 app 視覺驗證各自完成。
 
@@ -164,7 +167,7 @@ egui view -> Action -> App reducer -> Command -> background backend
 - [ ] 產品核准正式效能門檻後，才加入自動 performance gate；現有 metrics 不設未經核准的門檻。
 - [ ] 若要簽署 release assets，設定受保護的 code-signing identity 與 timestamp service；未設定前所有 assets 標示 unsigned。
 - [ ] 經使用者明確授權後，建立匹配 Cargo version 的 annotated `v<version>` tag 並 push。
-- [ ] 確認 hosted release workflow 的 Windows、Ubuntu、Fedora lifecycle jobs 全部成功，且 GitHub Release 包含 MSI、DEB、RPM、portable archives 與 SHA-256 checksum files。
+- [ ] 確認 hosted Windows release workflow 的 MSI lifecycle job 成功，且 GitHub Release 包含 MSI、portable ZIP 與兩個 SHA-256 checksum files。
 
 退出條件：所有支援平台都有 package lifecycle、真實互動與效能證據，且 release artifacts 完整可追溯。
 

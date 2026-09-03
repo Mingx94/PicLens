@@ -14,7 +14,7 @@ The only GitHub Actions workflow builds the Windows x86_64 MSI and portable ZIP 
 cargo build --release --locked -p piclens-desktop
 ```
 
-The portable ZIP uses the same executable. There is no branch or pull-request CI. The workflow does not run format, test, Clippy, or package lifecycle checks. Run the checks in [Testing](testing.md) locally before release.
+The portable ZIP uses the same executable. There is no branch or pull-request CI. The workflow runs the Windows MSI lifecycle before publication, but it does not run format, test, or Clippy. Run the checks in [Testing](testing.md) locally before release.
 
 Windows release builds use the GUI subsystem and do not open a console at startup. Debug builds keep the console. To read release CLI output in PowerShell, pipe it to `Out-String`, for example `& .\PicLens.exe --help | Out-String` from the executable's directory.
 
@@ -50,7 +50,7 @@ Each payload contains the PicLens executable, license, README, and Noto Sans CJK
 
 All current release assets are unsigned. The release page says this explicitly and provides SHA-256 checksum files. The build script supports optional MSI Authenticode signing, but the hosted workflow does not enable it.
 
-Package lifecycle checks are manual release checks. The scripts remain available under `scripts/`; they are not part of GitHub Actions. Use a clean test machine and an isolated `PICLENS_DATA_ROOT` for install, launch, reinstall/replace, and uninstall checks.
+The release workflow runs `scripts/test-msi-lifecycle.ps1` on its clean Windows runner before publication. The script uses an isolated `PICLENS_DATA_ROOT` and checks install, launch, reinstall／replace, uninstall, and profile preservation. Linux lifecycle scripts remain manual checks.
 
 ## Release procedure
 
@@ -67,6 +67,6 @@ Local compilation or archive creation does not complete a release. Completion re
 
 ## Known limitation
 
-Code signing is not configured. Do not describe these assets as signed. A successful workflow proves that packaging and upload completed. It does not prove installation, upgrade, uninstall, runtime, GPU, or visual behavior.
+Code signing is not configured. Do not describe these assets as signed. A successful workflow proves that Windows packaging, MSI install／launch／replace／uninstall, isolated profile preservation, and upload completed. It does not prove ordinary interactive use, GPU behavior, or visual correctness.
 
 Review [Licensing and redistribution](licensing.md) for every release candidate.

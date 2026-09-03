@@ -24,11 +24,13 @@ $env:PICLENS_DATA_ROOT = "F:\PicLens\artifacts\desktop-performance"
 cargo run -p piclens-desktop --release -- --folder <representative-folder>
 ```
 
-Record the commit, locked egui/eframe versions, OS, CPU/GPU, storage type, image count and formats, cold or warm cache state, window size, and display scale. Exercise startup, first useful gallery content, sustained scrolling, search, folder navigation, viewer open, and shutdown. The built-in schema 2 metrics capture process CPU, working set, library, thumbnail, search, scroll, and viewer timings. Use an external profiler for GPU and frame behavior.
+Record the commit, locked egui/eframe versions, OS, CPU/GPU, storage type, image count and formats, cold or warm cache state, window size, and display scale. Exercise startup, first useful gallery content, sustained scrolling, search, folder navigation, viewer open, and shutdown. The built-in schema 3 metrics capture process CPU, working set, library, thumbnail, search, scroll, and viewer timings. Use an external profiler for GPU and frame behavior.
 
 Run paint measurements with the app window visible. A hidden Windows launch can complete decoding without painting; null paint metrics from such a run are not evidence of meeting the target. A fresh PicLens profile makes the application cache cold, but does not flush the OS file cache. Restarting with the same profile tests the warm disk cache, not the in-process pixel cache.
 
-Metrics schema 2 defines:
+Metrics schema 3 defines:
+
+- `averageCpuUtilizationPercent` reuses one `sysinfo::System` across samples and waits 250ms between samples, which is longer than the platform minimum CPU update interval. Schema 2 recreated `System` for every sample; its CPU averages are invalid and must not be used as performance evidence. Other stored schema 2 fields remain usable according to their definitions.
 
 - `viewerPreviewReadyMilliseconds`: first successful selection to decoded safe preview pixels. Schema 1 stopped at PNG file readiness; do not compare the two as the same measurement.
 - `viewerSharpPaintMilliseconds`: first successful selection to its first full-opacity sharp paint submission, after egui accepts the preview texture for that frame. This includes preview production, pixel decode, scheduling, and paint submission. It does not measure GPU completion or OS compositor presentation.
@@ -83,4 +85,18 @@ Gallery 與 Viewer 使用不同的 PicLens profile。冷啟動會先移除對應
 | Cold PicLens profile | 414ms | 426ms | 143ms | 144ms | 1 / 0 | 216.98% | 226.64 MiB |
 | Warm PicLens profile | 629ms | 633ms | 12ms | 13ms | 1 / 0 | 216.67% | 226.98 MiB |
 
-`averageCpuUtilizationPercent` 是未按 12 個邏輯處理器正規化的程序數值，因此可能超過 100%。四次執行都讀到 10,000 個項目。Gallery 冷／暖執行都有非空的 search 與 continuous-scroll metrics。Viewer 冷／暖執行都有非空的 open、preview-ready 與 sharp-paint metrics。四張 PNG 截圖均為 1280×800，內容可正常辨識；兩個隔離 profile 的記錄沒有 `WARN`、`ERROR` 或 panic。`thresholdGateEnabled` 維持 `false`，此結果不建立新的正式效能門檻。
+這四次執行都讀到 10,000 個項目。Gallery 冷／暖執行都有非空的 search 與 continuous-scroll metrics。Viewer 冷／暖執行都有非空的 open、preview-ready 與 sharp-paint metrics。四張 PNG 截圖均為 1280×800，內容可正常辨識；兩個隔離 profile 的記錄沒有 `WARN`、`ERROR` 或 panic。這些檔案使用 schema 2；其中 CPU 平均值因 sampler 每次重建 `sysinfo::System` 而無效，不能作為效能證據。其他欄位仍可使用。`thresholdGateEnabled` 維持 `false`，此結果不建立新的正式效能門檻。
+
+## Windows egui runtime evidence — 2026-09-03
+
+本次在目前工作樹修正 CPU sampler，使它保留同一個 `sysinfo::System`，並以 250ms 間隔取樣。Windows Release app 使用隔離 profile。`D:\____iiirs` 是 207 張、184.17 MiB 的混合 JPG／WebP／PNG 圖庫；idle run 則使用 repository `assets` 中的兩張支援圖片。所有 app log 都沒有 `WARN`、`ERROR` 或 panic。
+
+| Workload | Built-in average CPU | External CPU window | Peak working set | GPU Engine evidence |
+| --- | ---: | ---: | ---: | --- |
+| Idle after loading | 7.57% | 4.05% | 142.03 MiB | 216 samples; 0% maximum |
+| Search plus continuous scroll | 20.68% | 34.38% | 145.42 MiB | 3 non-zero samples; 3.26% maximum on 3D／copy engines |
+| Continuous Viewer navigation | 13.65% | 19.68% | 213.14 MiB | 24 non-zero samples; 0.99% maximum |
+
+Built-in CPU 是整次程序的平均值；external CPU 是 Windows 累積 process CPU time 除以較短的取樣視窗，因此兩者不應當成同一統計量直接比較。它們都未按 12 個邏輯處理器正規化。idle GPU 的零值只表示取樣期間沒有量到 GPU Engine 使用率，不表示 renderer 沒有使用 GPU。
+
+Search plus scroll run 投影 129 張 JPG，search 為 42ms，60-step scroll 為 2,074ms。Viewer run 在同一個 viewer 內檢查 53 次切換；54 次 sharp paint 全部完成，首次與最大 sharp paint 都是 150ms，沒有未繪製項目或 500ms 超標。1280×800、display scale 1.0 的 Gallery 與混合格式 Viewer 截圖可正常辨識，圖片比例、清晰預覽、控制列與暗色畫布沒有明顯錯位。這不取代真實高 DPI 像素驗證，也不涵蓋批次操作資源行為。

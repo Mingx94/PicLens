@@ -41,7 +41,7 @@ try {
             throw "$state gallery run failed"
         }
         $galleryData = Get-Content -LiteralPath $galleryMetrics -Raw | ConvertFrom-Json
-        if ($galleryData.schemaVersion -ne 2 -or
+        if ($galleryData.schemaVersion -ne 3 -or
             $null -eq $galleryData.searchMilliseconds -or
             $null -eq $galleryData.continuousScrollMilliseconds) {
             throw "$state gallery metrics are incomplete"
@@ -61,7 +61,7 @@ try {
             throw "$state viewer run failed"
         }
         $viewerData = Get-Content -LiteralPath $viewerMetrics -Raw | ConvertFrom-Json
-        if ($viewerData.schemaVersion -ne 2 -or
+        if ($viewerData.schemaVersion -ne 3 -or
             $null -eq $viewerData.viewerOpenMilliseconds -or
             $null -eq $viewerData.viewerSharpPaintMilliseconds) {
             throw "$state viewer metrics are incomplete"

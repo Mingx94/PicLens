@@ -49,6 +49,8 @@ jobs:
           "version=$version" >> $env:GITHUB_OUTPUT
       - name: Build unsigned MSI
         run: ./scripts/build-msi.ps1 -Version '${{ steps.release.outputs.version }}'
+      - name: Test MSI install, launch, replace, uninstall, and profile preservation
+        run: ./scripts/test-msi-lifecycle.ps1 -MsiPath 'dist/PicLens-${{ steps.release.outputs.version }}-windows-x86_64.msi' -ConfirmSystemChanges
       - name: Build portable ZIP
         run: |
           $name = 'PicLens-${{ steps.release.outputs.version }}-windows-x86_64'
