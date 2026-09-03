@@ -11,17 +11,17 @@ This is an engineering release policy, not legal advice. The project owner must 
 
 ## Current dependency model
 
-PicLens uses Rust crates plus native platform and graphics dependencies reached through GPUI and gpui-component. `Cargo.lock` records the exact Git commits. The application manifest requests the GPUI Windows backend and both Linux window backends.
+PicLens uses Rust crates plus native platform and graphics dependencies reached through egui, eframe, and wgpu. `Cargo.lock` records the exact versions and sources. The application manifest enables the wgpu renderer, AccessKit, Wayland, and X11 support.
 
 The portable release archives contain the executable, PicLens MIT license, README, and Noto Sans CJK TC OFL notice. The font files are embedded in the executable. Linux graphics and desktop integration remain system dependencies.
 
 ## Bundled assets
 
-The GPUI binary embeds three Noto Sans CJK TC font files. The application icon PNG and Windows ICO are also source assets. A release audit must confirm the correct license and provenance for every distributed asset.
+The desktop binary embeds three Noto Sans CJK TC font files. The application icon PNG and Windows ICO are also source assets. A release audit must confirm the correct license and provenance for every distributed asset.
 
 ## Required release review
 
-1. Record the target, toolchain, Cargo lockfile, GPUI revision, and package format.
+1. Record the target, toolchain, Cargo lockfile, renderer versions, and package format.
 2. Generate a dependency and runtime inventory from the final staged artifact.
 3. Confirm the PicLens MIT license and all required third-party notices are present.
 4. Review Rust crates, native libraries, image codecs, bundled fonts, and application artwork.

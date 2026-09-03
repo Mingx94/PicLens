@@ -35,17 +35,17 @@ try {
         $metadataJson = cargo metadata --locked --no-deps --format-version 1
         if ($LASTEXITCODE -ne 0) { throw 'Cargo metadata failed' }
         $metadata = $metadataJson | ConvertFrom-Json
-        $Version = ($metadata.packages | Where-Object name -eq "piclens-gpui").version
+        $Version = ($metadata.packages | Where-Object name -eq "piclens-desktop").version
     }
     if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid Cargo package version: $Version" }
     if ($Sign -and [string]::IsNullOrWhiteSpace($CertificateThumbprint)) {
         throw "-Sign requires -CertificateThumbprint"
     }
-    cargo build --release --locked -p piclens-gpui
+    cargo build --release --locked -p piclens-desktop
     if ($LASTEXITCODE -ne 0) { throw "Release build failed" }
     $payload = Join-Path $repoRoot "dist\msi-payload"
     New-Item -ItemType Directory -Force -Path $payload | Out-Null
-    Copy-Item target/release/piclens-gpui.exe (Join-Path $payload PicLens.exe) -Force
+    Copy-Item target/release/piclens-desktop.exe (Join-Path $payload PicLens.exe) -Force
     Copy-Item LICENSE, README.md, assets/Fonts/NotoSansCJKtc-OFL.txt, assets/AppIcon.ico $payload -Force
     $output = Join-Path $repoRoot "dist\PicLens-$Version-windows-x86_64.msi"
     dotnet build installer/PicLens.wixproj --configuration Release -t:Rebuild `

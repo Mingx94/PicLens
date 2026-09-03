@@ -8,13 +8,13 @@
 
 ## Change entry points
 
-Dependency direction: `piclens-gpui -> piclens-infra -> piclens-domain`.
+Dependency direction: `piclens-desktop -> piclens-infra -> piclens-domain`.
 
 | Behavior | Crate |
 |---|---|
 | Formats, sort, path rules, settings merge, zoom, rename plan | `crates/piclens-domain` |
 | Scan, settings JSON, log, thumbs, trash/reveal, convert | `crates/piclens-infra` |
-| Window, library, sidebar, viewer, selection, commands | `crates/piclens-gpui` |
+| Window, library, sidebar, viewer, selection, commands | `crates/piclens-desktop` |
 
 ## Commands
 

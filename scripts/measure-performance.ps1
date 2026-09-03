@@ -15,26 +15,29 @@ $profile = Join-Path $output "profile"
 New-Item -ItemType Directory -Force -Path $output | Out-Null
 Push-Location $repoRoot
 try {
-    cargo build --release --locked -p piclens-gpui
+    cargo build --release --locked -p piclens-desktop
     if ($LASTEXITCODE -ne 0) { throw "Release build failed" }
-    $executable = Join-Path $repoRoot "target\release\piclens-gpui.exe"
+    $executable = Join-Path $repoRoot "target\release\piclens-desktop.exe"
     foreach ($state in @("cold", "warm")) {
         if ($state -eq "cold") { Remove-Item -LiteralPath $profile -Recurse -Force -ErrorAction SilentlyContinue }
         $metrics = Join-Path $output "windows-release-$state.json"
+        $screenshot = Join-Path $output "windows-release-$state.png"
         $process = Start-Process $executable -ArgumentList @(
             "--smoke-ms", "8000", "--performance-scroll", "--include-subfolders",
             "--data-root", $profile, "--folder", $fixture, "--search", "jpg",
-            "--metrics", $metrics
-        ) -PassThru -WindowStyle Hidden
+            "--metrics", $metrics, "--screenshot", $screenshot
+        ) -PassThru
         if (-not $process.WaitForExit(30000)) { $process.Kill($true); throw "$state metrics run timed out" }
-        if ($process.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $metrics)) {
+        if ($process.ExitCode -ne 0 -or
+            -not (Test-Path -LiteralPath $metrics) -or
+            -not (Test-Path -LiteralPath $screenshot)) {
             throw "$state metrics run failed"
         }
     }
     $environment = [ordered]@{
         measuredAtUtc = [DateTime]::UtcNow.ToString("o")
         commit = (git rev-parse HEAD)
-        gpuiRevision = "c7537bdf463a998e7ec636adff33b198891e69ed"
+        frontend = "eframe-egui-wgpu"
         os = [Environment]::OSVersion.VersionString
         cpu = (Get-CimInstance Win32_Processor | Select-Object -First 1 -ExpandProperty Name)
         gpu = @((Get-CimInstance Win32_VideoController).Name)

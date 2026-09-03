@@ -4,9 +4,8 @@ members = [
     "crates/piclens-domain",
     "crates/piclens-desktop",
     "crates/piclens-infra",
-    "crates/piclens-gpui",
 ]
-default-members = ["crates/piclens-gpui"]
+default-members = ["crates/piclens-desktop"]
 
 [workspace.package]
 edition = "2021"

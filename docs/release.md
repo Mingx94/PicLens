@@ -4,14 +4,14 @@
 
 The root `Cargo.toml` field `[workspace.package].version` is the only version authority. Every workspace crate inherits it. A release tag must use `v<version>`, for example `v0.1.0`.
 
-Pushing a matching tag starts `.github/workflows/release.yml`. A manual run can rebuild an existing tag. The workflow checks that the tag is annotated and matches the `piclens-gpui` Cargo version before it builds anything.
+Pushing a matching tag starts `.github/workflows/release.yml`. A manual run can rebuild an existing tag. The workflow checks that the tag is annotated and matches the `piclens-desktop` Cargo version before it builds anything.
 
 ## Build workflow
 
 The only GitHub Actions workflow builds the Windows x86_64 MSI and portable ZIP on Windows 2025. It uses the nightly toolchain pinned in `rust-toolchain.toml`. The MSI build script runs:
 
 ```text
-cargo build --release --locked -p piclens-gpui
+cargo build --release --locked -p piclens-desktop
 ```
 
 The portable ZIP uses the same executable. There is no branch or pull-request CI. The workflow does not run format, test, Clippy, or package lifecycle checks. Run the checks in [Testing](testing.md) locally before release.

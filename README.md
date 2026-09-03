@@ -1,14 +1,14 @@
 # PicLens
 
-PicLens is a desktop image library and viewer for Windows and Linux. It uses Rust, [GPUI](https://github.com/zed-industries/zed), and [gpui-component](https://github.com/longbridge/gpui-component). [The product specification](docs/product-spec.md) defines its behavior.
+PicLens is a desktop image library and viewer for Windows and Linux. It uses Rust, [egui](https://github.com/emilk/egui), eframe, and wgpu. [The product specification](docs/product-spec.md) defines its behavior.
 
 ## Layout
 
 ```text
 crates/piclens-domain/   product rules (no I/O UI)
 crates/piclens-infra/    filesystem, settings, thumbs, OS adapters
-crates/piclens-gpui/     application UI
-.agents/skills/          GPUI agent skills
+crates/piclens-desktop/  egui/eframe application UI
+.agents/skills/          repository agent skills
 docs/                    product and engineering docs
 assets/                  icons and fonts
 ```
@@ -24,17 +24,17 @@ assets/                  icons and fonts
 From the repo root:
 
 ```powershell
-cargo run -p piclens-gpui --release
-cargo run -p piclens-gpui -- --folder D:\Photos
+cargo run --release
+cargo run -- --folder D:\Photos
 # Optional smoke: open folder then quit (CI)
-cargo run -p piclens-gpui -- --folder D:\Photos --smoke-ms 4000
+cargo run -- --folder D:\Photos --smoke-ms 4000
 ```
 
 Isolate profile data:
 
 ```powershell
-$env:PICLENS_DATA_ROOT = "F:\PicLens\artifacts\gpui-profile"
-cargo run -p piclens-gpui
+$env:PICLENS_DATA_ROOT = "F:\PicLens\artifacts\desktop-profile"
+cargo run
 ```
 
 See [Testing](docs/testing.md) for validation commands, runtime smoke, and profile isolation.

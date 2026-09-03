@@ -1,8 +1,8 @@
 # egui migration design
 
-Status: accepted for incremental implementation on 2026-09-01.
+Status: completed and archived on 2026-09-03.
 
-This document defines the active GPUI-to-egui migration. It does not change the product contract. [Product specification](product-spec.md) and [runtime invariants](runtime-invariants.md) remain authoritative.
+This document records the completed GPUI-to-egui migration. It does not define current product behavior or engineering requirements. [Product specification](../product-spec.md) and [runtime invariants](../runtime-invariants.md) remain authoritative.
 
 ## Target structure
 
@@ -36,7 +36,7 @@ egui view -> Action -> App reducer -> Command -> background backend
 
 ### Frontend crate
 
-The frontend is named `piclens-desktop`, not `piclens-egui`. The crate is a desktop product shell; egui remains an implementation detail. It is a workspace member during migration, but `piclens-gpui` remains the default member until cutover.
+The frontend is named `piclens-desktop`, not `piclens-egui`. The crate is a desktop product shell; egui remains an implementation detail. It is now the root workspace default member. `piclens-gpui` remains a workspace member only until the archived migration record and final removal step are complete.
 
 ### egui version and renderer
 
@@ -107,16 +107,15 @@ Persistent product state must not be hidden in egui widget memory. Short-lived w
 | Settings schema、路徑與相容讀取 | 功能相符 | egui 會讀取既有視窗大小，resize 停止後由 background backend 保存正規化後的新大小。 |
 | 原生選單列 | 接受差異 | 產品規格未要求原生選單列；egui 以視窗內控制、context menu 與同等快捷鍵提供產品操作。 |
 | Screenshot、performance workload 與 metrics | 功能相符 | egui 支援 automated screenshot、60 次持續捲動 workload，以及 CPU、記憶體、thumbnail、search、scroll metrics；大型圖庫的 Release 測量與外部 GPU／storage 記錄仍待階段 8 驗證。 |
-| 預設 frontend、文件、package 與 CI | 尚未切換 | 這是遷移期間刻意保留的差異；正式切換項目已分別列在 `TODO.md` 階段 7。 |
+| 預設 frontend、文件、package 與 CI | 已切換 | Root default member、現行文件、效能腳本、封裝腳本與 release workflow 都指向 `piclens-desktop`；GPUI crate 與遷移紀錄仍待最後移除及歸檔。 |
 
 這份 review 完成 code、contract 與 test 層的差異盤點。它不取代真實輸入、視覺、高 DPI、效能、clean-runner package lifecycle 或 hosted release 驗證；這些項目仍維持未勾選。
 
 ## Evidence still required
 
-- A repeatable GPUI behavior baseline for the main product flow.
-- GPUI Release measurements for gallery and viewer workloads.
 - A wgpu startup and image-texture smoke on clean Windows, Ubuntu, and Fedora environments.
 - Real accessibility and input checks. Headless render tests do not replace these checks.
+- Release measurements for gallery and viewer workloads on a representative disposable library.
 
 ## Local implementation evidence
 
@@ -125,3 +124,13 @@ On 2026-09-02, workspace check, build, 110 tests, and clippy with warnings denie
 On 2026-09-03, an isolated Windows wgpu smoke loaded 240 copied PNG fixtures and ran temporary search, the 60-step continuous-scroll workload, automated screenshot capture, and schema 2 metrics in one process. The process exited with status 0, saved a 1280×800 PNG, recorded 96 completed thumbnail requests plus search, scroll, CPU, working-set, window, and display-scale fields, and logged screenshot save and workload completion before shutdown. This validates the automated diagnostics path in a Debug build. It does not replace Release measurement on a representative library, external GPU and storage records, visual comparison, or clean-runner validation.
 
 On 2026-09-03, an explicitly authorized copy of the existing Windows PicLens profile was used for an isolated egui compatibility smoke. The 2,004-file copy matched the source manifest before launch. egui restored the saved folder, sort, recursive mode, 180-pixel thumbnail size, expanded sidebar, and 2176×1224 window; existing cache names and the complete prior log prefix were preserved. The run appended only to the copied log, created no new quarantined settings file, and exited without an app-log warning or error. The production profile and settings hashes remained unchanged after the run. The copied profile and screenshot were moved to the Recycle Bin after validation and are not repository content.
+
+On 2026-09-03, the root default member, current documentation, performance and package scripts, and Windows release workflow were switched to `piclens-desktop`. The updated Windows MSI built successfully with zero warnings and zero errors; its staged `PicLens.exe` matched `target/release/piclens-desktop.exe` by SHA-256. PowerShell, XML, Git Bash syntax, Cargo metadata, default `cargo run -- --help`, workspace format, build, check, 164 tests, Clippy with warnings denied, and `git diff --check` all passed. The package remains unsigned. Linux DEB/RPM build and package lifecycle still require their native runners.
+
+The Stage 7 isolated Windows Release smoke used 120 copied images for cold and warm gallery runs, then eight copied images for continuous Viewer navigation. The gallery runs produced schema 2 search and scroll metrics plus valid 1280×800 screenshots. The Viewer run painted all 17 checked selections, reported zero unpainted selections and zero 500ms target misses, and produced a valid 1280×800 Viewer screenshot. All runs used isolated profiles, exited successfully, and added no `WARN` or `ERROR` entry to the app log. The generated data under `target/` contains only disposable copies of the repository icon.
+
+## Completion
+
+On 2026-09-03, `piclens-gpui` and the four GPUI-only repository skills were removed after the default frontend, current documents, scripts, packaging, and workflow pointed to `piclens-desktop`. The workspace now contains `piclens-domain`, `piclens-infra`, and `piclens-desktop`. `Cargo.lock` contains no GPUI, gpui-component, Zed, or scap package.
+
+After removal, workspace format, build, check, 118 tests, Clippy with warnings denied, and `git diff --check` passed. The unsigned Windows MSI rebuilt with zero warnings and zero errors. Its staged `PicLens.exe` matched the Release `piclens-desktop.exe` by SHA-256. A final isolated Windows Release smoke loaded eight copied images, completed search and continuous scrolling, saved a valid 1280×800 screenshot and schema 2 metrics, and exited with no app-log warning or error. DEB/RPM build, clean-runner package lifecycle, signing, tag creation, push, and hosted release remain separate release work.

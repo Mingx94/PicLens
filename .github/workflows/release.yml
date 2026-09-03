@@ -41,7 +41,7 @@ jobs:
           $metadataJson = cargo metadata --locked --no-deps --format-version 1
           if ($LASTEXITCODE -ne 0) { throw 'Cargo metadata failed' }
           $metadata = $metadataJson | ConvertFrom-Json
-          $version = ($metadata.packages | Where-Object name -eq 'piclens-gpui').version
+          $version = ($metadata.packages | Where-Object name -eq 'piclens-desktop').version
           if ($env:RELEASE_TAG -cne "v$version") { throw "Tag $env:RELEASE_TAG must match v$version" }
           $tagType = git cat-file -t "refs/tags/$env:RELEASE_TAG"
           if ($LASTEXITCODE -ne 0 -or $tagType -ne 'tag') { throw "$env:RELEASE_TAG must be an annotated tag" }
@@ -54,7 +54,7 @@ jobs:
           $name = 'PicLens-${{ steps.release.outputs.version }}-windows-x86_64'
           $stage = Join-Path dist $name
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
-          Copy-Item target/release/piclens-gpui.exe (Join-Path $stage PicLens.exe)
+          Copy-Item target/release/piclens-desktop.exe (Join-Path $stage PicLens.exe)
           Copy-Item LICENSE, README.md, assets/Fonts/NotoSansCJKtc-OFL.txt $stage
           Compress-Archive -Path "$stage/*" -DestinationPath "dist/$name.zip"
           $hash = (Get-FileHash "dist/$name.zip" -Algorithm SHA256).Hash.ToLowerInvariant()

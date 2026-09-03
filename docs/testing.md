@@ -11,7 +11,7 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 git diff --check
 ```
 
-Use a crate-scoped command while you iterate. Run the workspace gates before delivery when a change can affect more than one crate. Pure product rules belong in `piclens-domain`; filesystem and persistence checks belong in `piclens-infra`; GPUI state helpers belong beside the owning UI module.
+Use a crate-scoped command while you iterate. Run the workspace gates before delivery when a change can affect more than one crate. Pure product rules belong in `piclens-domain`; filesystem and persistence checks belong in `piclens-infra`; egui state helpers belong beside the owning UI module.
 
 ## Isolation
 
@@ -19,17 +19,17 @@ Set `PICLENS_DATA_ROOT` to a disposable directory to isolate settings, logs, and
 
 ## Validation layers
 
-- Use ordinary Rust tests for product rules, data transformations, and GPUI-independent state helpers.
-- Use `#[gpui::test]` with `TestAppContext` and, when needed, `VisualTestContext` for GPUI entities, actions, mouse and keyboard input, focus, resize, scrolling, overlays, and asynchronous state. These tests use GPUI's simulated platform and do not require `computer-use`.
-- Use `computer-use` with the real app only when pixel appearance matters. Check layout, typography, colors, image rendering, high-DPI output, animation quality, and other visual details with an isolated profile and representative images.
+- Use ordinary Rust tests for product rules, data transformations, reducers, backend contracts, and framework-independent state helpers.
+- Use `egui_kittest` for deterministic layout, pointer and keyboard actions, focus, resize, scrolling, dialogs, and AccessKit semantics. These tests do not prove native window-system or assistive-technology behavior.
+- Use an isolated real app for renderer, image quality, high-DPI, drag/drop, native helper, and platform behavior. The built-in `--screenshot` option can capture deterministic evidence. Use Computer Use only when the user explicitly requests it.
 
-Do not use a headless test result as evidence that pixels are correct. Do not use `computer-use` for behavior that a deterministic GPUI or Rust test can assert.
+Do not use a headless test result as evidence that pixels are correct. Do not use a launch-only smoke as evidence that interaction works.
 
 ## Runtime smoke
 
 ```powershell
-$env:PICLENS_DATA_ROOT = "F:\PicLens\artifacts\gpui-smoke"
-cargo run -p piclens-gpui -- --folder <representative-folder>
+$env:PICLENS_DATA_ROOT = "F:\PicLens\artifacts\desktop-smoke"
+cargo run -- --folder <representative-folder>
 ```
 
 For an automated launch-only check, add `--smoke-ms 4000`. This proves that the process opened and stayed alive until the timer elapsed. It does not prove that the library finished loading or that interaction works.
@@ -40,4 +40,4 @@ For runtime changes, also check the affected mouse, keyboard, focus, resize, scr
 
 - There is no branch or pull-request CI. Run the workspace gates locally.
 - The release workflow only builds and publishes the Windows MSI, portable ZIP, and checksums. It does not test install, upgrade, or uninstall behavior, and it does not build Linux packages.
-- Gallery selection has GPUI coverage for pointer, modifier, keyboard, focus, and the handler registered for accessibility Click. The pinned GPUI `TestPlatform` cannot inject OS AccessKit action requests, so the platform bridge still needs a runtime assistive-technology check. Cargo tests do not replace a real launch.
+- `egui_kittest` can inspect AccessKit roles, names, states, actions, and focus. It does not replace a native assistive-technology check or a real launch.

@@ -1,23 +1,23 @@
 # Architecture
 
-PicLens is a Rust workspace with a GPUI desktop application.
+PicLens is a Rust workspace with an egui/eframe desktop application that uses the wgpu renderer.
 
 ```text
 crates/piclens-domain/     framework-light product rules and value models
 crates/piclens-infra/      filesystem, settings, logging, thumbnails, OS adapters
-crates/piclens-gpui/       GPUI shell, controllers, and composition root
-.agents/skills/            agent skills for GPUI / gpui-component
+crates/piclens-desktop/    egui/eframe shell and composition root
+.agents/skills/            repository agent skills
 docs/                      product contracts and engineering notes
 assets/                    application icons and fonts
 ```
 
 ## Dependency direction
 
-`piclens-gpui -> piclens-infra -> piclens-domain`. Domain does not depend on GPUI, filesystem codecs, or platform UI.
+`piclens-desktop -> piclens-infra -> piclens-domain`. Domain does not depend on egui, filesystem codecs, or platform UI.
 
 ## Runtime composition
 
-`crates/piclens-gpui/src/main.rs` starts `gpui_platform`, registers bundled fonts, publishes the light `Theme` global, installs native menus, calls `gpui_component::init`, and opens a window wrapped in `Root`. `PicLensApp` owns settings, folder history, library scan results, selection, viewer snapshot, and file-operation commands. Window render is split under `src/app/` (`gallery`, `shell`, `overlays`, `render`). Infrastructure implements scan, settings JSON, trash/reveal, convert, and thumbnail cache helpers.
+`crates/piclens-desktop/src/main.rs` parses the command line. `lib.rs` loads compatible settings, configures the eframe window, selects wgpu, and starts `PicLensApp`. The app owns the reducer, request identities, the background backend, image textures, diagnostics, and frame lifecycle. Views in `ui/mod.rs` only read model state and append `Action` values. The reducer converts actions to bounded background `Command` work. Matching `Event` values update the model. Infrastructure implements scan, settings JSON, trash/reveal, conversion, and thumbnail cache helpers.
 
 ## Data and diagnostics
 

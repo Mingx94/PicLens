@@ -23,7 +23,7 @@ PicLens combines a modern desktop interface with simple image-management tools. 
 ## Operating Context
 
 - Users work with folders and image files on their local Windows or Linux file system.
-- The main workflow combines folder navigation, grid or list browsing, search, sorting, selection, batch operations, and an embedded image viewer.
+- The main workflow combines folder navigation, grid browsing, search, sorting, selection, batch operations, and an embedded image viewer.
 - File operations include safe rename, move to the operating-system trash, JPG conversion, lossless WebP conversion, and same-basename format cleanup.
 - The application preserves enough visible status and diagnostic logging for users to understand failures and for later troubleshooting.
 
@@ -48,7 +48,7 @@ PicLens combines a modern desktop interface with simple image-management tools. 
 
 - `docs/product-spec.md` is the authority for user-visible behavior and product scope.
 - `docs/runtime-invariants.md` records engineering constraints that protect product behavior.
-- `docs/design/system.md` records the incumbent GPUI interface system.
+- `docs/design/system.md` records the current egui interface system.
 - `assets/` contains the current PicLens application icons and licensed Noto Sans CJK TC fonts.
 - The repository contains no confirmed testimonials, customer claims, usage benchmarks, pricing, or market evidence. Future work must not fabricate them.
 

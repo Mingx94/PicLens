@@ -1,20 +1,20 @@
 # PicLens design system
 
-PicLens is a calm, image-first desktop workspace. The current interface uses Rust, GPUI, and gpui-component. The implementation in `crates/piclens-gpui/src/theme.rs` and `crates/piclens-gpui/src/app/` is the executable authority.
+PicLens is a calm, image-first desktop workspace. The current interface uses Rust, egui, eframe, and wgpu. The implementation in `crates/piclens-desktop/src/theme.rs` and `crates/piclens-desktop/src/ui/mod.rs` is the executable authority.
 
 ## Structure
 
-- A 64 px command bar owns global navigation, search, and folder selection.
-- A 228 px sidebar owns the folder tree and can collapse.
+- The top command surface owns product identity and the sidebar control.
+- A resizable 230 px sidebar owns the folder tree and can collapse. Its allowed range is 160 to 360 px.
 - The main surface owns folder context, sort and scope controls, gallery content, and file operations.
-- A 48 px status bar owns counts and thumbnail size.
+- The main surface also owns counts, thumbnail size, status, and errors.
 - The viewer and confirmation dialogs render as layers in the main window.
 
-The gallery uses a virtualized GPUI list. Keep shared dialogs and overlays outside repeated rows.
+The gallery uses `egui::ScrollArea::show_rows` to virtualize fixed grid rows. Keep shared dialogs and overlays outside repeated rows.
 
 ## Palette
 
-The app is light-only until a complete dark theme and runtime selection exist. Semantic colors live in `Theme`; views must not create a second palette.
+The app is light-only until a complete dark theme and runtime selection exist. Shared semantic colors live in `theme::install`; views must not create a second palette.
 
 | Role | Value |
 |---|---|
@@ -32,13 +32,13 @@ The app is light-only until a complete dark theme and runtime selection exist. S
 | Viewer error surface | `#1F2937` |
 | Modal backdrop | black at 35% opacity |
 
-`Theme::high_contrast` and `Theme::opaque` are tested fallback palettes, but the app does not select them from operating-system preferences. Do not claim automatic reduced-transparency or high-contrast support until that connection exists.
+The app does not connect its palette to operating-system high-contrast or dark-mode preferences. Do not claim automatic support until that connection exists.
 
 ## Typography and assets
 
 PicLens embeds Noto Sans CJK TC Regular, Medium, and Bold and registers them before the window opens. Use `Noto Sans CJK TC` for the interface. Keep the OFL notice with the fonts.
 
-Use the packaged PicLens artwork for app identity and gpui-component icons for commands. Use the [Lucide icon catalog](https://lucide.dev/icons/) to find a suitable icon and check the available `gpui_component::IconName` variants before implementation. Controls need stable IDs, clear labels, keyboard access, disabled states, and visible state feedback.
+Use the packaged PicLens artwork for app identity. Prefer clear text labels and built-in egui controls for commands. Controls need stable IDs, clear AccessKit names and roles, keyboard access, disabled states, and visible state feedback.
 
 ## Layout and interaction
 

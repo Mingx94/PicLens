@@ -6,14 +6,14 @@ version="${2:-}"
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 if [[ -z "$version" ]]; then
-  version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "piclens-gpui") | .version')"
+  version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "piclens-desktop") | .version')"
 fi
 case "$kind" in deb) package_type=deb; arch=amd64 ;; rpm) package_type=rpm; arch=x86_64 ;; *) echo "Unknown package kind: $kind" >&2; exit 2 ;; esac
 command -v fpm >/dev/null || { echo "fpm is required" >&2; exit 2; }
-cargo build --release --locked -p piclens-gpui
+cargo build --release --locked -p piclens-desktop
 stage="dist/$kind-root"
 rm -rf -- "$stage"
-install -Dm755 target/release/piclens-gpui "$stage/usr/bin/PicLens"
+install -Dm755 target/release/piclens-desktop "$stage/usr/bin/PicLens"
 install -Dm644 packaging/piclens.desktop "$stage/usr/share/applications/piclens.desktop"
 install -Dm644 packaging/piclens.metainfo.xml "$stage/usr/share/metainfo/piclens.metainfo.xml"
 install -Dm644 assets/Square150x150Logo.scale-200.png "$stage/usr/share/icons/hicolor/300x300/apps/piclens.png"

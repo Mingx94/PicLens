@@ -1,6 +1,6 @@
 # PicLens documentation
 
-PicLens is a desktop image library and viewer built with Rust, GPUI, and gpui-component. Return to the [repository README](../README.md).
+PicLens is a desktop image library and viewer built with Rust, egui, eframe, and wgpu. Return to the [repository README](../README.md).
 
 ## Daily development
 
@@ -10,11 +10,7 @@ PicLens is a desktop image library and viewer built with Rust, GPUI, and gpui-co
 4. [Development guide](development.md): change entry points and delivery checks.
 5. [Data continuity](data-continuity.md): settings, log, cache, profile isolation.
 6. [Testing](testing.md): Cargo checks and runtime verification.
-7. [Design system](design/system.md): current GPUI layout, palette, and component rules.
-
-## Active migration
-
-- [egui migration design](egui-migration.md): target event flow, decisions, parity inventory, and cutover safety.
+7. [Design system](design/system.md): current egui layout, palette, and component rules.
 
 ## Release and operations
 
@@ -24,6 +20,7 @@ PicLens is a desktop image library and viewer built with Rust, GPUI, and gpui-co
 
 ## History
 
+- [Completed egui migration](archive/2026-09-egui-migration.md): event flow, decisions, parity inventory, cutover, and local evidence.
 - [Archive index](archive/README.md): migration records and old evidence; never current instructions.
 
 Product-spec and runtime-invariants remain the behavior authority. Current build, test, and release commands must use Cargo and the Rust workflows under `.github/workflows/`.
@@ -32,7 +29,7 @@ Product-spec and runtime-invariants remain the behavior authority. Current build
 
 | Topic | Narrative owner | Executable authority |
 |---|---|---|
-| User needs and product scope | [Product specification](product-spec.md) | Current GPUI runtime |
+| User needs and product scope | [Product specification](product-spec.md) | Current `piclens-desktop` runtime |
 | Engineering invariants | [Runtime invariants](runtime-invariants.md) | Domain + infra + UI |
 | Layer ownership | [Architecture](architecture.md) | Cargo crate graph |
 | Build and test commands | [Testing](testing.md) | Cargo workspace and lockfile |

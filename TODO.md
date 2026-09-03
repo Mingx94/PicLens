@@ -10,7 +10,7 @@ egui view -> Action -> App reducer -> Command -> background backend
                    +--------- Event <-------+
 ```
 
-遷移期間保留 `piclens-domain` 與 `piclens-infra`。新的 egui frontend 暫定為 `piclens-desktop`，並與 `piclens-gpui` 並存，直到功能、runtime invariants、測試與 package smoke 都達到切換條件。
+遷移期間保留 `piclens-domain` 與 `piclens-infra`。`piclens-desktop` 已在階段 7 成為唯一 frontend；完成紀錄保存在 [egui 遷移歸檔](docs/archive/2026-09-egui-migration.md)。
 
 ## 完成規則
 
@@ -18,7 +18,7 @@ egui view -> Action -> App reducer -> Command -> background backend
 - [ ] 階段退出前，受影響的 Cargo format、build、check、test 與 clippy gates 全部通過。
 - [ ] Runtime 行為變更使用隔離的 `PICLENS_DATA_ROOT` 執行真實 app smoke，並檢查 app log。
 - [ ] Headless render 只證明 layout 可建立；它不取代真實輸入、accessibility、平台整合或像素驗證。
-- [ ] 遷移期間不刪除 GPUI frontend，也不改變預設 app，直到「階段 7：正式切換」完成。
+- [x] 遷移期間不刪除 GPUI frontend，也不改變預設 app，直到「階段 7：正式切換」完成。
 
 ## 階段 0：凍結基線與架構決策
 
@@ -135,20 +135,20 @@ egui view -> Action -> App reducer -> Command -> background backend
 
 目標：讓 egui frontend 成為唯一正式 app，並清理遷移期間的雙重路徑。
 
-- [x] 執行完整 GPUI／egui parity review，所有差異都有產品核准或明確缺陷項目。詳見 [egui migration design](docs/egui-migration.md#2026-09-03-parity-review)。
+- [x] 執行完整 GPUI／egui parity review，所有差異都有產品核准或明確缺陷項目。詳見 [egui migration design](docs/archive/2026-09-egui-migration.md#2026-09-03-parity-review)。
 - [x] 補齊 egui settings parity：視窗 resize 後以 background command 保存正規化後的視窗大小，不可在 UI thread 寫檔。
 - [x] 補齊 egui 虛擬化圖庫的鍵盤捲動：游標移到未 materialize 的項目時，目標項目必須進入 viewport。
 - [x] 補齊 egui 暫時性 `--search`、`--include-subfolders` 與 `--sidebar-closed` CLI override。
 - [x] 補齊 egui automated screenshot 與持續捲動 workload。
 - [x] 補齊 egui CPU、記憶體、thumbnail、search 和 scroll metrics。
 - [x] 使用既有 settings、cache 和 log profile 驗證向前資料相容；不得破壞或靜默重設使用者設定。
-- [ ] 更新 root workspace default member、README、architecture、development、testing、design 與 release 文件。
-- [ ] 更新 screenshot、performance、package、smoke 與 CI scripts，使其執行 `piclens-desktop`。
-- [ ] 更新 Windows MSI、portable archive、DEB 與 RPM 的 binary、desktop entry、icon 和 metadata。
-- [ ] 完成 workspace 全套 format、build、check、test、clippy 與 `git diff --check`。
-- [ ] 以隔離 profile 執行完整真實 app smoke，並確認 log 沒有未說明錯誤。
-- [ ] 將 GPUI 遷移紀錄移到 `docs/archive/`，再移除 `piclens-gpui`、GPUI dependencies、skills 和 dead code。
-- [ ] 在移除後重新執行全套 workspace gates、package build 與 smoke。
+- [x] 更新 root workspace default member、README、architecture、development、testing、design 與 release 文件。
+- [x] 更新 screenshot、performance、package、smoke 與 CI scripts，使其執行 `piclens-desktop`。
+- [x] 更新 Windows MSI、portable archive、DEB 與 RPM 的 binary、desktop entry、icon 和 metadata。
+- [x] 完成 workspace 全套 format、build、check、test、clippy 與 `git diff --check`。
+- [x] 以隔離 profile 執行完整真實 app smoke，並確認 log 沒有未說明錯誤。
+- [x] 將 GPUI 遷移紀錄移到 `docs/archive/`，再移除 `piclens-gpui`、GPUI dependencies、skills 和 dead code。
+- [x] 在移除後重新執行全套 workspace gates、package build 與 smoke。
 
 退出條件：egui 是唯一 frontend；repository、文件、測試、腳本與 package 不再引用有效的 GPUI runtime 路徑。
 
