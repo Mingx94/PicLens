@@ -1,26 +1,8 @@
 # PicLens Agent Guide
 
-PicLens is a desktop image viewer and organizer built with Rust, GPUI, and gpui-component.
-
-## Communication Standard
-
 - Write in Traditional Chinese and follow ASD-STE100.
-- Use `zhtw-mcp` for terms that are not used in Taiwan.
-- Do not apply these language rules to code, identifiers, API names, or required technical terms.
-- Apply Zinsser's four principles: Simplicity, Brevity, Clarity, Humanity.
-
-## Core Workflow
-
-1. Read the product contract and runtime invariants for changed behavior.
-2. Run fitting Cargo checks and a real app smoke when runtime behavior changes.
-
-## Tool Use
-
+- Use `zhtw-mcp` for non-Taiwan terms.
+- Do not apply these rules to code, identifiers, API names, or required technical terms.
+- Before changing behavior, read the [product specification](docs/product-spec.md) and [runtime invariants](docs/runtime-invariants.md).
+- After runtime changes, run relevant Cargo checks and a real-app smoke test.
 - Use Computer Use only when the user explicitly requests it.
-
-## Detailed Guidelines
-
-- [Build and Test](docs/agent/build-and-test.md)
-- [Versioning and Release Protocol](docs/agent/versioning-and-release.md)
-- [Architecture Principles](docs/agent/architecture-principles.md)
-- [Project Documentation](docs/README.md)
