@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use egui::{Color32, FontData, FontDefinitions, FontFamily, Visuals};
+use egui::{Color32, FontData, FontDefinitions, FontFamily, FontId, TextStyle, Visuals};
 
 const REGULAR_NAME: &str = "Noto Sans CJK TC Regular";
 const MEDIUM_NAME: &str = "Noto Sans CJK TC Medium";
@@ -31,9 +31,46 @@ pub fn install(ctx: &egui::Context) {
 
     ctx.all_styles_mut(|style| {
         style.visuals = Visuals::light();
-        style.visuals.panel_fill = Color32::from_rgb(248, 249, 251);
+        let app_background = Color32::from_rgb(245, 246, 248);
+        let content = Color32::WHITE;
+        let tile = Color32::from_rgb(242, 243, 245);
+        let border = Color32::from_rgb(225, 228, 233);
+        let primary = Color32::from_rgb(29, 32, 38);
+        let accent = Color32::from_rgb(73, 104, 232);
+        let selected = Color32::from_rgb(232, 238, 255);
+
+        style.visuals.panel_fill = app_background;
         style.visuals.window_fill = Color32::WHITE;
-        style.visuals.selection.bg_fill = Color32::from_rgb(31, 111, 235);
+        style.visuals.faint_bg_color = tile;
+        style.visuals.extreme_bg_color = content;
+        style.visuals.selection.bg_fill = selected;
+        style.visuals.selection.stroke = egui::Stroke::new(1.0, accent);
+        style.visuals.hyperlink_color = accent;
+        style.visuals.widgets.noninteractive.fg_stroke.color = primary;
+        style.visuals.widgets.noninteractive.bg_stroke.color = border;
+        style.visuals.widgets.inactive.fg_stroke.color = primary;
+        style.visuals.widgets.inactive.bg_stroke.color = border;
+        style.visuals.widgets.hovered.fg_stroke.color = primary;
+        style.visuals.widgets.hovered.bg_stroke.color = accent;
+        style.visuals.widgets.active.fg_stroke.color = primary;
+        style.visuals.widgets.active.bg_stroke.color = accent;
         style.spacing.item_spacing = egui::vec2(8.0, 8.0);
+        style.spacing.button_padding = egui::vec2(12.0, 6.0);
+        style.spacing.interact_size.y = 32.0;
+        style.text_styles.insert(
+            TextStyle::Heading,
+            FontId::new(24.0, FontFamily::Proportional),
+        );
+        style
+            .text_styles
+            .insert(TextStyle::Body, FontId::new(15.0, FontFamily::Proportional));
+        style.text_styles.insert(
+            TextStyle::Button,
+            FontId::new(15.0, FontFamily::Proportional),
+        );
+        style.text_styles.insert(
+            TextStyle::Small,
+            FontId::new(12.5, FontFamily::Proportional),
+        );
     });
 }

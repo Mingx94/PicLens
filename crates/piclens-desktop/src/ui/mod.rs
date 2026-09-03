@@ -17,6 +17,12 @@ pub(crate) fn gallery_focus_id() -> egui::Id {
     egui::Id::new("piclens-library-search")
 }
 
+pub(crate) fn rename_focus_id() -> egui::Id {
+    egui::Id::new("piclens-rename-input")
+}
+
+const MINIMUM_LAYOUT_WIDTH: f32 = 800.0;
+
 pub fn show(
     model: &AppModel,
     images: &ThumbnailLoader,
@@ -24,12 +30,15 @@ pub fn show(
     actions: &mut Vec<Action>,
 ) -> Vec<ThumbnailKey> {
     let mut materialized = Vec::new();
+    application_input(ui, actions);
     if model.page == Page::Viewer {
-        viewer_input(model, ui, actions);
+        if model.dialog.is_none() {
+            viewer_input(model, ui, actions);
+        }
         egui::CentralPanel::default()
             .frame(
                 Frame::new()
-                    .fill(Color32::from_rgb(22, 24, 29))
+                    .fill(Color32::from_rgb(17, 20, 26))
                     .inner_margin(Margin::same(20)),
             )
             .show(ui, |ui| {
@@ -38,6 +47,7 @@ pub fn show(
         show_dialog(model, ui.ctx(), actions);
         return materialized;
     }
+    let compact = ui.max_rect().width() <= MINIMUM_LAYOUT_WIDTH;
     if model.dialog.is_none() {
         navigation_input(ui, actions);
     }
@@ -49,16 +59,16 @@ pub fn show(
     egui::Panel::top("app-bar")
         .frame(
             Frame::new()
-                .fill(Color32::WHITE)
-                .stroke(Stroke::new(1.0, Color32::from_rgb(224, 228, 235)))
-                .inner_margin(Margin::symmetric(20, 12)),
+                .fill(Color32::from_rgb(252, 252, 253))
+                .stroke(Stroke::new(1.0, Color32::from_rgb(225, 228, 233)))
+                .inner_margin(Margin::symmetric(if compact { 12 } else { 20 }, 12)),
         )
         .show(ui, |ui| {
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 ui.heading("PicLens");
                 ui.separator();
                 ui.label("本機圖片圖庫");
-                if !model.tree_roots.is_empty() {
+                if !compact && !model.tree_roots.is_empty() {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let label = if model.sidebar_collapsed {
                             "顯示資料夾樹"
@@ -73,7 +83,7 @@ pub fn show(
             });
         });
 
-    if !model.sidebar_collapsed && !model.tree_roots.is_empty() {
+    if !compact && !model.sidebar_collapsed && !model.tree_roots.is_empty() {
         egui::Panel::left("folder-tree")
             .default_size(230.0)
             .min_size(160.0)
@@ -89,15 +99,25 @@ pub fn show(
     egui::CentralPanel::default()
         .frame(
             Frame::new()
-                .fill(Color32::from_rgb(248, 249, 251))
-                .inner_margin(Margin::same(32)),
+                .fill(Color32::WHITE)
+                .inner_margin(Margin::same(if compact { 16 } else { 32 })),
         )
         .show(ui, |ui| {
-            library_content(model, images, ui, actions, &mut materialized);
+            library_content(model, images, ui, actions, &mut materialized, compact);
         });
     show_dialog(model, ui.ctx(), actions);
     paint_drag_preview(model, ui.ctx());
     materialized
+}
+
+fn application_input(ui: &mut egui::Ui, actions: &mut Vec<Action>) {
+    let ctrl = egui::Modifiers {
+        ctrl: true,
+        ..egui::Modifiers::NONE
+    };
+    if ui.input_mut(|input| input.consume_key(ctrl, egui::Key::Q)) {
+        actions.push(Action::Quit);
+    }
 }
 
 fn library_content(
@@ -106,8 +126,9 @@ fn library_content(
     ui: &mut egui::Ui,
     actions: &mut Vec<Action>,
     materialized: &mut Vec<ThumbnailKey>,
+    compact: bool,
 ) {
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         if ui
             .add_enabled(model.history.can_back(), egui::Button::new("上一頁"))
             .clicked()
@@ -141,21 +162,27 @@ fn library_content(
     });
     if let Some(query) = &model.library_query {
         ui.add_space(8.0);
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             let mut search = model.search.clone();
-            if ui
-                .add(
-                    egui::TextEdit::singleline(&mut search)
-                        .id(gallery_focus_id())
-                        .hint_text("搜尋名稱或路徑…"),
-                )
-                .changed()
-            {
+            let previous_search = search.clone();
+            let search_response = ui.add(
+                egui::TextEdit::singleline(&mut search)
+                    .id(gallery_focus_id())
+                    .desired_width(if compact { 220.0 } else { 280.0 })
+                    .hint_text("搜尋名稱或路徑…"),
+            );
+            search_response.widget_info(|| {
+                let mut info =
+                    egui::WidgetInfo::text_edit(true, &previous_search, &search, "搜尋名稱或路徑…");
+                info.label = Some("搜尋圖片".into());
+                info
+            });
+            if search_response.changed() {
                 actions.push(Action::SetSearch(search));
             }
 
             let mut sort = query.sort;
-            egui::ComboBox::from_id_salt("library-sort")
+            egui::ComboBox::from_label("排序")
                 .selected_text(sort_label(sort))
                 .show_ui(ui, |ui| {
                     ui.selectable_value(
@@ -217,6 +244,12 @@ fn library_content(
     }
     ui.add_space(12.0);
 
+    let tile_width = model.thumbnail_size as f32;
+    let tile_height = (tile_width * 0.58).max(76.0);
+    let columns = (((ui.available_width() + 8.0) / (tile_width + 8.0)).floor() as usize).max(1);
+    let page_rows = ((ui.available_height() / (tile_height + 8.0)).floor() as usize).max(1);
+    gallery_input(model, ui, actions, columns, page_rows);
+
     match &model.library {
         Loadable::Idle => {
             ui.vertical_centered(|ui| {
@@ -232,7 +265,7 @@ fn library_content(
             });
         }
         Loadable::Ready(items) => {
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 ui.label(format!("{} 個項目", model.visible_items.len()));
                 ui.separator();
                 ui.label(format!(
@@ -296,7 +329,7 @@ fn library_content(
     backend_status(model, ui, actions);
     if let Some(notice) = &model.notice {
         ui.add_space(12.0);
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label(notice);
             if ui.small_button("關閉").clicked() {
                 actions.push(Action::DismissStatus);
@@ -312,6 +345,147 @@ fn sort_label(sort: SortState) -> &'static str {
         (SortKey::ModifiedAt, SortDirection::Asc) => "修改時間：舊到新",
         (SortKey::ModifiedAt, SortDirection::Desc) => "修改時間：新到舊",
     }
+}
+
+fn gallery_input(
+    model: &AppModel,
+    ui: &mut egui::Ui,
+    actions: &mut Vec<Action>,
+    columns: usize,
+    page_rows: usize,
+) {
+    if model.dialog.is_some() {
+        return;
+    }
+    let search_focused = ui
+        .ctx()
+        .memory(|memory| memory.has_focus(gallery_focus_id()));
+    let ctrl = egui::Modifiers {
+        ctrl: true,
+        ..egui::Modifiers::NONE
+    };
+    let ctrl_shift = egui::Modifiers {
+        ctrl: true,
+        shift: true,
+        ..egui::Modifiers::NONE
+    };
+    let ctrl_alt = egui::Modifiers {
+        ctrl: true,
+        alt: true,
+        ..egui::Modifiers::NONE
+    };
+    let mut focus_search = false;
+    let action = ui.input_mut(|input| {
+        let unmodified = egui::Modifiers::NONE;
+        if input.consume_key(ctrl, egui::Key::F)
+            || (!search_focused && input.consume_key(unmodified, egui::Key::Slash))
+        {
+            focus_search = true;
+            None
+        } else if input.consume_key(ctrl_shift, egui::Key::S) {
+            Some(Action::ToggleIncludeSubfolders)
+        } else if input.consume_key(ctrl_shift, egui::Key::R) {
+            Some(Action::RequestDropRename)
+        } else if input.consume_key(ctrl_shift, egui::Key::C) {
+            Some(Action::RequestCleanup)
+        } else if input.consume_key(ctrl_shift, egui::Key::E) {
+            Some(Action::RevealSelection)
+        } else if input.consume_key(ctrl_alt, egui::Key::Num1) {
+            Some(Action::SetSort(SortState {
+                key: SortKey::Name,
+                direction: SortDirection::Asc,
+            }))
+        } else if input.consume_key(ctrl_alt, egui::Key::Num2) {
+            Some(Action::SetSort(SortState {
+                key: SortKey::Name,
+                direction: SortDirection::Desc,
+            }))
+        } else if input.consume_key(ctrl_alt, egui::Key::Num3) {
+            Some(Action::SetSort(SortState {
+                key: SortKey::ModifiedAt,
+                direction: SortDirection::Asc,
+            }))
+        } else if input.consume_key(ctrl_alt, egui::Key::Num4) {
+            Some(Action::SetSort(SortState {
+                key: SortKey::ModifiedAt,
+                direction: SortDirection::Desc,
+            }))
+        } else if input.consume_key(ctrl, egui::Key::O) {
+            Some(Action::ChooseFolder)
+        } else if input.consume_key(ctrl, egui::Key::R)
+            || input.consume_key(unmodified, egui::Key::F5)
+        {
+            Some(Action::ReloadLibrary)
+        } else if input.consume_key(ctrl, egui::Key::B) {
+            Some(Action::ToggleSidebar)
+        } else if input.consume_key(ctrl, egui::Key::S) {
+            Some(Action::CycleSort)
+        } else if !search_focused && input.consume_key(ctrl, egui::Key::A) {
+            Some(Action::SelectAllVisible)
+        } else if !search_focused && input.consume_key(ctrl, egui::Key::J) {
+            Some(Action::RequestConversion(ConversionKind::Jpg))
+        } else if !search_focused && input.consume_key(ctrl, egui::Key::W) {
+            Some(Action::RequestConversion(ConversionKind::Webp))
+        } else if input.consume_key(ctrl, egui::Key::Escape) {
+            Some(Action::CancelFileOperation)
+        } else if search_focused
+            && input.consume_key(unmodified, egui::Key::Escape)
+            && !model.search.is_empty()
+        {
+            Some(Action::SetSearch(String::new()))
+        } else if !search_focused && input.consume_key(unmodified, egui::Key::Escape) {
+            if model.selection.focused_path.is_some() || !model.selection.ordered_paths.is_empty() {
+                Some(Action::ClearSelection)
+            } else if !model.search.is_empty() {
+                Some(Action::SetSearch(String::new()))
+            } else {
+                None
+            }
+        } else if !search_focused && input.consume_key(unmodified, egui::Key::Backspace) {
+            Some(Action::NavigateHistory { back: true })
+        } else if !search_focused && input.consume_key(unmodified, egui::Key::ArrowUp) {
+            Some(Action::MoveGallerySelection(-(columns as i32)))
+        } else if !search_focused && input.consume_key(unmodified, egui::Key::ArrowDown) {
+            Some(Action::MoveGallerySelection(columns as i32))
+        } else if !search_focused && input.consume_key(unmodified, egui::Key::ArrowLeft) {
+            Some(Action::MoveGallerySelection(-1))
+        } else if !search_focused && input.consume_key(unmodified, egui::Key::ArrowRight) {
+            Some(Action::MoveGallerySelection(1))
+        } else if !search_focused && input.consume_key(unmodified, egui::Key::PageUp) {
+            Some(Action::MoveGallerySelection(
+                -((columns * page_rows) as i32),
+            ))
+        } else if !search_focused && input.consume_key(unmodified, egui::Key::PageDown) {
+            Some(Action::MoveGallerySelection((columns * page_rows) as i32))
+        } else if !search_focused && input.consume_key(unmodified, egui::Key::Home) {
+            Some(Action::SelectGalleryBoundary { end: false })
+        } else if !search_focused && input.consume_key(unmodified, egui::Key::End) {
+            Some(Action::SelectGalleryBoundary { end: true })
+        } else if !search_focused
+            && (input.consume_key(unmodified, egui::Key::Enter)
+                || input.consume_key(unmodified, egui::Key::Space))
+        {
+            Some(Action::OpenFocusedItem)
+        } else if !search_focused && input.consume_key(unmodified, egui::Key::Delete) {
+            Some(Action::RequestTrash)
+        } else if !search_focused && input.consume_key(unmodified, egui::Key::F2) {
+            Some(Action::OpenRename)
+        } else if !search_focused
+            && (input.consume_key(unmodified, egui::Key::Plus)
+                || input.consume_key(unmodified, egui::Key::Equals))
+        {
+            Some(Action::SetThumbnailSize(model.thumbnail_size + 20))
+        } else if !search_focused && input.consume_key(unmodified, egui::Key::Minus) {
+            Some(Action::SetThumbnailSize(model.thumbnail_size - 20))
+        } else {
+            None
+        }
+    });
+    if focus_search {
+        ui.ctx()
+            .memory_mut(|memory| memory.request_focus(gallery_focus_id()));
+    }
+    actions.extend(action);
 }
 
 fn gallery_grid(
@@ -339,10 +513,18 @@ fn gallery_grid(
                     };
                     match item {
                         ListItem::Folder(folder) => {
-                            let response = ui.add_sized(
-                                egui::vec2(tile_width, tile_height),
-                                egui::Button::new(format!("{}\n資料夾", folder.name)),
-                            );
+                            let selected =
+                                model.selection.focused_path.as_ref().is_some_and(|path| {
+                                    path_equals(&path.to_string_lossy(), &folder.path)
+                                });
+                            let response = ui
+                                .add_sized(
+                                    egui::vec2(tile_width, tile_height),
+                                    egui::Button::new(format!("{}\n資料夾", folder.name))
+                                        .selected(selected)
+                                        .truncate(),
+                                )
+                                .on_hover_text(&folder.path);
                             if response.clicked() {
                                 actions.push(Action::NavigateFolder(folder.path.clone().into()));
                             }
@@ -370,8 +552,8 @@ fn gallery_grid(
                             };
                             let hover = images
                                 .failure(&key)
-                                .map(str::to_owned)
-                                .unwrap_or_else(|| image.extension.to_uppercase());
+                                .map(|failure| format!("{}\n{failure}", image.path))
+                                .unwrap_or_else(|| image.path.clone());
                             let response = ui
                                 .push_id(&image.path, |ui| {
                                     let button = if let Some(texture) = images.texture(&key) {
@@ -388,7 +570,8 @@ fn gallery_grid(
                                         .selected(selected)
                                     } else {
                                         egui::Button::new(label).selected(selected)
-                                    };
+                                    }
+                                    .truncate();
                                     let button = if model.drag.as_ref().is_some_and(|drag| {
                                         drag.dragging
                                             && drag.target.as_ref().is_some_and(|target| {
@@ -438,6 +621,10 @@ fn gallery_grid(
                                         path: image.path.clone().into(),
                                         gesture: SelectionGesture::Replace,
                                     });
+                                }
+                                if ui.button("開啟檢視").clicked() {
+                                    actions.push(Action::OpenViewer(image.path.clone().into()));
+                                    ui.close();
                                 }
                                 if ui.button("在檔案管理器中顯示").clicked() {
                                     actions.push(Action::RevealPath(image.path.clone().into()));
@@ -542,7 +729,23 @@ fn show_dialog(model: &AppModel, ctx: &egui::Context, actions: &mut Vec<Action>)
                 ui.heading("重新命名圖片");
                 ui.label("只修改檔名；副檔名會保留。");
                 let mut draft = basename.clone();
-                if ui.text_edit_singleline(&mut draft).changed() {
+                let previous_draft = draft.clone();
+                let response = ui.add(
+                    egui::TextEdit::singleline(&mut draft)
+                        .id(rename_focus_id())
+                        .hint_text("輸入新檔名"),
+                );
+                response.widget_info(|| {
+                    let mut info = egui::WidgetInfo::text_edit(
+                        true,
+                        &previous_draft,
+                        &draft,
+                        "輸入新檔名",
+                    );
+                    info.label = Some("新檔名".into());
+                    info
+                });
+                if response.changed() {
                     actions.push(Action::SetRenameBasename(draft));
                 }
                 if let Some(extension) = source.extension().and_then(|extension| extension.to_str())
@@ -762,9 +965,30 @@ fn viewer_input(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) 
         .viewer
         .as_ref()
         .is_none_or(|viewer| is_fit_view(viewer.zoom.zoom, viewer.zoom.offset));
+    let ctrl_shift = egui::Modifiers {
+        ctrl: true,
+        shift: true,
+        ..egui::Modifiers::NONE
+    };
     let action = ui.input_mut(|input| {
         if input.consume_key(egui::Modifiers::NONE, egui::Key::Escape) {
             Some(Action::CloseViewer)
+        } else if input.consume_key(ctrl_shift, egui::Key::E) {
+            Some(Action::RevealViewer)
+        } else if input.consume_key(egui::Modifiers::NONE, egui::Key::Delete) {
+            Some(Action::RequestTrash)
+        } else if input.consume_key(egui::Modifiers::NONE, egui::Key::Plus)
+            || input.consume_key(egui::Modifiers::NONE, egui::Key::Equals)
+        {
+            Some(Action::AdjustViewerZoom(1))
+        } else if input.consume_key(egui::Modifiers::NONE, egui::Key::Minus) {
+            Some(Action::AdjustViewerZoom(-1))
+        } else if input.consume_key(egui::Modifiers::NONE, egui::Key::Num0) {
+            Some(Action::ResetViewerZoom)
+        } else if can_step && input.consume_key(egui::Modifiers::NONE, egui::Key::PageUp) {
+            Some(Action::StepViewer(-1))
+        } else if can_step && input.consume_key(egui::Modifiers::NONE, egui::Key::PageDown) {
+            Some(Action::StepViewer(1))
         } else if can_step && input.consume_key(egui::Modifiers::NONE, egui::Key::ArrowLeft) {
             Some(Action::StepViewer(-1))
         } else if can_step && input.consume_key(egui::Modifiers::NONE, egui::Key::ArrowRight) {
@@ -798,7 +1022,7 @@ fn viewer_content(
         return;
     };
 
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         if ui.button("返回圖庫").clicked() {
             actions.push(Action::CloseViewer);
         }
@@ -845,7 +1069,7 @@ fn viewer_content(
         egui::WidgetInfo::labeled(egui::WidgetType::Image, true, current.name.clone())
     });
     let painter = ui.painter().with_clip_rect(canvas);
-    painter.rect_filled(canvas, 0.0, Color32::from_rgb(22, 24, 29));
+    painter.rect_filled(canvas, 0.0, Color32::from_rgb(17, 20, 26));
 
     if current.is_animated {
         paint_viewer_message(
@@ -1211,8 +1435,8 @@ mod tests {
         );
         harness.step();
 
-        let _ = harness.get_by_label("返回圖庫");
-        let _ = harness.get_by_label("image2.png");
+        let _ = harness.get_by_role_and_label(egui::accesskit::Role::Button, "返回圖庫");
+        let _ = harness.get_by_role_and_label(egui::accesskit::Role::Image, "image2.png");
         assert_eq!(harness.state().len(), 1);
         assert_eq!(harness.state()[0].longest_edge, 1024);
     }
@@ -1329,12 +1553,14 @@ mod tests {
             .tree_children
             .insert("C:/tree-root".into(), vec!["C:/tree-root/nested".into()]);
         model.tree_expanded.insert("C:/tree-root".into());
-        let mut harness = Harness::new_ui_state(
-            move |ui, actions: &mut Vec<Action>| {
-                show(&model, &ThumbnailLoader::default(), ui, actions);
-            },
-            Vec::new(),
-        );
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1280.0, 800.0))
+            .build_ui_state(
+                move |ui, actions: &mut Vec<Action>| {
+                    show(&model, &ThumbnailLoader::default(), ui, actions);
+                },
+                Vec::new(),
+            );
         harness.run();
 
         let _ = harness.get_by_label("tree-root");
@@ -1465,5 +1691,285 @@ mod tests {
             context_action_scope(&model, "C:/fixture/image2.png"),
             vec![std::path::PathBuf::from("C:/fixture/image2.png")]
         );
+    }
+
+    #[test]
+    fn gallery_shortcuts_match_selection_and_search_baseline() {
+        let model = crate::demo::loaded_library();
+        let mut harness = Harness::new_ui_state(
+            move |ui, actions: &mut Vec<Action>| {
+                show(&model, &ThumbnailLoader::default(), ui, actions);
+            },
+            Vec::new(),
+        );
+        harness.run();
+
+        harness.key_press(egui::Key::ArrowRight);
+        harness.run();
+        assert_eq!(
+            harness.state().as_slice(),
+            [Action::MoveGallerySelection(1)]
+        );
+
+        harness.state_mut().clear();
+        harness.key_press_modifiers(
+            egui::Modifiers {
+                ctrl: true,
+                ..Default::default()
+            },
+            egui::Key::F,
+        );
+        harness.run();
+        assert!(harness.state().is_empty());
+        assert!(harness
+            .get_by_role_and_label(egui::accesskit::Role::TextInput, "搜尋圖片")
+            .is_focused());
+
+        harness.key_press_modifiers(
+            egui::Modifiers {
+                ctrl: true,
+                ..Default::default()
+            },
+            egui::Key::A,
+        );
+        harness.run();
+        assert!(!harness.state().contains(&Action::SelectAllVisible));
+    }
+
+    #[test]
+    fn primary_controls_have_accessible_names_roles_and_states() {
+        let model = crate::demo::loaded_library();
+        let mut harness = Harness::new_ui(move |ui| {
+            let mut actions = Vec::new();
+            show(&model, &ThumbnailLoader::default(), ui, &mut actions);
+        });
+        harness.run();
+
+        let _ = harness.get_by_role_and_label(egui::accesskit::Role::TextInput, "搜尋圖片");
+        let _ = harness.get_by_role_and_label(egui::accesskit::Role::Button, "選擇資料夾");
+        let previous = harness.get_by_role_and_label(egui::accesskit::Role::Button, "上一頁");
+        assert!(egui_kittest::kittest::NodeT::accesskit_node(&previous).is_disabled());
+        let image = harness.get_by_label_contains("image2.png");
+        assert!(egui_kittest::kittest::NodeT::accesskit_node(&image)
+            .data()
+            .supports_action(egui::accesskit::Action::Click));
+        assert_eq!(
+            egui_kittest::kittest::NodeT::accesskit_node(&image).toggled(),
+            Some(egui::accesskit::Toggled::False)
+        );
+    }
+
+    #[test]
+    fn tab_focus_follows_the_visible_primary_control_order() {
+        let model = crate::demo::loaded_library();
+        let mut harness = Harness::new_ui(move |ui| {
+            let mut actions = Vec::new();
+            show(&model, &ThumbnailLoader::default(), ui, &mut actions);
+        });
+
+        harness.key_press(egui::Key::Tab);
+        harness.run();
+        assert!(harness.get_by_label("選擇資料夾").is_focused());
+
+        harness.key_press(egui::Key::Tab);
+        harness.run();
+        assert!(harness.get_by_label("重新整理").is_focused());
+
+        harness.key_press(egui::Key::Tab);
+        harness.run();
+        assert!(harness
+            .get_by_role_and_label(egui::accesskit::Role::TextInput, "搜尋圖片")
+            .is_focused());
+
+        harness.key_press(egui::Key::Tab);
+        harness.run();
+        assert!(harness
+            .get_by_role_and_label(egui::accesskit::Role::ComboBox, "排序")
+            .is_focused());
+    }
+
+    #[test]
+    fn dialog_escape_closes_only_the_dialog_above_the_viewer() {
+        let mut model = crate::demo::loaded_library();
+        let query = model.library_query.as_ref().unwrap();
+        let snapshot = ImageSequenceSnapshot::from_visible(
+            query.folder_path.clone(),
+            query.include_subfolders,
+            query.sort,
+            &model.visible_items,
+            "C:/fixture/image2.png",
+        )
+        .unwrap();
+        model.page = Page::Viewer;
+        model.viewer = Some(crate::model::ViewerState {
+            snapshot,
+            preview: Loadable::Idle,
+            zoom: piclens_domain::reset_zoom_state(),
+        });
+        model.dialog = Some(DialogState::TrashConfirmation {
+            paths: vec!["C:/fixture/image2.png".into()],
+        });
+        let mut harness = Harness::new_ui_state(
+            move |ui, actions: &mut Vec<Action>| {
+                show(&model, &ThumbnailLoader::default(), ui, actions);
+            },
+            Vec::new(),
+        );
+        harness.run();
+
+        harness.key_press(egui::Key::Escape);
+        harness.run();
+
+        assert_eq!(harness.state().as_slice(), [Action::CloseDialog]);
+    }
+
+    #[test]
+    fn minimum_layout_hides_sidebar_and_keeps_long_traditional_chinese_controls_visible() {
+        let mut model = crate::demo::loaded_library();
+        let long_name = "這是一個很長的繁體中文資料夾名稱，用來驗證最小視窗寬度時文字可以換行且不會遮住主要操作";
+        model.current_folder = Some(format!("C:/fixture/{long_name}").into());
+        model.tree_roots = vec!["C:/tree-root".into()];
+        if let Some(ListItem::Image(image)) = model
+            .visible_items
+            .iter_mut()
+            .find(|item| item.as_image().is_some())
+        {
+            image.name = format!("{long_name}.png");
+        }
+        let long_image_label = format!("{long_name}.png\nPNG");
+        let tile_width = model.thumbnail_size as f32;
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(800.0, 600.0))
+            .build_ui(move |ui| {
+                let mut actions = Vec::new();
+                show(&model, &ThumbnailLoader::default(), ui, &mut actions);
+            });
+        crate::theme::install(&harness.ctx);
+        harness.run();
+
+        assert!(harness.query_by_label("資料夾").is_none());
+        for label in ["選擇資料夾", "搜尋圖片", "含子資料夾"] {
+            let rect = harness.get_by_label(label).rect();
+            assert!(
+                rect.min.x >= 0.0 && rect.max.x <= 800.0,
+                "{label}: {rect:?}"
+            );
+            assert!(
+                rect.min.y >= 0.0 && rect.max.y <= 600.0,
+                "{label}: {rect:?}"
+            );
+        }
+        assert!(
+            harness
+                .query_all_by_label_contains("這是一個很長的繁體中文資料夾名稱")
+                .count()
+                >= 1
+        );
+        let image = harness.get_by_role_and_label(egui::accesskit::Role::Button, &long_image_label);
+        let rect = image.rect();
+        assert!(rect.min.x >= 0.0 && rect.max.x <= 800.0, "{rect:?}");
+        assert!(rect.width() <= tile_width + f32::EPSILON, "{rect:?}");
+    }
+
+    #[test]
+    fn common_display_scales_render_the_library_at_supported_sizes() {
+        for (size, scale) in [
+            (egui::vec2(1280.0, 800.0), 1.0),
+            (egui::vec2(1280.0, 800.0), 1.25),
+            (egui::vec2(800.0, 600.0), 1.5),
+            (egui::vec2(800.0, 600.0), 2.0),
+        ] {
+            let model = crate::demo::loaded_library();
+            let mut harness = Harness::builder()
+                .with_size(size)
+                .with_pixels_per_point(scale)
+                .build_ui(move |ui| {
+                    let mut actions = Vec::new();
+                    show(&model, &ThumbnailLoader::default(), ui, &mut actions);
+                });
+            crate::theme::install(&harness.ctx);
+            harness.run();
+
+            let _ = harness.get_by_label("搜尋圖片");
+            let _ = harness.get_by_label_contains("image2.png");
+        }
+    }
+
+    #[test]
+    fn headless_suite_covers_loading_error_and_all_dialog_kinds() {
+        let mut loading = crate::demo::loaded_library();
+        loading.library = Loadable::Loading;
+        let mut harness = Harness::new_ui(move |ui| {
+            let mut actions = Vec::new();
+            show(&loading, &ThumbnailLoader::default(), ui, &mut actions);
+        });
+        harness.step();
+        let _ = harness.get_by_label("正在載入圖庫…");
+
+        let mut failed = crate::demo::loaded_library();
+        failed.library = Loadable::Failed("無法讀取測試資料夾；請檢查權限後重試。".into());
+        let mut harness = Harness::new_ui(move |ui| {
+            let mut actions = Vec::new();
+            show(&failed, &ThumbnailLoader::default(), ui, &mut actions);
+        });
+        harness.run();
+        let _ = harness.get_by_label("無法讀取測試資料夾；請檢查權限後重試。");
+        let _ = harness.get_by_label("重新載入");
+
+        let dialogs = [
+            (
+                DialogState::Rename {
+                    source: "C:/fixture/image.png".into(),
+                    basename: "image".into(),
+                },
+                "重新命名圖片",
+            ),
+            (
+                DialogState::TrashConfirmation {
+                    paths: vec!["C:/fixture/image.png".into()],
+                },
+                "移至回收筒",
+            ),
+            (
+                DialogState::ConversionConfirmation {
+                    kind: ConversionKind::Jpg,
+                    paths: vec!["C:/fixture/image.png".into()],
+                },
+                "轉 JPG",
+            ),
+            (
+                DialogState::CleanupConfirmation {
+                    paths: vec!["C:/fixture/image.png".into()],
+                },
+                "清除同名格式",
+            ),
+            (
+                DialogState::DropRenameConfirmation {
+                    plan: piclens_domain::DropTargetBatchRenamePlan::default(),
+                },
+                "依目標重新命名",
+            ),
+            (
+                DialogState::Progress {
+                    title: "轉檔中".into(),
+                    message: "正在處理 1 張圖片…".into(),
+                },
+                "轉檔中",
+            ),
+            (
+                DialogState::BatchResult(piclens_domain::FileOperationBatchResult::default()),
+                "檔案操作結果",
+            ),
+        ];
+        for (dialog, heading) in dialogs {
+            let mut model = crate::demo::loaded_library();
+            model.dialog = Some(dialog);
+            let mut harness = Harness::new_ui(move |ui| {
+                let mut actions = Vec::new();
+                show(&model, &ThumbnailLoader::default(), ui, &mut actions);
+            });
+            harness.run();
+            assert!(harness.query_all_by_label(heading).count() >= 1);
+        }
     }
 }

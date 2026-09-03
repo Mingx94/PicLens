@@ -120,12 +120,12 @@ egui view -> Action -> App reducer -> Command -> background backend
 
 目標：完成產品級鍵盤、focus、resize、視覺及平台行為。
 
-- [ ] 對照 GPUI 基線補齊快捷鍵、滑鼠側鍵、scroll、hover、tooltip、context menu 與 focus order。
-- [ ] 定義所有主要 control、gallery item、dialog 和 viewer control 的 accessibility name、role、state 與 action。
-- [ ] 驗證 Escape、dialog close、viewer close 與檔案操作後的 focus restore。
-- [ ] 驗證 1280×800、800×600、常用 display scale 與長繁體中文文字。
-- [ ] 對照現有 design system 完成 spacing、typography、color、selection、loading、error 與 disabled state。
-- [ ] 建立主要頁面、panel、dialog、empty、loading 和 error state 的 headless render suite。
+- [x] 對照 GPUI 基線補齊快捷鍵、滑鼠側鍵、scroll、hover、tooltip、context menu 與 focus order。
+- [x] 定義所有主要 control、gallery item、dialog 和 viewer control 的 accessibility name、role、state 與 action。
+- [x] 驗證 Escape、dialog close、viewer close 與檔案操作後的 focus restore。
+- [x] 驗證 1280×800、800×600、常用 display scale 與長繁體中文文字。
+- [x] 對照現有 design system 完成 spacing、typography、color、selection、loading、error 與 disabled state。
+- [x] 建立主要頁面、panel、dialog、empty、loading 和 error state 的 headless render suite。
 - [ ] 使用真實 app 檢查 layout、圖片品質、高 DPI、拖放、tooltip 與視覺狀態。
 - [ ] 檢查 idle、持續捲動、搜尋、viewer navigation 和批次操作期間的 CPU、GPU 與記憶體行為。
 

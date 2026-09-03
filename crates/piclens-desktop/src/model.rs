@@ -10,6 +10,7 @@ use piclens_domain::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Action {
+    Quit,
     ChooseFolder,
     PickedFolder(PathBuf),
     RestoreFolder(PathBuf),
@@ -27,8 +28,15 @@ pub enum Action {
     ReloadLibrary,
     SetSearch(String),
     SetSort(SortState),
+    CycleSort,
     ToggleIncludeSubfolders,
     SetThumbnailSize(i32),
+    SelectAllVisible,
+    MoveGallerySelection(i32),
+    SelectGalleryBoundary {
+        end: bool,
+    },
+    OpenFocusedItem,
     OpenViewer(PathBuf),
     CloseViewer,
     StepViewer(i32),
@@ -41,6 +49,7 @@ pub enum Action {
     PanViewer(Point),
     ResetViewerZoom,
     RevealViewer,
+    RevealSelection,
     RevealPath(PathBuf),
     OpenRename,
     SetRenameBasename(String),
@@ -60,6 +69,7 @@ pub enum Action {
         target: Option<PathBuf>,
     },
     FinishDrag,
+    RequestDropRename,
     CancelDrag,
     ConfirmDropRename,
     CancelFileOperation,
@@ -104,6 +114,7 @@ pub enum Page {
 pub struct SelectionState {
     pub ordered_paths: Vec<PathBuf>,
     pub range_anchor: Option<PathBuf>,
+    pub focused_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
