@@ -87,6 +87,9 @@ impl Reducer {
                         collapsed: self.model.sidebar_collapsed,
                     });
                 }
+                Action::ToggleCompactSidebar => {
+                    self.model.compact_sidebar_open = !self.model.compact_sidebar_open;
+                }
                 Action::RetryBackendProbe => self.push_action(Action::StartBackendProbe),
                 Action::DismissStatus => self.model.notice = None,
                 Action::ShowNotice(message) => self.model.notice = Some(message),
@@ -194,6 +197,7 @@ impl Reducer {
         remember_picker: bool,
         push_history: bool,
     ) {
+        self.model.compact_sidebar_open = false;
         let path = path.to_string_lossy().into_owned();
         if rebuild_tree {
             self.tree_generation = self.tree_generation.wrapping_add(1).max(1);
@@ -1812,6 +1816,20 @@ mod tests {
         assert!(performance_batch_count_is_safe(1));
         assert!(performance_batch_count_is_safe(49));
         assert!(!performance_batch_count_is_safe(50));
+    }
+
+    #[test]
+    fn compact_sidebar_toggle_is_transient_and_closes_after_navigation() {
+        let mut reducer = Reducer::new(None);
+
+        reducer.push_action(Action::ToggleCompactSidebar);
+        reducer.reduce_actions();
+        assert!(reducer.model.compact_sidebar_open);
+        assert!(reducer.commands.is_empty());
+
+        reducer.push_action(Action::NavigateFolder("C:/fixture".into()));
+        reducer.reduce_actions();
+        assert!(!reducer.model.compact_sidebar_open);
     }
 
     #[test]
