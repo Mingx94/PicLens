@@ -8,7 +8,7 @@ Pushing a matching tag starts `.github/workflows/release.yml`. A manual run can 
 
 ## Build workflow
 
-The only GitHub Actions workflow builds the Windows x86_64 MSI and portable ZIP on Windows 2025. It uses the nightly toolchain pinned in `rust-toolchain.toml`. The MSI build script runs:
+The only GitHub Actions workflow builds the Windows x86_64 MSI and portable ZIP on Windows 2025. It uses Rust `1.98.0`, pinned in `rust-toolchain.toml`. The MSI build script runs:
 
 ```text
 cargo build --release --locked -p piclens-desktop

@@ -15,7 +15,7 @@ assets/                  icons and fonts
 
 ## Requirements
 
-- Rust nightly `2026-08-11`, selected by `rust-toolchain.toml`
+- Rust `1.98.0`, selected by `rust-toolchain.toml`
 - Windows x86_64 with a Vulkan-capable graphics driver
 - Linux x86_64 with an Ubuntu 24.04-compatible runtime, Vulkan 1.3, X11 or Wayland, and the required desktop portals
 
