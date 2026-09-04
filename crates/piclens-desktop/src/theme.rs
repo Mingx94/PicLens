@@ -10,6 +10,8 @@ use egui::{Color32, FontData, FontDefinitions, FontFamily, FontId, TextStyle};
 const REGULAR_NAME: &str = "Noto Sans CJK TC Regular";
 const MEDIUM_NAME: &str = "Noto Sans CJK TC Medium";
 const BOLD_NAME: &str = "Noto Sans CJK TC Bold";
+const MEDIUM_FAMILY: &str = "PicLens Medium";
+const BOLD_FAMILY: &str = "PicLens Bold";
 
 const REGULAR: &[u8] = include_bytes!("../../../assets/Fonts/NotoSansCJKtc-Regular.otf");
 const MEDIUM: &[u8] = include_bytes!("../../../assets/Fonts/NotoSansCJKtc-Medium.otf");
@@ -27,9 +29,9 @@ pub(crate) struct Palette {
     pub tile: Color32,
     pub border: Color32,
     pub primary: Color32,
+    pub secondary: Color32,
     pub accent: Color32,
     pub selected: Color32,
-    pub positive: Color32,
     pub danger: Color32,
     pub viewer_canvas: Color32,
     pub viewer_text: Color32,
@@ -51,9 +53,9 @@ const LIGHT: Palette = Palette {
     tile: Color32::from_rgb(242, 243, 245),
     border: Color32::from_rgb(225, 228, 233),
     primary: Color32::from_rgb(29, 32, 38),
+    secondary: Color32::from_rgb(98, 105, 117),
     accent: Color32::from_rgb(73, 104, 232),
     selected: Color32::from_rgb(232, 238, 255),
-    positive: Color32::from_rgb(30, 130, 76),
     danger: Color32::from_rgb(183, 35, 35),
     viewer_canvas: Color32::from_rgb(17, 20, 26),
     viewer_text: Color32::WHITE,
@@ -69,9 +71,9 @@ const DARK: Palette = Palette {
     tile: Color32::from_rgb(32, 36, 43),
     border: Color32::from_rgb(61, 67, 77),
     primary: Color32::from_rgb(232, 235, 240),
+    secondary: Color32::from_rgb(170, 177, 188),
     accent: Color32::from_rgb(129, 156, 255),
     selected: Color32::from_rgb(49, 64, 104),
-    positive: Color32::from_rgb(92, 200, 130),
     danger: Color32::from_rgb(255, 124, 124),
     viewer_canvas: Color32::from_rgb(12, 14, 18),
     viewer_text: Color32::WHITE,
@@ -94,6 +96,14 @@ pub fn install(ctx: &egui::Context) {
     if let Some(family) = fonts.families.get_mut(&FontFamily::Proportional) {
         family.insert(0, REGULAR_NAME.into());
     }
+    fonts.families.insert(
+        FontFamily::Name(MEDIUM_FAMILY.into()),
+        vec![MEDIUM_NAME.into(), REGULAR_NAME.into()],
+    );
+    fonts.families.insert(
+        FontFamily::Name(BOLD_FAMILY.into()),
+        vec![BOLD_NAME.into(), REGULAR_NAME.into()],
+    );
     ctx.set_fonts(fonts);
 
     ctx.set_theme(egui::ThemePreference::System);
@@ -152,6 +162,14 @@ pub(crate) fn palette(ctx: &egui::Context) -> Palette {
     })
 }
 
+pub(crate) fn medium_font(size: f32) -> FontId {
+    FontId::new(size, FontFamily::Name(MEDIUM_FAMILY.into()))
+}
+
+fn bold_font(size: f32) -> FontId {
+    FontId::new(size, FontFamily::Name(BOLD_FAMILY.into()))
+}
+
 fn apply_styles(ctx: &egui::Context, high_contrast: Option<Palette>) {
     ctx.all_styles_mut(|style| {
         let palette = high_contrast.unwrap_or(if style.visuals.dark_mode { DARK } else { LIGHT });
@@ -181,17 +199,15 @@ fn apply_styles(ctx: &egui::Context, high_contrast: Option<Palette>) {
         style.spacing.item_spacing = egui::vec2(8.0, 8.0);
         style.spacing.button_padding = egui::vec2(12.0, 6.0);
         style.spacing.interact_size.y = 32.0;
-        style.text_styles.insert(
-            TextStyle::Heading,
-            FontId::new(24.0, FontFamily::Proportional),
-        );
+        style
+            .text_styles
+            .insert(TextStyle::Heading, bold_font(24.0));
         style
             .text_styles
             .insert(TextStyle::Body, FontId::new(15.0, FontFamily::Proportional));
-        style.text_styles.insert(
-            TextStyle::Button,
-            FontId::new(15.0, FontFamily::Proportional),
-        );
+        style
+            .text_styles
+            .insert(TextStyle::Button, medium_font(15.0));
         style.text_styles.insert(
             TextStyle::Small,
             FontId::new(12.5, FontFamily::Proportional),
@@ -261,9 +277,9 @@ fn system_high_contrast_palette() -> Option<Palette> {
         tile: button,
         border: color(COLOR_WINDOWFRAME),
         primary: text,
+        secondary: text,
         accent: highlight,
         selected: highlight,
-        positive: text,
         danger: text,
         viewer_canvas: window,
         viewer_text: text,

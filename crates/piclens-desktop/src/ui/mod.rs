@@ -70,7 +70,7 @@ pub fn show(
             ui.horizontal_wrapped(|ui| {
                 ui.heading("PicLens");
                 ui.separator();
-                ui.label("本機圖片圖庫");
+                ui.label(RichText::new("本機圖片圖庫").color(palette.secondary));
                 if !compact && !model.tree_roots.is_empty() {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let label = if model.sidebar_collapsed {
@@ -145,38 +145,47 @@ fn library_content(
     materialized: &mut Vec<ThumbnailKey>,
     compact: bool,
 ) {
-    ui.horizontal_wrapped(|ui| {
-        if ui
-            .add_enabled(model.history.can_back(), egui::Button::new("上一頁"))
-            .clicked()
-        {
-            actions.push(Action::NavigateHistory { back: true });
-        }
-        if ui
-            .add_enabled(model.history.can_forward(), egui::Button::new("下一頁"))
-            .clicked()
-        {
-            actions.push(Action::NavigateHistory { back: false });
-        }
-        if ui.button("選擇資料夾").clicked() {
-            actions.push(Action::ChooseFolder);
-        }
-        if model.library_query.is_some() && ui.button("重新整理").clicked() {
-            actions.push(Action::ReloadLibrary);
-        }
-        if let Some(folder) = &model.current_folder {
-            ui.separator();
-            let name = folder
-                .file_name()
-                .and_then(|name| name.to_str())
-                .map(str::to_owned)
-                .unwrap_or_else(|| folder.display().to_string());
-            ui.vertical(|ui| {
-                ui.label(RichText::new(name).strong());
-                ui.label(RichText::new(folder.display().to_string()).small());
-            });
-        }
-    });
+    let palette = theme::palette(ui.ctx());
+    if let Some(folder) = &model.current_folder {
+        let name = folder
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(str::to_owned)
+            .unwrap_or_else(|| folder.display().to_string());
+        ui.label(RichText::new(name).size(20.0).strong());
+        ui.add(
+            egui::Label::new(
+                RichText::new(folder.display().to_string())
+                    .small()
+                    .color(palette.secondary),
+            )
+            .truncate(),
+        )
+        .on_hover_text(folder.display().to_string());
+        ui.add_space(8.0);
+    }
+    if model.library_query.is_some() {
+        ui.horizontal_wrapped(|ui| {
+            if ui
+                .add_enabled(model.history.can_back(), egui::Button::new("上一頁"))
+                .clicked()
+            {
+                actions.push(Action::NavigateHistory { back: true });
+            }
+            if ui
+                .add_enabled(model.history.can_forward(), egui::Button::new("下一頁"))
+                .clicked()
+            {
+                actions.push(Action::NavigateHistory { back: false });
+            }
+            if ui.button("選擇資料夾").clicked() {
+                actions.push(Action::ChooseFolder);
+            }
+            if ui.button("重新整理").clicked() {
+                actions.push(Action::ReloadLibrary);
+            }
+        });
+    }
     if let Some(query) = &model.library_query {
         ui.add_space(8.0);
         ui.horizontal_wrapped(|ui| {
@@ -199,7 +208,8 @@ fn library_content(
             }
 
             let mut sort = query.sort;
-            egui::ComboBox::from_label("排序")
+            ui.label(RichText::new("排序").color(palette.secondary));
+            let sort_response = egui::ComboBox::from_id_salt("piclens-library-sort")
                 .selected_text(sort_label(sort))
                 .show_ui(ui, |ui| {
                     ui.selectable_value(
@@ -235,6 +245,9 @@ fn library_content(
                         "修改時間：新到舊",
                     );
                 });
+            sort_response.response.widget_info(|| {
+                egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, "排序")
+            });
             if sort != query.sort {
                 actions.push(Action::SetSort(sort));
             }
@@ -247,12 +260,14 @@ fn library_content(
             }
 
             let mut thumbnail_size = model.thumbnail_size;
+            ui.label(RichText::new("縮圖").color(palette.secondary));
             if ui
                 .add(
                     egui::Slider::new(&mut thumbnail_size, 120..=240)
                         .step_by(20.0)
-                        .text("縮圖"),
+                        .show_value(true),
                 )
+                .on_hover_text("調整縮圖大小")
                 .changed()
             {
                 actions.push(Action::SetThumbnailSize(thumbnail_size));
@@ -260,6 +275,8 @@ fn library_content(
         });
     }
     ui.add_space(12.0);
+
+    status_feedback(model, ui, actions);
 
     let tile_width = model.thumbnail_size as f32;
     let tile_height = gallery_tile_height(tile_width);
@@ -272,6 +289,13 @@ fn library_content(
             ui.vertical_centered(|ui| {
                 ui.add_space(60.0);
                 ui.heading("選擇資料夾後開始瀏覽圖片。");
+                ui.label(
+                    RichText::new("PicLens 只會讀取你選擇的本機資料夾。").color(palette.secondary),
+                );
+                ui.add_space(12.0);
+                if ui.button("選擇資料夾").clicked() {
+                    actions.push(Action::ChooseFolder);
+                }
             });
         }
         Loadable::Loading => {
@@ -284,7 +308,10 @@ fn library_content(
         }
         Loadable::Ready(items) => {
             ui.horizontal_wrapped(|ui| {
-                ui.label(format!("{} 個項目", model.visible_items.len()));
+                ui.label(
+                    RichText::new(format!("{} 個項目", model.visible_items.len()))
+                        .color(palette.secondary),
+                );
                 ui.separator();
                 ui.label(format!(
                     "選取 {} 張圖片",
@@ -343,19 +370,6 @@ fn library_content(
                 }
             });
         }
-    }
-
-    ui.add_space(16.0);
-    backend_status(model, ui, actions);
-    if let Some(notice) = &model.notice {
-        ui.add_space(12.0);
-        ui.horizontal_wrapped(|ui| {
-            let response = ui.label(notice);
-            mark_live(ui, &response, egui::accesskit::Live::Polite);
-            if ui.small_button("關閉").clicked() {
-                actions.push(Action::DismissStatus);
-            }
-        });
     }
 }
 
@@ -597,19 +611,35 @@ fn gallery_grid(
                             let response = ui
                                 .push_id(&image.path, |ui| {
                                     let button = if let Some(texture) = images.texture(&key) {
-                                        let preview_size = egui::vec2(
-                                            (tile_width - 24.0).max(48.0),
-                                            (tile_height - 46.0).max(36.0),
-                                        );
+                                        let preview_size =
+                                            egui::Vec2::splat(gallery_thumbnail_size(tile_width));
                                         let contents = egui::AtomLayout::new((
                                             egui::Image::from_texture(texture)
                                                 .alt_text(image.name.clone())
+                                                .uv(cover_uv(texture.size_vec2()))
                                                 .atom_size(preview_size),
                                             label,
                                         ))
-                                        .direction(egui::Direction::TopDown);
-                                        egui::Button::new(egui::Atom::layout(contents))
-                                            .selected(selected)
+                                        .direction(egui::Direction::TopDown)
+                                        .wrap_mode(egui::TextWrapMode::Truncate)
+                                        .min_size(egui::vec2(tile_width - 24.0, tile_height - 12.0))
+                                        .max_size(egui::vec2(
+                                            tile_width - 24.0,
+                                            tile_height - 12.0,
+                                        ));
+                                        egui::Button::new(
+                                            egui::Atom::layout(contents)
+                                                .atom_size(egui::vec2(
+                                                    tile_width - 24.0,
+                                                    tile_height - 12.0,
+                                                ))
+                                                .atom_shrink(true)
+                                                .atom_max_size(egui::vec2(
+                                                    tile_width - 24.0,
+                                                    tile_height - 12.0,
+                                                )),
+                                        )
+                                        .selected(selected)
                                     } else {
                                         egui::Button::new(label).selected(selected)
                                     }
@@ -763,7 +793,27 @@ fn gallery_grid(
 }
 
 fn gallery_tile_height(tile_width: f32) -> f32 {
-    (tile_width * 0.8).max(104.0)
+    gallery_thumbnail_size(tile_width) + 46.0
+}
+
+fn gallery_thumbnail_size(tile_width: f32) -> f32 {
+    (tile_width - 24.0).max(48.0)
+}
+
+fn cover_uv(source_size: egui::Vec2) -> egui::Rect {
+    if source_size.x <= 0.0 || source_size.y <= 0.0 {
+        return egui::Rect::from_min_max(egui::Pos2::ZERO, egui::pos2(1.0, 1.0));
+    }
+    let aspect = source_size.x / source_size.y;
+    if aspect > 1.0 {
+        let width = 1.0 / aspect;
+        let margin = (1.0 - width) / 2.0;
+        egui::Rect::from_min_max(egui::pos2(margin, 0.0), egui::pos2(1.0 - margin, 1.0))
+    } else {
+        let height = aspect;
+        let margin = (1.0 - height) / 2.0;
+        egui::Rect::from_min_max(egui::pos2(0.0, margin), egui::pos2(1.0, 1.0 - margin))
+    }
 }
 
 fn scroll_offset_for_row(
@@ -794,6 +844,11 @@ fn context_action_scope(model: &AppModel, clicked_path: &str) -> Vec<std::path::
     } else {
         vec![clicked_path.into()]
     }
+}
+
+fn danger_button(ui: &mut egui::Ui, label: &str) -> egui::Response {
+    let danger = theme::palette(ui.ctx()).danger;
+    ui.add(egui::Button::new(RichText::new(label).color(danger)).stroke(Stroke::new(2.0, danger)))
 }
 
 fn show_dialog(model: &AppModel, ctx: &egui::Context, actions: &mut Vec<Action>) {
@@ -852,7 +907,7 @@ fn show_dialog(model: &AppModel, ctx: &egui::Context, actions: &mut Vec<Action>)
                     if ui.button("取消").clicked() {
                         actions.push(Action::CloseDialog);
                     }
-                    if ui.button("移至回收筒").clicked() {
+                    if danger_button(ui, "移至回收筒").clicked() {
                         actions.push(Action::ConfirmTrash);
                     }
                 });
@@ -879,7 +934,7 @@ fn show_dialog(model: &AppModel, ctx: &egui::Context, actions: &mut Vec<Action>)
                     if ui.button("取消").clicked() {
                         actions.push(Action::CloseDialog);
                     }
-                    if ui.button("開始清除").clicked() {
+                    if danger_button(ui, "開始清除").clicked() {
                         actions.push(Action::ConfirmCleanup);
                     }
                 });
@@ -1118,12 +1173,14 @@ fn viewer_content(
         if back.clicked() {
             actions.push(Action::CloseViewer);
         }
+        ui.separator();
         if ui.button("上一張").clicked() {
             actions.push(Action::StepViewer(-1));
         }
         if ui.button("下一張").clicked() {
             actions.push(Action::StepViewer(1));
         }
+        ui.separator();
         if ui.button("縮小").clicked() {
             actions.push(Action::AdjustViewerZoom(-1));
         }
@@ -1136,22 +1193,28 @@ fn viewer_content(
         if ui.button("放大").clicked() {
             actions.push(Action::AdjustViewerZoom(1));
         }
+        ui.separator();
         if ui.button("在檔案總管中顯示").clicked() {
             actions.push(Action::RevealViewer);
         }
-        ui.separator();
+    });
+    ui.add_space(8.0);
+    ui.horizontal(|ui| {
         ui.label(
             RichText::new(format!(
-                "{} / {}  {}",
+                "{} / {}",
                 viewer.snapshot.current_index + 1,
-                viewer.snapshot.images.len(),
-                current.name
+                viewer.snapshot.images.len()
             ))
-            .color(palette.viewer_text)
-            .strong(),
+            .color(palette.secondary),
         );
+        ui.separator();
+        ui.add(
+            egui::Label::new(RichText::new(&current.name).color(palette.viewer_text)).truncate(),
+        )
+        .on_hover_text(&current.name);
     });
-    ui.add_space(16.0);
+    ui.add_space(12.0);
 
     let key = ThumbnailKey::from_image(current, 1024);
     materialized.extend(viewer_preview_keys(&viewer.snapshot, images));
@@ -1345,25 +1408,35 @@ fn folder_tree(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
     });
 }
 
-fn backend_status(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
+fn status_feedback(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
     let palette = theme::palette(ui.ctx());
     match &model.backend {
         Loadable::Idle | Loadable::Loading => {
-            ui.spinner();
-            let response = ui.label("正在啟動背景服務…");
-            mark_live(ui, &response, egui::accesskit::Live::Polite);
+            ui.horizontal(|ui| {
+                ui.spinner();
+                let response = ui.label("正在啟動背景服務…");
+                mark_live(ui, &response, egui::accesskit::Live::Polite);
+            });
         }
-        Loadable::Ready(()) => {
-            let response = ui.label(RichText::new("背景服務已就緒").color(palette.positive));
-            mark_live(ui, &response, egui::accesskit::Live::Polite);
-        }
+        Loadable::Ready(()) => {}
         Loadable::Failed(message) => {
-            let response = ui.label(RichText::new(message).color(palette.danger).strong());
-            mark_live(ui, &response, egui::accesskit::Live::Assertive);
-            if ui.button("再試一次").clicked() {
-                actions.push(Action::RetryBackendProbe);
-            }
+            ui.horizontal_wrapped(|ui| {
+                let response = ui.label(RichText::new(message).color(palette.danger).strong());
+                mark_live(ui, &response, egui::accesskit::Live::Assertive);
+                if ui.button("再試一次").clicked() {
+                    actions.push(Action::RetryBackendProbe);
+                }
+            });
         }
+    }
+    if let Some(notice) = &model.notice {
+        ui.horizontal_wrapped(|ui| {
+            let response = ui.label(notice);
+            mark_live(ui, &response, egui::accesskit::Live::Polite);
+            if ui.small_button("關閉").clicked() {
+                actions.push(Action::DismissStatus);
+            }
+        });
     }
 }
 
@@ -1499,6 +1572,22 @@ mod tests {
         harness.run();
 
         assert!(harness.state().contains(&Action::CancelDrag));
+    }
+
+    #[test]
+    fn cover_uv_center_crops_landscape_and_portrait_images() {
+        assert_eq!(
+            cover_uv(egui::vec2(200.0, 100.0)),
+            egui::Rect::from_min_max(egui::pos2(0.25, 0.0), egui::pos2(0.75, 1.0))
+        );
+        assert_eq!(
+            cover_uv(egui::vec2(100.0, 200.0)),
+            egui::Rect::from_min_max(egui::pos2(0.0, 0.25), egui::pos2(1.0, 0.75))
+        );
+        assert_eq!(
+            cover_uv(egui::vec2(100.0, 100.0)),
+            egui::Rect::from_min_max(egui::Pos2::ZERO, egui::pos2(1.0, 1.0))
+        );
     }
 
     #[test]
@@ -2055,6 +2144,50 @@ mod tests {
         let rect = image.rect();
         assert!(rect.min.x >= 0.0 && rect.max.x <= 800.0, "{rect:?}");
         assert!(rect.width() <= tile_width + f32::EPSILON, "{rect:?}");
+    }
+
+    #[test]
+    fn textured_gallery_tile_keeps_its_configured_width_with_a_long_filename() {
+        let mut model = crate::demo::loaded_library();
+        let long_name =
+            "這是一個非常長的圖片檔名，用來確認縮圖載入後不會把固定寬度的圖庫欄位撐開.png";
+        let image = model
+            .visible_items
+            .iter_mut()
+            .find_map(|item| match item {
+                ListItem::Image(image) => Some(image),
+                ListItem::Folder(_) => None,
+            })
+            .expect("demo library has an image");
+        image.name = long_name.into();
+        let key = ThumbnailKey::from_image(image, model.thumbnail_size as u32);
+        let tile_width = model.thumbnail_size as f32;
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(800.0, 600.0))
+            .build_ui(move |ui| {
+                let mut images = ThumbnailLoader::default();
+                let request = images
+                    .sync_materialized(vec![key.clone()], 1)
+                    .expect("new materialized request")
+                    .pop()
+                    .expect("one thumbnail request");
+                assert!(images.handle_result(
+                    &request,
+                    Ok(crate::images::DecodedThumbnail {
+                        width: 4,
+                        height: 4,
+                        rgba: vec![255; 4 * 4 * 4],
+                    }),
+                    ui.ctx(),
+                ));
+                let mut actions = Vec::new();
+                show(&model, &images, ui, &mut actions);
+            });
+        crate::theme::install(&harness.ctx);
+        harness.run();
+
+        let tile = harness.get_by_role_and_label(egui::accesskit::Role::Button, long_name);
+        assert!(tile.rect().width() <= tile_width + f32::EPSILON);
     }
 
     #[test]

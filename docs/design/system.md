@@ -45,6 +45,7 @@ Use the packaged PicLens artwork for app identity. Prefer clear text labels and 
 - Use a 4 px spacing base where practical.
 - Keep the minimum window size at 800 x 600.
 - At 800 px wide, remove the sidebar from layout and compress repeated library chrome so the gallery remains usable.
+- Render gallery thumbnails in square containers. Preserve the source aspect ratio and use a centered cover crop without modifying the source image.
 - Keep blocking filesystem and image work outside render and off the application thread.
 - Preserve direct selection, bounded thumbnail work, viewer focus return, and explicit confirmation for file mutations.
 - Avoid decorative motion that competes with image browsing.
