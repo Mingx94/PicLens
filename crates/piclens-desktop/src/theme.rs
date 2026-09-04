@@ -12,13 +12,82 @@ const MEDIUM_NAME: &str = "Noto Sans CJK TC Medium";
 const BOLD_NAME: &str = "Noto Sans CJK TC Bold";
 const MEDIUM_FAMILY: &str = "PicLens Medium";
 const BOLD_FAMILY: &str = "PicLens Bold";
+const BRAND_MARK_ID: &str = "piclens-brand-mark";
 
 const REGULAR: &[u8] = include_bytes!("../../../assets/Fonts/NotoSansCJKtc-Regular.otf");
 const MEDIUM: &[u8] = include_bytes!("../../../assets/Fonts/NotoSansCJKtc-Medium.otf");
 const BOLD: &[u8] = include_bytes!("../../../assets/Fonts/NotoSansCJKtc-Bold.otf");
+const BRAND_MARK: &[u8] =
+    include_bytes!("../../../assets/Square44x44Logo.targetsize-48_altform-lightunplated.png");
 
 const THEME_STATE_ID: &str = "piclens-theme-state";
 const SYSTEM_THEME_POLL_INTERVAL: Duration = Duration::from_secs(1);
+
+macro_rules! icons {
+    ($($variant:ident => $file:literal),* $(,)?) => {
+        &[$((
+            Icon::$variant,
+            concat!("bytes://piclens-icon-", $file, ".svg"),
+            include_bytes!(concat!("../../../assets/Icons/Lucide/", $file, ".svg")).as_slice(),
+        )),*]
+    };
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub(crate) enum Icon {
+    ArrowLeft,
+    ArrowRight,
+    ChevronLeft,
+    ChevronRight,
+    Folder,
+    FolderOpen,
+    Image,
+    Images,
+    Minus,
+    PanelLeft,
+    Pencil,
+    Plus,
+    Refresh,
+    Search,
+    Trash,
+}
+
+const ICONS: &[(Icon, &str, &[u8])] = icons! {
+    ArrowLeft => "arrow-left",
+    ArrowRight => "arrow-right",
+    ChevronLeft => "chevron-left",
+    ChevronRight => "chevron-right",
+    Folder => "folder",
+    FolderOpen => "folder-open",
+    Image => "image",
+    Images => "images",
+    Minus => "minus",
+    PanelLeft => "panel-left",
+    Pencil => "pencil",
+    Plus => "plus",
+    Refresh => "refresh-cw",
+    Search => "search",
+    Trash => "trash-2",
+};
+
+impl Icon {
+    fn uri(self) -> &'static str {
+        ICONS
+            .iter()
+            .find(|(icon, _, _)| *icon == self)
+            .map_or("", |(_, uri, _)| *uri)
+    }
+
+    pub(crate) fn image(self, size: f32) -> egui::Image<'static> {
+        egui::Image::new(self.uri()).fit_to_exact_size(egui::Vec2::splat(size))
+    }
+}
+
+fn register_icons(ctx: &egui::Context) {
+    for (_, uri, bytes) in ICONS {
+        ctx.include_bytes(*uri, *bytes);
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Palette {
@@ -35,7 +104,12 @@ pub(crate) struct Palette {
     pub danger: Color32,
     pub viewer_canvas: Color32,
     pub viewer_text: Color32,
+    pub viewer_muted: Color32,
     pub viewer_error: Color32,
+    pub viewer_control: Color32,
+    pub viewer_control_hover: Color32,
+    pub viewer_control_hover_text: Color32,
+    pub viewer_control_border: Color32,
     pub drag_target: Color32,
 }
 
@@ -59,7 +133,12 @@ const LIGHT: Palette = Palette {
     danger: Color32::from_rgb(183, 35, 35),
     viewer_canvas: Color32::from_rgb(17, 20, 26),
     viewer_text: Color32::WHITE,
+    viewer_muted: Color32::from_rgb(174, 182, 194),
     viewer_error: Color32::from_rgb(255, 150, 150),
+    viewer_control: Color32::from_rgb(37, 42, 51),
+    viewer_control_hover: Color32::from_rgb(52, 59, 71),
+    viewer_control_hover_text: Color32::WHITE,
+    viewer_control_border: Color32::from_rgb(65, 73, 87),
     drag_target: Color32::from_rgb(35, 110, 210),
 };
 
@@ -77,7 +156,12 @@ const DARK: Palette = Palette {
     danger: Color32::from_rgb(255, 124, 124),
     viewer_canvas: Color32::from_rgb(12, 14, 18),
     viewer_text: Color32::WHITE,
+    viewer_muted: Color32::from_rgb(174, 182, 194),
     viewer_error: Color32::from_rgb(255, 150, 150),
+    viewer_control: Color32::from_rgb(37, 42, 51),
+    viewer_control_hover: Color32::from_rgb(52, 59, 71),
+    viewer_control_hover_text: Color32::WHITE,
+    viewer_control_border: Color32::from_rgb(65, 73, 87),
     drag_target: Color32::from_rgb(112, 166, 255),
 };
 
@@ -105,6 +189,19 @@ pub fn install(ctx: &egui::Context) {
         vec![BOLD_NAME.into(), REGULAR_NAME.into()],
     );
     ctx.set_fonts(fonts);
+    register_icons(ctx);
+    egui_extras::install_image_loaders(ctx);
+
+    let mark = image::load_from_memory(BRAND_MARK)
+        .expect("embedded PicLens brand mark must be valid PNG")
+        .into_rgba8();
+    let size = [mark.width() as usize, mark.height() as usize];
+    let texture = ctx.load_texture(
+        BRAND_MARK_ID,
+        egui::ColorImage::from_rgba_unmultiplied(size, mark.as_raw()),
+        egui::TextureOptions::LINEAR,
+    );
+    ctx.data_mut(|data| data.insert_temp(egui::Id::new(BRAND_MARK_ID), texture));
 
     ctx.set_theme(egui::ThemePreference::System);
     let high_contrast = system_high_contrast_palette();
@@ -162,6 +259,10 @@ pub(crate) fn palette(ctx: &egui::Context) -> Palette {
     })
 }
 
+pub(crate) fn brand_mark(ctx: &egui::Context) -> Option<egui::TextureHandle> {
+    ctx.data_mut(|data| data.get_temp(egui::Id::new(BRAND_MARK_ID)))
+}
+
 pub(crate) fn medium_font(size: f32) -> FontId {
     FontId::new(size, FontFamily::Name(MEDIUM_FAMILY.into()))
 }
@@ -196,6 +297,14 @@ fn apply_styles(ctx: &egui::Context, high_contrast: Option<Palette>) {
         style.visuals.widgets.active.bg_fill = palette.selected;
         style.visuals.widgets.active.weak_bg_fill = palette.selected;
         style.visuals.widgets.active.bg_stroke.color = palette.accent;
+        let control_radius = egui::CornerRadius::same(5);
+        style.visuals.widgets.noninteractive.corner_radius = control_radius;
+        style.visuals.widgets.inactive.corner_radius = control_radius;
+        style.visuals.widgets.hovered.corner_radius = control_radius;
+        style.visuals.widgets.active.corner_radius = control_radius;
+        style.visuals.widgets.open.corner_radius = control_radius;
+        style.visuals.window_corner_radius = egui::CornerRadius::same(6);
+        style.visuals.menu_corner_radius = egui::CornerRadius::same(6);
         style.spacing.item_spacing = egui::vec2(8.0, 8.0);
         style.spacing.button_padding = egui::vec2(12.0, 6.0);
         style.spacing.interact_size.y = 32.0;
@@ -283,7 +392,12 @@ fn system_high_contrast_palette() -> Option<Palette> {
         danger: text,
         viewer_canvas: window,
         viewer_text: text,
+        viewer_muted: text,
         viewer_error: text,
+        viewer_control: button,
+        viewer_control_hover: highlight,
+        viewer_control_hover_text: highlight_text,
+        viewer_control_border: color(COLOR_WINDOWFRAME),
         drag_target: highlight_text,
     })
 }

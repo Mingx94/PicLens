@@ -68,6 +68,11 @@ pub fn show(
         )
         .show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
+                if let Some(mark) = theme::brand_mark(ui.ctx()) {
+                    ui.add(
+                        egui::Image::from_texture(&mark).fit_to_exact_size(egui::Vec2::splat(28.0)),
+                    );
+                }
                 ui.heading("PicLens");
                 ui.separator();
                 ui.label(RichText::new("本機圖片圖庫").color(palette.secondary));
@@ -78,7 +83,7 @@ pub fn show(
                         } else {
                             "隱藏資料夾樹"
                         };
-                        if ui.button(label).clicked() {
+                        if icon_button(ui, theme::Icon::PanelLeft, label, true).clicked() {
                             actions.push(Action::ToggleSidebar);
                         }
                     });
@@ -166,22 +171,30 @@ fn library_content(
     }
     if model.library_query.is_some() {
         ui.horizontal_wrapped(|ui| {
-            if ui
-                .add_enabled(model.history.can_back(), egui::Button::new("上一頁"))
-                .clicked()
+            if icon_button(
+                ui,
+                theme::Icon::ArrowLeft,
+                "上一頁",
+                model.history.can_back(),
+            )
+            .clicked()
             {
                 actions.push(Action::NavigateHistory { back: true });
             }
-            if ui
-                .add_enabled(model.history.can_forward(), egui::Button::new("下一頁"))
-                .clicked()
+            if icon_button(
+                ui,
+                theme::Icon::ArrowRight,
+                "下一頁",
+                model.history.can_forward(),
+            )
+            .clicked()
             {
                 actions.push(Action::NavigateHistory { back: false });
             }
-            if ui.button("選擇資料夾").clicked() {
+            if icon_text_button(ui, theme::Icon::FolderOpen, "選擇資料夾").clicked() {
                 actions.push(Action::ChooseFolder);
             }
-            if ui.button("重新整理").clicked() {
+            if icon_button(ui, theme::Icon::Refresh, "重新整理", true).clicked() {
                 actions.push(Action::ReloadLibrary);
             }
         });
@@ -189,6 +202,11 @@ fn library_content(
     if let Some(query) = &model.library_query {
         ui.add_space(8.0);
         ui.horizontal_wrapped(|ui| {
+            ui.add(
+                theme::Icon::Search
+                    .image(18.0)
+                    .tint(theme::palette(ui.ctx()).secondary),
+            );
             let mut search = model.search.clone();
             let previous_search = search.clone();
             let search_response = ui.add(
@@ -253,7 +271,7 @@ fn library_content(
             }
 
             if ui
-                .selectable_label(query.include_subfolders, "含子資料夾")
+                .selectable_label(query.include_subfolders, "包含子資料夾")
                 .clicked()
             {
                 actions.push(Action::ToggleIncludeSubfolders);
@@ -288,12 +306,18 @@ fn library_content(
         Loadable::Idle => {
             ui.vertical_centered(|ui| {
                 ui.add_space(60.0);
+                ui.add(
+                    theme::Icon::Images
+                        .image(48.0)
+                        .tint(theme::palette(ui.ctx()).secondary),
+                );
+                ui.add_space(8.0);
                 ui.heading("選擇資料夾後開始瀏覽圖片。");
                 ui.label(
                     RichText::new("PicLens 只會讀取你選擇的本機資料夾。").color(palette.secondary),
                 );
                 ui.add_space(12.0);
-                if ui.button("選擇資料夾").clicked() {
+                if icon_text_button(ui, theme::Icon::FolderOpen, "選擇資料夾").clicked() {
                     actions.push(Action::ChooseFolder);
                 }
             });
@@ -314,7 +338,7 @@ fn library_content(
                 );
                 ui.separator();
                 ui.label(format!(
-                    "選取 {} 張圖片",
+                    "{} 張圖片已選取",
                     model.selection.ordered_paths.len()
                 ));
                 if !model.selection.ordered_paths.is_empty()
@@ -329,11 +353,11 @@ fn library_content(
                     .count();
                 ui.add_enabled_ui(visible_image_count > 0, |ui| {
                     ui.menu_button("批次操作", |ui| {
-                        if ui.button("目前結果轉 JPG").clicked() {
+                        if ui.button("將目前結果轉成 JPG").clicked() {
                             actions.push(Action::RequestConversion(ConversionKind::Jpg));
                             ui.close();
                         }
-                        if ui.button("目前結果轉無損 WebP").clicked() {
+                        if ui.button("將目前結果轉成無損 WebP").clicked() {
                             actions.push(Action::RequestConversion(ConversionKind::Webp));
                             ui.close();
                         }
@@ -365,7 +389,7 @@ fn library_content(
                 let response =
                     ui.label(RichText::new(message).color(theme::palette(ui.ctx()).danger));
                 mark_live(ui, &response, egui::accesskit::Live::Assertive);
-                if ui.button("重新載入").clicked() {
+                if icon_text_button(ui, theme::Icon::Refresh, "重新載入").clicked() {
                     actions.push(Action::ReloadLibrary);
                 }
             });
@@ -380,6 +404,26 @@ fn sort_label(sort: SortState) -> &'static str {
         (SortKey::ModifiedAt, SortDirection::Asc) => "修改時間：舊到新",
         (SortKey::ModifiedAt, SortDirection::Desc) => "修改時間：新到舊",
     }
+}
+
+fn icon_button(ui: &mut egui::Ui, icon: theme::Icon, label: &str, enabled: bool) -> egui::Response {
+    let response = ui.add_enabled(
+        enabled,
+        egui::Button::image(icon.image(18.0))
+            .image_tint_follows_text_color(true)
+            .frame_when_inactive(false)
+            .min_size(egui::Vec2::splat(32.0)),
+    );
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled, label.to_owned())
+    });
+    response.on_hover_text(label)
+}
+
+fn icon_text_button(ui: &mut egui::Ui, icon: theme::Icon, label: &str) -> egui::Response {
+    ui.add(
+        egui::Button::image_and_text(icon.image(18.0), label).image_tint_follows_text_color(true),
+    )
 }
 
 fn gallery_input(
@@ -574,14 +618,64 @@ fn gallery_grid(
                                 model.selection.focused_path.as_ref().is_some_and(|path| {
                                     path_equals(&path.to_string_lossy(), &folder.path)
                                 });
-                            let response = ui
-                                .add_sized(
-                                    egui::vec2(tile_width, tile_height),
-                                    egui::Button::new(format!("{}\n資料夾", folder.name))
-                                        .selected(selected)
-                                        .truncate(),
+                            let folder_icon_color = if selected {
+                                theme::palette(ui.ctx()).accent
+                            } else {
+                                theme::palette(ui.ctx()).secondary
+                            };
+                            let preview_size =
+                                egui::Vec2::splat(gallery_thumbnail_size(tile_width));
+                            let content_id =
+                                ui.make_persistent_id(("folder-content", &folder.path));
+                            let contents = egui::AtomLayout::new((
+                                egui::Atom::default().atom_size(preview_size),
+                                folder.name.clone(),
+                            ))
+                            .direction(egui::Direction::TopDown)
+                            .align2(egui::Align2::LEFT_TOP)
+                            .wrap_mode(egui::TextWrapMode::Truncate)
+                            .min_size(egui::vec2(tile_width - 24.0, tile_height - 12.0))
+                            .max_size(egui::vec2(tile_width - 24.0, tile_height - 12.0));
+                            let layout_response = egui::Button::new(
+                                egui::Atom::layout(contents)
+                                    .atom_id(content_id)
+                                    .atom_size(egui::vec2(tile_width - 24.0, tile_height - 12.0))
+                                    .atom_shrink(true)
+                                    .atom_max_size(egui::vec2(
+                                        tile_width - 24.0,
+                                        tile_height - 12.0,
+                                    )),
+                            )
+                            .selected(selected)
+                            .frame_when_inactive(selected)
+                            .truncate()
+                            .min_size(egui::vec2(tile_width, tile_height))
+                            .atom_ui(ui);
+                            if let Some(content_rect) = layout_response.rect(content_id) {
+                                let icon_center = egui::pos2(
+                                    content_rect.center().x,
+                                    content_rect.top() + preview_size.y / 2.0,
+                                );
+                                theme::Icon::Folder
+                                    .image(48.0)
+                                    .tint(folder_icon_color)
+                                    .paint_at(
+                                        ui,
+                                        egui::Rect::from_center_size(
+                                            icon_center,
+                                            egui::Vec2::splat(48.0),
+                                        ),
+                                    );
+                            }
+                            let response = layout_response.response.on_hover_text(&folder.path);
+                            response.widget_info(|| {
+                                egui::WidgetInfo::selected(
+                                    egui::WidgetType::Button,
+                                    true,
+                                    selected,
+                                    format!("{}，資料夾", folder.name),
                                 )
-                                .on_hover_text(&folder.path);
+                            });
                             if response.clicked() {
                                 actions.push(Action::NavigateFolder(folder.path.clone().into()));
                             }
@@ -617,6 +711,7 @@ fn gallery_grid(
                                             egui::Image::from_texture(texture)
                                                 .alt_text(image.name.clone())
                                                 .uv(cover_uv(texture.size_vec2()))
+                                                .corner_radius(4)
                                                 .atom_size(preview_size),
                                             label,
                                         ))
@@ -643,6 +738,7 @@ fn gallery_grid(
                                     } else {
                                         egui::Button::new(label).selected(selected)
                                     }
+                                    .frame_when_inactive(selected)
                                     .truncate();
                                     let button = if model.drag.as_ref().is_some_and(|drag| {
                                         drag.dragging
@@ -702,23 +798,39 @@ fn gallery_grid(
                                         gesture: SelectionGesture::Replace,
                                     });
                                 }
-                                let open = ui.button("開啟檢視");
+                                let open = icon_text_button(ui, theme::Icon::Image, "開啟檢視");
                                 if open.clicked() {
                                     actions.push(Action::OpenViewer(image.path.clone().into()));
                                     ui.close();
                                 }
-                                let reveal = ui.button("在檔案管理器中顯示");
+                                let reveal = icon_text_button(
+                                    ui,
+                                    theme::Icon::FolderOpen,
+                                    "在檔案管理器中顯示",
+                                );
                                 if reveal.clicked() {
                                     actions.push(Action::RevealPath(image.path.clone().into()));
                                     ui.close();
                                 }
-                                let rename =
-                                    ui.add_enabled(scope.len() == 1, egui::Button::new("重新命名"));
+                                let rename = ui.add_enabled(
+                                    scope.len() == 1,
+                                    egui::Button::image_and_text(
+                                        theme::Icon::Pencil.image(18.0),
+                                        "重新命名",
+                                    )
+                                    .image_tint_follows_text_color(true),
+                                );
                                 if rename.clicked() {
                                     actions.push(Action::OpenRename);
                                     ui.close();
                                 }
-                                let trash = ui.button(format!("移至回收筒（{} 張）", scope.len()));
+                                let trash = ui.add(
+                                    egui::Button::image_and_text(
+                                        theme::Icon::Trash.image(18.0),
+                                        format!("移至回收筒（{} 張）", scope.len()),
+                                    )
+                                    .image_tint_follows_text_color(true),
+                                );
                                 if trash.clicked() {
                                     actions.push(Action::RequestTrash);
                                     ui.close();
@@ -848,7 +960,14 @@ fn context_action_scope(model: &AppModel, clicked_path: &str) -> Vec<std::path::
 
 fn danger_button(ui: &mut egui::Ui, label: &str) -> egui::Response {
     let danger = theme::palette(ui.ctx()).danger;
-    ui.add(egui::Button::new(RichText::new(label).color(danger)).stroke(Stroke::new(2.0, danger)))
+    ui.add(
+        egui::Button::image_and_text(
+            theme::Icon::Trash.image(18.0),
+            RichText::new(label).color(danger),
+        )
+        .image_tint_follows_text_color(true)
+        .stroke(Stroke::new(2.0, danger)),
+    )
 }
 
 fn show_dialog(model: &AppModel, ctx: &egui::Context, actions: &mut Vec<Action>) {
@@ -1143,8 +1262,10 @@ fn viewer_content(
 ) {
     let palette = theme::palette(ui.ctx());
     let Some(viewer) = &model.viewer else {
-        ui.label(RichText::new("檢視器狀態無效。").color(palette.viewer_text));
-        let response = ui.button("返回圖庫");
+        ui.label(RichText::new("無法開啟這張圖片。").color(palette.viewer_text));
+        let response = viewer_controls(ui, |ui| {
+            icon_text_button(ui, theme::Icon::ArrowLeft, "返回圖庫")
+        });
         if focus_primary {
             response.request_focus();
         }
@@ -1154,8 +1275,10 @@ fn viewer_content(
         return;
     };
     let Some(current) = viewer.snapshot.current() else {
-        ui.label(RichText::new("快照中沒有圖片。").color(palette.viewer_text));
-        let response = ui.button("返回圖庫");
+        ui.label(RichText::new("目前沒有可顯示的圖片。").color(palette.viewer_text));
+        let response = viewer_controls(ui, |ui| {
+            icon_text_button(ui, theme::Icon::ArrowLeft, "返回圖庫")
+        });
         if focus_primary {
             response.request_focus();
         }
@@ -1165,38 +1288,40 @@ fn viewer_content(
         return;
     };
 
-    ui.horizontal_wrapped(|ui| {
-        let back = ui.button("返回圖庫");
-        if focus_primary {
-            back.request_focus();
-        }
-        if back.clicked() {
-            actions.push(Action::CloseViewer);
-        }
-        ui.separator();
-        if ui.button("上一張").clicked() {
-            actions.push(Action::StepViewer(-1));
-        }
-        if ui.button("下一張").clicked() {
-            actions.push(Action::StepViewer(1));
-        }
-        ui.separator();
-        if ui.button("縮小").clicked() {
-            actions.push(Action::AdjustViewerZoom(-1));
-        }
-        if ui
-            .button(format!("重設 {:.0}%", viewer.zoom.zoom * 100.0))
-            .clicked()
-        {
-            actions.push(Action::ResetViewerZoom);
-        }
-        if ui.button("放大").clicked() {
-            actions.push(Action::AdjustViewerZoom(1));
-        }
-        ui.separator();
-        if ui.button("在檔案總管中顯示").clicked() {
-            actions.push(Action::RevealViewer);
-        }
+    viewer_controls(ui, |ui| {
+        ui.horizontal_wrapped(|ui| {
+            let back = icon_text_button(ui, theme::Icon::ArrowLeft, "返回圖庫");
+            if focus_primary {
+                back.request_focus();
+            }
+            if back.clicked() {
+                actions.push(Action::CloseViewer);
+            }
+            ui.separator();
+            if icon_button(ui, theme::Icon::ChevronLeft, "上一張", true).clicked() {
+                actions.push(Action::StepViewer(-1));
+            }
+            if icon_button(ui, theme::Icon::ChevronRight, "下一張", true).clicked() {
+                actions.push(Action::StepViewer(1));
+            }
+            ui.separator();
+            if icon_button(ui, theme::Icon::Minus, "縮小", true).clicked() {
+                actions.push(Action::AdjustViewerZoom(-1));
+            }
+            if ui
+                .button(format!("重設 {:.0}%", viewer.zoom.zoom * 100.0))
+                .clicked()
+            {
+                actions.push(Action::ResetViewerZoom);
+            }
+            if icon_button(ui, theme::Icon::Plus, "放大", true).clicked() {
+                actions.push(Action::AdjustViewerZoom(1));
+            }
+            ui.separator();
+            if icon_text_button(ui, theme::Icon::FolderOpen, "在檔案總管中顯示").clicked() {
+                actions.push(Action::RevealViewer);
+            }
+        });
     });
     ui.add_space(8.0);
     ui.horizontal(|ui| {
@@ -1206,7 +1331,7 @@ fn viewer_content(
                 viewer.snapshot.current_index + 1,
                 viewer.snapshot.images.len()
             ))
-            .color(palette.secondary),
+            .color(palette.viewer_muted),
         );
         ui.separator();
         ui.add(
@@ -1288,6 +1413,28 @@ fn viewer_content(
             }));
         }
     }
+}
+
+fn viewer_controls<R>(ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui) -> R) -> R {
+    let palette = theme::palette(ui.ctx());
+    ui.scope(|ui| {
+        let visuals = &mut ui.style_mut().visuals;
+        visuals.widgets.noninteractive.bg_stroke.color = palette.viewer_control_border;
+        visuals.widgets.inactive.fg_stroke.color = palette.viewer_text;
+        visuals.widgets.inactive.bg_fill = palette.viewer_control;
+        visuals.widgets.inactive.weak_bg_fill = palette.viewer_control;
+        visuals.widgets.inactive.bg_stroke.color = palette.viewer_control_border;
+        visuals.widgets.hovered.fg_stroke.color = palette.viewer_control_hover_text;
+        visuals.widgets.hovered.bg_fill = palette.viewer_control_hover;
+        visuals.widgets.hovered.weak_bg_fill = palette.viewer_control_hover;
+        visuals.widgets.hovered.bg_stroke.color = palette.viewer_text;
+        visuals.widgets.active.fg_stroke.color = palette.viewer_control_hover_text;
+        visuals.widgets.active.bg_fill = palette.viewer_control_hover;
+        visuals.widgets.active.weak_bg_fill = palette.viewer_control_hover;
+        visuals.widgets.active.bg_stroke.color = palette.viewer_text;
+        add_contents(ui)
+    })
+    .inner
 }
 
 fn viewer_preview_keys(
@@ -2123,7 +2270,7 @@ mod tests {
         harness.run();
 
         assert!(harness.query_by_label("資料夾").is_none());
-        for label in ["選擇資料夾", "搜尋圖片", "含子資料夾"] {
+        for label in ["選擇資料夾", "搜尋圖片", "包含子資料夾"] {
             let rect = harness.get_by_label(label).rect();
             assert!(
                 rect.min.x >= 0.0 && rect.max.x <= 800.0,

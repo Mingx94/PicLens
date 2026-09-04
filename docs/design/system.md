@@ -1,6 +1,6 @@
 # PicLens design system
 
-PicLens is a calm, image-first desktop workspace. The current interface uses Rust, egui, eframe, and wgpu. The implementation in `crates/piclens-desktop/src/theme.rs` and `crates/piclens-desktop/src/ui/mod.rs` is the executable authority.
+PicLens is a calm, reliable, local-first, image-first desktop workspace. The current interface uses Rust, egui, eframe, and wgpu. The implementation in `crates/piclens-desktop/src/theme.rs` and `crates/piclens-desktop/src/ui/mod.rs` is the executable authority.
 
 ## Structure
 
@@ -29,7 +29,9 @@ The app follows the operating-system light or dark preference. On Windows, it ch
 | Accent | `#4968E8` |
 | Selected | `#E8EEFF` |
 | Viewer canvas | `#11141A` |
-| Viewer error surface | `#1F2937` |
+| Viewer control | `#252A33` |
+| Viewer control hover | `#343B47` |
+| Viewer error text | `#FF9696` |
 | Modal backdrop | black at 35% opacity |
 
 The table documents the light palette. The dark palette keeps the same semantic roles with darker surfaces and brighter foreground colors.
@@ -38,14 +40,20 @@ The table documents the light palette. The dark palette keeps the same semantic 
 
 PicLens embeds Noto Sans CJK TC Regular, Medium, and Bold and registers them before the window opens. Use `Noto Sans CJK TC` for the interface. Keep the OFL notice with the fonts.
 
-Use the packaged PicLens artwork for app identity. Prefer clear text labels and built-in egui controls for commands. Controls need stable IDs, clear AccessKit names and roles, keyboard access, disabled states, and visible state feedback.
+Use the packaged PicLens artwork for app identity. Use the selected Lucide SVG assets in `assets/Icons/Lucide` for interface actions and categories. Keep the outline style consistent and do not mix icon collections. Use an 18 px icon inside a control that is at least 32 px square. Familiar navigation, refresh, and zoom actions can use icons alone, but they must have a Traditional Chinese tooltip and AccessKit name. Keep text beside important, unfamiliar, or destructive actions.
+
+Controls need stable IDs, clear AccessKit names and roles, keyboard access, disabled states, and visible state feedback.
 
 ## Layout and interaction
 
 - Use a 4 px spacing base where practical.
+- Use 5 px corner radii for controls and 6 px for menus and windows. Avoid pill-shaped controls.
 - Keep the minimum window size at 800 x 600.
 - At 800 px wide, remove the sidebar from layout and compress repeated library chrome so the gallery remains usable.
 - Render gallery thumbnails in square containers. Preserve the source aspect ratio and use a centered cover crop without modifying the source image.
+- Align folder icons to the same square preview region and place folder names on the same line as image filenames below that region.
+- Keep unselected gallery tiles visually quiet. Show a surface and border on hover, selection, or an active drag target.
+- Keep viewer controls on dark neutral surfaces so the image remains the strongest visual element.
 - Keep blocking filesystem and image work outside render and off the application thread.
 - Preserve direct selection, bounded thumbnail work, viewer focus return, and explicit confirmation for file mutations.
 - Avoid decorative motion that competes with image browsing.
