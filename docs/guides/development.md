@@ -3,7 +3,7 @@
 ## Before you change code
 
 1. Run `git status --short --branch` and preserve unrelated work.
-2. Read [product-spec](product-spec.md) and [runtime-invariants](runtime-invariants.md) for the behavior you touch.
+2. Read [product-spec](../product/product-spec.md) and [runtime-invariants](../engineering/runtime-invariants.md) for the behavior you touch.
 3. Prefer the smallest working change on a green `cargo check`.
 
 ## Change entry points

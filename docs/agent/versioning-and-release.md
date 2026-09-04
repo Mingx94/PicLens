@@ -1,6 +1,6 @@
 # Versioning and Release Protocol
 
-Use [Release and packaging](../release.md) as the authority for versioning, validation, artifact names, and publication.
+Use [Release and packaging](../guides/release.md) as the authority for versioning, validation, artifact names, and publication.
 
 ## Agent completion rules
 

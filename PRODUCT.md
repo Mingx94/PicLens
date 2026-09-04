@@ -46,8 +46,8 @@ PicLens combines a modern desktop interface with simple image-management tools. 
 
 ## Evidence on Hand
 
-- `docs/product-spec.md` is the authority for user-visible behavior and product scope.
-- `docs/runtime-invariants.md` records engineering constraints that protect product behavior.
+- `docs/product/product-spec.md` is the authority for user-visible behavior and product scope.
+- `docs/engineering/runtime-invariants.md` records engineering constraints that protect product behavior.
 - `docs/design/system.md` records the current egui interface system.
 - `assets/` contains the current PicLens application icons and licensed Noto Sans CJK TC fonts.
 - The repository contains no confirmed testimonials, customer claims, usage benchmarks, pricing, or market evidence. Future work must not fabricate them.

@@ -6,7 +6,7 @@
 
 本文件只描述目前已實作或已由現有文件明確定義的產品範圍。未被明確定義的方向列在「待確認」中，不在此直接推定。
 
-本文件是使用者需求、產品範圍與待確認問題的權威來源。已承諾的工程不變條件由 [Runtime invariants](runtime-invariants.md) 維護；實作或驗證細節分別由 [Architecture](architecture.md) 與 [Testing](testing.md) 維護。產品意圖改變時，應在同一個 change 更新受影響的 contract 與測試，而不是在多份文件複製完整規則。
+本文件是使用者需求、產品範圍與待確認問題的權威來源。已承諾的工程不變條件由 [Runtime invariants](../engineering/runtime-invariants.md) 維護；實作或驗證細節分別由 [Architecture](../engineering/architecture.md) 與 [Testing](../guides/testing.md) 維護。產品意圖改變時，應在同一個 change 更新受影響的 contract 與測試，而不是在多份文件複製完整規則。
 
 ## 產品定位
 

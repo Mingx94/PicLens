@@ -1,6 +1,6 @@
 # PicLens
 
-PicLens is a desktop image library and viewer for Windows and Linux. It uses Rust, [egui](https://github.com/emilk/egui), eframe, and wgpu. [The product specification](docs/product-spec.md) defines its behavior.
+PicLens is a desktop image library and viewer for Windows and Linux. It uses Rust, [egui](https://github.com/emilk/egui), eframe, and wgpu. [The product specification](docs/product/product-spec.md) defines its behavior.
 
 ## Layout
 
@@ -37,17 +37,17 @@ $env:PICLENS_DATA_ROOT = "F:\PicLens\artifacts\desktop-profile"
 cargo run
 ```
 
-See [Testing](docs/testing.md) for validation commands, runtime smoke, and profile isolation.
+See [Testing](docs/guides/testing.md) for validation commands, runtime smoke, and profile isolation.
 
 ## Data
 
-See [Data continuity](docs/data-continuity.md) for profile paths, settings, logs, and thumbnails.
+See [Data continuity](docs/engineering/data-continuity.md) for profile paths, settings, logs, and thumbnails.
 
 ## Docs
 
 - [docs/README.md](docs/README.md)
-- [docs/release.md](docs/release.md)
+- [Release and packaging](docs/guides/release.md)
 
 ## Automation
 
-GitHub Actions only builds and publishes the Windows MSI, portable ZIP, and checksums. See [Release and packaging](docs/release.md) for tag and manual triggers, and [Testing](docs/testing.md) for local checks.
+GitHub Actions only builds and publishes the Windows MSI, portable ZIP, and checksums. See [Release and packaging](docs/guides/release.md) for tag and manual triggers, and [Testing](docs/guides/testing.md) for local checks.

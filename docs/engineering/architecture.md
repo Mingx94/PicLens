@@ -22,7 +22,3 @@ assets/                    application icons and fonts
 ## Data and diagnostics
 
 Without `PICLENS_DATA_ROOT`, platform local application data under `PicLens` is the authority for settings, cache, and logs. See [data continuity](data-continuity.md).
-
-## History
-
-Migration records and measurements are kept under [the archive](archive/README.md). They do not define current architecture, commands, support, or release outputs.

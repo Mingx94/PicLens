@@ -40,7 +40,7 @@ Metrics schema 4 defines:
 
 `piclens-desktop` 也會寫入 `frontEnd: "eframe-egui-wgpu"`。其 sharp-paint 時間止於 egui painter 接受 texture 的該次 frame。
 
-The viewer has a 500ms target for its existing sharp preview quality. Report cold and warm cache results separately with the hardware and fixture. The target is not a universal guarantee for arbitrary files or storage. The app records misses but does not fail its exit code; `thresholdGateEnabled` remains false. Gallery latency, scrolling, and memory still have no approved numerical gate. Historical Qt measurements under `docs/archive/performance/` do not prove this checkout.
+The viewer has a 500ms target for its existing sharp preview quality. Report cold and warm cache results separately with the hardware and fixture. The target is not a universal guarantee for arbitrary files or storage. The app records misses but does not fail its exit code; `thresholdGateEnabled` remains false. Gallery latency, scrolling, and memory still have no approved numerical gate.
 
 ## Continuous viewer navigation
 
@@ -112,7 +112,7 @@ app metrics 記錄 `displayScale: 1.5` 與 `windowSize: "1280x800"`。內建 Gal
 
 ## Windows 批次操作證據 — 2026-09-03
 
-使用 [`scripts/measure-windows-batch-performance.ps1`](../scripts/measure-windows-batch-performance.ps1) 建立隔離的 copied fixture，並在可見的 Windows Release app 中執行 JPG 轉換。指令範例：
+使用 [`scripts/measure-windows-batch-performance.ps1`](../../scripts/measure-windows-batch-performance.ps1) 建立隔離的 copied fixture，並在可見的 Windows Release app 中執行 JPG 轉換。指令範例：
 
 ```powershell
 .\scripts\measure-windows-batch-performance.ps1 -SourcePng <representative-png> -OutputDirectory <new-output-directory>

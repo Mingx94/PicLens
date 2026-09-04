@@ -1,6 +1,6 @@
 # Runtime invariants
 
-這份文件只記錄不容易從畫面直接看出的工程不變條件。使用者可見功能、支援格式與產品範圍由 [Product specification](product-spec.md) 定義；測試方式由 [Testing](testing.md) 維護，layer ownership 由 [Architecture](architecture.md) 維護。
+這份文件只記錄不容易從畫面直接看出的工程不變條件。使用者可見功能、支援格式與產品範圍由 [Product specification](../product/product-spec.md) 定義；測試方式由 [Testing](../guides/testing.md) 維護，layer ownership 由 [Architecture](architecture.md) 維護。
 
 若產品規格、runtime invariants、實作或測試不一致，先確認預期行為，再在同一個 change 更新權威文件與測試。
 

@@ -78,4 +78,4 @@ Annotated tag `v3.0.0` points to commit `ac544e4d`. [Windows packages run 337569
 - MSI: `60dd879387260b5c92d049f4eee0dcfc0603458dafb12f0a9e5d88d911aff74b`
 - ZIP: `4e15af1d2b0e8c5466d81b6eaa4640171f49f8704eae1a7c09d9e5edf3973256`
 
-Review [Licensing and redistribution](licensing.md) for every release candidate.
+Review [Licensing and redistribution](../reference/licensing.md) for every release candidate.
