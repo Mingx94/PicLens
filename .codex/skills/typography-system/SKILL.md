@@ -1,6 +1,6 @@
 ---
 name: typography-system
-description: Audit or define interface typography covering type scale, font choice, weight, line length, baseline, line height, alignment, links, and letter spacing. Use for readability or typographic-consistency work.
+description: Review UI readability or consolidate inconsistent typography roles.
 ---
 
 # Typography System
@@ -10,7 +10,7 @@ Build hierarchy and readability from a constrained, practical type system.
 ## Review
 
 - Inventory computed sizes and reduce accidental near-duplicates.
-- Prefer a hand-tuned scale with whole, predictable rendered sizes over a ratio that creates unusable steps.
+- Preserve a readable type scale. Adjust sizes when actual legibility or layout problems justify it; do not round sizes merely to obtain whole rendered pixels or counteract user-selected text or display scaling.
 - Choose UI fonts for legibility at working sizes; use system fonts as a sound neutral option when brand needs do not require more.
 - Avoid very light weights for small interface text.
 - Keep paragraph measure appropriate to comfortable reading rather than container width.
@@ -21,4 +21,4 @@ Build hierarchy and readability from a constrained, practical type system.
 
 ## Output
 
-Provide a type-role table, proposed scale, readable width and line-height rules, exceptions, and rendered checks. Account for localization, font loading, fallback fonts, zoom, and text resizing when relevant.
+Describe affected text roles and the proposed adjustment. Provide a complete type scale only for system-wide work. Check localization, fallback fonts, display scaling, and text resizing where relevant.

@@ -1,6 +1,6 @@
 ---
 name: color-system
-description: Build or rationalize a complete interface color system with neutral, primary, accent, and semantic scales. Use when a palette is too small, inconsistent, or generated from arbitrary one-off colors.
+description: Create or revise a UI palette when color roles or scales are inconsistent.
 ---
 
 # Color System
@@ -18,4 +18,4 @@ Create enough deliberate choices for real interface states without allowing indi
 
 ## Output
 
-Return color scales in the project's native format, role mappings, contrast-sensitive pairings to verify, deprecated colors, and migration guidance. Do not replace an established brand palette unless requested.
+Return the affected color roles and values in the project's native format. Include scales, deprecated colors, and migration guidance only for palette-wide changes. Preserve the established brand palette unless the task includes changing it.

@@ -1,6 +1,6 @@
 ---
 name: ui-audit
-description: Audit an existing interface, screenshot, design, or frontend implementation using Refactoring UI principles. Use for broad visual-quality reviews that should cover hierarchy, spacing, typography, color, depth, imagery, empty states, and finishing details without changing product behavior.
+description: Perform a broad visual UI review; use a focused skill for a single design concern.
 ---
 
 # UI Audit
@@ -13,7 +13,7 @@ Use the strongest evidence available: rendered UI, screenshots, design files, so
 
 ## Review
 
-Read [references/review-checklist.md](references/review-checklist.md) completely before auditing. Apply only the checks relevant to the interface and its context.
+Use [references/review-checklist.md](references/review-checklist.md) as needed: select sections for hierarchy and actions, layout, typography, color, depth, images, or finishing. Read across sections for a broad review; skip unrelated topics for a scoped review. Do not load every focused skill merely because this checklist mentions its topic.
 
 Prioritize findings by user impact:
 

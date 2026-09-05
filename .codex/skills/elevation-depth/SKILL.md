@@ -1,6 +1,6 @@
 ---
 name: elevation-depth
-description: Design or audit interface depth using light direction, elevation scales, shadows, color, overlap, and interaction states. Use when surfaces feel flat, arbitrary, overly shadowed, or spatially inconsistent.
+description: Review shadows and surface depth when layering or spatial relationships are unclear.
 ---
 
 # Elevation and Depth
@@ -9,14 +9,14 @@ Make depth communicate spatial relationships and interaction instead of serving 
 
 ## Review
 
-- Establish one implied light direction and keep highlights and shadows consistent with it.
-- Use a small elevation scale: tight subtle shadows near the surface and broader softer shadows for higher layers.
+- When the design uses lighting cues, keep their implied direction consistent.
+- When shadows communicate layering, use a small elevation scale with subtle shadows near the surface and broader shadows for higher layers.
 - Consider two-part shadows when ambient contact and cast shadow need separate control.
-- Reduce the contact shadow as an object moves farther from the surface.
-- Change elevation meaningfully during dragging, pressing, opening, or focusing.
+- If an object visibly moves away from a surface, adjust its contact shadow consistently.
+- Change elevation during interaction only when it clarifies the state; preserve established flat styles and reduced-motion behavior.
 - For flatter styles, use lighter or darker surfaces, solid offset shadows, or overlap before adding blur.
 - Separate overlapping images with a background-colored gap when their edges would clash.
 
 ## Output
 
-Provide an elevation-role table, shadow or surface tokens, interaction transitions, and rendered acceptance checks. Avoid photorealistic effects or extra layers that do not improve comprehension.
+Describe affected surface roles and the smallest useful adjustment. Include tokens, transitions, or rendered checks when those aspects change. Avoid extra layers that do not improve comprehension.

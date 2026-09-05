@@ -1,6 +1,6 @@
 ---
 name: component-rethink
-description: Reconsider conventional menus, tables, selectors, and other components when their default structure communicates poorly. Use for focused component redesign, not routine restyling.
+description: Redesign a component whose structure obstructs understanding or selection.
 ---
 
 # Component Rethink

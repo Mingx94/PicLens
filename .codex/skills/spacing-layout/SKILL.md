@@ -1,6 +1,6 @@
 ---
 name: spacing-layout
-description: Audit whitespace, grouping, content width, alignment, and layout density using Refactoring UI principles. Use when an interface feels cramped, scattered, over-wide, or difficult to parse spatially.
+description: Review spacing, grouping, and density when a layout is crowded or hard to scan.
 ---
 
 # Spacing and Layout
@@ -19,4 +19,4 @@ Use space to reveal relationships and give each region only the room it needs.
 
 ## Output
 
-Describe the current grouping model, ambiguous relationships, proposed spacing or width changes, and viewport-specific checks. Do not reduce information density when the product genuinely depends on seeing many items at once.
+Identify ambiguous grouping and the smallest spacing or width changes. Include size-specific checks where relevant. Preserve information density when the product depends on seeing many items at once.

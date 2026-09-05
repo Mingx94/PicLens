@@ -1,6 +1,6 @@
 ---
 name: visual-hierarchy
-description: Audit and improve visual hierarchy in an interface using size, weight, contrast, color, spacing, and de-emphasis. Use when screens feel noisy, flat, difficult to scan, or unclear about what matters.
+description: Review competing information when users cannot tell what matters first.
 ---
 
 # Visual Hierarchy
@@ -15,7 +15,7 @@ Make importance visible without making every important-looking element larger.
 - Counterbalance visually heavy icons or shapes with lower contrast.
 - Treat labels as supporting content unless users scan specifically for the label.
 - Combine labels with values when natural language can communicate the relationship more directly.
-- Keep semantic markup correct while styling headings according to the interface's visual hierarchy.
+- Preserve the platform's semantic roles and accessibility structure while styling headings according to visual priority.
 
 ## Output
 

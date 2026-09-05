@@ -1,6 +1,6 @@
 ---
 name: color-accessibility
-description: Review color contrast and non-color communication in an interface. Use when text, status, charts, colored panels, or image overlays may be inaccessible or visually unbalanced.
+description: Review contrast and information conveyed only by color in an interface.
 ---
 
 # Color Accessibility
@@ -19,4 +19,4 @@ Use color to reinforce information, never as its only carrier.
 
 ## Output
 
-List each tested pair or visual encoding, the verification method, failures, the smallest repair, and anything still requiring browser or assistive-technology testing. Do not claim compliance from visual judgment alone.
+List tested pairs or visual encodings, the verification method, failures, and the smallest repair. State any remaining native-app, browser, or assistive-technology checks that apply to the target platform. Do not claim compliance from visual judgment alone.

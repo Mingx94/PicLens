@@ -1,21 +1,21 @@
 ---
 name: empty-state-designer
-description: Design or review empty states for features that depend on user-created content. Use when first-use screens are blank, confusing, or cluttered with controls that cannot yet do anything.
+description: Design empty states that explain missing content and the next useful action.
 ---
 
 # Empty State Designer
 
-Treat the empty state as the user's introduction to the feature.
+Identify why content is absent before choosing the message and next action. Use first-use guidance only for first-use emptiness.
 
 ## Method
 
-- Explain what belongs here and why creating it is useful.
+- Explain what belongs here and how to open, select, import, or create it as the product allows. In PicLens, prefer the applicable folder or image action.
 - Provide one clear next action and only necessary alternatives.
-- Hide filters, tabs, bulk actions, and other controls that have no purpose before content exists.
+- Hide controls only when they have no useful action in the current state. Keep search, clear-filter, navigation, and retry controls available when they help restore content or recover from failure.
 - Use imagery or illustration only when it improves orientation or motivation.
 - Distinguish first-use emptiness from no search results, filtered emptiness, loading, permission denial, and failure.
 - Ensure the state works without relying on imagery or color alone.
 
 ## Output
 
-Provide the state taxonomy, content hierarchy, concise copy, CTA behavior, optional visual direction, and transition into the populated state. Preserve the product's established voice.
+Provide the affected states, copy, next action, and transition to content. Include a full state taxonomy only when reviewing the feature as a whole. Preserve the product's established voice.

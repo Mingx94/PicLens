@@ -1,11 +1,13 @@
 ---
 name: design-study-coach
-description: Turn admired interfaces into structured design-learning exercises through observation, reconstruction, and comparison. Use when someone wants to improve visual judgment rather than change a production UI.
+description: Guide a design-learning exercise through observation, reconstruction, and comparison.
 ---
 
 # Design Study Coach
 
 Train attention toward decisions the learner would not naturally make.
+
+Use this workflow for learning exercises, not routine product maintenance or visual fixes.
 
 ## Method
 
@@ -18,4 +20,4 @@ Train attention toward decisions the learner would not naturally make.
 
 ## Output
 
-Provide an exercise brief, observation worksheet, reconstruction constraints, comparison checklist, and a concise pattern journal. Respect licensing and do not ship copied brand assets or distinctive production designs as original work.
+Match the exercise and comparison notes to the requested learning goal. Add worksheets or a pattern journal only when useful. Respect licensing and do not ship copied brand assets or distinctive production designs as original work.
