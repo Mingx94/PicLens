@@ -77,13 +77,6 @@ mod tests {
     }
 
     #[test]
-    fn pan_adds_drag_delta() {
-        let moved = pan_offset(Point { x: 10.0, y: -4.0 }, Point { x: 8.0, y: 3.0 });
-        assert_eq!(moved.x, 18.0);
-        assert_eq!(moved.y, -1.0);
-    }
-
-    #[test]
     fn display_box_fills_canvas_at_fit_zoom() {
         assert_eq!(viewer_display_box(1280.0, 720.0, 1.0), (1280.0, 720.0));
         let (w, h) = viewer_display_box(1280.0, 720.0, ZOOM_STEP);

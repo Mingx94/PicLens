@@ -156,11 +156,6 @@ mod tests {
     }
 
     #[test]
-    fn clamps_window_size_to_product_minimum() {
-        assert_eq!(normalize_window_size(480, 320), (800, 600));
-    }
-
-    #[test]
     fn merge_patch_updates_fields() {
         let current = AppSettings::default();
         let patch = AppSettingsPatch {

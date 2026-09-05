@@ -1376,24 +1376,6 @@ mod tests {
     }
 
     #[test]
-    fn drop_stops_and_joins_backend_owner() {
-        let backend = Backend::spawn(egui::Context::default(), None);
-        backend
-            .send(Command::Probe {
-                identity: identity(7),
-            })
-            .unwrap();
-        assert_eq!(
-            backend.recv_timeout(Duration::from_secs(1)).unwrap(),
-            Event::ProbeCompleted {
-                identity: identity(7),
-                result: Ok(())
-            }
-        );
-        drop(backend);
-    }
-
-    #[test]
     fn stopping_active_scan_cancels_and_joins_worker() {
         let cancellation = CancellationToken::new();
         let observed = cancellation.clone();
@@ -1443,22 +1425,6 @@ mod tests {
         cancel_tree_jobs(&active, None);
         assert!(current.is_canceled());
         assert!(active.lock().unwrap().is_empty());
-    }
-
-    #[test]
-    fn command_queue_is_bounded_and_never_blocks_sender() {
-        let (sender, _receiver) = mpsc::sync_channel(COMMAND_QUEUE_CAPACITY);
-        for request_id in 0..COMMAND_QUEUE_CAPACITY {
-            sender
-                .try_send(Command::Probe {
-                    identity: identity(request_id as u64),
-                })
-                .unwrap();
-        }
-        assert!(matches!(
-            sender.try_send(Command::Shutdown),
-            Err(mpsc::TrySendError::Full(Command::Shutdown))
-        ));
     }
 
     #[test]

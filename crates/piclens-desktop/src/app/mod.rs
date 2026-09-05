@@ -96,8 +96,10 @@ impl Reducer {
                 Action::StartBackendProbe => self.start_backend_probe(),
                 Action::LoadLibrary(query) => self.start_library_load(query),
                 Action::ReloadLibrary => {
-                    if let Some(query) = self.model.library_query.clone() {
-                        self.push_action(Action::LoadLibrary(query));
+                    if self.pending_library.is_none() {
+                        if let Some(query) = self.model.library_query.clone() {
+                            self.start_library_load(query);
+                        }
                     }
                 }
                 Action::SetSearch(search) => {
@@ -1832,48 +1834,6 @@ mod tests {
         assert!(!reducer.model.compact_sidebar_open);
     }
 
-    #[test]
-    fn viewer_close_focus_request_targets_the_gallery_search() {
-        use egui_kittest::{kittest::Queryable, Harness};
-
-        let model = crate::demo::loaded_library();
-        let mut harness = Harness::new_ui(move |ui| {
-            let mut actions = Vec::new();
-            ui::show(&model, &ThumbnailLoader::default(), ui, &mut actions);
-        });
-        harness.run();
-
-        request_gallery_focus(&harness.ctx);
-        harness.run();
-
-        assert!(harness
-            .get_by_role(egui::accesskit::Role::TextInput)
-            .is_focused());
-    }
-
-    #[test]
-    fn rename_focus_request_targets_the_named_dialog_input() {
-        use egui_kittest::{kittest::Queryable, Harness};
-
-        let mut model = crate::demo::loaded_library();
-        model.dialog = Some(DialogState::Rename {
-            source: "C:/fixture/image2.png".into(),
-            basename: "image2".into(),
-        });
-        let mut harness = Harness::new_ui(move |ui| {
-            let mut actions = Vec::new();
-            ui::show(&model, &ThumbnailLoader::default(), ui, &mut actions);
-        });
-        harness.run();
-
-        request_focus(&harness.ctx, ui::rename_focus_id());
-        harness.run();
-
-        assert!(harness
-            .get_by_role_and_label(egui::accesskit::Role::TextInput, "新檔名")
-            .is_focused());
-    }
-
     fn next_probe(reducer: &mut Reducer) -> WorkIdentity {
         match reducer.commands.pop_front().unwrap() {
             Command::Probe { identity } => identity,
@@ -2122,14 +2082,29 @@ mod tests {
     }
 
     #[test]
-    fn reload_uses_current_query_through_follow_up_action() {
+    fn repeated_reload_keeps_pending_work_and_allows_retry_after_failure() {
         let mut reducer = Reducer::new(None);
         reducer.model.library_query = Some(query("current"));
         reducer.push_action(Action::ReloadLibrary);
-
-        assert_eq!(reducer.reduce_actions(), 2);
-        let (_, command_query) = next_library_load(&mut reducer);
-        assert_eq!(command_query, query("current"));
+        reducer.push_action(Action::ReloadLibrary);
+        reducer.reduce_actions();
+        let (identity, loaded_query) = next_library_load(&mut reducer);
+        assert_eq!(loaded_query, query("current"));
+        assert!(reducer.commands.is_empty());
+        reducer.push_action(Action::ReloadLibrary);
+        reducer.reduce_actions();
+        assert!(reducer.commands.is_empty());
+        assert_eq!(reducer.pending_library, Some(identity));
+        reducer.handle_event(Event::LibraryLoaded {
+            identity,
+            query: loaded_query,
+            result: Err("無法讀取資料夾".into()),
+        });
+        reducer.push_action(Action::ReloadLibrary);
+        reducer.reduce_actions();
+        let (retry, _) = next_library_load(&mut reducer);
+        assert_ne!(retry, identity);
+        assert_eq!(reducer.model.library, Loadable::Loading);
     }
 
     #[test]

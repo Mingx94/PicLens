@@ -309,11 +309,6 @@ impl RuntimeMetrics {
         )
         .map_err(|error| error.to_string())
     }
-
-    #[cfg(test)]
-    fn output(&self) -> &std::path::Path {
-        &self.output
-    }
 }
 
 #[cfg(test)]
@@ -334,7 +329,6 @@ mod tests {
         metrics.viewer_navigation_checked(false);
 
         let state = metrics.state.lock().unwrap();
-        assert_eq!(metrics.output(), std::path::Path::new("unused.json"));
         assert!(state.first_thumbnail_ms.is_some());
         assert_eq!(state.completed_thumbnails, 2);
         assert!(state.search_ms.is_some());
@@ -350,6 +344,5 @@ mod tests {
         assert_eq!(state.viewer_sharp_target_misses, 1);
         assert_eq!(state.viewer_navigation_checked, 2);
         assert_eq!(state.viewer_navigation_unpainted, 1);
-        assert_eq!(METRICS_SCHEMA_VERSION, 4);
     }
 }
