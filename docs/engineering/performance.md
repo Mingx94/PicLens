@@ -4,14 +4,16 @@ Performance claims require a Release build, an isolated profile, and a represent
 
 Development runs use optimized `image`, JPEG, WebP, and PNG/DEFLATE codec dependencies so a normal `cargo run` does not spend seconds in unoptimized pixel loops. Application code retains its normal debug profile and assertions. Record `buildProfile` from the metrics; a Release result does not establish Debug performance.
 
+Historical measurements below used 1024 previews and do not establish full-resolution performance.
+
 ## Current safeguards
 
 - The gallery uses `egui::ScrollArea::show_rows` virtualization.
 - Folder scans and thumbnail decoding run on owned background workers.
 - Thumbnail requests are limited to a bounded visible range and avoid duplicate pending work.
 - One owned background task in the main process prunes old PNG cache files at startup and checks for new writes every five seconds. Decoder workers do not scan the cache. Clean intervals skip directory reads. Each pass keeps the newest 2,000 entries from its snapshot; writes between passes can temporarily exceed that target.
-- Viewer images use safe 1024-pixel PNG previews. Background workers decode these into pixel buffers before handing them to egui textures. Sharp pixels paint at full opacity without another fade or UI-thread PNG decode.
-- While the viewer covers the gallery, gallery thumbnail work is canceled and paused. It resumes on close. The viewer owns one request and reuses an in-flight adjacent prefetch when navigation selects it. After the current preview is ready, it prefetches only the next and previous static images, one at a time. It keeps at most three decoded previews (12 MiB of pixel data), validates source cache keys before reuse, and evicts GPU atlas entries when previews leave the cache or the viewer closes.
+- Viewer first displays a 1024-pixel placeholder, then replaces it with the fully decoded original. A killable worker writes temporary RGBA; the background executor reads and removes it. GPU textures are tiled with one-pixel gutters when needed, without downsampling. Decode failures retain the placeholder and report the error.
+- While the viewer covers the gallery, gallery thumbnail work is canceled and paused. It resumes on close. Loading proceeds from current placeholder to current original, then next and previous previews, one at a time. Only the current original is retained, with a 256 MiB RGBA limit plus at most three 1024 previews (12 MiB). Decode and upload copies, tile gutters, and GPU memory are additional. Navigation cancels stale work and evicts the old original; close releases viewer textures.
 - Workers return `Event` values through a bounded channel and request an egui repaint after delivery.
 
 These mechanisms reduce obvious blocking and unbounded work. They do not define a measured latency, memory, throughput, or frame-time guarantee.
@@ -24,23 +26,23 @@ $env:PICLENS_DATA_ROOT = "F:\PicLens\artifacts\desktop-performance"
 cargo run -p piclens-desktop --release -- --folder <representative-folder>
 ```
 
-Record the commit, locked egui/eframe versions, OS, CPU/GPU, storage type, image count and formats, cold or warm cache state, window size, and display scale. Exercise startup, first useful gallery content, sustained scrolling, search, folder navigation, viewer open, batch operations, and shutdown. The built-in schema 4 metrics capture process CPU, working set, library, thumbnail, search, scroll, viewer, and diagnostic batch timings. Use an external profiler for GPU and frame behavior.
+Record the commit, locked egui/eframe versions, OS, CPU/GPU, storage type, image count and formats, cold or warm cache state, window size, and display scale. Exercise startup, first useful gallery content, sustained scrolling, search, folder navigation, viewer open, batch operations, and shutdown. The built-in schema 5 metrics capture process CPU, working set, library, thumbnail, search, scroll, viewer, and diagnostic batch timings. Use an external profiler for GPU and frame behavior.
 
 Run paint measurements with the app window visible. A hidden Windows launch can complete decoding without painting; null paint metrics from such a run are not evidence of meeting the target. A fresh PicLens profile makes the application cache cold, but does not flush the OS file cache. Restarting with the same profile tests the warm disk cache, not the in-process pixel cache.
 
-Metrics schema 4 defines:
+Metrics schema 5 defines (sharp paint now means the full-resolution original; preview ready still means the 1024 placeholder):
 
 - `averageCpuUtilizationPercent` reuses one `sysinfo::System` across samples and waits 250ms between samples, which is longer than the platform minimum CPU update interval. Schema 2 recreated `System` for every sample; its CPU averages are invalid and must not be used as performance evidence. Schema 3 first corrected this sampler. Other stored schema 2 fields remain usable according to their definitions.
 - `batchOperationMilliseconds`, `batchTotal`, `batchSucceeded`, `batchSkipped`, `batchCanceled`, and `batchFailed`: diagnostic JPG batch time and final item counts. `--performance-batch-jpg` requires `--folder` to resolve to a child of `--data-root`, and it rejects 50 or more visible images so the diagnostic cannot bypass the normal confirmation threshold.
 
 - `viewerPreviewReadyMilliseconds`: first successful selection to decoded safe preview pixels. Schema 1 stopped at PNG file readiness; do not compare the two as the same measurement.
-- `viewerSharpPaintMilliseconds`: first successful selection to its first full-opacity sharp paint submission, after egui accepts the preview texture for that frame. This includes preview production, pixel decode, scheduling, and paint submission. It does not measure GPU completion or OS compositor presentation.
+- `viewerSharpPaintMilliseconds`: first successful selection to its first full-opacity sharp paint submission, after egui accepts the full-resolution original tiles for that frame. This includes placeholder production, original decode, scheduling, and paint submission. It does not measure GPU completion or OS compositor presentation.
 - `viewerSharpPaintMaxMilliseconds`, `viewerSharpPaintCount`, and `viewerSharpTargetMisses`: maximum, selection count, and count over the approved `viewerSharpTargetMilliseconds` value of 500. Repaints of one selection do not increment these counts. A missing paint is not a pass.
 - `viewerOpenMilliseconds`: process metrics startup to viewer open, unchanged.
 
 `piclens-desktop` 也會寫入 `frontEnd: "eframe-egui-wgpu"`。其 sharp-paint 時間止於 egui painter 接受 texture 的該次 frame。
 
-The viewer has a 500ms target for its existing sharp preview quality. Report cold and warm cache results separately with the hardware and fixture. The target is not a universal guarantee for arbitrary files or storage. The app records misses but does not fail its exit code; `thresholdGateEnabled` remains false. Gallery latency, scrolling, and memory still have no approved numerical gate.
+The viewer has a 500ms target for full-resolution paint; schema 4 and earlier measured only the 1024 preview. Report cold and warm cache results separately with the hardware and fixture. The target is not a universal guarantee for arbitrary files or storage. The app records misses but does not fail its exit code; `thresholdGateEnabled` remains false. Gallery latency, scrolling, and memory still have no approved numerical gate.
 
 ## Continuous viewer navigation
 

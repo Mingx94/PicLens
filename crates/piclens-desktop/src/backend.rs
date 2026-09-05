@@ -21,17 +21,14 @@ use piclens_infra::{
 };
 
 use crate::images::{
-    decode_cached_thumbnail, DecodedThumbnail, ThumbnailRequest, ThumbnailRequestIdentity,
+    decode_cached_thumbnail, DecodedThumbnail, ImageResolution, ThumbnailRequest,
+    ThumbnailRequestIdentity,
 };
 
 const SMOKE_CLOSE_GRACE: Duration = Duration::from_secs(2);
 const COMMAND_QUEUE_CAPACITY: usize = 64;
 const EVENT_QUEUE_CAPACITY: usize = 256;
-const COORDINATOR_WORKERS: usize = 1;
-const LIBRARY_SCAN_WORKERS: usize = 1;
-const FOLDER_PICKER_WORKERS: usize = 1;
 const FOLDER_PICKER_QUEUE_CAPACITY: usize = 1;
-const TREE_SCAN_WORKERS: usize = 1;
 const TREE_QUEUE_CAPACITY: usize = 32;
 const THUMBNAIL_WORKERS: usize = 8;
 const THUMBNAIL_QUEUE_CAPACITY: usize = 256;
@@ -69,9 +66,6 @@ pub enum FileOperation {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
-    Probe {
-        identity: WorkIdentity,
-    },
     LoadLibrary {
         identity: WorkIdentity,
         query: ListQuery,
@@ -117,10 +111,6 @@ pub enum Command {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Event {
-    ProbeCompleted {
-        identity: WorkIdentity,
-        result: Result<(), String>,
-    },
     LibraryLoaded {
         identity: WorkIdentity,
         query: ListQuery,
@@ -181,7 +171,6 @@ struct TreeWorker {
 
 impl TreeWorker {
     fn spawn(events: SyncSender<Event>, ctx: egui::Context) -> Self {
-        debug_assert_eq!(TREE_SCAN_WORKERS, 1);
         let (jobs, receiver) = mpsc::sync_channel::<Option<TreeJob>>(TREE_QUEUE_CAPACITY);
         let worker_events = events.clone();
         let worker_ctx = ctx.clone();
@@ -308,7 +297,6 @@ struct FolderPickerWorker {
 
 impl FolderPickerWorker {
     fn spawn(events: SyncSender<Event>, ctx: egui::Context) -> Self {
-        debug_assert_eq!(FOLDER_PICKER_WORKERS, 1);
         let (dialogs, receiver) =
             mpsc::sync_channel::<Option<rfd::FileDialog>>(FOLDER_PICKER_QUEUE_CAPACITY);
         let active = Arc::new(AtomicBool::new(false));
@@ -558,9 +546,9 @@ fn thumbnail_worker_loop(
         if let Err(error) = &result {
             if !error.contains("canceled") {
                 piclens_infra::warn(format!(
-                    "egui thumbnail failed; source={}; size={}; error={error}",
+                    "egui image failed; source={}; resolution={:?}; error={error}",
                     job.request.key.source.display(),
-                    job.request.key.longest_edge
+                    job.request.key.resolution
                 ));
             }
         }
@@ -585,17 +573,38 @@ fn load_thumbnail(
         return Err("thumbnail source changed since the library scan".into());
     }
     let source = job.request.key.source.to_string_lossy();
-    let cache_path = ensure_thumbnail_with_timeout(
-        &source,
-        job.request.key.longest_edge,
-        worker_executable,
-        THUMBNAIL_TIMEOUT,
-        &job.cancellation,
-    )?;
+    let decoded = match job.request.key.resolution {
+        ImageResolution::Original => {
+            let (width, height, rgba) = piclens_infra::load_original_with_timeout(
+                &source,
+                worker_executable,
+                THUMBNAIL_TIMEOUT,
+                &job.cancellation,
+            )?;
+            DecodedThumbnail {
+                width,
+                height,
+                rgba,
+            }
+        }
+        ImageResolution::Preview(edge) => {
+            let cache_path = ensure_thumbnail_with_timeout(
+                &source,
+                edge,
+                worker_executable,
+                THUMBNAIL_TIMEOUT,
+                &job.cancellation,
+            )?;
+            decode_cached_thumbnail(&cache_path)?
+        }
+    };
     if !job.request.key.source_matches_disk() {
         return Err("thumbnail source changed during decode".into());
     }
-    decode_cached_thumbnail(&cache_path)
+    if job.cancellation.is_canceled() {
+        return Err("image canceled".into());
+    }
+    Ok(decoded)
 }
 
 pub struct Backend {
@@ -607,8 +616,6 @@ pub struct Backend {
 
 impl Backend {
     pub fn spawn(ctx: egui::Context, smoke_after: Option<Duration>) -> Self {
-        debug_assert_eq!(COORDINATOR_WORKERS, 1);
-        debug_assert_eq!(LIBRARY_SCAN_WORKERS, 1);
         let (command_tx, command_rx) = mpsc::sync_channel(COMMAND_QUEUE_CAPACITY);
         let (event_tx, event_rx) = mpsc::sync_channel(EVENT_QUEUE_CAPACITY);
         let folder_picker = FolderPickerWorker::spawn(event_tx.clone(), ctx.clone());
@@ -945,18 +952,6 @@ fn coordinator_loop(
         };
 
         match command {
-            Command::Probe { identity } => {
-                if !send_event(
-                    &events,
-                    &ctx,
-                    Event::ProbeCompleted {
-                        identity,
-                        result: Ok(()),
-                    },
-                ) {
-                    break;
-                }
-            }
             Command::LoadLibrary { identity, query } => {
                 stop_active_scan(&mut active_scan);
                 match start_library_scan(identity, query.clone(), events.clone(), ctx.clone()) {
@@ -1276,23 +1271,6 @@ mod tests {
     }
 
     #[test]
-    fn command_returns_matching_event_identity() {
-        let backend = Backend::spawn(egui::Context::default(), None);
-        backend
-            .send(Command::Probe {
-                identity: identity(42),
-            })
-            .unwrap();
-        assert_eq!(
-            backend.recv_timeout(Duration::from_secs(1)).unwrap(),
-            Event::ProbeCompleted {
-                identity: identity(42),
-                result: Ok(())
-            }
-        );
-    }
-
-    #[test]
     fn library_scan_runs_behind_command_boundary() {
         let fixture =
             std::env::temp_dir().join(format!("piclens-egui-scan-{}", std::process::id()));
@@ -1523,7 +1501,7 @@ mod tests {
                 source: "missing-thumbnail.png".into(),
                 modified_unix_ms: None,
                 file_size: 1,
-                longest_edge: 160,
+                resolution: ImageResolution::Preview(160),
             },
         };
         pool.sync(vec![request.clone()]);

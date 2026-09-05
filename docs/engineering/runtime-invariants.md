@@ -36,9 +36,10 @@
 
 - Viewer 使用開啟當下的 immutable image-sequence snapshot；主 library 後續 reload 不得直接改變已開啟 viewer 的 navigation list。
 - Viewer 開啟時取消並暫停被遮住的 gallery thumbnail requests，關閉後恢復可見縮圖排程；共用 decoder 的實體程序總數上限仍為八個。
-- Viewer 只持有一個目前載入或預載工作。目前圖片的 1024-pixel preview 完成後，才依序預載 snapshot 中相鄰的下一張與上一張靜態圖片；不得掃描整個序列預載或建立無界的像素快取。
-- 安全預覽 PNG 在 background executor 解碼成 frontend pixel buffer；UI render 不再讀取或解碼清晰預覽檔。只保留目前與相鄰兩張的像素，共最多三張、12 MiB；切換淘汰與 close 同時釋放對應 GPU texture。重用前須在背景比對來源路徑、mtime、檔案大小與預覽尺寸形成的 cache key。
-- 清晰預覽完成後以完整不透明度繪製，不再等待淡入。每次選取只記錄一次成功的清晰繪製，500ms 目標包含背景處理與 frontend paint submission，但不宣稱量到 OS compositor 的實際呈現時間。
+- Viewer 依序載入目前圖片的 1024-pixel placeholder、完整原圖，再預載 snapshot 中相鄰的下一張與上一張靜態圖片之 1024-pixel preview。預覽失敗仍須嘗試原圖；原圖失敗則保留可用預覽並顯示錯誤。不得預載相鄰原圖或掃描整個序列。
+- 原圖在可取消、可逾時終止的子程序完整解碼，不縮小尺寸。暫存 RGBA 由背景執行緒讀取，成功、失敗與取消後皆清除；不加入永久縮圖快取。UI 不讀檔或解碼圖片。來源路徑、mtime、檔案大小與解析度種類共同識別請求。
+- 只保留目前一張原圖及最多三張預覽。單張原圖 RGBA 上限為 256 MiB，預覽共最多 12 MiB；這不是程序總記憶體上限，解碼、上傳及 GPU 副本另計。超限須回報錯誤，不得偷偷縮圖。超過 GPU 單張貼圖尺寸時以含邊界像素的分塊貼圖繪製，保留完整解析度。切圖與 close 釋放原圖及不再需要的預覽。
+- 原圖完成後直接取代 placeholder，維持符合畫布比例、縮放倍率與平移位置。Metrics schema 5 的 sharp paint 只計完整原圖；preview ready 仍計 1024 預覽。每次選取只記錄一次成功的完整繪製，500ms 目標包含背景處理與 frontend paint submission，但不宣稱量到 OS compositor 的實際呈現時間。
 - 效能驗證須涵蓋同一 Viewer 內連續前後切換；不得以逐次重啟單張圖片的結果代替。持續顯示縮圖、未完成清晰繪製的選取必須計為失敗，不能從樣本中略過；日誌與 metrics 必須標示 Debug／Release。
 - 切換到正在預載的圖片時沿用該工作；其他切換、動畫提示、close、generation change 與 shutdown 必須取消過期工作。只有 request identity 相符的結果能清除工作或更新畫面，包含快速 A-B-A 與關閉後重開同張圖片的情況。
 - Viewer canvas 從 pointer press 起攔截 zoom/pan input，避免事件穿透到底層 gallery 或啟動 drag/drop rename。

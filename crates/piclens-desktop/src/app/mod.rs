@@ -6,9 +6,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use piclens_domain::{
-    apply_tree_children, clamp_zoom, normalize_thumbnail_size, pan_offset, path_equals,
-    replace_tree_for_picker, reset_zoom_state, sort_items, toggle_expand, validate_image_file_name,
-    zoom_at_point, ExpandAction, ListItem, ListQuery, Point, SortState,
+    clamp_zoom, normalize_thumbnail_size, pan_offset, path_equals, replace_tree_for_picker,
+    sort_items, toggle_expand, validate_image_file_name, zoom_at_point, ExpandAction, ListItem,
+    ListQuery, Point, SortState, ZoomState,
 };
 use piclens_infra::plan_drop_rename;
 
@@ -35,7 +35,6 @@ struct Reducer {
     generation: u64,
     tree_generation: u64,
     next_request_id: u64,
-    pending_probe: Option<WorkIdentity>,
     pending_library: Option<WorkIdentity>,
     pending_tree: HashMap<String, WorkIdentity>,
     pending_file_operation: Option<WorkIdentity>,
@@ -54,7 +53,6 @@ impl Reducer {
             generation: 0,
             tree_generation: 0,
             next_request_id: 1,
-            pending_probe: None,
             pending_library: None,
             pending_tree: HashMap::new(),
             pending_file_operation: None,
@@ -90,10 +88,8 @@ impl Reducer {
                 Action::ToggleCompactSidebar => {
                     self.model.compact_sidebar_open = !self.model.compact_sidebar_open;
                 }
-                Action::RetryBackendProbe => self.push_action(Action::StartBackendProbe),
                 Action::DismissStatus => self.model.notice = None,
                 Action::ShowNotice(message) => self.model.notice = Some(message),
-                Action::StartBackendProbe => self.start_backend_probe(),
                 Action::LoadLibrary(query) => self.start_library_load(query),
                 Action::ReloadLibrary => {
                     if self.pending_library.is_none() {
@@ -161,17 +157,6 @@ impl Reducer {
         applied
     }
 
-    fn start_backend_probe(&mut self) {
-        let identity = WorkIdentity {
-            generation: self.generation,
-            request_id: self.next_request_id,
-        };
-        self.next_request_id = self.next_request_id.wrapping_add(1).max(1);
-        self.pending_probe = Some(identity);
-        self.model.backend = Loadable::Loading;
-        self.commands.push_back(Command::Probe { identity });
-    }
-
     fn start_library_load(&mut self, query: ListQuery) {
         self.generation = self.generation.wrapping_add(1).max(1);
         let identity = WorkIdentity {
@@ -205,7 +190,6 @@ impl Reducer {
             self.tree_generation = self.tree_generation.wrapping_add(1).max(1);
             self.pending_tree.clear();
             replace_tree_for_picker(
-                true,
                 &mut self.model.tree_root,
                 &mut self.model.tree_roots,
                 &mut self.model.tree_children,
@@ -359,7 +343,7 @@ impl Reducer {
         self.model.viewer = Some(ViewerState {
             snapshot,
             preview: Loadable::Idle,
-            zoom: reset_zoom_state(),
+            zoom: ZoomState::default(),
         });
         self.model.drag = None;
         self.model.page = Page::Viewer;
@@ -376,7 +360,7 @@ impl Reducer {
         };
         viewer.snapshot.step(delta);
         viewer.preview = Loadable::Idle;
-        viewer.zoom = reset_zoom_state();
+        viewer.zoom = ZoomState::default();
     }
 
     fn adjust_viewer_zoom(&mut self, delta: i32) {
@@ -414,7 +398,7 @@ impl Reducer {
 
     fn reset_viewer_zoom(&mut self) {
         if let Some(viewer) = self.model.viewer.as_mut() {
-            viewer.zoom = reset_zoom_state();
+            viewer.zoom = ZoomState::default();
         }
     }
 
@@ -904,15 +888,6 @@ impl Reducer {
 
     fn handle_event(&mut self, event: Event) -> bool {
         match event {
-            Event::ProbeCompleted { identity, result } if self.pending_probe == Some(identity) => {
-                self.pending_probe = None;
-                self.model.backend = match result {
-                    Ok(()) => Loadable::Ready(()),
-                    Err(message) => Loadable::Failed(message),
-                };
-                true
-            }
-            Event::ProbeCompleted { .. } => false,
             Event::LibraryLoaded {
                 identity, result, ..
             } if self.pending_library == Some(identity) => {
@@ -938,7 +913,7 @@ impl Reducer {
                 self.pending_tree.remove(&parent);
                 match result {
                     Ok(children) => {
-                        apply_tree_children(&mut self.model.tree_children, &parent, children)
+                        self.model.tree_children.insert(parent, children);
                     }
                     Err(message) => self.model.notice = Some(message),
                 }
@@ -999,10 +974,6 @@ impl Reducer {
 
     fn fail_command(&mut self, command: &Command, message: String) -> bool {
         match command {
-            Command::Probe { identity } => self.handle_event(Event::ProbeCompleted {
-                identity: *identity,
-                result: Err(message),
-            }),
             Command::LoadLibrary { identity, query } => self.handle_event(Event::LibraryLoaded {
                 identity: *identity,
                 query: query.clone(),
@@ -1189,7 +1160,6 @@ impl PicLensApp {
             persisted_window_size: None,
             window_size_deadline: None,
         };
-        app.reducer.push_action(Action::StartBackendProbe);
         if let Some(folder) = app.reducer.model.initial_folder.clone() {
             app.reducer.push_action(Action::RestoreFolder(folder));
         }
@@ -1212,7 +1182,7 @@ impl PicLensApp {
                 Event::ThumbnailLoaded { request, result } => {
                     let accepted = self.images.handle_result(&request, result, ctx);
                     if accepted
-                        && request.key.longest_edge != 1024
+                        && matches!(request.key.resolution, crate::images::ImageResolution::Preview(edge) if edge != 1024)
                         && self.images.texture(&request.key).is_some()
                     {
                         if let Some(metrics) = &self.metrics {
@@ -1611,12 +1581,20 @@ impl PicLensApp {
             .as_ref()
             .and_then(|viewer| viewer.snapshot.current())
             .filter(|image| !image.is_animated)
-            .map(|image| crate::images::ThumbnailKey::from_image(image, 1024))
-            .is_some_and(|key| self.images.texture(&key).is_some())
+            .map(crate::images::ThumbnailKey::original)
+            .is_some_and(|key| self.images.original(&key).is_some())
     }
 
     fn record_viewer_preview_ready(&mut self) {
-        if !self.current_viewer_texture_ready() {
+        let preview_ready = self
+            .reducer
+            .model
+            .viewer
+            .as_ref()
+            .and_then(|viewer| viewer.snapshot.current())
+            .map(|image| crate::images::ThumbnailKey::from_image(image, 1024))
+            .is_some_and(|key| self.images.texture(&key).is_some());
+        if !preview_ready {
             return;
         }
         let Some(selection) = self
@@ -1651,7 +1629,7 @@ impl PicLensApp {
         selection.painted = true;
         let elapsed = selection.started.elapsed().as_millis();
         piclens_infra::info(format!(
-            "egui viewer sharp preview painted in {elapsed} ms: {}",
+            "egui viewer full-resolution image painted in {elapsed} ms: {}",
             selection.path
         ));
         if let Some(metrics) = &mut self.metrics {
@@ -1830,24 +1808,6 @@ mod tests {
         assert!(!reducer.model.compact_sidebar_open);
     }
 
-    fn next_probe(reducer: &mut Reducer) -> WorkIdentity {
-        match reducer.commands.pop_front().unwrap() {
-            Command::Probe { identity } => identity,
-            Command::LoadLibrary { .. }
-            | Command::LoadTreeChildren { .. }
-            | Command::PersistLibrarySettings { .. }
-            | Command::PersistPickerFolder { .. }
-            | Command::PersistSidebar { .. }
-            | Command::PersistWindowSize { .. }
-            | Command::SaveScreenshot { .. }
-            | Command::Reveal { .. }
-            | Command::StartFileOperation { .. }
-            | Command::CancelFileOperation { .. } => panic!("expected probe command"),
-            Command::SyncThumbnails { .. } => panic!("expected probe command"),
-            Command::Shutdown => panic!("expected probe command"),
-        }
-    }
-
     fn query(folder: &str) -> ListQuery {
         ListQuery {
             folder_path: folder.into(),
@@ -1859,8 +1819,7 @@ mod tests {
     fn next_library_load(reducer: &mut Reducer) -> (WorkIdentity, ListQuery) {
         match reducer.commands.pop_front().unwrap() {
             Command::LoadLibrary { identity, query } => (identity, query),
-            Command::Probe { .. }
-            | Command::LoadTreeChildren { .. }
+            Command::LoadTreeChildren { .. }
             | Command::PersistLibrarySettings { .. }
             | Command::PersistPickerFolder { .. }
             | Command::PersistSidebar { .. }
@@ -1883,8 +1842,7 @@ mod tests {
                 sort,
                 thumbnail_size,
             } => (include_subfolders, sort, thumbnail_size),
-            Command::Probe { .. }
-            | Command::LoadLibrary { .. }
+            Command::LoadLibrary { .. }
             | Command::LoadTreeChildren { .. }
             | Command::PersistPickerFolder { .. }
             | Command::PersistSidebar { .. }
@@ -1978,48 +1936,6 @@ mod tests {
     }
 
     #[test]
-    fn latest_request_rejects_stale_success_and_error() {
-        let mut reducer = Reducer::new(None);
-        reducer.push_action(Action::RetryBackendProbe);
-        reducer.reduce_actions();
-        let first = next_probe(&mut reducer);
-        reducer.push_action(Action::RetryBackendProbe);
-        reducer.reduce_actions();
-        let second = next_probe(&mut reducer);
-
-        assert!(!reducer.handle_event(Event::ProbeCompleted {
-            identity: first,
-            result: Ok(()),
-        }));
-        assert_eq!(reducer.model.backend, Loadable::Loading);
-        assert!(reducer.handle_event(Event::ProbeCompleted {
-            identity: second,
-            result: Err("測試失敗".into()),
-        }));
-        assert_eq!(reducer.model.backend, Loadable::Failed("測試失敗".into()));
-        assert!(!reducer.handle_event(Event::ProbeCompleted {
-            identity: first,
-            result: Err("過期錯誤".into()),
-        }));
-        assert_eq!(reducer.model.backend, Loadable::Failed("測試失敗".into()));
-    }
-
-    #[test]
-    fn matching_success_clears_pending_request() {
-        let mut reducer = Reducer::new(None);
-        reducer.push_action(Action::StartBackendProbe);
-        reducer.reduce_actions();
-        let identity = next_probe(&mut reducer);
-
-        assert!(reducer.handle_event(Event::ProbeCompleted {
-            identity,
-            result: Ok(()),
-        }));
-        assert_eq!(reducer.model.backend, Loadable::Ready(()));
-        assert_eq!(reducer.pending_probe, None);
-    }
-
-    #[test]
     fn library_load_resets_collection_and_selection_once() {
         let mut reducer = Reducer::new(None);
         reducer.model.selection.ordered_paths.push("old.png".into());
@@ -2062,7 +1978,7 @@ mod tests {
 
         assert!(!reducer.handle_event(Event::LibraryLoaded {
             identity: first,
-            query: first_query,
+            query: first_query.clone(),
             result: Ok(Vec::new()),
         }));
         assert_eq!(reducer.model.library, Loadable::Loading);
@@ -2070,6 +1986,16 @@ mod tests {
             identity: second,
             query: second_query,
             result: Err("第二次載入失敗".into()),
+        }));
+        assert_eq!(
+            reducer.model.library,
+            Loadable::Failed("第二次載入失敗".into())
+        );
+        assert_eq!(reducer.pending_library, None);
+        assert!(!reducer.handle_event(Event::LibraryLoaded {
+            identity: first,
+            query: first_query,
+            result: Err("過期錯誤".into()),
         }));
         assert_eq!(
             reducer.model.library,
@@ -2694,7 +2620,7 @@ mod tests {
         reducer.reduce_actions();
         assert_eq!(
             reducer.model.viewer.as_ref().unwrap().zoom,
-            reset_zoom_state()
+            ZoomState::default()
         );
         assert_eq!(
             reducer

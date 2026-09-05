@@ -104,7 +104,7 @@ try {
     }
 
     $metrics = Get-Content -LiteralPath $metricsPath -Raw | ConvertFrom-Json
-    if ($metrics.schemaVersion -ne 4 -or
+    if ($metrics.schemaVersion -ne 5 -or
         $null -eq $metrics.batchOperationMilliseconds -or
         $metrics.batchTotal -ne $Copies -or
         $metrics.batchSucceeded -ne $Copies -or

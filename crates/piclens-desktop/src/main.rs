@@ -9,6 +9,19 @@ use piclens_infra::{ensure_thumbnail, info, init_file_logger};
 
 fn main() -> eframe::Result<()> {
     let raw_args = std::env::args().collect::<Vec<_>>();
+    if raw_args.get(1).map(String::as_str) == Some("--original-worker") {
+        let result = match (raw_args.get(2), raw_args.get(3)) {
+            (Some(source), Some(output)) => {
+                piclens_infra::write_original_rgba(source, std::path::Path::new(output))
+            }
+            _ => Err("original worker requires source and output paths".into()),
+        };
+        if let Err(error) = result {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
     if raw_args.get(1).map(String::as_str) == Some("--thumbnail-worker") {
         let result = raw_args
             .get(2)

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
 
 use piclens_domain::{
     path_key, sort_items, supported_image_extension, FolderListItem, ImageListItem, ListItem,
@@ -175,13 +175,6 @@ pub fn scan_child_folders_cancellable(
             ListItem::Image(_) => None,
         })
         .collect())
-}
-
-pub fn now_ms() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
 }
 
 #[cfg(test)]

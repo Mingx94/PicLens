@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::{Read, Write};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -14,6 +15,90 @@ use crate::CancellationToken;
 
 const MAX_CACHE_ENTRIES: usize = 2000;
 const MAX_DECODE_PROCESSES: usize = 8;
+pub const MAX_ORIGINAL_RGBA_BYTES: usize = 256 * 1024 * 1024;
+
+/// Worker output is temporary raw RGBA, never a downsampled or persistent cache entry.
+pub fn write_original_rgba(source: &str, output: &Path) -> Result<(), String> {
+    let mut reader = image::ImageReader::open(source)
+        .map_err(|e| e.to_string())?
+        .with_guessed_format()
+        .map_err(|e| e.to_string())?;
+    let mut limits = image::Limits::default();
+    limits.max_alloc = Some(MAX_ORIGINAL_RGBA_BYTES as u64);
+    reader.limits(limits);
+    let decoded = reader.decode().map_err(|e| e.to_string())?;
+    let (width, height) = (decoded.width(), decoded.height());
+    original_rgba_len(width, height)?;
+    let rgba = decoded.into_rgba8();
+    let mut file = fs::File::create(output).map_err(|e| e.to_string())?;
+    file.write_all(&width.to_le_bytes())
+        .and_then(|_| file.write_all(&height.to_le_bytes()))
+        .and_then(|_| file.write_all(rgba.as_raw()))
+        .map_err(|e| e.to_string())
+}
+
+fn original_rgba_len(width: u32, height: u32) -> Result<usize, String> {
+    (width as usize)
+        .checked_mul(height as usize)
+        .and_then(|pixels| pixels.checked_mul(4))
+        .filter(|bytes| *bytes > 0 && *bytes <= MAX_ORIGINAL_RGBA_BYTES)
+        .ok_or_else(|| "原圖超過 256 MiB RGBA 像素上限或尺寸無效。".into())
+}
+
+pub fn load_original_with_timeout(
+    source: &str,
+    executable: &Path,
+    timeout: Duration,
+    cancellation: &CancellationToken,
+) -> Result<(u32, u32, Vec<u8>), String> {
+    use std::sync::atomic::AtomicU64;
+    static NEXT_OUTPUT: AtomicU64 = AtomicU64::new(1);
+    let _permit = acquire_decode_permit(cancellation)?;
+    let output = thumbnail_cache_root().join(format!(
+        "original-{}-{}.rgba",
+        std::process::id(),
+        NEXT_OUTPUT.fetch_add(1, Ordering::Relaxed)
+    ));
+    ensure_parent_dir(&output).map_err(|e| e.to_string())?;
+    let result = (|| {
+        let mut child = Command::new(executable)
+            .arg("--original-worker")
+            .arg(source)
+            .arg(&output)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        if let Err(error) = wait_for_child(&mut child, timeout, cancellation) {
+            let mut detail = String::new();
+            if let Some(mut stderr) = child.stderr.take() {
+                let _ = stderr.read_to_string(&mut detail);
+            }
+            return Err(format!("{error}: {}", detail.trim()));
+        }
+        if cancellation.is_canceled() {
+            return Err("original canceled".into());
+        }
+        let mut file = fs::File::open(&output).map_err(|e| e.to_string())?;
+        let mut header = [0; 8];
+        file.read_exact(&mut header).map_err(|e| e.to_string())?;
+        let width = u32::from_le_bytes(header[..4].try_into().unwrap());
+        let height = u32::from_le_bytes(header[4..].try_into().unwrap());
+        let len = original_rgba_len(width, height)?;
+        if file.metadata().map_err(|e| e.to_string())?.len() != len as u64 + 8 {
+            return Err("原圖解碼輸出長度無效。".into());
+        }
+        let mut rgba = vec![0; len];
+        file.read_exact(&mut rgba).map_err(|e| e.to_string())?;
+        if cancellation.is_canceled() {
+            return Err("original canceled".into());
+        }
+        Ok((width, height, rgba))
+    })();
+    let _ = fs::remove_file(output);
+    result
+}
 
 // Set in the parent process, not in the short-lived decoder workers.
 // Start dirty so an oversized cache from a previous run is also pruned.
@@ -238,16 +323,6 @@ fn prune_cache(root: &Path, capacity: usize) -> std::io::Result<usize> {
         }
     }
     Ok(remove_count)
-}
-
-pub fn load_thumbnail_rgba(
-    source_path: &str,
-    logical_size: u32,
-) -> Result<(u32, u32, Vec<u8>), String> {
-    let path = ensure_thumbnail(source_path, logical_size)?;
-    let img = image::open(path).map_err(|e| e.to_string())?.into_rgba8();
-    let (w, h) = img.dimensions();
-    Ok((w, h, img.into_raw()))
 }
 
 #[cfg(test)]

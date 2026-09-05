@@ -21,10 +21,8 @@ pub enum Action {
     ToggleTreeFolder(String),
     ToggleSidebar,
     ToggleCompactSidebar,
-    RetryBackendProbe,
     DismissStatus,
     ShowNotice(String),
-    StartBackendProbe,
     LoadLibrary(ListQuery),
     ReloadLibrary,
     SetSearch(String),
@@ -185,7 +183,6 @@ pub struct AppModel {
     pub drag: Option<DragSession>,
     pub dialog: Option<DialogState>,
     pub viewer: Option<ViewerState>,
-    pub backend: Loadable<()>,
     pub notice: Option<String>,
 }
 
@@ -213,7 +210,6 @@ impl AppModel {
             drag: None,
             dialog: None,
             viewer: None,
-            backend: Loadable::Loading,
             notice: None,
         }
     }

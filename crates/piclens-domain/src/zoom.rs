@@ -8,10 +8,6 @@ pub fn clamp_zoom(zoom: f64) -> f64 {
     zoom.clamp(MIN_ZOOM, MAX_ZOOM)
 }
 
-pub fn reset_zoom_state() -> ZoomState {
-    ZoomState::default()
-}
-
 pub fn zoom_at_point(
     zoom: f64,
     offset: Point,
@@ -44,12 +40,6 @@ pub fn pan_offset(offset: Point, delta: Point) -> Point {
     }
 }
 
-/// Pixel size of the viewer image box. Zoom `1.0` fills the canvas (contain).
-pub fn viewer_display_box(canvas_width: f64, canvas_height: f64, zoom: f64) -> (f64, f64) {
-    let zoom = clamp_zoom(zoom);
-    (canvas_width.max(1.0) * zoom, canvas_height.max(1.0) * zoom)
-}
-
 pub fn is_fit_view(zoom: f64, offset: Point) -> bool {
     zoom <= 1.01 && offset.x.abs() < 0.5 && offset.y.abs() < 0.5
 }
@@ -77,12 +67,10 @@ mod tests {
     }
 
     #[test]
-    fn display_box_fills_canvas_at_fit_zoom() {
-        assert_eq!(viewer_display_box(1280.0, 720.0, 1.0), (1280.0, 720.0));
-        let (w, h) = viewer_display_box(1280.0, 720.0, ZOOM_STEP);
-        assert!((w - 1280.0 * ZOOM_STEP).abs() < 1e-9);
-        assert!((h - 720.0 * ZOOM_STEP).abs() < 1e-9);
+    fn fit_view_requires_fit_zoom_and_centered_offset() {
         assert!(is_fit_view(1.0, Point::default()));
         assert!(!is_fit_view(ZOOM_STEP, Point::default()));
+        assert!(!is_fit_view(1.0, Point { x: 1.0, y: 0.0 }));
+        assert!(!is_fit_view(1.0, Point { x: 0.0, y: 1.0 }));
     }
 }

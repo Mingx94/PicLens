@@ -23,34 +23,21 @@ pub fn toggle_expand(expanded: &mut HashSet<String>, path: &str) -> ExpandAction
     }
 }
 
-pub fn apply_tree_children(
-    children_by_parent: &mut HashMap<String, Vec<String>>,
-    parent: &str,
-    children: Vec<String>,
-) {
-    children_by_parent.insert(parent.to_string(), children);
-}
-
 /// Replace the tree only for a picker selection or its startup restore.
 pub fn replace_tree_for_picker(
-    remember_picker: bool,
     tree_root: &mut Option<String>,
     roots: &mut Vec<String>,
     children_by_parent: &mut HashMap<String, Vec<String>>,
     expanded: &mut HashSet<String>,
     picker_path: &str,
     new_roots: Vec<String>,
-) -> bool {
-    if !remember_picker {
-        return false;
-    }
+) {
     *tree_root = Some(picker_path.to_string());
     *roots = vec![picker_path.to_string()];
     children_by_parent.clear();
     children_by_parent.insert(picker_path.to_string(), new_roots);
     expanded.clear();
     expanded.insert(picker_path.to_string());
-    true
 }
 
 pub fn visible_tree_rows(
@@ -98,8 +85,8 @@ mod tests {
     fn root_is_fixed_while_descendants_expand_and_collapse() {
         let roots = vec!["/root".into()];
         let mut children = HashMap::new();
-        apply_tree_children(&mut children, "/root", vec!["/root/a".into()]);
-        apply_tree_children(&mut children, "/root/a", vec!["/root/a/one".into()]);
+        children.insert("/root".into(), vec!["/root/a".into()]);
+        children.insert("/root/a".into(), vec!["/root/a/one".into()]);
         let mut expanded = HashSet::new();
 
         let root_rows = visible_tree_rows(&roots, &children, &expanded);
@@ -116,37 +103,5 @@ mod tests {
             ExpandAction::Collapse
         );
         assert_eq!(visible_tree_rows(&roots, &children, &expanded).len(), 2);
-    }
-
-    #[test]
-    fn navigation_cannot_replace_the_picker_root() {
-        let mut root = Some("/old".into());
-        let mut roots = vec!["/old".into()];
-        let mut children = HashMap::from([("/old".into(), vec!["/old/a".into()])]);
-        let mut expanded = HashSet::from(["/old".into()]);
-
-        assert!(!replace_tree_for_picker(
-            false,
-            &mut root,
-            &mut roots,
-            &mut children,
-            &mut expanded,
-            "/old/a",
-            vec![],
-        ));
-        assert_eq!(root.as_deref(), Some("/old"));
-        assert_eq!(roots, vec!["/old"]);
-
-        assert!(replace_tree_for_picker(
-            true,
-            &mut root,
-            &mut roots,
-            &mut children,
-            &mut expanded,
-            "/new",
-            vec!["/new/a".into()],
-        ));
-        assert_eq!(root.as_deref(), Some("/new"));
-        assert_eq!(roots, vec!["/new"]);
     }
 }

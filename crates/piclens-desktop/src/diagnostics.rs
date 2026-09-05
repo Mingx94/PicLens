@@ -11,7 +11,7 @@ use serde_json::json;
 use sysinfo::{Pid, ProcessesToUpdate, System};
 
 const PROCESS_SAMPLE_INTERVAL: Duration = Duration::from_millis(250);
-const METRICS_SCHEMA_VERSION: u8 = 4;
+const METRICS_SCHEMA_VERSION: u8 = 5;
 
 #[derive(Debug)]
 pub struct RuntimeMetrics {

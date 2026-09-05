@@ -92,28 +92,6 @@ pub fn normalize_settings(settings: &AppSettings) -> AppSettings {
     normalized
 }
 
-/// Persist sidebar / window size without touching last-picker-folder authority.
-pub fn apply_layout_persist(
-    current: &AppSettings,
-    sidebar_collapsed: Option<bool>,
-    window: Option<(u32, u32)>,
-) -> AppSettings {
-    let (window_width, window_height) = match window {
-        Some((w, h)) => {
-            let (w, h) = normalize_window_size(w, h);
-            (Some(w), Some(h))
-        }
-        None => (None, None),
-    };
-    let patch = AppSettingsPatch {
-        sidebar_collapsed,
-        window_width,
-        window_height,
-        ..Default::default()
-    };
-    merge_settings_patch(current, &patch)
-}
-
 pub fn merge_settings_patch(current: &AppSettings, patch: &AppSettingsPatch) -> AppSettings {
     let mut merged = normalize_settings(current);
     if let Some(last) = &patch.last_folder_path {
@@ -175,21 +153,6 @@ mod tests {
         assert_eq!(merged.sort.key, SortKey::ModifiedAt);
         assert!(merged.include_subfolders);
         assert_eq!(merged.thumbnail_size, 200);
-    }
-
-    #[test]
-    fn layout_persist_keeps_last_folder_authority() {
-        let current = AppSettings {
-            last_folder_path: Some("/picker".into()),
-            include_subfolders: true,
-            ..AppSettings::default()
-        };
-        let merged = apply_layout_persist(&current, Some(true), Some((900, 700)));
-        assert_eq!(merged.last_folder_path.as_deref(), Some("/picker"));
-        assert!(merged.sidebar_collapsed);
-        assert_eq!(merged.window_width, Some(900));
-        assert_eq!(merged.window_height, Some(700));
-        assert!(merged.include_subfolders);
     }
 
     #[test]

@@ -6,12 +6,18 @@ use std::time::UNIX_EPOCH;
 
 use piclens_domain::ImageListItem;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ImageResolution {
+    Preview(u32),
+    Original,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ThumbnailKey {
     pub source: PathBuf,
     pub modified_unix_ms: Option<i64>,
     pub file_size: u64,
-    pub longest_edge: u32,
+    pub resolution: ImageResolution,
 }
 
 impl ThumbnailKey {
@@ -20,7 +26,14 @@ impl ThumbnailKey {
             source: image.path.clone().into(),
             modified_unix_ms: image.modified_at_ms,
             file_size: image.size_bytes,
-            longest_edge: longest_edge.max(16),
+            resolution: ImageResolution::Preview(longest_edge.max(16)),
+        }
+    }
+
+    pub fn original(image: &ImageListItem) -> Self {
+        Self {
+            resolution: ImageResolution::Original,
+            ..Self::from_image(image, 1024)
         }
     }
 
@@ -83,7 +96,83 @@ impl DecodedThumbnail {
 enum ThumbnailEntry {
     Pending(ThumbnailRequest),
     Ready(egui::TextureHandle),
+    Original(OriginalTexture),
     Failed { generation: u64, message: String },
+}
+
+pub struct OriginalTexture {
+    pub size: egui::Vec2,
+    tiles: Vec<(egui::TextureHandle, egui::Rect, egui::Rect)>,
+}
+
+impl OriginalTexture {
+    fn upload(decoded: DecodedThumbnail, ctx: &egui::Context, name: &str) -> Result<Self, String> {
+        let (width, height) = (decoded.width as usize, decoded.height as usize);
+        let len = width.checked_mul(height).and_then(|n| n.checked_mul(4));
+        if width == 0
+            || height == 0
+            || len != Some(decoded.rgba.len())
+            || decoded.rgba.len() > piclens_infra::MAX_ORIGINAL_RGBA_BYTES
+        {
+            return Err("原圖解碼尺寸無效或超過像素上限。".into());
+        }
+        let side = ctx.input(|input| input.max_texture_side).max(3);
+        let mut tiles = Vec::new();
+        // One-pixel gutters let linear filtering sample across tile boundaries.
+        for y in (0..height).step_by(side - 2) {
+            for x in (0..width).step_by(side - 2) {
+                let right = (x + side - 2).min(width);
+                let bottom = (y + side - 2).min(height);
+                let left = x.saturating_sub(1);
+                let top = y.saturating_sub(1);
+                let end_x = (right + 1).min(width);
+                let end_y = (bottom + 1).min(height);
+                let mut rgba = Vec::with_capacity((end_x - left) * (end_y - top) * 4);
+                for row in top..end_y {
+                    rgba.extend_from_slice(
+                        &decoded.rgba[(row * width + left) * 4..(row * width + end_x) * 4],
+                    );
+                }
+                let texture = ctx.load_texture(
+                    format!("{name}:{x}:{y}"),
+                    egui::ColorImage::from_rgba_unmultiplied([end_x - left, end_y - top], &rgba),
+                    egui::TextureOptions::LINEAR,
+                );
+                let bounds = egui::Rect::from_min_max(
+                    egui::pos2(x as f32, y as f32),
+                    egui::pos2(right as f32, bottom as f32),
+                );
+                let uv = egui::Rect::from_min_max(
+                    egui::pos2(
+                        (x - left) as f32 / (end_x - left) as f32,
+                        (y - top) as f32 / (end_y - top) as f32,
+                    ),
+                    egui::pos2(
+                        (right - left) as f32 / (end_x - left) as f32,
+                        (bottom - top) as f32 / (end_y - top) as f32,
+                    ),
+                );
+                tiles.push((texture, bounds, uv));
+            }
+        }
+        Ok(Self {
+            size: egui::vec2(width as f32, height as f32),
+            tiles,
+        })
+    }
+
+    pub fn paint(&self, painter: &egui::Painter, rect: egui::Rect) {
+        let scale = rect.size() / self.size;
+        for (texture, bounds, uv) in &self.tiles {
+            let tile = egui::Rect::from_min_max(
+                rect.min + bounds.min.to_vec2() * scale,
+                rect.min + bounds.max.to_vec2() * scale,
+            );
+            if painter.clip_rect().intersects(tile) {
+                painter.image(texture.id(), tile, *uv, egui::Color32::WHITE);
+            }
+        }
+    }
 }
 
 pub struct ThumbnailLoader {
@@ -103,6 +192,12 @@ impl Default for ThumbnailLoader {
 }
 
 impl ThumbnailLoader {
+    pub fn original(&self, key: &ThumbnailKey) -> Option<&OriginalTexture> {
+        match self.entries.get(key) {
+            Some(ThumbnailEntry::Original(image)) => Some(image),
+            _ => None,
+        }
+    }
     pub fn texture(&self, key: &ThumbnailKey) -> Option<&egui::TextureHandle> {
         match self.entries.get(key) {
             Some(ThumbnailEntry::Ready(texture)) => Some(texture),
@@ -120,7 +215,11 @@ impl ThumbnailLoader {
     pub fn is_settled(&self, key: &ThumbnailKey) -> bool {
         matches!(
             self.entries.get(key),
-            Some(ThumbnailEntry::Ready(_) | ThumbnailEntry::Failed { .. })
+            Some(
+                ThumbnailEntry::Ready(_)
+                    | ThumbnailEntry::Original(_)
+                    | ThumbnailEntry::Failed { .. }
+            )
         )
     }
 
@@ -144,7 +243,7 @@ impl ThumbnailLoader {
                     generation: failed_generation,
                     ..
                 }) => *failed_generation != generation,
-                Some(ThumbnailEntry::Ready(_)) => false,
+                Some(ThumbnailEntry::Ready(_) | ThumbnailEntry::Original(_)) => false,
             };
             if must_start {
                 let request = ThumbnailRequest {
@@ -187,18 +286,26 @@ impl ThumbnailLoader {
             return false;
         }
 
-        let entry =
-            match result.and_then(|thumbnail| thumbnail.color_image(request.key.longest_edge)) {
-                Ok(image) => ThumbnailEntry::Ready(ctx.load_texture(
+        let loaded = result.and_then(|thumbnail| match request.key.resolution {
+            ImageResolution::Original => {
+                OriginalTexture::upload(thumbnail, ctx, &texture_name(&request.key))
+                    .map(ThumbnailEntry::Original)
+            }
+            ImageResolution::Preview(edge) => thumbnail.color_image(edge).map(|image| {
+                ThumbnailEntry::Ready(ctx.load_texture(
                     texture_name(&request.key),
                     image,
                     egui::TextureOptions::LINEAR,
-                )),
-                Err(message) => ThumbnailEntry::Failed {
-                    generation: request.identity.generation,
-                    message,
-                },
-            };
+                ))
+            }),
+        });
+        let entry = match loaded {
+            Ok(entry) => entry,
+            Err(message) => ThumbnailEntry::Failed {
+                generation: request.identity.generation,
+                message,
+            },
+        };
         self.entries.insert(request.key.clone(), entry);
         true
     }
@@ -223,11 +330,11 @@ impl ThumbnailLoader {
 
 fn texture_name(key: &ThumbnailKey) -> String {
     format!(
-        "thumbnail:{}:{:?}:{}:{}",
+        "thumbnail:{}:{:?}:{}:{:?}",
         key.source.display(),
         key.modified_unix_ms,
         key.file_size,
-        key.longest_edge
+        key.resolution
     )
 }
 
@@ -246,6 +353,46 @@ pub fn decode_cached_thumbnail(path: &Path) -> Result<DecodedThumbnail, String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn original_tiles_preserve_dimensions_and_are_released_on_close() {
+        let ctx = egui::Context::default();
+        let side = ctx.input(|input| input.max_texture_side);
+        let width = side as u32 + 3;
+        let key = ThumbnailKey::original(&image());
+        let mut loader = ThumbnailLoader::default();
+        let first = loader
+            .sync_materialized(vec![key.clone()], 1)
+            .unwrap()
+            .remove(0);
+        loader.sync_materialized(Vec::new(), 1);
+        let second = loader
+            .sync_materialized(vec![key.clone()], 1)
+            .unwrap()
+            .remove(0);
+        assert!(!loader.handle_result(&first, Err("stale".into()), &ctx));
+        assert!(loader.handle_result(
+            &second,
+            Ok(DecodedThumbnail {
+                width,
+                height: 2,
+                rgba: vec![255; width as usize * 2 * 4],
+            }),
+            &ctx
+        ));
+        let original = loader.original(&key).unwrap();
+        assert_eq!(original.size, egui::vec2(width as f32, 2.0));
+        assert!(original.tiles.len() > 1);
+        assert!(original
+            .tiles
+            .iter()
+            .all(|(texture, _, _)| texture.size()[0] <= side));
+        let area: f32 = original.tiles.iter().map(|(_, rect, _)| rect.area()).sum();
+        assert_eq!(area, width as f32 * 2.0);
+        loader.sync_materialized(Vec::new(), 1);
+        assert!(loader.original(&key).is_none());
+        assert!(!loader.handle_result(&second, Err("late".into()), &ctx));
+    }
 
     fn image() -> ImageListItem {
         ImageListItem {
@@ -268,7 +415,10 @@ mod tests {
         changed.size_bytes = 100;
         assert_ne!(base, ThumbnailKey::from_image(&changed, 160));
         assert_ne!(base, ThumbnailKey::from_image(&image(), 240));
-        assert_eq!(ThumbnailKey::from_image(&image(), 1).longest_edge, 16);
+        assert_eq!(
+            ThumbnailKey::from_image(&image(), 1).resolution,
+            ImageResolution::Preview(16)
+        );
     }
 
     #[test]
@@ -400,7 +550,7 @@ mod tests {
             source: source.clone(),
             modified_unix_ms,
             file_size: metadata.len(),
-            longest_edge: 160,
+            resolution: ImageResolution::Preview(160),
         };
 
         assert!(key.source_matches_disk());

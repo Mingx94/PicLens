@@ -177,10 +177,7 @@ pub fn show(
 }
 
 fn library_footer(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
-    if !matches!(model.library, Loadable::Ready(_))
-        && matches!(model.backend, Loadable::Ready(()))
-        && model.notice.is_none()
-    {
+    if !matches!(model.library, Loadable::Ready(_)) && model.notice.is_none() {
         return;
     }
     let palette = theme::palette(ui.ctx());
@@ -1546,6 +1543,17 @@ fn viewer_content(
     ui.add_space(12.0);
 
     let key = ThumbnailKey::from_image(current, 1024);
+    let original_key = ThumbnailKey::original(current);
+    if let Some(original) = images.original(&original_key) {
+        ui.label(format!(
+            "{} × {} 像素",
+            original.size.x as u32, original.size.y as u32
+        ));
+    } else if let Some(message) = images.failure(&original_key) {
+        ui.label(format!("原圖載入失敗，保留預覽：{message}"));
+    } else if images.original(&original_key).is_none() && !current.is_animated {
+        ui.label("正在載入完整圖片…");
+    }
     materialized.extend(viewer_preview_keys(&viewer.snapshot, images));
     let (canvas, response) =
         ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
@@ -1562,6 +1570,19 @@ fn viewer_content(
             "此動畫圖片目前不支援預覽。",
             palette.viewer_text,
         );
+    } else if let Some(original) = images.original(&original_key) {
+        let fit_scale = (canvas.width() / original.size.x)
+            .min(canvas.height() / original.size.y)
+            .max(0.0);
+        let center =
+            canvas.center() + egui::vec2(viewer.zoom.offset.x as f32, viewer.zoom.offset.y as f32);
+        original.paint(
+            &painter,
+            egui::Rect::from_center_size(
+                center,
+                original.size * fit_scale * viewer.zoom.zoom as f32,
+            ),
+        );
     } else if let Some(texture) = images.texture(&key) {
         let texture_size = texture.size_vec2();
         let fit_scale = (canvas.width() / texture_size.x)
@@ -1574,7 +1595,7 @@ fn viewer_content(
             texture.id(),
             egui::Rect::from_center_size(center, image_size),
             egui::Rect::from_min_max(egui::Pos2::ZERO, egui::pos2(1.0, 1.0)),
-            palette.viewer_text,
+            Color32::WHITE,
         );
     } else if let Some(message) = images.failure(&key) {
         paint_viewer_message(
@@ -1661,6 +1682,12 @@ fn viewer_preview_keys(
     let current_key = ThumbnailKey::from_image(current, 1024);
     let mut keys = vec![current_key.clone()];
     if !images.is_settled(&current_key) {
+        return keys;
+    }
+
+    let original_key = ThumbnailKey::original(current);
+    keys.push(original_key.clone());
+    if !images.is_settled(&original_key) {
         return keys;
     }
 
@@ -1781,26 +1808,6 @@ fn folder_tree(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
 }
 
 fn status_feedback(model: &AppModel, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
-    let palette = theme::palette(ui.ctx());
-    match &model.backend {
-        Loadable::Idle | Loadable::Loading => {
-            ui.horizontal(|ui| {
-                ui.spinner();
-                let response = ui.label("正在啟動背景服務…");
-                mark_live(ui, &response, egui::accesskit::Live::Polite);
-            });
-        }
-        Loadable::Ready(()) => {}
-        Loadable::Failed(message) => {
-            ui.horizontal_wrapped(|ui| {
-                let response = ui.label(RichText::new(message).color(palette.danger).strong());
-                mark_live(ui, &response, egui::accesskit::Live::Assertive);
-                if ui.button("再試一次").clicked() {
-                    actions.push(Action::RetryBackendProbe);
-                }
-            });
-        }
-    }
     if let Some(notice) = &model.notice {
         ui.horizontal_wrapped(|ui| {
             let response = ui.label(notice);
@@ -1956,7 +1963,7 @@ mod tests {
         model.viewer = Some(crate::model::ViewerState {
             snapshot,
             preview: Loadable::Idle,
-            zoom: piclens_domain::reset_zoom_state(),
+            zoom: piclens_domain::ZoomState::default(),
         });
         let mut harness = Harness::new_ui_state(
             move |ui, materialized: &mut Vec<ThumbnailKey>| {
@@ -1971,11 +1978,87 @@ mod tests {
         assert!(back.is_focused());
         let _ = harness.get_by_role_and_label(egui::accesskit::Role::Image, "image2.png");
         assert_eq!(harness.state().len(), 1);
-        assert_eq!(harness.state()[0].longest_edge, 1024);
+        assert_eq!(
+            harness.state()[0].resolution,
+            crate::images::ImageResolution::Preview(1024)
+        );
     }
 
     #[test]
-    fn viewer_previews_load_current_then_next_then_previous_within_three_textures() {
+    fn viewer_keeps_placeholder_on_original_failure_and_replaces_it_on_success() {
+        let mut model = crate::demo::loaded_library();
+        let query = model.library_query.as_ref().unwrap();
+        let snapshot = ImageSequenceSnapshot::from_visible(
+            query.folder_path.clone(),
+            query.include_subfolders,
+            query.sort,
+            &model.visible_items,
+            "C:/fixture/image2.png",
+        )
+        .unwrap();
+        let preview_key = ThumbnailKey::from_image(snapshot.current().unwrap(), 1024);
+        let original_key = ThumbnailKey::original(snapshot.current().unwrap());
+        model.page = Page::Viewer;
+        model.viewer = Some(crate::model::ViewerState {
+            snapshot,
+            preview: Loadable::Idle,
+            zoom: piclens_domain::ZoomState::default(),
+        });
+        let mut harness = Harness::new_ui_state(
+            move |ui, loader: &mut ThumbnailLoader| {
+                show(&model, loader, ui, &mut Vec::new());
+            },
+            ThumbnailLoader::default(),
+        );
+        let ctx = harness.ctx.clone();
+        let loader = harness.state_mut();
+        let preview = loader
+            .sync_materialized(vec![preview_key.clone()], 1)
+            .unwrap()
+            .remove(0);
+        loader.handle_result(
+            &preview,
+            Ok(crate::images::DecodedThumbnail {
+                width: 2,
+                height: 2,
+                rgba: vec![255; 16],
+            }),
+            &ctx,
+        );
+        let placeholder_id = loader.texture(&preview_key).unwrap().id();
+        let keys = vec![preview_key.clone(), original_key.clone()];
+        let original = loader.sync_materialized(keys.clone(), 1).unwrap().remove(0);
+        loader.handle_result(&original, Err("decode failed".into()), &ctx);
+        harness.step();
+        let failed = harness.output();
+        assert!(failed.shapes.iter().any(|shape| matches!(&shape.shape,
+            egui::Shape::Mesh(mesh) if mesh.texture_id == placeholder_id)));
+
+        let loader = harness.state_mut();
+        let retried = loader.sync_materialized(keys, 2).unwrap().remove(0);
+        loader.handle_result(
+            &retried,
+            Ok(crate::images::DecodedThumbnail {
+                width: 4,
+                height: 4,
+                rgba: vec![255; 64],
+            }),
+            &ctx,
+        );
+        harness.step();
+        let ready = harness.output();
+        assert!(!ready.shapes.iter().any(|shape| matches!(&shape.shape,
+            egui::Shape::Mesh(mesh) if mesh.texture_id == placeholder_id)));
+        assert!(ready.shapes.iter().any(|shape| matches!(&shape.shape,
+            egui::Shape::Mesh(mesh) if mesh.texture_id != egui::TextureId::default())));
+        assert_eq!(
+            harness.state().original(&original_key).unwrap().size,
+            egui::vec2(4.0, 4.0)
+        );
+    }
+
+    #[test]
+    fn viewer_loads_placeholder_then_original_before_neighbor_previews() {
         let model = crate::demo::large_library(3);
         let query = model.library_query.as_ref().unwrap();
         let snapshot = ImageSequenceSnapshot::from_visible(
@@ -2000,9 +2083,23 @@ mod tests {
         let request = loader.sync_materialized(current, 1).unwrap().remove(0);
         assert!(loader.handle_result(&request, Ok(ready()), &ctx));
 
+        let with_original = viewer_preview_keys(&snapshot, &loader);
+        assert_eq!(with_original.len(), 2);
+        assert_eq!(
+            with_original[1].resolution,
+            crate::images::ImageResolution::Original
+        );
+        let original_key = with_original[1].clone();
+        let request = loader
+            .sync_materialized(with_original, 1)
+            .unwrap()
+            .remove(0);
+        assert!(loader.handle_result(&request, Ok(ready()), &ctx));
+        assert!(loader.original(&original_key).is_some());
+
         let current_and_next = viewer_preview_keys(&snapshot, &loader);
-        assert_eq!(current_and_next.len(), 2);
-        assert!(current_and_next[1].source.ends_with("image2.png"));
+        assert_eq!(current_and_next.len(), 3);
+        assert!(current_and_next[2].source.ends_with("image2.png"));
         let request = loader
             .sync_materialized(current_and_next, 1)
             .unwrap()
@@ -2010,9 +2107,18 @@ mod tests {
         assert!(loader.handle_result(&request, Ok(ready()), &ctx));
 
         let all = viewer_preview_keys(&snapshot, &loader);
-        assert_eq!(all.len(), 3);
-        assert!(all[2].source.ends_with("image0.png"));
-        assert!(all.iter().all(|key| key.longest_edge == 1024));
+        assert_eq!(all.len(), 4);
+        assert!(all[3].source.ends_with("image0.png"));
+        assert_eq!(
+            all.iter()
+                .filter(|key| key.resolution == crate::images::ImageResolution::Original)
+                .count(),
+            1
+        );
+        let mut next_snapshot = snapshot.clone();
+        next_snapshot.step(1);
+        loader.sync_materialized(viewer_preview_keys(&next_snapshot, &loader), 1);
+        assert!(loader.original(&original_key).is_none());
     }
 
     #[test]
@@ -2302,7 +2408,7 @@ mod tests {
     #[test]
     fn dynamic_statuses_expose_accesskit_live_semantics() {
         let mut model = crate::demo::loaded_library();
-        model.backend = Loadable::Failed("背景服務測試錯誤".into());
+        model.library = Loadable::Failed("圖庫載入測試錯誤".into());
         model.notice = Some("測試通知".into());
         let mut harness = Harness::new_ui(move |ui| {
             let mut actions = Vec::new();
@@ -2310,7 +2416,7 @@ mod tests {
         });
         harness.run();
 
-        let error = harness.get_by_label("背景服務測試錯誤");
+        let error = harness.get_by_label("圖庫載入測試錯誤");
         assert_eq!(
             egui_kittest::kittest::NodeT::accesskit_node(&error).live(),
             egui::accesskit::Live::Assertive
@@ -2367,7 +2473,7 @@ mod tests {
         model.viewer = Some(crate::model::ViewerState {
             snapshot,
             preview: Loadable::Idle,
-            zoom: piclens_domain::reset_zoom_state(),
+            zoom: piclens_domain::ZoomState::default(),
         });
         model.dialog = Some(DialogState::TrashConfirmation {
             paths: vec!["C:/fixture/image2.png".into()],
@@ -2515,7 +2621,12 @@ mod tests {
 
             for label in ["搜尋圖片", "包含子資料夾", "縮圖大小", "目前結果操作"]
             {
-                for node in harness.query_all_by_label(label) {
+                let nodes: Vec<_> = harness.query_all_by_label(label).collect();
+                assert!(
+                    !nodes.is_empty(),
+                    "missing control: {label}, size={size:?}, scale={scale}"
+                );
+                for node in nodes {
                     let rect = node.rect();
                     assert!(
                         rect.min.x >= 0.0 && rect.max.x <= size.x,

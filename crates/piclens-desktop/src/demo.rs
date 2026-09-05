@@ -4,19 +4,13 @@ use piclens_domain::{FolderListItem, ImageListItem, ListItem, ListQuery};
 
 use crate::model::{AppModel, Loadable};
 
-pub fn empty_library() -> AppModel {
-    let mut model = AppModel::new(None);
-    model.backend = Loadable::Ready(());
-    model
-}
-
 pub fn loaded_library() -> AppModel {
     let query = ListQuery {
         folder_path: "C:/fixture".into(),
         include_subfolders: false,
         sort: Default::default(),
     };
-    let mut model = empty_library();
+    let mut model = AppModel::new(None);
     model.current_folder = Some(query.folder_path.clone().into());
     model.library_query = Some(query);
     let items = vec![
