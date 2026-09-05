@@ -64,10 +64,6 @@ fn existing_directory_files(dir: &Path) -> Vec<String> {
         .collect()
 }
 
-pub fn trash_paths(paths: &[String]) -> FileOperationBatchResult {
-    trash_paths_cancellable(paths, &CancellationToken::new())
-}
-
 pub fn trash_paths_cancellable(
     paths: &[String],
     cancellation: &CancellationToken,
@@ -100,10 +96,6 @@ pub fn trash_paths_cancellable(
         }
     }
     FileOperationBatchResult { items }
-}
-
-pub fn rename_image(source_path: &str, new_file_name: &str) -> FileOperationResult {
-    rename_image_cancellable(source_path, new_file_name, &CancellationToken::new())
 }
 
 pub fn rename_image_cancellable(
@@ -181,19 +173,11 @@ pub fn rename_image_cancellable(
     }
 }
 
-pub fn convert_to_jpg(paths: &[String]) -> FileOperationBatchResult {
-    convert_to_jpg_cancellable(paths, &CancellationToken::new())
-}
-
 pub fn convert_to_jpg_cancellable(
     paths: &[String],
     cancellation: &CancellationToken,
 ) -> FileOperationBatchResult {
     convert_paths(paths, ImageFormat::Jpeg, "jpg", 100, cancellation)
-}
-
-pub fn convert_to_lossless_webp(paths: &[String]) -> FileOperationBatchResult {
-    convert_to_lossless_webp_cancellable(paths, &CancellationToken::new())
 }
 
 pub fn convert_to_lossless_webp_cancellable(
@@ -357,10 +341,6 @@ fn convert_one(
 }
 
 /// Keep JPG/JPEG and WebP; trash other same-basename formats when either preferred form exists.
-pub fn cleanup_same_basename(paths: &[String]) -> FileOperationBatchResult {
-    cleanup_same_basename_cancellable(paths, &CancellationToken::new())
-}
-
 pub fn cleanup_same_basename_cancellable(
     paths: &[String],
     cancellation: &CancellationToken,
@@ -416,10 +396,6 @@ pub fn plan_drop_rename(source_paths: &[String], target_path: &str) -> DropTarge
         .unwrap_or_else(|| PathBuf::from("."));
     let existing = existing_directory_files(&parent);
     plan_drop_target_batch_rename(source_paths, target_path, &existing)
-}
-
-pub fn apply_drop_rename(plan: &DropTargetBatchRenamePlan) -> FileOperationBatchResult {
-    apply_drop_rename_cancellable(plan, &CancellationToken::new())
 }
 
 pub fn apply_drop_rename_cancellable(
@@ -577,7 +553,7 @@ mod cancellation_tests {
         };
         std::fs::write(&target, b"existing").unwrap();
 
-        let batch = apply_drop_rename(&plan);
+        let batch = apply_drop_rename_cancellable(&plan, &CancellationToken::new());
 
         assert_eq!(batch.skipped(), 1);
         assert_eq!(batch.items[0].reason.as_deref(), Some("target_exists"));

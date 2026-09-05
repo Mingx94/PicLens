@@ -1589,7 +1589,17 @@ fn viewer_content(
 
     if response.hovered() {
         let scroll_y = ui.input_mut(|input| {
-            let scroll_y = input.smooth_scroll_delta.y;
+            // A smoothed wheel event spans multiple frames. Only the raw input
+            // should trigger a discrete zoom step, otherwise one tick zooms repeatedly.
+            let scroll_y: f32 = input
+                .raw
+                .events
+                .iter()
+                .filter_map(|event| match event {
+                    egui::Event::MouseWheel { delta, .. } => Some(delta.y),
+                    _ => None,
+                })
+                .sum();
             input.smooth_scroll_delta.y = 0.0;
             scroll_y
         });

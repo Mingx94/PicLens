@@ -3,7 +3,8 @@
 pub mod app;
 pub mod backend;
 pub mod cli;
-pub mod demo;
+#[cfg(test)]
+mod demo;
 pub mod diagnostics;
 pub mod images;
 pub mod model;

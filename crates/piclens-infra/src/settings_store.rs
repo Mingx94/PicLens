@@ -56,10 +56,6 @@ impl JsonSettingsStore {
         Self { path: path.into() }
     }
 
-    pub fn settings_path(&self) -> &Path {
-        &self.path
-    }
-
     pub fn load(&self) -> AppSettings {
         self.load_with_recovery().settings
     }

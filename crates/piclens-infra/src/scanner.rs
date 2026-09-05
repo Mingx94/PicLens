@@ -97,10 +97,6 @@ fn direct_entries(
     Ok(entries)
 }
 
-pub fn scan_folder(query: &ListQuery) -> Result<Vec<ListItem>, ScanError> {
-    scan_folder_cancellable(query, &CancellationToken::new())
-}
-
 pub fn scan_folder_cancellable(
     query: &ListQuery,
     cancellation: &CancellationToken,
@@ -148,10 +144,6 @@ pub fn scan_folder_cancellable(
     }
 
     Ok(sort_items(&items, query.sort, !query.include_subfolders))
-}
-
-pub fn scan_child_folders(folder_path: &str) -> Result<Vec<FolderListItem>, ScanError> {
-    scan_child_folders_cancellable(folder_path, &CancellationToken::new())
 }
 
 pub fn scan_child_folders_cancellable(

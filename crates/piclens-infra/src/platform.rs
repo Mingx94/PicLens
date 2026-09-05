@@ -20,10 +20,6 @@ pub enum PlatformError {
     Message(String),
 }
 
-pub fn move_to_trash(path: &str) -> Result<(), PlatformError> {
-    move_to_trash_cancellable(path, &CancellationToken::new())
-}
-
 pub fn move_to_trash_cancellable(
     path: &str,
     cancellation: &CancellationToken,

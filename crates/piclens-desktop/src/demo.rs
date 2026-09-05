@@ -10,10 +10,6 @@ pub fn empty_library() -> AppModel {
     model
 }
 
-pub fn startup_error(message: impl Into<String>) -> AppModel {
-    AppModel::demo_error(message)
-}
-
 pub fn loaded_library() -> AppModel {
     let query = ListQuery {
         folder_path: "C:/fixture".into(),

@@ -217,32 +217,4 @@ impl AppModel {
             notice: None,
         }
     }
-
-    pub fn demo_error(message: impl Into<String>) -> Self {
-        Self {
-            initial_folder: None,
-            current_folder: None,
-            library_query: None,
-            history: FolderHistory::default(),
-            tree_root: None,
-            tree_roots: Vec::new(),
-            tree_children: HashMap::new(),
-            tree_expanded: HashSet::new(),
-            sidebar_collapsed: false,
-            compact_sidebar_open: false,
-            page: Page::Library,
-            library: Loadable::Idle,
-            visible_items: Vec::new(),
-            search: String::new(),
-            thumbnail_size: DEFAULT_THUMBNAIL_SIZE,
-            selection: SelectionState::default(),
-            gallery_scroll_target: None,
-            gallery_scroll_delta: None,
-            drag: None,
-            dialog: None,
-            viewer: None,
-            backend: Loadable::Failed(message.into()),
-            notice: None,
-        }
-    }
 }

@@ -1063,10 +1063,6 @@ fn request_focus(ctx: &egui::Context, target: egui::Id) {
     ctx.request_repaint();
 }
 
-fn request_gallery_focus(ctx: &egui::Context) {
-    request_focus(ctx, ui::gallery_focus_id());
-}
-
 const VIEWER_SELECTION_HOLD: Duration = Duration::from_millis(650);
 
 struct ViewerSelectionMetric {
@@ -1273,7 +1269,7 @@ impl PicLensApp {
             && self.reducer.model.dialog.is_none()
             && self.reducer.model.page == Page::Library
         {
-            request_gallery_focus(ctx);
+            request_focus(ctx, ui::gallery_focus_id());
         }
         changed
     }
