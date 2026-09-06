@@ -16,6 +16,11 @@ Historical measurements below used 1024 previews and do not establish full-resol
 - While the viewer covers the gallery, gallery thumbnail work is canceled and paused. It resumes on close. Loading proceeds from current placeholder to current original, then next and previous previews, one at a time. Only the current original is retained, with a 256 MiB RGBA limit plus at most three 1024 previews (12 MiB). Decode and upload copies, tile gutters, and GPU memory are additional. Navigation cancels stale work and evicts the old original; close releases viewer textures.
 - Workers return `Event` values through a bounded channel and request an egui repaint after delivery.
 
+- Search reuses a sorted projection with normalized names and paths until the library or sort changes. Each query filters that projection without sorting or normalizing every item again.
+- Finished gallery textures outside the materialized range have a separate recent-use cache capped at 32 MiB of texture pixels and 256 entries. Active textures and renderer overhead are additional. Generation changes clear this cache; pending requests and Viewer originals/previews are not retained there.
+- Cold thumbnail workers return temporary RGBA alongside the persistent PNG cache. The parent reads those pixels directly; warm loads still decode the PNG cache. PNG encoding remains part of cold loading.
+- Background workers prepare original tile pixels, including alpha conversion and gutters. The UI accepts only matching request identities and submits the prepared textures. Actual GPU upload can still affect frame time.
+
 These mechanisms reduce obvious blocking and unbounded work. They do not define a measured latency, memory, throughput, or frame-time guarantee.
 
 ## Measurement rules

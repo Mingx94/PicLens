@@ -14,14 +14,14 @@ use piclens_domain::{
 };
 use piclens_infra::{
     apply_drop_rename_cancellable, cleanup_same_basename_cancellable, convert_to_jpg_cancellable,
-    convert_to_lossless_webp_cancellable, ensure_thumbnail_with_timeout,
+    convert_to_lossless_webp_cancellable, load_thumbnail_with_timeout,
     prune_thumbnail_cache_if_needed, rename_image_cancellable, scan_child_folders_cancellable,
     scan_folder_cancellable, trash_paths_cancellable, CancellationToken, JsonSettingsStore,
     ScanError,
 };
 
 use crate::images::{
-    decode_cached_thumbnail, DecodedThumbnail, ImageResolution, ThumbnailRequest,
+    DecodedThumbnail, ImageResolution, PreparedThumbnail, ThumbnailRequest,
     ThumbnailRequestIdentity,
 };
 
@@ -109,7 +109,7 @@ pub enum Command {
     Shutdown,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Event {
     LibraryLoaded {
         identity: WorkIdentity,
@@ -132,7 +132,7 @@ pub enum Event {
     },
     ThumbnailLoaded {
         request: ThumbnailRequest,
-        result: Result<DecodedThumbnail, String>,
+        result: Result<PreparedThumbnail, String>,
     },
     RevealCompleted {
         result: Result<(), String>,
@@ -542,7 +542,13 @@ fn thumbnail_worker_loop(
         let Some(job) = job else {
             continue;
         };
-        let result = load_thumbnail(&job, &worker_executable);
+        let result = load_thumbnail(&job, &worker_executable).and_then(|decoded| {
+            decoded.prepare(
+                job.request.key.resolution,
+                ctx.input(|input| input.max_texture_side),
+                &job.cancellation,
+            )
+        });
         if let Err(error) = &result {
             if !error.contains("canceled") {
                 piclens_infra::warn(format!(
@@ -588,14 +594,18 @@ fn load_thumbnail(
             }
         }
         ImageResolution::Preview(edge) => {
-            let cache_path = ensure_thumbnail_with_timeout(
+            let (width, height, rgba) = load_thumbnail_with_timeout(
                 &source,
                 edge,
                 worker_executable,
                 THUMBNAIL_TIMEOUT,
                 &job.cancellation,
             )?;
-            decode_cached_thumbnail(&cache_path)?
+            DecodedThumbnail {
+                width,
+                height,
+                rgba,
+            }
         }
     };
     if !job.request.key.source_matches_disk() {

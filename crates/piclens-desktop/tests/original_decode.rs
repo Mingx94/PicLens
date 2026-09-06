@@ -33,6 +33,32 @@ fn original_worker_preserves_pixels_and_reports_decode_errors() {
     assert_eq!(rgba, fixture.into_raw());
     assert_eq!(std::fs::read(&source).unwrap(), before);
 
+    let expected = image::load_from_memory(&before)
+        .unwrap()
+        .thumbnail(160, 160)
+        .into_rgba8();
+    let cold = piclens_infra::load_thumbnail_with_timeout(
+        &source.to_string_lossy(),
+        160,
+        executable,
+        Duration::from_secs(10),
+        &token,
+    )
+    .unwrap();
+    assert_eq!((cold.0, cold.1), expected.dimensions());
+    assert_eq!(cold.2, expected.into_raw());
+    // A warm cache must not need a decoder process, and must preserve pixels.
+    let warm = piclens_infra::load_thumbnail_with_timeout(
+        &source.to_string_lossy(),
+        160,
+        &root.join("missing-worker.exe"),
+        Duration::from_secs(10),
+        &token,
+    )
+    .unwrap();
+    assert_eq!(warm, cold);
+    assert_eq!(std::fs::read(&source).unwrap(), before);
+
     std::fs::write(&source, b"invalid image").unwrap();
     assert!(piclens_infra::load_original_with_timeout(
         &source.to_string_lossy(),
@@ -41,7 +67,24 @@ fn original_worker_preserves_pixels_and_reports_decode_errors() {
         &token,
     )
     .is_err());
+    assert!(piclens_infra::load_thumbnail_with_timeout(
+        &source.to_string_lossy(),
+        160,
+        executable,
+        Duration::from_secs(10),
+        &token,
+    )
+    .is_err());
     token.cancel();
+    assert!(piclens_infra::load_thumbnail_with_timeout(
+        &source.to_string_lossy(),
+        160,
+        executable,
+        Duration::from_secs(10),
+        &token,
+    )
+    .unwrap_err()
+    .contains("canceled"));
     assert!(piclens_infra::load_original_with_timeout(
         &source.to_string_lossy(),
         executable,

@@ -26,6 +26,9 @@
 ## Thumbnail pipeline
 
 - 只對 visible/materialized static-image tiles 排程 thumbnail work；tile unload 或 generation change 必須取消或淘汰過期結果。
+- 已完成的圖庫貼圖可保留在近期快取，離開可見範圍的貼圖像素合計上限為 32 MiB、最多 256 筆；generation change 清除此快取。不得因此繼續排程不可見項目，也不快取已取消的工作或 Viewer 原圖／1024 預覽。可見貼圖與 renderer 額外配置另計。
+- 冷載入 worker 同時產生 PNG 快取與暫存 RGBA，主程序直接讀取 RGBA；暖載入沿用 PNG。暫存 RGBA 在成功、失敗與取消後皆清除。
+- 原圖分塊、邊界像素複製與 alpha 轉換由背景 worker 完成，UI 只在 request identity 相符時提交準備好的貼圖。
 - Decode 不得在 UI thread 同步執行。
 - Request concurrency、timeout、logical-slot accounting 與 cache capacity 必須有界限；單一 stalled decoder 不得永久阻塞後續 visible requests。
 - UI-bound model updates 必須回到 UI thread。

@@ -1,7 +1,7 @@
 //! Thumbnail identities, decoded pixels, and egui texture lifetime.
 
-use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
 
 use piclens_domain::ImageListItem;
@@ -105,8 +105,45 @@ pub struct OriginalTexture {
     tiles: Vec<(egui::TextureHandle, egui::Rect, egui::Rect)>,
 }
 
-impl OriginalTexture {
-    fn upload(decoded: DecodedThumbnail, ctx: &egui::Context, name: &str) -> Result<Self, String> {
+#[derive(Debug, Clone, PartialEq)]
+pub enum PreparedThumbnail {
+    Preview(egui::ColorImage),
+    Original(PreparedOriginal),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PreparedOriginal {
+    size: egui::Vec2,
+    tiles: Vec<(egui::ColorImage, egui::Rect, egui::Rect)>,
+}
+
+impl DecodedThumbnail {
+    pub fn prepare(
+        self,
+        resolution: ImageResolution,
+        side: usize,
+        cancellation: &piclens_infra::CancellationToken,
+    ) -> Result<PreparedThumbnail, String> {
+        if cancellation.is_canceled() {
+            return Err("thumbnail canceled".into());
+        }
+        match resolution {
+            ImageResolution::Preview(edge) => {
+                self.color_image(edge).map(PreparedThumbnail::Preview)
+            }
+            ImageResolution::Original => {
+                PreparedOriginal::prepare(self, side, cancellation).map(PreparedThumbnail::Original)
+            }
+        }
+    }
+}
+
+impl PreparedOriginal {
+    fn prepare(
+        decoded: DecodedThumbnail,
+        side: usize,
+        cancellation: &piclens_infra::CancellationToken,
+    ) -> Result<Self, String> {
         let (width, height) = (decoded.width as usize, decoded.height as usize);
         let len = width.checked_mul(height).and_then(|n| n.checked_mul(4));
         if width == 0
@@ -116,7 +153,7 @@ impl OriginalTexture {
         {
             return Err("原圖解碼尺寸無效或超過像素上限。".into());
         }
-        let side = ctx.input(|input| input.max_texture_side).max(3);
+        let side = side.max(3);
         let mut tiles = Vec::new();
         // One-pixel gutters let linear filtering sample across tile boundaries.
         for y in (0..height).step_by(side - 2) {
@@ -127,17 +164,20 @@ impl OriginalTexture {
                 let top = y.saturating_sub(1);
                 let end_x = (right + 1).min(width);
                 let end_y = (bottom + 1).min(height);
-                let mut rgba = Vec::with_capacity((end_x - left) * (end_y - top) * 4);
+                let mut pixels = Vec::with_capacity((end_x - left) * (end_y - top));
                 for row in top..end_y {
-                    rgba.extend_from_slice(
-                        &decoded.rgba[(row * width + left) * 4..(row * width + end_x) * 4],
+                    if cancellation.is_canceled() {
+                        return Err("original canceled".into());
+                    }
+                    pixels.extend(
+                        decoded.rgba[(row * width + left) * 4..(row * width + end_x) * 4]
+                            .as_chunks::<4>()
+                            .0
+                            .iter()
+                            .map(|p| egui::Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3])),
                     );
                 }
-                let texture = ctx.load_texture(
-                    format!("{name}:{x}:{y}"),
-                    egui::ColorImage::from_rgba_unmultiplied([end_x - left, end_y - top], &rgba),
-                    egui::TextureOptions::LINEAR,
-                );
+                let image = egui::ColorImage::new([end_x - left, end_y - top], pixels);
                 let bounds = egui::Rect::from_min_max(
                     egui::pos2(x as f32, y as f32),
                     egui::pos2(right as f32, bottom as f32),
@@ -152,13 +192,37 @@ impl OriginalTexture {
                         (bottom - top) as f32 / (end_y - top) as f32,
                     ),
                 );
-                tiles.push((texture, bounds, uv));
+                tiles.push((image, bounds, uv));
             }
         }
         Ok(Self {
             size: egui::vec2(width as f32, height as f32),
             tiles,
         })
+    }
+}
+
+impl OriginalTexture {
+    fn upload(prepared: PreparedOriginal, ctx: &egui::Context, name: &str) -> Self {
+        Self {
+            size: prepared.size,
+            tiles: prepared
+                .tiles
+                .into_iter()
+                .enumerate()
+                .map(|(index, (image, bounds, uv))| {
+                    (
+                        ctx.load_texture(
+                            format!("{name}:{index}"),
+                            image,
+                            egui::TextureOptions::LINEAR,
+                        ),
+                        bounds,
+                        uv,
+                    )
+                })
+                .collect(),
+        }
     }
 
     pub fn paint(&self, painter: &egui::Painter, rect: egui::Rect) {
@@ -179,6 +243,8 @@ pub struct ThumbnailLoader {
     entries: HashMap<ThumbnailKey, ThumbnailEntry>,
     last_synced_requests: Vec<ThumbnailRequest>,
     next_request_id: u64,
+    recent: VecDeque<(ThumbnailKey, egui::TextureHandle, usize)>,
+    cache_generation: u64,
 }
 
 impl Default for ThumbnailLoader {
@@ -187,6 +253,8 @@ impl Default for ThumbnailLoader {
             entries: HashMap::new(),
             last_synced_requests: Vec::new(),
             next_request_id: 1,
+            recent: VecDeque::new(),
+            cache_generation: 0,
         }
     }
 }
@@ -201,6 +269,11 @@ impl ThumbnailLoader {
     pub fn texture(&self, key: &ThumbnailKey) -> Option<&egui::TextureHandle> {
         match self.entries.get(key) {
             Some(ThumbnailEntry::Ready(texture)) => Some(texture),
+            None => self
+                .recent
+                .iter()
+                .find(|(cached, _, _)| cached == key)
+                .map(|(_, texture, _)| texture),
             _ => None,
         }
     }
@@ -233,8 +306,44 @@ impl ThumbnailLoader {
             .into_iter()
             .filter(|key| seen.insert(key.clone()))
             .collect::<Vec<_>>();
-        self.entries.retain(|key, _| seen.contains(key));
+        let same_generation = self.cache_generation == generation;
+        if !same_generation {
+            self.recent.clear();
+            self.cache_generation = generation;
+        }
+        self.entries.retain(|key, entry| {
+            if seen.contains(key) {
+                return true;
+            }
+            // Only finished gallery textures enter the cache. Viewer originals,
+            // 1024 previews and pending work retain their existing lifetime.
+            if same_generation
+                && matches!(key.resolution, ImageResolution::Preview(edge) if edge != 1024)
+            {
+                if let ThumbnailEntry::Ready(texture) = entry {
+                    self.recent
+                        .push_back((key.clone(), texture.clone(), texture.byte_size()));
+                }
+            }
+            false
+        });
 
+        for key in &keys {
+            if !self.entries.contains_key(key) {
+                if let Some(index) = self.recent.iter().position(|(cached, _, _)| cached == key) {
+                    let (_, texture, _) = self.recent.remove(index).unwrap();
+                    self.entries
+                        .insert(key.clone(), ThumbnailEntry::Ready(texture));
+                }
+            }
+        }
+
+        let mut bytes: usize = self.recent.iter().map(|(_, _, bytes)| *bytes).sum();
+        while bytes > 32 * 1024 * 1024 || self.recent.len() > 256 {
+            if let Some((_, _, evicted_bytes)) = self.recent.pop_front() {
+                bytes -= evicted_bytes;
+            }
+        }
         for key in &keys {
             let must_start = match self.entries.get(key) {
                 None => true,
@@ -273,10 +382,10 @@ impl ThumbnailLoader {
         Some(requests)
     }
 
-    pub fn handle_result(
+    pub fn handle_prepared_result(
         &mut self,
         request: &ThumbnailRequest,
-        result: Result<DecodedThumbnail, String>,
+        result: Result<PreparedThumbnail, String>,
         ctx: &egui::Context,
     ) -> bool {
         let Some(ThumbnailEntry::Pending(pending)) = self.entries.get(&request.key) else {
@@ -286,18 +395,15 @@ impl ThumbnailLoader {
             return false;
         }
 
-        let loaded = result.and_then(|thumbnail| match request.key.resolution {
-            ImageResolution::Original => {
-                OriginalTexture::upload(thumbnail, ctx, &texture_name(&request.key))
-                    .map(ThumbnailEntry::Original)
-            }
-            ImageResolution::Preview(edge) => thumbnail.color_image(edge).map(|image| {
-                ThumbnailEntry::Ready(ctx.load_texture(
-                    texture_name(&request.key),
-                    image,
-                    egui::TextureOptions::LINEAR,
-                ))
-            }),
+        let loaded = result.map(|thumbnail| match thumbnail {
+            PreparedThumbnail::Original(prepared) => ThumbnailEntry::Original(
+                OriginalTexture::upload(prepared, ctx, &texture_name(&request.key)),
+            ),
+            PreparedThumbnail::Preview(image) => ThumbnailEntry::Ready(ctx.load_texture(
+                texture_name(&request.key),
+                image,
+                egui::TextureOptions::LINEAR,
+            )),
         });
         let entry = match loaded {
             Ok(entry) => entry,
@@ -308,6 +414,23 @@ impl ThumbnailLoader {
         };
         self.entries.insert(request.key.clone(), entry);
         true
+    }
+
+    #[cfg(test)]
+    pub fn handle_result(
+        &mut self,
+        request: &ThumbnailRequest,
+        result: Result<DecodedThumbnail, String>,
+        ctx: &egui::Context,
+    ) -> bool {
+        let result = result.and_then(|decoded| {
+            decoded.prepare(
+                request.key.resolution,
+                ctx.input(|input| input.max_texture_side),
+                &piclens_infra::CancellationToken::new(),
+            )
+        });
+        self.handle_prepared_result(request, result, ctx)
     }
 
     pub fn fail_requests(&mut self, requests: &[ThumbnailRequest], message: &str) {
@@ -336,18 +459,6 @@ fn texture_name(key: &ThumbnailKey) -> String {
         key.file_size,
         key.resolution
     )
-}
-
-pub fn decode_cached_thumbnail(path: &Path) -> Result<DecodedThumbnail, String> {
-    let image = image::open(path)
-        .map_err(|error| error.to_string())?
-        .into_rgba8();
-    let (width, height) = image.dimensions();
-    Ok(DecodedThumbnail {
-        width,
-        height,
-        rgba: image.into_raw(),
-    })
 }
 
 #[cfg(test)]
@@ -392,6 +503,108 @@ mod tests {
         loader.sync_materialized(Vec::new(), 1);
         assert!(loader.original(&key).is_none());
         assert!(!loader.handle_result(&second, Err("late".into()), &ctx));
+    }
+
+    #[test]
+    fn gallery_cache_reuses_ready_textures_and_discards_old_generations() {
+        let ctx = egui::Context::default();
+        let key = ThumbnailKey::from_image(&image(), 160);
+        let mut loader = ThumbnailLoader::default();
+        let request = loader
+            .sync_materialized(vec![key.clone()], 1)
+            .unwrap()
+            .remove(0);
+        loader.handle_result(
+            &request,
+            Ok(DecodedThumbnail {
+                width: 1,
+                height: 1,
+                rgba: vec![255; 4],
+            }),
+            &ctx,
+        );
+        let id = loader.texture(&key).unwrap().id();
+        loader.sync_materialized(Vec::new(), 1);
+        // The view queries textures before syncing the new materialized range.
+        assert_eq!(loader.texture(&key).unwrap().id(), id);
+        assert!(loader.sync_materialized(vec![key.clone()], 1).is_none());
+        assert_eq!(loader.texture(&key).unwrap().id(), id);
+        loader.sync_materialized(Vec::new(), 2);
+        assert!(loader.recent.is_empty());
+        assert_eq!(loader.sync_materialized(vec![key], 2).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn gallery_cache_evicts_oldest_texture_at_byte_limit() {
+        let ctx = egui::Context::default();
+        let mut loader = ThumbnailLoader {
+            cache_generation: 1,
+            ..Default::default()
+        };
+        // 9 x 4 MiB exceeds the 32 MiB inactive texture budget.
+        for index in 0..9 {
+            let mut key = ThumbnailKey::from_image(&image(), 1000);
+            key.source = format!("{index}.png").into();
+            let texture = ctx.load_texture(
+                format!("cache-{index}"),
+                egui::ColorImage::filled([1024, 1024], egui::Color32::WHITE),
+                egui::TextureOptions::LINEAR,
+            );
+            let bytes = texture.byte_size();
+            loader.recent.push_back((key, texture, bytes));
+        }
+        loader.sync_materialized(Vec::new(), 1);
+        assert_eq!(loader.recent.len(), 8);
+        assert_eq!(
+            loader.recent.front().unwrap().0.source,
+            PathBuf::from("1.png")
+        );
+    }
+
+    #[test]
+    fn original_preparation_preserves_gutters_and_alpha_and_can_cancel() {
+        let rgba: Vec<u8> = (0..15).flat_map(|n| [n * 10, 21, 35, 128]).collect();
+        let prepared = PreparedOriginal::prepare(
+            DecodedThumbnail {
+                width: 5,
+                height: 3,
+                rgba: rgba.clone(),
+            },
+            4,
+            &piclens_infra::CancellationToken::new(),
+        )
+        .unwrap();
+        for (image, bounds, _) in &prepared.tiles {
+            let left = (bounds.min.x as usize).saturating_sub(1);
+            let top = (bounds.min.y as usize).saturating_sub(1);
+            for y in 0..image.size[1] {
+                for x in 0..image.size[0] {
+                    let i = ((top + y) * 5 + left + x) * 4;
+                    assert_eq!(
+                        image.pixels[y * image.size[0] + x],
+                        egui::Color32::from_rgba_unmultiplied(
+                            rgba[i],
+                            rgba[i + 1],
+                            rgba[i + 2],
+                            rgba[i + 3]
+                        )
+                    );
+                }
+            }
+        }
+        let token = piclens_infra::CancellationToken::new();
+        token.cancel();
+        assert!(PreparedOriginal::prepare(
+            DecodedThumbnail {
+                width: 5,
+                height: 3,
+                rgba
+            },
+            4,
+            &token
+        )
+        .unwrap_err()
+        .contains("canceled"));
     }
 
     fn image() -> ImageListItem {

@@ -30,6 +30,11 @@ pub fn write_original_rgba(source: &str, output: &Path) -> Result<(), String> {
     let (width, height) = (decoded.width(), decoded.height());
     original_rgba_len(width, height)?;
     let rgba = decoded.into_rgba8();
+    write_rgba(&rgba, output)
+}
+
+fn write_rgba(rgba: &image::RgbaImage, output: &Path) -> Result<(), String> {
+    let (width, height) = rgba.dimensions();
     let mut file = fs::File::create(output).map_err(|e| e.to_string())?;
     file.write_all(&width.to_le_bytes())
         .and_then(|_| file.write_all(&height.to_le_bytes()))
@@ -51,6 +56,38 @@ pub fn load_original_with_timeout(
     timeout: Duration,
     cancellation: &CancellationToken,
 ) -> Result<(u32, u32, Vec<u8>), String> {
+    load_rgba_worker(source, None, executable, timeout, cancellation)
+}
+
+/// Reuse the PNG disk cache when warm; cold workers also return raw pixels so
+/// the parent does not decode the PNG it has just asked the worker to encode.
+pub fn load_thumbnail_with_timeout(
+    source: &str,
+    edge: u32,
+    executable: &Path,
+    timeout: Duration,
+    cancellation: &CancellationToken,
+) -> Result<(u32, u32, Vec<u8>), String> {
+    if cancellation.is_canceled() {
+        return Err("thumbnail canceled".into());
+    }
+    let cached = thumbnail_path(source, edge);
+    if cached.exists() {
+        let rgba = image::open(cached).map_err(|e| e.to_string())?.into_rgba8();
+        return Ok((rgba.width(), rgba.height(), rgba.into_raw()));
+    }
+    let result = load_rgba_worker(source, Some(edge), executable, timeout, cancellation);
+    CACHE_DIRTY.store(true, Ordering::Relaxed);
+    result
+}
+
+fn load_rgba_worker(
+    source: &str,
+    edge: Option<u32>,
+    executable: &Path,
+    timeout: Duration,
+    cancellation: &CancellationToken,
+) -> Result<(u32, u32, Vec<u8>), String> {
     use std::sync::atomic::AtomicU64;
     static NEXT_OUTPUT: AtomicU64 = AtomicU64::new(1);
     let _permit = acquire_decode_permit(cancellation)?;
@@ -61,10 +98,19 @@ pub fn load_original_with_timeout(
     ));
     ensure_parent_dir(&output).map_err(|e| e.to_string())?;
     let result = (|| {
-        let mut child = Command::new(executable)
-            .arg("--original-worker")
+        let mut command = Command::new(executable);
+        command
+            .arg(if edge.is_some() {
+                "--thumbnail-rgba-worker"
+            } else {
+                "--original-worker"
+            })
             .arg(source)
-            .arg(&output)
+            .arg(&output);
+        if let Some(edge) = edge {
+            command.arg(edge.to_string());
+        }
+        let mut child = command
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
@@ -86,6 +132,9 @@ pub fn load_original_with_timeout(
         let width = u32::from_le_bytes(header[..4].try_into().unwrap());
         let height = u32::from_le_bytes(header[4..].try_into().unwrap());
         let len = original_rgba_len(width, height)?;
+        if edge.is_some_and(|edge| width > edge.max(16) || height > edge.max(16)) {
+            return Err("thumbnail worker returned oversized pixels".into());
+        }
         if file.metadata().map_err(|e| e.to_string())?.len() != len as u64 + 8 {
             return Err("原圖解碼輸出長度無效。".into());
         }
@@ -160,8 +209,28 @@ pub fn thumbnail_path(source_path: &str, logical_size: u32) -> PathBuf {
 /// Decode panics and I/O failures become `Err` — never unwind across the UI.
 /// Cache maintenance belongs to the parent, not to this decoder worker.
 pub fn ensure_thumbnail(source_path: &str, logical_size: u32) -> Result<PathBuf, String> {
+    ensure_thumbnail_output(source_path, logical_size, None)
+}
+
+pub fn write_thumbnail_rgba(
+    source_path: &str,
+    logical_size: u32,
+    output: &Path,
+) -> Result<(), String> {
+    ensure_thumbnail_output(source_path, logical_size, Some(output)).map(|_| ())
+}
+
+fn ensure_thumbnail_output(
+    source_path: &str,
+    logical_size: u32,
+    output: Option<&Path>,
+) -> Result<PathBuf, String> {
     let out = thumbnail_path(source_path, logical_size);
     if out.exists() {
+        if let Some(output) = output {
+            let rgba = image::open(&out).map_err(|e| e.to_string())?.into_rgba8();
+            write_rgba(&rgba, output)?;
+        }
         return Ok(out);
     }
     ensure_parent_dir(&out).map_err(|e| e.to_string())?;
@@ -175,6 +244,9 @@ pub fn ensure_thumbnail(source_path: &str, logical_size: u32) -> Result<PathBuf,
         Err(_) => return Err(format!("thumbnail decode panicked: {source_path}")),
     };
 
+    if let Some(output) = output {
+        write_rgba(&thumb.to_rgba8(), output)?;
+    }
     let temporary = out.with_extension(format!("{}.tmp", std::process::id()));
     let save = catch_unwind(AssertUnwindSafe(|| {
         thumb

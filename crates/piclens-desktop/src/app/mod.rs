@@ -42,6 +42,7 @@ struct Reducer {
     include_subfolders: bool,
     sort: SortState,
     close_requested: bool,
+    search_projection: Option<Vec<(ListItem, String, String)>>,
 }
 
 impl Reducer {
@@ -60,6 +61,7 @@ impl Reducer {
             include_subfolders: false,
             sort: SortState::default(),
             close_requested: false,
+            search_projection: None,
         }
     }
 
@@ -169,6 +171,7 @@ impl Reducer {
         self.sort = query.sort;
         self.model.current_folder = Some(query.folder_path.clone().into());
         self.model.library_query = Some(query.clone());
+        self.search_projection = None;
         self.model.library = Loadable::Loading;
         self.model.visible_items.clear();
         self.model.selection = SelectionState::default();
@@ -247,23 +250,35 @@ impl Reducer {
             self.model.visible_items.clear();
             return;
         };
+        if self.search_projection.is_none() {
+            let (sort, folders_first) = self
+                .model
+                .library_query
+                .as_ref()
+                .map(|query| (query.sort, !query.include_subfolders))
+                .unwrap_or_default();
+            self.search_projection = Some(
+                sort_items(items, sort, folders_first)
+                    .into_iter()
+                    .map(|item| {
+                        let name = item.name().to_lowercase();
+                        let path = item.path().to_lowercase();
+                        (item, name, path)
+                    })
+                    .collect(),
+            );
+        }
         let search = self.model.search.trim().to_lowercase();
-        let filtered = items
-            .iter()
-            .filter(|item| {
-                search.is_empty()
-                    || item.name().to_lowercase().contains(&search)
-                    || item.path().to_lowercase().contains(&search)
-            })
-            .cloned()
-            .collect::<Vec<_>>();
-        let (sort, folders_first) = self
-            .model
-            .library_query
+        self.model.visible_items = self
+            .search_projection
             .as_ref()
-            .map(|query| (query.sort, !query.include_subfolders))
-            .unwrap_or_default();
-        self.model.visible_items = sort_items(&filtered, sort, folders_first);
+            .unwrap()
+            .iter()
+            .filter(|(_, name, path)| {
+                search.is_empty() || name.contains(&search) || path.contains(&search)
+            })
+            .map(|(item, _, _)| item.clone())
+            .collect();
     }
 
     fn persist_library_settings(&mut self) {
@@ -275,6 +290,7 @@ impl Reducer {
     }
 
     fn set_sort(&mut self, sort: SortState) {
+        self.search_projection = None;
         self.sort = sort;
         if let Some(query) = &mut self.model.library_query {
             query.sort = sort;
@@ -894,6 +910,7 @@ impl Reducer {
                 self.pending_library = None;
                 match result {
                     Ok(items) => {
+                        self.search_projection = None;
                         self.model.library = Loadable::Ready(items);
                         self.rebuild_visible_items();
                     }
@@ -1180,7 +1197,7 @@ impl PicLensApp {
                     }
                 }
                 Event::ThumbnailLoaded { request, result } => {
-                    let accepted = self.images.handle_result(&request, result, ctx);
+                    let accepted = self.images.handle_prepared_result(&request, result, ctx);
                     if accepted
                         && matches!(request.key.resolution, crate::images::ImageResolution::Preview(edge) if edge != 1024)
                         && self.images.texture(&request.key).is_some()
@@ -2086,6 +2103,31 @@ mod tests {
         );
         let (_, saved_sort, _) = next_persist(&mut reducer);
         assert_eq!(saved_sort.direction, SortDirection::Desc);
+        // Matching the parent path and clearing a query must use the full
+        // cached projection, not narrow the previous search results.
+        reducer.push_action(Action::SetSearch("CURRENT/".into()));
+        reducer.reduce_actions();
+        assert_eq!(reducer.model.visible_items.len(), 3);
+        reducer.push_action(Action::SetSearch(String::new()));
+        reducer.reduce_actions();
+        assert_eq!(reducer.model.visible_items.len(), 3);
+        reducer.push_action(Action::ReloadLibrary);
+        reducer.reduce_actions();
+        let (identity, loaded_query) = next_library_load(&mut reducer);
+        reducer.handle_event(Event::LibraryLoaded {
+            identity,
+            query: loaded_query,
+            result: Ok(vec![image("新圖片.png")]),
+        });
+        assert_eq!(
+            reducer
+                .model
+                .visible_items
+                .iter()
+                .map(ListItem::name)
+                .collect::<Vec<_>>(),
+            vec!["新圖片.png"]
+        );
     }
 
     #[test]

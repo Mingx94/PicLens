@@ -22,6 +22,22 @@ fn main() -> eframe::Result<()> {
         }
         return Ok(());
     }
+    if raw_args.get(1).map(String::as_str) == Some("--thumbnail-rgba-worker") {
+        let result = match (raw_args.get(2), raw_args.get(3), raw_args.get(4)) {
+            (Some(source), Some(output), Some(edge)) => edge
+                .parse::<u32>()
+                .map_err(|e| e.to_string())
+                .and_then(|edge| {
+                    piclens_infra::write_thumbnail_rgba(source, edge, std::path::Path::new(output))
+                }),
+            _ => Err("thumbnail RGBA worker requires source, output and edge".into()),
+        };
+        if let Err(error) = result {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
     if raw_args.get(1).map(String::as_str) == Some("--thumbnail-worker") {
         let result = raw_args
             .get(2)
