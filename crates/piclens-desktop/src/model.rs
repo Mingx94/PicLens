@@ -2,6 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::time::Instant;
 
 use piclens_domain::{
     DropTargetBatchRenamePlan, FileOperationBatchResult, FolderHistory, ImageSequenceSnapshot,
@@ -22,6 +23,8 @@ pub enum Action {
     ToggleSidebar,
     ToggleCompactSidebar,
     DismissStatus,
+    DismissToast(u64),
+    ShowToastDetails(u64),
     ShowNotice(String),
     LoadLibrary(ListQuery),
     ReloadLibrary,
@@ -161,6 +164,15 @@ pub struct ViewerState {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct CompletionToast {
+    pub id: u64,
+    pub message: String,
+    pub result: Option<FileOperationBatchResult>,
+    pub is_error: bool,
+    pub expires_at: Instant,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct AppModel {
     pub initial_folder: Option<PathBuf>,
     pub current_folder: Option<PathBuf>,
@@ -184,6 +196,7 @@ pub struct AppModel {
     pub dialog: Option<DialogState>,
     pub viewer: Option<ViewerState>,
     pub notice: Option<String>,
+    pub toast: Option<CompletionToast>,
 }
 
 impl AppModel {
@@ -211,6 +224,7 @@ impl AppModel {
             dialog: None,
             viewer: None,
             notice: None,
+            toast: None,
         }
     }
 }

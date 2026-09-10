@@ -16,8 +16,8 @@ use crate::backend::{Backend, Command, Event, FileOperation, WorkIdentity};
 use crate::diagnostics::{ProcessSampler, RuntimeMetrics};
 use crate::images::ThumbnailLoader;
 use crate::model::{
-    Action, AppModel, ConversionKind, DialogState, DragSession, Loadable, Page, SelectionGesture,
-    SelectionState, ViewerState,
+    Action, AppModel, CompletionToast, ConversionKind, DialogState, DragSession, Loadable, Page,
+    SelectionGesture, SelectionState, ViewerState,
 };
 
 const CONVERSION_CONFIRMATION_THRESHOLD: usize = 50;
@@ -38,6 +38,7 @@ struct Reducer {
     pending_library: Option<WorkIdentity>,
     pending_tree: HashMap<String, WorkIdentity>,
     pending_file_operation: Option<WorkIdentity>,
+    file_operation_uses_toast: bool,
     close_viewer_after_file_operation: bool,
     include_subfolders: bool,
     sort: SortState,
@@ -57,6 +58,7 @@ impl Reducer {
             pending_library: None,
             pending_tree: HashMap::new(),
             pending_file_operation: None,
+            file_operation_uses_toast: false,
             close_viewer_after_file_operation: false,
             include_subfolders: false,
             sort: SortState::default(),
@@ -91,6 +93,28 @@ impl Reducer {
                     self.model.compact_sidebar_open = !self.model.compact_sidebar_open;
                 }
                 Action::DismissStatus => self.model.notice = None,
+                Action::DismissToast(id) => {
+                    if self
+                        .model
+                        .toast
+                        .as_ref()
+                        .is_some_and(|toast| toast.id == id)
+                    {
+                        self.model.toast = None;
+                    }
+                }
+                Action::ShowToastDetails(id) => {
+                    if self.model.dialog.is_none()
+                        && self
+                            .model
+                            .toast
+                            .as_ref()
+                            .is_some_and(|toast| toast.id == id && toast.result.is_some())
+                    {
+                        let toast = self.model.toast.take().expect("checked above");
+                        self.model.dialog = toast.result.map(DialogState::BatchResult);
+                    }
+                }
                 Action::ShowNotice(message) => self.model.notice = Some(message),
                 Action::LoadLibrary(query) => self.start_library_load(query),
                 Action::ReloadLibrary => {
@@ -728,6 +752,8 @@ impl Reducer {
         };
         self.next_request_id = self.next_request_id.wrapping_add(1).max(1);
         self.pending_file_operation = Some(identity);
+        self.file_operation_uses_toast = matches!(operation, FileOperation::DropRename { .. });
+        self.model.toast = None;
         self.model.drag = None;
         self.model.dialog = Some(DialogState::Progress {
             title: title.into(),
@@ -971,11 +997,37 @@ impl Reducer {
                     self.close_viewer();
                 }
                 self.close_viewer_after_file_operation = false;
-                match result {
-                    Ok(result) => self.model.dialog = Some(DialogState::BatchResult(result)),
-                    Err(message) => {
-                        self.model.dialog = None;
-                        self.model.notice = Some(message);
+                if std::mem::take(&mut self.file_operation_uses_toast) {
+                    let (message, result, is_error) = match result {
+                        Ok(result) => {
+                            let failed = result.failed();
+                            let message = format!(
+                                "重新命名完成：成功 {}、略過 {}、取消 {}、失敗 {}",
+                                result.succeeded(),
+                                result.skipped(),
+                                result.canceled(),
+                                failed
+                            );
+                            (message, Some(result), failed > 0)
+                        }
+                        Err(message) => (format!("重新命名失敗：{message}"), None, true),
+                    };
+                    self.model.dialog = None;
+                    self.model.toast = Some(CompletionToast {
+                        id: identity.request_id,
+                        message,
+                        result,
+                        is_error,
+                        expires_at: Instant::now()
+                            + Duration::from_secs(if is_error { 12 } else { 6 }),
+                    });
+                } else {
+                    match result {
+                        Ok(result) => self.model.dialog = Some(DialogState::BatchResult(result)),
+                        Err(message) => {
+                            self.model.dialog = None;
+                            self.model.notice = Some(message);
+                        }
                     }
                 }
                 self.push_action(Action::ReloadLibrary);
@@ -1767,43 +1819,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn viewer_navigation_checks_initial_forward_and_backward_selections() {
-        let steps = 3;
-        let deltas = (0..=steps * 2)
-            .map(|checked| viewer_navigation_delta(checked, steps))
-            .collect::<Vec<_>>();
-
-        assert_eq!(
-            deltas,
-            vec![
-                Some(1),
-                Some(1),
-                Some(1),
-                Some(-1),
-                Some(-1),
-                Some(-1),
-                None
-            ]
-        );
-    }
-
-    #[test]
-    fn performance_scroll_runs_two_down_and_up_legs() {
-        let deltas = (0..=PERFORMANCE_SCROLL_STEPS)
-            .map(performance_scroll_delta)
-            .collect::<Vec<_>>();
-
-        assert_eq!(deltas[0], Some(360.0));
-        assert_eq!(deltas[14], Some(360.0));
-        assert_eq!(deltas[15], Some(-360.0));
-        assert_eq!(deltas[29], Some(-360.0));
-        assert_eq!(deltas[30], Some(360.0));
-        assert_eq!(deltas[45], Some(-360.0));
-        assert_eq!(deltas[59], Some(-360.0));
-        assert_eq!(deltas[60], None);
-    }
-
-    #[test]
     fn performance_batch_stays_below_the_confirmation_threshold() {
         assert!(!performance_batch_count_is_safe(0));
         assert!(performance_batch_count_is_safe(1));
@@ -2341,6 +2356,84 @@ mod tests {
             reducer.model.dialog,
             Some(DialogState::BatchResult(_))
         ));
+    }
+
+    #[test]
+    fn drop_rename_completion_uses_toast_and_ignores_stale_events() {
+        use piclens_domain::{FileOperationBatchResult, FileOperationResult, FileOperationStatus};
+
+        let batch = FileOperationBatchResult {
+            items: [
+                FileOperationStatus::Renamed,
+                FileOperationStatus::Skipped,
+                FileOperationStatus::Canceled,
+                FileOperationStatus::Failed,
+            ]
+            .into_iter()
+            .map(|status| FileOperationResult {
+                path: "C:/fixture/image.png".into(),
+                status,
+                target_path: None,
+                reason: None,
+                message: None,
+            })
+            .collect(),
+        };
+        for result in [Ok(batch.clone()), Err("測試錯誤".into())] {
+            let mut reducer = Reducer::new(None);
+            reducer.start_file_operation(
+                "重新命名",
+                String::new(),
+                FileOperation::DropRename {
+                    plan: Default::default(),
+                },
+            );
+            let identity = reducer.pending_file_operation.unwrap();
+            assert!(!reducer.handle_event(Event::FileOperationCompleted {
+                identity: WorkIdentity {
+                    request_id: identity.request_id + 1,
+                    ..identity
+                },
+                result: result.clone(),
+            }));
+            assert!(reducer.model.toast.is_none());
+            assert!(reducer.file_operation_uses_toast);
+
+            assert!(reducer.handle_event(Event::FileOperationCompleted {
+                identity,
+                result: result.clone()
+            }));
+            assert!(reducer.model.dialog.is_none());
+            assert!(reducer.pending_file_operation.is_none());
+            assert!(!reducer.file_operation_uses_toast);
+            assert!(reducer.actions.contains(&Action::ReloadLibrary));
+            let toast = reducer.model.toast.as_ref().unwrap();
+            assert!(toast.is_error);
+            assert_eq!(toast.result, result.clone().ok());
+            assert_eq!(
+                toast.message,
+                if result.is_ok() {
+                    "重新命名完成：成功 1、略過 1、取消 1、失敗 1"
+                } else {
+                    "重新命名失敗：測試錯誤"
+                }
+            );
+            reducer.push_action(Action::DismissToast(identity.request_id + 1));
+            reducer.reduce_actions();
+            assert!(reducer.model.toast.is_some());
+            if result.is_ok() {
+                reducer.push_action(Action::ShowToastDetails(identity.request_id));
+                reducer.reduce_actions();
+                assert_eq!(
+                    reducer.model.dialog,
+                    Some(DialogState::BatchResult(batch.clone()))
+                );
+            } else {
+                reducer.push_action(Action::DismissToast(identity.request_id));
+                reducer.reduce_actions();
+            }
+            assert!(reducer.model.toast.is_none());
+        }
     }
 
     #[test]

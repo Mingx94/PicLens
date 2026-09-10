@@ -3,6 +3,7 @@
 pub mod app;
 pub mod backend;
 pub mod cli;
+pub mod components;
 #[cfg(test)]
 mod demo;
 pub mod diagnostics;
@@ -15,9 +16,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use eframe::egui;
-use piclens_domain::{
-    normalize_window_size, SortState, DEFAULT_THUMBNAIL_SIZE, MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH,
-};
+use piclens_domain::{SortState, DEFAULT_THUMBNAIL_SIZE, MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH};
 use piclens_infra::JsonSettingsStore;
 
 use crate::app::PicLensApp;
@@ -43,18 +42,12 @@ pub struct LaunchOptions {
 
 pub fn run(options: LaunchOptions) -> eframe::Result<()> {
     let stored = JsonSettingsStore::new().load();
-    let (width, height) = stored
-        .window_width
-        .zip(stored.window_height)
-        .map(|(width, height)| normalize_window_size(width, height))
-        .unwrap_or((1280, 800));
-
     let options = resolve_launch_options(options, stored);
 
     let viewport = egui::ViewportBuilder::default()
         .with_title("PicLens")
         .with_app_id("piclens")
-        .with_inner_size([width as f32, height as f32])
+        .with_inner_size([1600.0, 1000.0])
         .with_min_inner_size([MIN_WINDOW_WIDTH as f32, MIN_WINDOW_HEIGHT as f32])
         .with_icon(app_icon());
     let native_options = eframe::NativeOptions {

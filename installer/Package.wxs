@@ -21,7 +21,8 @@
     </ComponentGroup>
     <Component Id="StartMenuShortcut" Directory="ApplicationProgramsFolder" Guid="*">
       <Shortcut Id="ApplicationStartMenuShortcut" Name="PicLens"
-                Target="[INSTALLFOLDER]PicLens.exe" WorkingDirectory="INSTALLFOLDER" />
+                Target="[INSTALLFOLDER]PicLens.exe" WorkingDirectory="INSTALLFOLDER"
+                Icon="AppIcon.ico" IconIndex="0" />
       <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
       <RegistryValue Root="HKLM" Key="Software\PicLens" Name="installed"
                      Type="integer" Value="1" KeyPath="yes" />
