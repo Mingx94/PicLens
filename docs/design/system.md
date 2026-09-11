@@ -1,8 +1,8 @@
-# PicLens 元件庫
+# 設計系統
 
-PicLens 使用 Rust、egui、eframe 與 wgpu。元件庫參考 [shadcn/ui 的語意色彩](https://ui.shadcn.com/docs/theming)與[按鈕變體](https://ui.shadcn.com/docs/components/button)，以原生 egui 實作。以目前產品需要的元件為範圍，不新增 React、Tailwind 或 WebView。
+兩版沿用既有視覺方向與操作資訊層級，分別用 WPF／XAML 和 Qt Quick／QML 實作。此文件是重寫基準，不代表新版畫面已完成。
 
-元件原始碼位於 `crates/piclens-desktop/src/components/`。色彩、字型與尺寸由 `theme.rs` 統一管理。畫面組合與 Action 留在 `ui/mod.rs`；元件只回傳 Response，不執行檔案操作。
+色彩、字型、間距與尺寸集中在各平台的資源系統；Windows 用 ResourceDictionary，Arch 用統一的 QML theme。共用語意角色，不共用控制項程式碼。
 
 ## 視覺方向
 
@@ -31,78 +31,38 @@ PicLens 使用 Rust、egui、eframe 與 wgpu。元件庫參考 [shadcn/ui 的語
 
 ## 共用尺寸
 
-`theme::metrics` 定義間距 4、8、12、16、24 logical points；一般控制項高 36、小型控制項高 28、圖示 16。控制項圓角 6，卡片與浮層圓角 10。邊框寬 1，焦點另外繪製 2 點外框。
+共用設計基準為間距 4、8、12、16、24 邏輯單位；一般控制項高 36、小型控制項高 28、圖示 16。控制項圓角 6，卡片與浮層圓角 10。邊框寬 1，焦點另外繪製 2 點外框。
 
 字型維持 Noto Sans CJK TC。內文與按鈕為 14，小字為 12，標題為 24。Lucide SVG 與原有品牌圖示繼續使用。
 
-## 元件與使用規則
+## 平台元件責任
 
-| 模組 | 元件 | 使用規則 |
-|---|---|---|
-| button.rs | Button | Default、Secondary、Outline、Ghost、Destructive；Default、Small、Icon 三種尺寸 |
-| field.rs | Input | 共用邊框、焦點、提示文字、AccessKit 名稱；搜尋可放入 input group |
-| field.rs | checkbox、select、slider | 保留 egui 的鍵盤與輸入行為，套用共用樣式 |
-| gallery.rs | GalleryTile | 圖片與資料夾共用卡片；保留截斷、選取、拖曳與固定尺寸 |
-| surface.rs | surface_frame | Card、Popover、Dialog、Toolbar、Sidebar 表面 |
-| surface.rs | badge | 非互動的項目數或補充狀態 |
-| surface.rs | dialog | 共用 Modal 外觀，保留 egui 的背景阻擋與關閉語意 |
-| feedback.rs | Toast | 不阻擋操作，回傳詳細／關閉意圖；期限由 AppModel 管理 |
-| feedback.rs | alert | 畫面內持續顯示的資訊或錯誤 |
+| 元件 | 共同行為 | Windows | Arch |
+|---|---|---|---|
+| 按鈕與輸入 | 主要、次要、取消、危險、停用、焦點 | WPF Style／ControlTemplate | Qt Quick Controls style |
+| 圖庫卡片 | 資料夾／圖片、選取、截斷、拖放提示 | 虛擬化 panel 與 DataTemplate | GridView delegate |
+| 資料夾樹 | root 不可收合、後代可展開 | 虛擬化 TreeView 或等效控制項 | Qt model 與樹狀 view |
+| 選單與對話框 | 清楚作用範圍、取消不改檔、焦點返回 | WPF 選單／dialog | Qt Quick 選單／dialog |
+| 結果通知 | toast、詳情入口、主動關閉 | WPF 畫面通知 | QML 畫面通知 |
+| 資料夾選擇器 | 使用系統對話框、取消保持狀態 | Windows 原生介面 | Qt 原生 dialog／桌面整合 |
 
-主要操作使用 Default，取消使用 Outline，工具列圖示及選單動作使用 Ghost。Destructive 只用於明確的危險操作。停用按鈕不可觸發動作，所有圖示按鈕必須有提示文字與 AccessKit 名稱。
+主要操作有明確視覺權重；危險樣式只用於危險操作。選取與錯誤不可只靠顏色，保留外框、圖示或文字。圖示按鈕有提示與輔助工具名稱。
 
-```rust
-use piclens_desktop::components::{Button, ButtonVariant, Input};
+## 版面基準
 
-let response = Button::new("選擇資料夾")
-    .icon(piclens_desktop::theme::Icon::FolderOpen)
-    .show(ui);
+- 啟動 1600×1000、最小 800×600；視窗尺寸使用平台邏輯單位，超過工作區時需確認可操作性。
+- 側欄預設 208、可調範圍 160～300，可收合。
+- 主內容水平邊距 20、精簡版 16；垂直邊距 16。
+- 800 邏輯單位以下採精簡配置；工具列可用寬度不足 820 時，搜尋與篩選分列。
+- 圖庫僅格狀，正方形預覽、置中裁切，不改動原檔；縮圖大小沿用設定契約。
+- 圖片與資料夾共用清楚的卡片邊界，圖庫捲軸不遮住卡片內容。
+- Viewer 名稱放在主 app bar，畫布保留導覽、縮放控制與圖片。
+- 拖放重新命名結果用 toast，一般 6 秒、失敗 12 秒，詳細結果由使用者主動開啟。
 
-let cancel = Button::new("取消")
-    .variant(ButtonVariant::Outline)
-    .show(ui);
+## 原生互動與驗證
 
-Input::new(egui::Id::new("search"), "搜尋圖片", &mut query)
-    .hint("搜尋名稱或路徑…")
-    .width(240.0)
-    .show(ui);
-```
+遵守各平台焦點、鍵盤、輸入法、pointer capture、系統對話框與輔助工具行為。自訂 Style 不可移除可操作性。Windows 高對比使用系統色；Arch 分別檢查桌面主題與 Qt accessibility。
 
-## 舊 token 對應
+實作時各建一個不讀使用者圖庫、也不修改檔案的元件展示入口。檢查淺色／深色、窄視窗、對話框、toast、長檔名、Unicode 與停用狀態。
 
-| 原名稱 | 新名稱 |
-|---|---|
-| app_background、content | background |
-| command_surface | card |
-| tile | muted |
-| primary（原本代表文字） | foreground |
-| secondary（原本代表輔助文字） | muted_foreground |
-| accent（原本代表強調色） | primary |
-| selected | accent |
-| danger | destructive |
-
-新元件直接使用新名稱。只為目前有使用的元件建立 token；不要在畫面另建一套色盤。
-
-## 版面與操作
-
-- 每次啟動視窗為 1600×1000，最小 800×600。
-- 側欄預設 208，允許 160～300，可收合。
-- 主內容水平邊距 20，精簡版 16；垂直邊距 16。
-- 800 點以下使用精簡版；工具列可用寬度小於 820 時，搜尋與篩選分列。
-- 圖庫維持 `ScrollArea::show_rows` 虛擬化。卡片水平內距 8、正方形預覽、置中裁切，保留原圖。
-- 搜尋清除、Ctrl+F 全選、鍵盤選取、拖曳重新命名、檔案確認與結果回報維持既有行為。
-- 拖曳重新命名完成後以 toast 顯示結果。一般 6 秒、錯誤 12 秒；逐項結果由使用者主動開啟。
-- 資料夾選擇器仍使用系統原生 `rfd::FileDialog`。
-
-## 元件展示與驗證
-
-```powershell
-cargo run -p piclens-desktop --example component_gallery
-cargo run -p piclens-desktop --example component_gallery -- --dark
-cargo run -p piclens-desktop --example component_gallery -- --compact
-cargo run -p piclens-desktop --example component_gallery -- --dialog
-```
-
-展示頁可操作按鈕、表單、對話框與 toast，不掃描使用者圖庫，也不執行檔案操作。加上 `--screenshot <path.png>` 會擷取視窗後結束；輸出目錄需先存在。
-
-`egui_kittest` 驗證鍵盤、焦點、AccessKit、選取、虛擬化與尺寸。實際顏色、字型和陰影另以原生 renderer 截圖檢查。這些證據不代表原生輔助工具、高對比或所有平台都已驗證。
+原生截圖才能佐證顏色、字型、圖片比例與 DPI。WPF／Qt 無頭測試不能證明像素結果。Computer Use 僅在使用者明確要求時使用；其餘依[測試指南](../guides/testing.md)保留可重現證據。

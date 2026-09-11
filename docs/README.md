@@ -1,27 +1,33 @@
 # PicLens 文件
 
-PicLens 是使用 Rust、egui、eframe 與 wgpu 建置的桌面圖片圖庫與檢視工具。專案簡介請見[儲存庫 README](../README.md)。
+本文件集描述 Windows／WPF 與 Arch Linux／Qt Quick 的完整重寫。兩版放在同一個 repo，分別實作；最終移除 Rust 與 egui。現在仍只有舊程式，新版實作狀態由兩份 TODO 記錄。
 
-## 產品與設計
+## 實作入口
 
-- [產品規格](product/product-spec.md)：使用者功能、產品範圍與驗收意圖。
-- [設計系統](design/system.md)：現行 egui 版面、色彩與元件規則。
+- [Windows TODO](../TODO.win.md)：C#、WPF。
+- [Arch TODO](../TODO.arch.md)：C++20、Qt Quick／QML。
+- [開發指南](guides/development.md)：執行順序、文件更新與交付方式。
 
-## 工程
+## 文件權責
 
-- [架構](engineering/architecture.md)：crate 分層、相依方向與執行時組成。
-- [執行時不變條件](engineering/runtime-invariants.md)：資料、非同步工作、檔案操作與互動邊界。
-- [資料延續性](engineering/data-continuity.md)：設定、紀錄、快取與隔離 profile。
-- [效能](engineering/performance.md)：現行保護機制、量測規則與有效證據。
+| 文件 | 權責 |
+|---|---|
+| [產品規格](product/product-spec.md) | 使用者行為、功能範圍與既有品質要求 |
+| [驗收對照](product/acceptance.md) | 共用案例編號、預期結果、兩版實作階段 |
+| [設計系統](design/system.md) | 視覺角色、版面與原生元件適配 |
+| [架構](engineering/architecture.md) | 分層、技術決策與平台邊界 |
+| [執行時不變條件](engineering/runtime-invariants.md) | 資料安全、資源上限、取消與競態 |
+| [資料延續性](engineering/data-continuity.md) | 舊設定相容、路徑、隔離與遷移 |
+| [效能](engineering/performance.md) | 新版量測定義、條件與目標 |
+| [測試](guides/testing.md) | 驗證層級、案例資料與完成證據 |
+| [發佈與封裝](guides/release.md) | 新版版本規則、產物、CI 與切換條件 |
+| [授權與再散布](reference/licensing.md) | 套件、圖片解碼器、字型與資產清單 |
+| [舊版基準](reference/legacy-baseline.md) | 舊程式與歷史文件的定位方式 |
 
-## 開發與發佈
+## 使用規則
 
-- [開發指南](guides/development.md)：修改入口與交付檢查。
-- [測試](guides/testing.md)：Cargo 檢查、驗證層級與執行時 smoke。
-- [發佈與封裝](guides/release.md)：版本、產物、驗證與發佈流程。
+產品規格決定「要做什麼」，工程文件決定「必須守住哪些限制」，TODO 記錄「還沒完成什麼」。驗收對照是索引，不取代完整規格。
 
-## 參考
+此次只將平台範圍收斂為 Windows 與 Arch；其餘已定義功能保留。不因框架提供現成功能而加入動畫播放、全螢幕、相簿或 SQLite 索引。
 
-- [授權與再散布](reference/licensing.md)：原始碼、相依套件與內嵌資產義務。
-
-文件描述預期行為。驗證時，以現行 runtime、Cargo workspace、lockfile 與 `.github/workflows/` 為準。
+文件中的目標目錄不代表已存在，規劃中的指令不代表已驗證。新版實作與測試皆從未完成開始，歷史 egui 證據不能移植成新版完成狀態。

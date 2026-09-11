@@ -1,81 +1,58 @@
-# Release and packaging
+# 發佈與封裝
 
-## Version and trigger
+## 狀態
 
-The root `Cargo.toml` field `[workspace.package].version` is the only version authority. Every workspace crate inherits it. A release tag must use `v<version>`, for example `v0.1.0`.
+目前的 `.github/workflows/release.yml`、Cargo 版本與封裝腳本仍屬舊 Rust／egui 版。新版 workflow、MSI 與 PKGBUILD 尚未建立。歷史資料見[舊版基準](../reference/legacy-baseline.md)。
 
-Pushing a matching tag starts `.github/workflows/release.yml`. A manual run can rebuild an existing tag. The workflow checks that the tag is annotated and matches the `piclens-desktop` Cargo version before it builds anything.
+## 新版版本規則
 
-## Build workflow
+兩版允許獨立發布，採不同 tag 命名空間：
 
-The only GitHub Actions workflow builds the Windows x86_64 MSI and portable ZIP on Windows 2025. It uses Rust `1.98.0`, pinned in `rust-toolchain.toml`. The MSI build script runs:
+| 平台 | 新版 tag | 版本權威 | 目標產物 |
+|---|---|---|---|
+| Windows | `windows/v<version>` | 未來 `apps/windows/Directory.Build.props` 的共用 Version | MSI、portable ZIP、SHA-256 |
+| Arch | `arch/v<version>` | 未來 `apps/linux/CMakeLists.txt` 的 project VERSION | PKGBUILD、來源封存及 SHA-256、可驗證的 `.pkg.tar.zst` |
 
-```text
-cargo build --release --locked -p piclens-desktop
-```
+上述版本檔案目前尚未建立；數字版本在各平台第一階段確定。Arch 的 `pkgrel` 是封裝修訂，與 App 版本分開；`pkgver` 必須能對應來源 tag。
 
-The portable ZIP uses the same executable. There is no branch or pull-request CI. The workflow runs the Windows MSI lifecycle before publication, but it does not run format, test, or Clippy. Run the checks in [Testing](testing.md) locally before release.
+新 Windows 安裝版本需可從既有版本升級；WiX UpgradeCode、產品識別及版本排序在封裝階段檢查，不能因新框架就從不相容的安裝版本重新開始。新版本不再以 Cargo 作權威。
 
-Windows release builds use the GUI subsystem and do not open a console at startup. Debug builds keep the console. To read release CLI output in PowerShell, pipe it to `Out-String`, for example `& .\PicLens.exe --help | Out-String` from the executable's directory.
+## CI 與觸發範圍
 
-Linux package scripts remain available for local use, but GitHub Actions does not build, test, or publish Linux packages.
+建立互相獨立的 Windows／Arch 建置與測試工作。平台程式變更觸發該平台；共用規格、test-data 與資產變更需檢查兩版。
 
-## Build an installer on your PC
+封裝階段建立平台 release workflow，驗證 annotated tag、來源 commit 和平台版本一致。舊 `v*` workflow 必須在新流程啟用前確認隔離，不能產生錯誤的 Rust 產物。第一版平台成果可先是候選套件，不等另一版開發完畢。
 
-Use Windows x64 with Rust, the MSVC C++ build tools, and a .NET SDK. The script uses the repository's pinned Rust toolchain. The first build needs network access to restore Rust dependencies and the WiX SDK; no separate WiX installation is needed.
+Arch 需在記錄版本的乾淨建置環境檢查相依與 PKGBUILD；桌面驗證另外執行。發布至 AUR 或其他外部位置不屬於建立 PKGBUILD 本身。
 
-Run this command in PowerShell from any directory:
+## Windows 套件
 
-```powershell
-& F:\PicLens\scripts\build-msi.ps1
-```
+- 使用新的 WPF Release 輸出與必要解碼 helper，不能複製舊 Rust exe。
+- 選定 .NET self-contained 或 framework-dependent，文件說明離線機器的需求；portable 名稱不能掩蓋缺少 runtime。
+- 包含圖示、字型及必要 codec、第三方授權與 SHA-256。
+- 驗證開始功能表、工作列與執行檔圖示、無 console 的正常啟動、路徑與資料延續性。
+- MSI 驗證乾淨安裝、啟動、舊版升級／替換、解除安裝與 profile 保留；ZIP 另外驗證解壓啟動。
 
-Change the path if your checkout is elsewhere. The script reads the version from Cargo, builds the release executable, and writes these files under the repository's `dist` directory:
+## Arch 套件
 
-- `PicLens-<version>-windows-x86_64.msi`
-- `PicLens-<version>-windows-x86_64.msi.sha256`
+- PKGBUILD 以固定來源 tag／commit 與 checksum 建置，不在 build 時下載未宣告依賴。
+- 分清 makedepends 與 depends，包含實際使用的 Qt 模組、圖片外掛與回收筒 helper。
+- 提供 desktop entry、圖示、必要 AppStream metadata；安裝路徑與權限符合封裝結果。
+- 用乾淨 Arch 環境建置，確認全部支援格式和無損 WebP 可用。
+- 驗證安裝、桌面啟動、升級、解除安裝與 profile 保留；Wayland／X11 結果分開列出。
 
-The default build is unsigned. It does not install PicLens, create a Git tag, or upload files. Building does not need administrator rights; installing the per-machine MSI does.
+## 發佈完成條件
 
-## Published assets
+1. 對應平台功能驗收、測試與效能紀錄齊全。
+2. 建置候選套件，檢查內容、授權、相依及 hash。
+3. 在有授權的乾淨環境完成生命週期驗證。
+4. 經使用者授權提交、建立 annotated tag、推送與公開發佈。
+5. 確認 hosted workflow 成功，發布資產、版本與 checksum 相符。
 
-For version `<version>`, the workflow publishes:
+本機建置成功不代表已發佈。未設定簽章就標明未簽署，不宣稱已簽署。
 
-- `PicLens-<version>-windows-x86_64.zip`
-- `PicLens-<version>-windows-x86_64.msi`
-- `PicLens-<version>-windows-x86_64.zip.sha256`
-- `PicLens-<version>-windows-x86_64.msi.sha256`
+## Rust 退場
 
-Each payload contains the PicLens executable, license, README, and Noto Sans CJK TC OFL notice. The MSI installs PicLens per machine and adds a Start Menu shortcut.
+兩版皆通過功能與封裝驗收，且替代流程已能獨立運作後，才移除 Rust crates、Cargo／toolchain、egui 專用腳本與舊 workflow。保留使用中的 assets、LICENSE、規格、案例與 Git 歷史。
 
-All current release assets are unsigned. The release page says this explicitly and provides SHA-256 checksum files. The build script supports optional MSI Authenticode signing, but the hosted workflow does not enable it.
-
-The release workflow runs `scripts/test-msi-lifecycle.ps1` on its clean Windows runner before publication. The script uses an isolated `PICLENS_DATA_ROOT` and checks install, launch, reinstall／replace, uninstall, and profile preservation. Linux lifecycle scripts remain manual checks.
-
-## Release procedure
-
-1. Update the workspace version and lockfile in one release commit.
-2. Run the full commands in [Testing](testing.md).
-3. Build and inspect the Windows MSI and portable ZIP from the release commit.
-4. Test installation, launch, folder access, file operations, profile preservation, shutdown, and uninstall on a clean Windows system.
-5. Record all unverified platforms and paths.
-6. Create an annotated `v<version>` tag on the release commit.
-7. Push the release commit and tag.
-8. Confirm that the Windows package job passes and that the GitHub Release contains the MSI, portable ZIP, and both checksum files.
-
-Local compilation or archive creation does not complete a release. Completion requires a successful tag push and a successful release workflow.
-
-## Known limitation
-
-Code signing is not configured. Do not describe these assets as signed. A successful workflow proves that Windows packaging, MSI install／launch／replace／uninstall, isolated profile preservation, and upload completed. It does not prove ordinary interactive use, GPU behavior, or visual correctness.
-
-## v3.0.0 release evidence
-
-Annotated tag `v3.0.0` points to commit `ac544e4d`. [Windows packages run 33756956796](https://github.com/Mingx94/PicLens/actions/runs/33756956796) completed on a clean Windows 2025 runner. It passed MSI install, launch, replace, uninstall, isolated profile preservation, portable ZIP creation, artifact upload, and GitHub Release publication.
-
-[GitHub Release v3.0.0](https://github.com/Mingx94/PicLens/releases/tag/v3.0.0) contains the four expected unsigned assets. Independent downloads produced these payload hashes, which match their published checksum files:
-
-- MSI: `60dd879387260b5c92d049f4eee0dcfc0603458dafb12f0a9e5d88d911aff74b`
-- ZIP: `4e15af1d2b0e8c5466d81b6eaa4640171f49f8704eae1a7c09d9e5edf3973256`
-
-Review [Licensing and redistribution](../reference/licensing.md) for every release candidate.
+這是共同最後一步：一版先完成可以先交付，但不能提前刪除另一版仍需對照的舊程式。兩份 TODO 的收尾項目都需引用同一份清理證據。

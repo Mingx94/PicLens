@@ -1,51 +1,52 @@
-# Testing
+# 測試與驗收
 
-## Static and test gates
+## 目前狀態
 
-```powershell
-cargo fmt --check
-cargo build --workspace --all-targets --locked
-cargo check --workspace --all-targets --locked
-cargo test --workspace --locked
-cargo clippy --workspace --all-targets --locked -- -D warnings
-git diff --check
-```
+新版測試工具與可執行命令尚未建立。Windows 在第一階段選定 .NET 測試框架及 WPF 測試入口；Arch 建立 CTest／Qt Test 與必要的 Qt Quick 測試。各平台 README 必須提供實際跑過的命令。
 
-Use a crate-scoped command while you iterate. Run the workspace gates before delivery when a change can affect more than one crate. Pure product rules belong in `piclens-domain`; filesystem and persistence checks belong in `piclens-infra`; egui state helpers belong beside the owning UI module.
+舊 Cargo tests、egui 測試、舊 MSI 與舊效能腳本只驗證舊版。
 
-## Isolation
+## 依風險選擇驗證
 
-Set `PICLENS_DATA_ROOT` to a disposable directory to isolate settings, logs, and thumbnails during app smoke, performance work, and tests. This override does not isolate files under `--folder`. Use a disposable copied fixture folder for tests that can rename, trash, or convert source files. Do not use a real user profile unless the user explicitly authorizes a copied-profile check.
+| 變更 | 最小有效驗證 |
+|---|---|
+| 文件 | diff、連結、規格與 TODO 對照 |
+| 排序、命名計畫、設定轉換 | 純規則案例與錯誤邊界 |
+| 掃描、快取、取消、檔案操作 | 隔離檔案整合測試及失敗注入 |
+| WPF／Qt model 與互動 | 平台測試及受影響的真實視窗流程 |
+| 外觀、DPI、圖片品質 | 原生 renderer 截圖／人工檢查 |
+| 封裝與升級 | 乾淨系統的安裝、啟動、升級、解除安裝及 profile 保留 |
 
-## Validation layers
+不為小型可逆修改新增只重複實作的測試。先做最小驗證，有失敗或不確定性才擴大。編譯、啟動、互動、像素、效能、輔助工具與安裝生命週期分開報告。
 
-- Use ordinary Rust tests for product rules, data transformations, reducers, backend contracts, and framework-independent state helpers.
-- Use `egui_kittest` for deterministic layout, pointer and keyboard actions, focus, resize, scrolling, dialogs, and AccessKit semantics. These tests do not prove native window-system or assistive-technology behavior.
-- Use an isolated real app for renderer, image quality, high-DPI, drag/drop, native helper, and platform behavior. The built-in `--screenshot` option can capture deterministic evidence. Use Computer Use only when the user explicitly requests it.
+## 共用資料
 
-Do not use a headless test result as evidence that pixels are correct. Do not use a launch-only smoke as evidence that interaction works.
+[驗收對照](../product/acceptance.md)為兩版指定相同案例 ID。先實作的平台建立 `test-data/`，至少包含：
 
-## Runtime smoke
+- fixture manifest：案例 ID、相對路徑、內容 hash、圖片格式／尺寸與預期結果。
+- 純資料案例：自然排序、同名衝突、選取順序、範圍 anchor、重新命名序號、舊設定 JSON。
+- 小型合法圖片或可重現產生方式：六種副檔名、靜態／動畫 GIF 和 WebP、透明 PNG、損壞圖片、超限案例。
+- 分層資料夾、Unicode／空白名稱、大小寫差異及 OS 特有路徑限制。
+- 大型測試集產生方式；不提交使用者圖庫或大量重複二進位檔。
 
-```powershell
-$env:PICLENS_DATA_ROOT = "F:\PicLens\artifacts\desktop-smoke"
-cargo run -- --folder <representative-folder>
-```
+預期結果必須由規格／可查證的舊規則推導，不能把某次執行的輸出直接奉為正確。OS 差異以同案例的 Windows／Arch 預期欄位表達。
 
-For an automated launch-only check, add `--smoke-ms 4000`. This proves that the process opened and stayed alive until the timer elapsed. It does not prove that the library finished loading or that interaction works.
+## 隔離
 
-For runtime changes, also check the affected mouse, keyboard, focus, resize, scrolling, error, and cancellation paths in the real app. Inspect `Logs/PicLens.log` under the isolated data root.
+設定 `PICLENS_DATA_ROOT` 或 `--data-root` 隔離設定、縮圖與紀錄。所有會轉檔、重新命名、回收的素材另用可丟棄副本；覆寫 data root 並不隔離來源圖片。
 
-Windows 批次資源量測使用 disposable copied fixture：
+系統安裝、解除安裝、顯示設定變更與個人 profile 存取需要對應授權。Computer Use 僅在使用者明確要求時使用；其他情況採程式內診斷／截圖或人工驗收，缺少證據的項目保持待驗證。
 
-```powershell
-.\scripts\measure-windows-batch-performance.ps1 -SourcePng <representative-png>
-```
+## 新版診斷入口
 
-此腳本只接受 1 至 49 份副本，要求 fixture 位於隔離 profile 內，並檢查來源 PNG 保留、JPG 數量、批次結果、app log、CPU、GPU 與 peak working set 證據。
+兩版 TODO 都需實作 `--folder`、`--data-root`、`--smoke-ms`、`--viewer`、`--metrics` 與 `--screenshot`，供隔離啟動、可見視窗量測與截圖。參數格式、驗證失敗與輸出位置寫入平台 README。
 
-## Current gaps
+這些參數目前僅存在於舊版或規劃中，不代表新版已能執行。自動 smoke 不得略過檔案操作確認。
 
-- There is no branch or pull-request CI. Run the workspace gates locally.
-- The release workflow builds the Windows MSI, runs its install／launch／replace／uninstall／profile-preservation lifecycle on the clean hosted runner, then publishes the MSI, portable ZIP, and checksums. It does not build Linux packages.
-- `egui_kittest` can inspect AccessKit roles, names, states, actions, and focus. It does not replace a native assistive-technology check or a real launch.
+## 驗收紀錄
+
+每個 TODO 完成時，在該檔案的證據表填入項目 ID、commit／dirty state、命令／操作、OS、fixture、結果及證據位置。編譯成功不能勾選互動或效能驗收。
+
+證據可保存在 `artifacts/<platform>/<run>/`，但重要結論需摘要在版本控管內，不能只留本機路徑。個人路徑與素材不要公開。兩版都要逐項核對產品規格全文，不只執行少量代表案例。
+
+Windows 本機結果不算 Arch 結果。Linux 容器建置／無頭測試不算 Wayland／X11 真實桌面驗證。簽章、公開發佈與 hosted lifecycle 也各自留證據。

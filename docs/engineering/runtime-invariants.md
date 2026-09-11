@@ -1,6 +1,6 @@
-# Runtime invariants
+# 執行時不變條件
 
-這份文件只記錄不容易從畫面直接看出的工程不變條件。使用者可見功能、支援格式與產品範圍由 [Product specification](../product/product-spec.md) 定義；測試方式由 [Testing](../guides/testing.md) 維護，layer ownership 由 [Architecture](architecture.md) 維護。
+這份文件保留重寫前不容易從畫面直接看出的工程不變條件，兩個新版都必須實作並驗證；目前不代表已完成。使用者可見功能、支援格式與產品範圍由 [Product specification](../product/product-spec.md) 定義；測試方式由 [Testing](../guides/testing.md) 維護，layer ownership 由 [Architecture](architecture.md) 維護。
 
 若產品規格、runtime invariants、實作或測試不一致，先確認預期行為，再在同一個 change 更新權威文件與測試。
 
@@ -18,7 +18,7 @@
 
 - Search 只投影已載入的 items，不重新掃描磁碟，也不得 reset、縮減或收合 folder tree。
 - Search、sort、folder navigation、reload、recursive-mode change 與 file operations 不得留下 stale selected paths。
-- Clear selection 必須同時更新 controller selection state 與 `LibraryItemModel` selected role。
+- Clear selection 必須同時更新 應用層選取狀態與 UI model 的選取欄位。
 - Multi-selection 保留 selection order；開啟 viewer 時，多選優先使用 selection order 中的第一張圖片。
 - Range selection 的 anchor 與 selection order 分開保存；連續範圍只使用當下 visible image projection，不能包含資料夾項目。
 - Viewer 和 visible-file operations 使用當下的 visible projection，不得偷偷回到未篩選 source collection。
@@ -42,7 +42,7 @@
 - Viewer 依序載入目前圖片的 1024-pixel placeholder、完整原圖，再預載 snapshot 中相鄰的下一張與上一張靜態圖片之 1024-pixel preview。預覽失敗仍須嘗試原圖；原圖失敗則保留可用預覽並顯示錯誤。不得預載相鄰原圖或掃描整個序列。
 - 原圖在可取消、可逾時終止的子程序完整解碼，不縮小尺寸。暫存 RGBA 由背景執行緒讀取，成功、失敗與取消後皆清除；不加入永久縮圖快取。UI 不讀檔或解碼圖片。來源路徑、mtime、檔案大小與解析度種類共同識別請求。
 - 只保留目前一張原圖及最多三張預覽。單張原圖 RGBA 上限為 256 MiB，預覽共最多 12 MiB；這不是程序總記憶體上限，解碼、上傳及 GPU 副本另計。超限須回報錯誤，不得偷偷縮圖。超過 GPU 單張貼圖尺寸時以含邊界像素的分塊貼圖繪製，保留完整解析度。切圖與 close 釋放原圖及不再需要的預覽。
-- 原圖完成後直接取代 placeholder，維持符合畫布比例、縮放倍率與平移位置。Metrics schema 5 的 sharp paint 只計完整原圖；preview ready 仍計 1024 預覽。每次選取只記錄一次成功的完整繪製，500ms 目標包含背景處理與 frontend paint submission，但不宣稱量到 OS compositor 的實際呈現時間。
+- 原圖完成後直接取代 placeholder，維持符合畫布比例、縮放倍率與平移位置。新版量測的 sharp paint 只計完整原圖；preview ready 仍計 1024 預覽。每次選取只記錄一次成功的完整繪製，500ms 目標包含背景處理與 frontend paint submission，但不宣稱量到 OS compositor 的實際呈現時間。
 - 效能驗證須涵蓋同一 Viewer 內連續前後切換；不得以逐次重啟單張圖片的結果代替。持續顯示縮圖、未完成清晰繪製的選取必須計為失敗，不能從樣本中略過；日誌與 metrics 必須標示 Debug／Release。
 - 切換到正在預載的圖片時沿用該工作；其他切換、動畫提示、close、generation change 與 shutdown 必須取消過期工作。只有 request identity 相符的結果能清除工作或更新畫面，包含快速 A-B-A 與關閉後重開同張圖片的情況。
 - Viewer canvas 從 pointer press 起攔截 zoom/pan input，避免事件穿透到底層 gallery 或啟動 drag/drop rename。
@@ -53,7 +53,7 @@
 
 ## File operations
 
-- Trash-like operations 必須送到 OS recycle bin/trash。Linux 使用 `gio trash`，不可 fallback 為永久刪除。
+- Trash-like operations 必須送到 OS recycle bin/trash。Arch 先沿用 `gio trash` 的回收筒語意並宣告其套件依賴；若改用等效原生介面，需驗證相同行為。不可 fallback 為永久刪除。
 - 外部 trash helper 必須有 bounded timeout；取消或逾時時必須 kill 並 reap child process。
 - JPG 與 lossless WebP conversion 保留原檔；target collision 必須略過，不覆寫。
 - Lossless WebP conversion 略過 JPG、JPEG、既有 WebP 與 animated images。
@@ -68,10 +68,21 @@
 - 圖片 tile pointer press 不得立即 capture；超過 drag threshold 後才進入 drag session，避免破壞 selection。
 - Drag preview、drop-target highlight、autoscroll、pointer cancel 與 capture-lost 必須共享同一 session cleanup。
 - Folder expansion、pointer、selection 與 loaded/unloaded handlers 是 view lifecycle glue，不應被搬成持久化 domain state。
-- Dialog confirmation 不可使用 auto-confirm default；取消確認不得修改檔案。
+- Dialog confirmation 不可使用自動確認；取消確認不得修改檔案。
 
 ## Diagnostics
 
 - App log 位於 local app data 下的 `PicLens/Logs/PicLens.log`，測試則位於隔離 data root。
 - Startup、navigation、thumbnail、folder-tree child load、file operations、drop rename 與 viewer lifecycle 都必須留下足以定位問題的 context。
 - Crash 或 deployed-runtime 問題不能只以成功 build 作結論；應執行隔離的短時間 launch 並檢查 app log。
+
+## 背景工作與平台邊界
+
+- 掃描、樹載入、解碼與檔案操作都有 generation 和唯一 request ID；A-B-A、同路徑重開與同時取消不能讓舊結果覆蓋新狀態。
+- WPF Dispatcher 或 Qt UI 執行緒負責 model 更新；檔案 I/O、PNG／RGBA 處理不得在 UI 執行緒執行。
+- 共用解碼程序上限為 8；單次解碼初始逾時沿用 15 秒。逾時後終止並回收程序，完成暫存清理與工作槽歸還，不能只停止等待。
+- 工作與事件佇列有界限，完成／取消／失敗結果不可因佇列滿而被靜默丟棄。UI 執行緒不得阻塞等待自己要接收的結果。
+- 關閉時停止接受新工作與快取清理，取消現有工作並回收 helper，避免等待已停止接收的 UI 而死結。
+- 確认畫面使用檔案計畫快照；真正修改前再次檢查來源與目標。預覽之後才出現的衝突也不得覆寫。
+- 使用檔案系統的不可覆寫操作處理競態。取消不是回滾已完成工作，需據實區分已完成、尚未開始與結果不確定的項目。
+- 任何新傳輸格式或平台圖片類型都需明確定義寬、高、stride、像素格式、alpha、所有權與釋放時機。不得為搬移而降低原圖解析度。

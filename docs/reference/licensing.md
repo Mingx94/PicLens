@@ -1,31 +1,21 @@
-# Licensing and redistribution
+# 授權與再散布
 
-This is an engineering release policy, not legal advice. The project owner must review the final dependency and asset set before public or commercial distribution.
+## 狀態與來源
 
-## Authorities
+PicLens 原始碼沿用根目錄 MIT LICENSE。重寫不自動改變第三方套件、codec、字型或圖片的授權。
 
-- PicLens source code uses the root MIT `LICENSE`.
-- `Cargo.lock` is the authority for exact Rust dependency revisions in a checkout.
-- The bundled Noto Sans CJK TC files use the notice in `assets/Fonts/NotoSansCJKtc-OFL.txt`. Keep the fonts and required license text together when distributed.
-- Derive exact third-party obligations from the final package and locked dependency graph.
+新版依賴尚未選定。Windows 以實際 .NET 套件鎖定及封裝清單為準；Arch 以 CMake 相依、PKGBUILD、Qt 模組與最終套件為準。Cargo.lock 只描述舊版。
 
-## Current dependency model
+## 每版需要的清單
 
-PicLens uses Rust crates plus native platform and graphics dependencies reached through egui, eframe, and wgpu. `Cargo.lock` records the exact versions and sources. The application manifest enables the wgpu renderer, AccessKit, Wayland, and X11 support.
+- 原始碼與所有直接、間接依賴的版本、來源和授權。
+- Qt 模組、.NET runtime、影像解碼／編碼函式庫及 helper 的散布方式。
+- 字型、Lucide 圖示、AppIcon 和測試圖片的來源與必要聲明。
+- 最終套件內包含的檔案，以及由作業系統提供的相依。
+- 所需的第三方通知、原始碼提供方式或其他散布要求；按實際選型查證。
 
-The portable release archives contain the executable, PicLens MIT license, README, and Noto Sans CJK TC OFL notice. The font files are embedded in the executable. Linux graphics and desktop integration remain system dependencies.
+既有 Noto Sans CJK TC 的聲明位於 `assets/Fonts/NotoSansCJKtc-OFL.txt`。保留或重新打包字型時，檢查該聲明與實際散布內容。選用 Qt 或 codec 前查閱其官方授權及該版本條款，不把 PicLens 的 MIT 套用到第三方程式。
 
-## Bundled assets
+## 驗收
 
-The desktop binary embeds three Noto Sans CJK TC font files. The application icon PNG and Windows ICO are also source assets. A release audit must confirm the correct license and provenance for every distributed asset.
-
-## Required release review
-
-1. Record the target, toolchain, Cargo lockfile, renderer versions, and package format.
-2. Generate a dependency and runtime inventory from the final staged artifact.
-3. Confirm the PicLens MIT license and all required third-party notices are present.
-4. Review Rust crates, native libraries, image codecs, bundled fonts, and application artwork.
-5. Inspect the final package file list and its declared system dependencies.
-6. Re-run the audit after signing or any operation that changes the artifact.
-
-Engineering checks do not constitute legal approval.
+兩份 TODO 的選型階段先記錄候選依賴，封裝階段再比對最終產物。不得只憑開發機可執行就認定套件可散布。尚未完成的依賴與資產審查列為待辦。

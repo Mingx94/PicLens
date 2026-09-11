@@ -4,13 +4,13 @@
 
 這份文件定義 PicLens 的產品行為、使用者流程與品質要求。它刻意不包含使用框架、技術選型、專案分層、測試工具、build 指令或發佈指令；那些內容由其他工程文件維護。
 
-本文件只描述目前已實作或已由現有文件明確定義的產品範圍。未被明確定義的方向列在「待確認」中，不在此直接推定。
+本文件保留重寫前已實作或明確定義的產品範圍，作為 Windows 與 Arch Linux 新版的共同驗收契約，不代表新版已完成。2026-09-11 僅將平台範圍收斂為 Windows 與 Arch；其餘功能要求保留。未被明確定義的方向列在「待確認」中，不在此直接推定。
 
 本文件是使用者需求、產品範圍與待確認問題的權威來源。已承諾的工程不變條件由 [Runtime invariants](../engineering/runtime-invariants.md) 維護；實作或驗證細節分別由 [Architecture](../engineering/architecture.md) 與 [Testing](../guides/testing.md) 維護。產品意圖改變時，應在同一個 change 更新受影響的 contract 與測試，而不是在多份文件複製完整規則。
 
 ## 產品定位
 
-PicLens 是 Windows / 主流 Linux 桌面圖片整理與檢視工具，聚焦在本機資料夾中的大量圖片瀏覽、選取、批次整理與快速檢視。
+PicLens 是 Windows / Arch Linux 桌面圖片整理與檢視工具，聚焦在本機資料夾中的大量圖片瀏覽、選取、批次整理與快速檢視。
 
 產品優先順序：
 
@@ -31,7 +31,7 @@ PicLens 是 Windows / 主流 Linux 桌面圖片整理與檢視工具，聚焦在
 
 PicLens 處理使用者本機檔案系統中的資料夾與圖片，不定義雲端同步、帳號系統、遠端圖庫或跨裝置同步。
 
-平台支援需涵蓋 Windows 與主流 Linux 桌面發行版。Linux 支援不可只以單一 Fedora/RPM 發行型態作為完整範圍；Debian/Ubuntu 系與 Fedora/RPM 系至少都要有可驗證的安裝或可攜發行路徑。
+本次重寫的平台範圍是 Windows 與 Arch Linux。兩版各自提供可驗證的安裝路徑；其他 Linux 發行版及 DEB／RPM 不列入此次交付。文中 Linux 行為適用 Arch 版本。
 
 執行時介面文字以繁體中文（台灣）為目前產品語系。
 

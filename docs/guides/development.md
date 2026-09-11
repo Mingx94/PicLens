@@ -1,30 +1,42 @@
-# Development guide
+# 開發指南
 
-## Before you change code
+## 開始工作
 
-1. Run `git status --short --branch` and preserve unrelated work.
-2. Read [product-spec](../product/product-spec.md) and [runtime-invariants](../engineering/runtime-invariants.md) for the behavior you touch.
-3. Prefer the smallest working change on a green `cargo check`.
+1. 讀取根目錄 AGENTS.md，檢查分支與工作目錄變更，保留無關修改。
+2. 選擇 [Windows TODO](../../TODO.win.md) 或 [Arch TODO](../../TODO.arch.md)，確認前置階段。
+3. 閱讀對應[產品規格](../product/product-spec.md)、[驗收案例](../product/acceptance.md)及[不變條件](../engineering/runtime-invariants.md)。
+4. 完成一個可驗收的項目，再執行最小且有意義的驗證，記錄證據並更新勾選狀態。
 
-## Change entry points
+只有規格或文件完成，不代表對應程式完成。無法在目前作業系統驗證的平台項目保持未勾選，註明缺少的環境。
 
-Dependency direction: `piclens-desktop -> piclens-infra -> piclens-domain`.
+## 平台入口
 
-| Behavior | Crate |
-|---|---|
-| Formats, sort, path rules, settings merge, zoom, rename plan | `crates/piclens-domain` |
-| Scan, settings JSON, log, thumbs, trash/reveal, convert | `crates/piclens-infra` |
-| Window, library, sidebar, viewer, selection, commands | `crates/piclens-desktop` |
+| 目標 | 規劃位置 | 第一階段必須交付 |
+|---|---|---|
+| Windows／WPF | `apps/windows/` | solution、專案、SDK 與套件鎖定、測試入口、建置和執行命令 |
+| Arch／Qt Quick | `apps/linux/` | CMake 專案、presets、Qt 相依、CTest 入口、建置和執行命令 |
 
-## Commands
+以上目錄目前尚未建立。建立時在各平台新增 README，記錄從 repo root 可直接執行的 Debug／Release 建置、測試、啟動與隔離資料指令，再由本頁連結。不要預先把示意命令寫成已驗證工作流程。
 
-Use the commands and isolated profile workflow in [Testing](testing.md).
+## 共用案例
 
-## Delivery check
+兩版使用相同案例 ID 與預期結果。由先執行的平台建立 `test-data/`；另一平台重用並補充必要的 OS 差異。不要重建兩份互相矛盾的測試規格。
 
-1. Workspace format, build, check, test, and lint gates pass.
-2. Manual smoke covers open folder, select, viewer Escape, and one file operation when those paths change.
-3. Runtime checks use an isolated profile and the app log is clean for the tested path.
-4. The commit uses a short message on the current task branch. Push only when requested.
+產品規格優先於舊實作。若發現差異，先記錄案例、預期與實際結果；不得為了讓舊 bug 通過而修改規格。未定義的小型工程選擇可依現有方向決定並記錄；功能範圍的變更需要明確產品決策。
 
-Run the Cargo gates locally. GitHub Actions only builds and publishes Windows packages through `.github/workflows/release.yml`; see [Release and packaging](release.md).
+## 工程原則
+
+- 兩版獨立建置，不依賴另一平台工具鏈。
+- 不新增 Rust、FFI、跨語言核心或共享背景服務。
+- 不在 XAML／QML 的畫面事件內執行掃描、圖片解碼或檔案修改。
+- 檔案操作先建立計畫與確認，再執行；不可覆寫和回收筒規則見不變條件。
+- 預覽、取消、完成結果與失敗診斷屬於功能的一部分。
+- 保持工作佇列、解碼程序與快取有界限，不以無限制 Task／thread 避免卡頓。
+
+## 交付與舊版退場
+
+交付時記錄修改、驗證、未驗證事項與對應 TODO ID。小型可逆修改不新增只重複實作的測試；測試失敗或風險增加時才擴大範圍。
+
+只修改文件時，檢查 diff、Markdown 連結與規格對照，不要求執行 Rust 或新版建置。提交、推送及公開發佈依使用者當次授權執行。
+
+在兩版通過退場條件之前保留舊程式。舊檔案與工具的定位見[舊版基準](../reference/legacy-baseline.md)，最終清理由兩份 TODO 的共同收尾條件控制。
