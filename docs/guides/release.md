@@ -2,7 +2,7 @@
 
 ## 狀態
 
-目前的 `.github/workflows/release.yml`、Cargo 版本與封裝腳本仍屬舊 Rust／egui 版。新版 workflow、MSI 與 PKGBUILD 尚未建立。歷史資料見[舊版基準](../reference/legacy-baseline.md)。
+目前的 `.github/workflows/release.yml`、Cargo 版本與封裝腳本仍屬舊 Rust／egui 版。Windows 新流程是 `.github/workflows/windows-native.yml`，候選套件由 `packaging/windows/build.ps1` 建置。Arch PKGBUILD 尚未建立。歷史資料見[舊版基準](../reference/legacy-baseline.md)。
 
 ## 新版版本規則
 
@@ -10,12 +10,12 @@
 
 | 平台 | 新版 tag | 版本權威 | 目標產物 |
 |---|---|---|---|
-| Windows | `windows/v<version>` | 未來 `apps/windows/Directory.Build.props` 的共用 Version | MSI、portable ZIP、SHA-256 |
+| Windows | `windows/v<version>` | `apps/windows/Directory.Build.props` 的共用 Version | MSI、portable ZIP、SHA-256 |
 | Arch | `arch/v<version>` | 未來 `apps/linux/CMakeLists.txt` 的 project VERSION | PKGBUILD、來源封存及 SHA-256、可驗證的 `.pkg.tar.zst` |
 
-上述版本檔案目前尚未建立；數字版本在各平台第一階段確定。Arch 的 `pkgrel` 是封裝修訂，與 App 版本分開；`pkgver` 必須能對應來源 tag。
+Windows 目前版本為 4.0.1，self-contained x64，未簽署。Arch 版本檔尚未建立。Arch 的 `pkgrel` 是封裝修訂，與 App 版本分開；`pkgver` 必須能對應來源 tag。
 
-新 Windows 安裝版本需可從既有版本升級；WiX UpgradeCode、產品識別及版本排序在封裝階段檢查，不能因新框架就從不相容的安裝版本重新開始。新版本不再以 Cargo 作權威。
+Windows MSI 保留 UpgradeCode `{4B3899A4-2E9E-4B4F-9CF5-36F8D8D6767D}`。新 Windows 安裝版本需可從既有版本升級；WiX UpgradeCode、產品識別及版本排序在封裝階段檢查，不能因新框架就從不相容的安裝版本重新開始。新版本不再以 Cargo 作權威。
 
 ## CI 與觸發範圍
 
@@ -32,6 +32,8 @@ Arch 需在記錄版本的乾淨建置環境檢查相依與 PKGBUILD；桌面驗
 - 包含圖示、字型及必要 codec、第三方授權與 SHA-256。
 - 驗證開始功能表、工作列與執行檔圖示、無 console 的正常啟動、路徑與資料延續性。
 - MSI 驗證乾淨安裝、啟動、舊版升級／替換、解除安裝與 profile 保留；ZIP 另外驗證解壓啟動。
+
+Windows 生命週期腳本是 `packaging/windows/test-lifecycle.ps1`。須在乾淨且已授權的 Windows 環境傳入 `-ConfirmSystemChanges`；`-PreviousMsiPath` 可加入舊版升級測試。未提供舊 MSI 時，升級結果會明確記為 `not-tested`。CI 已接上乾淨 runner 的安裝、啟動、修復、解除安裝與設定保留檢查，但尚未推送或執行 hosted 工作。
 
 ## Arch 套件
 

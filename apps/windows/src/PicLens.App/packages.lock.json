@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0-windows7.0": {
+      "piclens.core": {
+        "type": "Project"
+      },
+      "piclens.services": {
+        "type": "Project",
+        "dependencies": {
+          "PicLens.Core": "[4.0.0, )"
+        }
+      }
+    },
+    "net10.0-windows7.0/win-x64": {}
+  }
+}

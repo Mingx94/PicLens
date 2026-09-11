@@ -1,0 +1,1 @@
+<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><AssemblyName>PicLens.Worker</AssemblyName></PropertyGroup><ItemGroup><ProjectReference Include="../PicLens.Imaging/PicLens.Imaging.csproj"/></ItemGroup></Project>

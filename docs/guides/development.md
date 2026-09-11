@@ -16,7 +16,7 @@
 | Windows／WPF | `apps/windows/` | solution、專案、SDK 與套件鎖定、測試入口、建置和執行命令 |
 | Arch／Qt Quick | `apps/linux/` | CMake 專案、presets、Qt 相依、CTest 入口、建置和執行命令 |
 
-以上目錄目前尚未建立。建立時在各平台新增 README，記錄從 repo root 可直接執行的 Debug／Release 建置、測試、啟動與隔離資料指令，再由本頁連結。不要預先把示意命令寫成已驗證工作流程。
+Windows 專案已建立，實際命令見 [Windows README](../../apps/windows/README.md)。Arch 目錄尚未建立；實作時需提供相同層級的獨立建置與驗證入口。
 
 ## 共用案例
 

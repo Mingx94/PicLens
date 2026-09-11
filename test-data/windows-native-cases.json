@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "naturalSort": [
+    {"input":["img10.jpg","img2.jpg","img01.jpg","img1.jpg"],"expected":["img01.jpg","img1.jpg","img2.jpg","img10.jpg"]},
+    {"input":["b.png","A.png","a.png"],"expected":["A.png","a.png","b.png"]}
+  ],
+  "settings": [
+    {"input":{"thumbnailSize":0},"expectedSize":160},
+    {"input":{"thumbnailSize":165},"expectedSize":160},
+    {"input":{"thumbnailSize":170},"expectedSize":180},
+    {"input":{"thumbnailSize":999},"expectedSize":240}
+  ],
+  "description": "SORT-01/DATA-01 純資料。圖片由 PicLens.Tests.Fixture 產生，無個人圖庫。Windows 名稱採不分大小寫；Arch 差異需由其實作補充。"
+}

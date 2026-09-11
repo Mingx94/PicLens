@@ -4,7 +4,7 @@
 
 同一個 repo 維護兩套獨立 App。Windows 使用 C#、.NET 與 WPF；Arch Linux 使用 C++20、Qt 6、Qt Quick／QML 與 CMake。兩版均重寫後端，不保留 Rust、egui、FFI 或共用執行時服務。
 
-這是目標架構。現有 Rust 程式暫留作對照，尚未建立下列專案。工作順序見 [Windows TODO](../../TODO.win.md) 與 [Arch TODO](../../TODO.arch.md)。
+Windows 專案與封裝已建立，模組細節見 [Windows README](../../apps/windows/README.md)。Arch 仍是目標架構。現有 Rust 程式暫留作對照。工作順序見 [Windows TODO](../../TODO.win.md) 與 [Arch TODO](../../TODO.arch.md)。
 
 ## 目標目錄
 

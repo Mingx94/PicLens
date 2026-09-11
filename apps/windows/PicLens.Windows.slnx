@@ -1,0 +1,1 @@
+<Solution><Project Path="src/PicLens.Core/PicLens.Core.csproj"/><Project Path="src/PicLens.Services/PicLens.Services.csproj"/><Project Path="src/PicLens.Imaging/PicLens.Imaging.csproj"/><Project Path="src/PicLens.Worker/PicLens.Worker.csproj"/><Project Path="src/PicLens.App/PicLens.App.csproj"/><Project Path="tests/PicLens.Tests/PicLens.Tests.csproj"/></Solution>

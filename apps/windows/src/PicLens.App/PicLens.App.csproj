@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+<PropertyGroup><OutputType>WinExe</OutputType><UseWPF>true</UseWPF><AssemblyName>PicLens</AssemblyName><ApplicationIcon>../../../../assets/AppIcon.ico</ApplicationIcon><ApplicationManifest>app.manifest</ApplicationManifest></PropertyGroup>
+<ItemGroup><ProjectReference Include="../PicLens.Services/PicLens.Services.csproj"/><ProjectReference Include="../PicLens.Worker/PicLens.Worker.csproj" ReferenceOutputAssembly="false"/><Resource Include="../../../../assets/AppIcon.ico" Link="AppIcon.ico"/></ItemGroup>
+<Target Name="CopyWorker" AfterTargets="Build"><ItemGroup><WorkerFiles Include="../PicLens.Worker/bin/$(Configuration)/$(TargetFramework)/**/*"/></ItemGroup><Copy SourceFiles="@(WorkerFiles)" DestinationFiles="@(WorkerFiles->'$(OutDir)worker/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true"/></Target>
+</Project>

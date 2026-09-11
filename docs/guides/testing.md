@@ -2,7 +2,7 @@
 
 ## 目前狀態
 
-新版測試工具與可執行命令尚未建立。Windows 在第一階段選定 .NET 測試框架及 WPF 測試入口；Arch 建立 CTest／Qt Test 與必要的 Qt Quick 測試。各平台 README 必須提供實際跑過的命令。
+Windows 已建立 xUnit、codec／服務整合測試及 STA／Dispatcher 入口，命令見 [Windows README](../../apps/windows/README.md)，結果與未驗證事項見 [Windows 驗證紀錄](../engineering/windows-validation.md)。Arch 仍需建立 CTest／Qt Test 與必要的 Qt Quick 測試。
 
 舊 Cargo tests、egui 測試、舊 MSI 與舊效能腳本只驗證舊版。
 

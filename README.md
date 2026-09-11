@@ -11,7 +11,9 @@ PicLens 是以本機資料夾為中心的圖片瀏覽與整理工具。採同一
 
 ## 目前狀態
 
-2026-09-11 已確定重寫方向，正在文件與計畫階段。repo 內仍是既有 Rust／egui 程式；WPF 與 Qt App 尚未建立，兩份 TODO 的實作項目尚未完成。現有 Cargo、封裝腳本與 release workflow 只適用舊版。
+Windows WPF 4.0.1 已完成程式實作，提供獨立建置、測試與候選封裝。已驗證功能、效能與仍待人工／安裝環境確認的項目，見 [Windows 驗證紀錄](docs/engineering/windows-validation.md)。Arch Qt 版尚未開始。
+
+Windows 新版不依賴 Rust。現有 Cargo 與舊 release workflow 只適用歷史版；新流程使用 `windows/v<version>`。
 
 本次先保留舊程式作為行為參考。兩版完成驗收後，再依 TODO 移除 Rust、egui 與舊建置流程。歷史版本與查閱方式見[舊版基準](docs/reference/legacy-baseline.md)。
 
@@ -27,4 +29,4 @@ PicLens 是以本機資料夾為中心的圖片瀏覽與整理工具。採同一
 2. 選擇對應平台 TODO，從第一個未完成且前置條件已滿足的項目開始。
 3. 依[驗收對照](docs/product/acceptance.md)與[測試指南](docs/guides/testing.md)留下證據，再勾選完成。
 
-目前沒有新版可執行的建置指令。第一階段會建立實際專案與命令，再更新[開發指南](docs/guides/development.md)。不要把舊版 Cargo 的成功當成新版驗證。
+Windows 建置、執行與診斷指令見 [apps/windows/README.md](apps/windows/README.md)。候選套件由 `packaging/windows/build.ps1` 產生；套件未簽署，尚未公開發布。

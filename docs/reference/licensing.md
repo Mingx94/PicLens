@@ -4,7 +4,7 @@
 
 PicLens 原始碼沿用根目錄 MIT LICENSE。重寫不自動改變第三方套件、codec、字型或圖片的授權。
 
-新版依賴尚未選定。Windows 以實際 .NET 套件鎖定及封裝清單為準；Arch 以 CMake 相依、PKGBUILD、Qt 模組與最終套件為準。Cargo.lock 只描述舊版。
+Windows 已選定 .NET 10、SkiaSharp 3.119.4、WiX 6.0.2 與 xUnit，實際套件鎖定及授權見 [Windows 清單](../../apps/windows/THIRD-PARTY.md)。封裝複製對應 runtime 與 codec 的授權／聲明。Arch 仍待選定，以 CMake 相依、PKGBUILD、Qt 模組與最終套件為準。Cargo.lock 只描述舊版。
 
 ## 每版需要的清單
 

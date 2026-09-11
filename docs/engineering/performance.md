@@ -2,7 +2,7 @@
 
 ## 狀態與目標
 
-WPF 與 Qt 版本尚未實作，沒有新版量測結果。歷史資料移至[舊版效能記錄](../reference/legacy-performance.md)，不能當成新平台的效能證據。
+WPF 已有 Release 冷暖圖庫、完整原圖與 10,000 筆規模量測，見 [Windows 驗證紀錄](windows-validation.md)。Qt 尚未量測。歷史資料移至[舊版效能記錄](../reference/legacy-performance.md)，不能當成新平台的效能證據。
 
 保留產品既有目標：代表性本機圖片從選取到完整原圖首次繪製提交，目標 500ms 以內。1024 預覽不能算完成。這不是任意硬體、圖片大小或儲存裝置的保證。
 

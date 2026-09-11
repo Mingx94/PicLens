@@ -1,10 +1,28 @@
 # 設計系統
 
-兩版沿用既有視覺方向與操作資訊層級，分別用 WPF／XAML 和 Qt Quick／QML 實作。此文件是重寫基準，不代表新版畫面已完成。
+兩版保留操作資訊層級，分別用 WPF／XAML 和 Qt Quick／QML 實作。使用者已允許 Windows 重新設計；Windows 實作使用下節的暖灰／森林綠方向。其餘基準保留供 Arch 使用。
 
 色彩、字型、間距與尺寸集中在各平台的資源系統；Windows 用 ResourceDictionary，Arch 用統一的 QML theme。共用語意角色，不共用控制項程式碼。
 
 ## 視覺方向
+
+### Windows WPF 實作
+
+主畫面使用暖灰底、白卡片與森林綠主色，Viewer 保持深色畫布。Segoe UI 搭配 Microsoft JhengHei UI 使用 Windows 字型，不額外安裝或封裝字型。樣式與色彩集中在 `apps/windows/src/PicLens.App/App.xaml` 的 Application ResourceDictionary；主題切換由 `App.xaml.cs` 更新語意資源。
+
+| 語意 | 淺色 | 深色 |
+|---|---|---|
+| Surface | #F6F5F1 | #202726 |
+| Card | #FFFFFF | #28312F |
+| Ink | #243333 | #ECF0E9 |
+| MutedInk | #687471 | #ABB8B2 |
+| Line | #DDDFD8 | #424D47 |
+| Accent | #245F51 | #9BD1B8 |
+| Selected | #E1EDE7 | #354F43 |
+
+側欄寬 220，窄視窗縮為 170，支援收合。工具列依空間換行，縮圖維持固定正方形預覽，不拉寬填滿整列。可用 `--components` 檢查元件。高對比改用 Windows 系統色；實際 150%／200% DPI、高對比與輔助工具驗證仍見 Windows TODO。
+
+### Arch／原有基準
 
 採中性 Zinc 灰階。白色或近黑背景、細邊框、低彩度次要操作，讓圖片成為主角。主要操作使用黑白反差，危險操作使用紅色。淺色、深色與 Windows 高對比共用同一組語意角色。
 
