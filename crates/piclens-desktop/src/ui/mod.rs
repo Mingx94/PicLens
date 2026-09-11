@@ -420,7 +420,14 @@ fn library_content(
                     });
                 });
             } else {
-                gallery_grid(model, images, ui, actions, materialized);
+                // Keep the grid's padded column layout, but let its scrollbar reach the window edge.
+                let mut scroll_rect = ui.available_rect_before_wrap();
+                scroll_rect.set_right(ui.ctx().content_rect().right());
+                ui.scope_builder(egui::UiBuilder::new().max_rect(scroll_rect), |ui| {
+                    ui.set_clip_rect(ui.clip_rect().with_max_x(scroll_rect.right()));
+                    ui.spacing_mut().scroll.floating = false;
+                    gallery_grid(model, images, ui, actions, materialized, columns);
+                });
             }
         }
         Loadable::Failed(message) => {
@@ -767,16 +774,18 @@ fn gallery_grid(
     ui: &mut egui::Ui,
     actions: &mut Vec<Action>,
     materialized: &mut Vec<ThumbnailKey>,
+    columns: usize,
 ) {
     const GAP: f32 = 8.0;
 
     let tile_width = model.thumbnail_size as f32;
     let tile_height = gallery_tile_height(tile_width);
-    let columns = (((ui.available_width() + GAP) / (tile_width + GAP)).floor() as usize).max(1);
     let rows = model.visible_items.len().div_ceil(columns);
     let mut hovered_target = None;
     let scroll_id = ui.make_persistent_id("piclens-gallery-scroll");
-    let mut scroll_area = egui::ScrollArea::vertical().id_salt("piclens-gallery-scroll");
+    let mut scroll_area = egui::ScrollArea::vertical()
+        .id_salt("piclens-gallery-scroll")
+        .auto_shrink([false, false]);
     let current_offset =
         egui::scroll_area::State::load(ui.ctx(), scroll_id).map_or(0.0, |state| state.offset.y);
     if let Some(index) = model
