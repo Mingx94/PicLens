@@ -9,6 +9,7 @@ public sealed class LibraryViewModel : Observable
     readonly Profile profile; readonly Scanner scanner;
     public Settings Settings { get; private set; }
     public Selection Selection { get; } = new();
+    public string? SelectionFocusPath { get; internal set; }
     public FolderHistory History { get; } = new();
     public ResetCollection<TileModel> Items { get; } = new();
     public ObservableCollection<FolderNode> Roots { get; } = [];
@@ -106,7 +107,7 @@ public sealed class LibraryViewModel : Observable
         if (string.IsNullOrEmpty(path)) return;
         scan?.Cancel(); var tokenSource = scan = new(); int id = ++generation;
         Folder = path; if (history) History.Visit(path); Loading = true; Status = "正在讀取資料夾…";
-        Source = []; Thumbnails.Reset(); Selection.Clear(); Items.Reset([]); Changed(nameof(Count)); Changed(nameof(SelectionText));
+        Source = []; Thumbnails.Reset(); Selection.Clear(); SelectionFocusPath = null; Items.Reset([]); Changed(nameof(Count)); Changed(nameof(SelectionText));
         var timer = Stopwatch.StartNew();
         try
         {
@@ -121,14 +122,34 @@ public sealed class LibraryViewModel : Observable
     }
     public void Project()
     {
-        var timer = Stopwatch.StartNew(); Thumbnails.Reset(); Selection.Clear();
+        var timer = Stopwatch.StartNew(); Thumbnails.Reset(); Selection.Clear(); SelectionFocusPath = null;
         Items.Reset(LibraryRules.Search(Source, Search).Select(e => new TileModel(e)));
         Changed(nameof(Count)); Changed(nameof(SelectionText)); SearchMeasured?.Invoke(timer.Elapsed.TotalMilliseconds);
     }
     public void Select(TileModel tile, bool ctrl, bool shift)
     {
         if (tile.IsFolder) return;
+        SelectionFocusPath = tile.Path;
         Selection.Select(tile.Path, Items.Where(x => !x.IsFolder).Select(x => x.Path).ToList(), ctrl, shift); SyncSelection();
+    }
+    public TileModel? MoveSelection(int delta, bool control, bool shift)
+    {
+        var images = Items.Where(t => !t.IsFolder).ToList();
+        if (images.Count == 0) return null;
+        int current = images.FindIndex(t => t.Path == SelectionFocusPath);
+        var tile = images[(int)Math.Clamp((long)current + delta, 0, images.Count - 1)];
+        Select(tile, control, shift);
+        return tile;
+    }
+    public List<LibraryEntry> ViewerSequence(string path)
+    {
+        var entries = Items.Where(t => !t.IsFolder).Select(t => t.Entry).ToList();
+        if (Selection.Ordered.Count > 1 && Selection.Contains(path))
+        {
+            var visible = entries.ToDictionary(e => e.Path, StringComparer.OrdinalIgnoreCase);
+            return Selection.Ordered.Where(visible.ContainsKey).Select(p => visible[p]).ToList();
+        }
+        return entries;
     }
     public bool SyncingSelection { get; private set; }
     public void SyncSelection()

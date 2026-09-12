@@ -56,7 +56,9 @@ dotnet run --project src/PicLens.App -- --data-root F:\PicLens\artifacts\wpf-pro
 
 從 repo root 執行 `./packaging/windows/build.ps1`。輸出 `dist/PicLens-<version>-windows-x86_64.msi`、同名 ZIP 與各自 SHA-256；`<version>` 取自 `Directory.Build.props`。封裝 self-contained .NET runtime，不要求終端使用者另裝 .NET；預設未簽署。
 
-MSI 保留既有 UpgradeCode；實際舊版升級及乾淨機安裝仍須依授權驗證。建置腳本不安裝、不推送、不發布。Windows workflow 僅在推送 `windows/v<version>` annotated tag 時執行版本核對、建置封裝與發布；PR／main 不觸發，不自動執行測試或安裝驗證。
+MSI 保留既有 UpgradeCode；實際舊版升級及乾淨機安裝仍須依授權驗證。建置腳本不安裝、不推送、不發布。Windows 發布 workflow 僅在推送 `windows/v<version>` annotated tag 時執行版本核對、建置封裝與發布；PR／main 的驗證 workflow 只執行乾淨建置、測試與封裝，不安裝套件。
+
+在可丟棄的乾淨 Windows 環境，可執行 `./packaging/windows/test-lifecycle.ps1 -MsiPath <msi> -ZipPath <zip> -PreviousMsiPath <舊版-msi> -ConfirmSystemChanges`。這會實際安裝、修復、升級及解除安裝；省略 `-PreviousMsiPath` 時，升級會記為 `not-tested`。一般本機建置不可執行此腳本。
 
 回收使用 IFileOperation 與回收檢查；不提供永久刪除替代路徑。網路／非固定磁碟的回收會回報不支援，保留來源。
 

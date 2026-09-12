@@ -1,0 +1,60 @@
+name: Windows WPF validation
+
+on:
+  pull_request:
+    paths:
+      - 'apps/windows/**'
+      - 'assets/**'
+      - 'packaging/windows/**'
+      - 'test-data/**'
+      - 'TODO.win.md'
+      - '.github/workflows/windows-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/windows/**'
+      - 'assets/**'
+      - 'packaging/windows/**'
+      - 'test-data/**'
+      - 'TODO.win.md'
+      - '.github/workflows/windows-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-wpf-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: apps/windows/global.json
+          cache: true
+          cache-dependency-path: apps/windows/**/packages.lock.json
+      - name: Restore locked dependencies
+        working-directory: apps/windows
+        run: dotnet restore PicLens.Windows.slnx --locked-mode
+      - name: Build Windows app
+        working-directory: apps/windows
+        run: dotnet build PicLens.Windows.slnx -c Release --no-restore
+      - name: Run Windows tests
+        working-directory: apps/windows
+        run: dotnet test PicLens.Windows.slnx -c Release --no-build --no-restore
+      - name: Build MSI and portable ZIP
+        run: ./packaging/windows/build.ps1
+      - name: Upload unsigned packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-wpf-unsigned
+          path: |
+            dist/PicLens-*-windows-x86_64.msi
+            dist/PicLens-*-windows-x86_64.msi.sha256
+            dist/PicLens-*-windows-x86_64.zip
+            dist/PicLens-*-windows-x86_64.zip.sha256
+          if-no-files-found: error

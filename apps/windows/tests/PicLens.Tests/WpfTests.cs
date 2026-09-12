@@ -10,6 +10,23 @@ namespace PicLens.Tests;
 public sealed class WpfTests
 {
     [Fact]
+    public async Task MainWindowKeyboardScopeAndBatchShutdown()
+    {
+        using var process = new System.Diagnostics.Process
+        {
+            StartInfo = new(Path.Combine(AppContext.BaseDirectory, "PicLens.Tests.exe"))
+            { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true }
+        };
+        process.StartInfo.ArgumentList.Add("--desktop-check");
+        process.Start();
+        var output = process.StandardOutput.ReadToEndAsync(); var errors = process.StandardError.ReadToEndAsync();
+        try { await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(40)); }
+        finally { if (!process.HasExited) { process.Kill(true); await process.WaitForExitAsync(); } }
+        Assert.True(process.ExitCode == 0, (await output) + (await errors));
+        Assert.Contains("Desktop checks passed", await output);
+    }
+
+    [Fact]
     public Task ThumbnailRetryClearsFailureIncludingCacheHit() => StaAsync(async () =>
     {
         using var f = new Fixture(); var profile = new Profile(Path.Combine(f.Root, "profile"));
@@ -72,6 +89,148 @@ public sealed class WpfTests
         var saved = profile.Load(); Assert.Equal(220, saved.ThumbnailSize); Assert.True(saved.SidebarCollapsed);
         Assert.Empty(Directory.GetFiles(profile.Root, "*.tmp")); model.Stop();
     });
+    [Fact]
+    public Task ViewerSequenceUsesSelectionOrderAndKeepsSnapshot() => StaAsync(async () =>
+    {
+        using var f = new Fixture(); var profile = new Profile(Path.Combine(f.Root, "profile"));
+        string a = f.Image("library/a.png"), b = f.Image("library/b.png"), c = f.Image("library/c.png");
+        await using var pool = new WorkerPool(profile, Fixture.Worker); await using var images = new ImageService(profile, pool);
+        var model = new LibraryViewModel(profile, images);
+        try
+        {
+            await model.Pick(Path.GetDirectoryName(a)!);
+            model.Select(model.Items.Single(t => t.Path == c), false, false);
+            model.Select(model.Items.Single(t => t.Path == a), true, false);
+            var snapshot = model.ViewerSequence(c);
+            Assert.Equal(new[] { c, a }, snapshot.Select(e => e.Path));
+            Assert.Equal(new[] { a, b, c }, model.ViewerSequence(b).Select(e => e.Path));
+            model.Search = "b.png";
+            Assert.Equal(new[] { c, a }, snapshot.Select(e => e.Path));
+            Assert.Empty(model.Selection.Ordered);
+        }
+        finally { model.Stop(); await model.FlushSettingsAsync(); }
+    });
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task ViewerLateOriginalCannotReplaceReopenedImage(bool oldFails) => StaAsync(async () =>
+    {
+        using var f = new Fixture(); var profile = new Profile(Path.Combine(f.Root, "profile"));
+        var old = new TaskCompletionSource<Pixels>(TaskCreationOptions.RunContinuationsAsynchronously);
+        int originals = 0;
+        var canvas = new ViewerCanvas();
+        var viewer = new ViewerController((_, edge, _) => edge != 0
+            ? Task.FromResult(new Pixels(1, 1, 4, new byte[4]))
+            : Interlocked.Increment(ref originals) == 1 ? old.Task
+            : Task.FromResult(new Pixels(3, 1, 12, new byte[12])), profile, canvas);
+        string status = ""; viewer.StateChanged += (_, info) => status = info;
+        try
+        {
+            viewer.Open([new("a.png", "a.png", false, 0, 0)], "a.png");
+            await Until(() => Volatile.Read(ref originals) == 1);
+            viewer.Close(); viewer.Open([new("a.png", "a.png", false, 0, 0)], "a.png");
+            await Until(() => canvas.Original); Assert.Contains("3 × 1", status);
+            if (oldFails) old.SetException(new IOException("late original"));
+            else old.SetResult(new Pixels(9, 1, 36, new byte[36]));
+            await Task.Delay(100);
+            Assert.Contains("3 × 1", status); Assert.True(canvas.Original);
+        }
+        finally { old.TrySetCanceled(); viewer.Close(); }
+    });
+
+    [Fact]
+    public Task ViewerFailureKeepsPreviewAndCloseRejectsLateCompletion() => StaAsync(async () =>
+    {
+        using var f = new Fixture(); var profile = new Profile(Path.Combine(f.Root, "profile"));
+        var pending = new TaskCompletionSource<Pixels>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var canvas = new ViewerCanvas(); int originals = 0; string status = "";
+        var viewer = new ViewerController((_, edge, _) => edge != 0
+            ? Task.FromResult(new Pixels(2, 1, 8, new byte[8]))
+            : Interlocked.Increment(ref originals) == 1 ? Task.FromException<Pixels>(new IOException("超過 256 MiB")) : pending.Task, profile, canvas);
+        viewer.StateChanged += (_, info) => status = info;
+        try
+        {
+            viewer.Open([new("a.png", "a.png", false, 0, 0)], "a.png");
+            await Until(() => status.Contains("無法載入原圖"));
+            Assert.False(canvas.Original);
+            // The visual still owns the preview after a full-resolution error.
+            var field = typeof(ViewerCanvas).GetField("image", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            Assert.Equal(2, Assert.IsType<PreparedImage>(field.GetValue(canvas)).Width);
+            viewer.Close(); viewer.Open([new("b.png", "b.png", false, 0, 0)], "b.png");
+            await Until(() => Volatile.Read(ref originals) == 2);
+            viewer.Close(); pending.SetResult(new Pixels(4, 1, 16, new byte[16]));
+            await Task.Delay(100);
+            Assert.False(viewer.IsOpen); Assert.Null(viewer.CurrentPath); Assert.Null(field.GetValue(canvas));
+            viewer.Open([new("animated.gif", "animated.gif", false, 0, 0, true)], "animated.gif");
+            Assert.Contains("動畫圖片", status); Assert.Equal(2, originals);
+        }
+        finally { pending.TrySetCanceled(); viewer.Close(); }
+    });
+
+    [Fact]
+    public Task ViewerMissingFileReportsErrorAndDrainsWorkers() => StaAsync(async () =>
+    {
+        using var f = new Fixture(); var profile = new Profile(Path.Combine(f.Root, "profile"));
+        await using var pool = new WorkerPool(profile, Fixture.Worker); await using var images = new ImageService(profile, pool);
+        string source = f.Image("gone.png"); File.Delete(source);
+        var canvas = new ViewerCanvas(); var viewer = new ViewerController(images, profile, canvas);
+        string status = ""; viewer.StateChanged += (_, info) => status = info;
+        try
+        {
+            viewer.Open([new(source, "gone.png", false, 0, 0)], source);
+            await Until(() => status.Contains("無法載入原圖"));
+            Assert.Equal(source, viewer.CurrentPath); Assert.False(canvas.Original);
+            viewer.Close(); await Until(() => pool.ActiveCount == 0);
+            Assert.Empty(Directory.GetFiles(profile.Temporary));
+        }
+        finally { viewer.Close(); }
+    });
+
+    [Fact]
+    public Task ViewerPreviewFailureStillLoadsOriginalAndRapidNavigationSettles() => StaAsync(async () =>
+    {
+        using var f = new Fixture(); var profile = new Profile(Path.Combine(f.Root, "profile"));
+        var canvas = new ViewerCanvas(); string status = "";
+        var viewer = new ViewerController((path, edge, ct) => edge != 0
+            ? Task.FromException<Pixels>(new IOException("preview failure"))
+            : Task.FromResult(new Pixels(path == "a.png" ? 2 : 4, 1, path == "a.png" ? 8 : 16, new byte[path == "a.png" ? 8 : 16])), profile, canvas);
+        viewer.StateChanged += (_, info) => status = info;
+        try
+        {
+            viewer.Open([new("a.png", "a.png", false, 0, 0), new("b.png", "b.png", false, 0, 0)], "a.png");
+            for (int i = 0; i < 20; i++) { viewer.Navigate(1); viewer.Navigate(-1); }
+            await Until(() => canvas.Original);
+            Assert.Equal("a.png", viewer.CurrentPath); Assert.Contains("2 × 1", status);
+            viewer.Close(); Assert.False(canvas.Original); Assert.Null(viewer.CurrentPath);
+        }
+        finally { viewer.Close(); }
+    });
+
+    [Fact]
+    public Task FolderNavigationKeepsRootAndLazyDescendantsAcrossHistory() => StaAsync(async () =>
+    {
+        using var f = new Fixture(); string root = Path.GetDirectoryName(f.Image("library/a.png"))!;
+        string child = Path.GetDirectoryName(f.Image("library/child/b.png"))!;
+        string grandchild = Path.GetDirectoryName(f.Image("library/child/grandchild/c.png"))!;
+        var profile = new Profile(Path.Combine(f.Root, "profile"));
+        await using var pool = new WorkerPool(profile, Fixture.Worker); await using var images = new ImageService(profile, pool);
+        var model = new LibraryViewModel(profile, images);
+        try
+        {
+            await model.Pick(root); var node = Assert.Single(model.Roots);
+            Assert.False(node.Loaded); await model.Expand(node);
+            Assert.True(node.Loaded); Assert.Equal(grandchild, Assert.Single(node.Children).Path);
+            await model.Navigate(child); await model.Navigate(grandchild);
+            Assert.Equal(child, model.History.Back()); await model.Navigate(child, false);
+            Assert.Equal(grandchild, model.History.Forward()); await model.Navigate(grandchild, false);
+            await model.Navigate(model.Folder, false);
+            Assert.Equal(root, model.RootPath); Assert.Same(node, Assert.Single(model.Roots)); Assert.True(node.Loaded);
+            await model.FlushSettingsAsync(); Assert.Equal(root, profile.Load().LastFolderPath);
+        }
+        finally { model.Stop(); await model.FlushSettingsAsync(); }
+    });
+
     static Task StaAsync(Func<Task> action)
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

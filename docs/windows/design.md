@@ -19,3 +19,5 @@
 | Selected | #E1EDE7 | #354F43 |
 
 側欄寬 220，窄視窗縮為 170，支援收合。工具列依空間換行，縮圖維持固定正方形預覽，不拉寬填滿整列。可用 `--components` 檢查元件。高對比改用 Windows 系統色；實際 150%／200% DPI、高對比與輔助工具驗證仍見 Windows TODO。
+
+圖庫、清單與資料夾樹的捲軸樣式集中於 `Themes/ScrollControls.xaml`，使用 Surface、MutedInk 與 Accent 主題色，支援垂直／水平翻頁與拖曳。

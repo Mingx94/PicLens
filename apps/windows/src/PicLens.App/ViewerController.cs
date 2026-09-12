@@ -4,8 +4,16 @@ using PicLens.Services;
 using PicLens.App.Controls;
 namespace PicLens.App;
 
-public sealed class ViewerController(ImageService images, Profile profile, ViewerCanvas canvas)
+public sealed class ViewerController
 {
+    readonly Func<string, int, CancellationToken, Task<Pixels>> loadPixels;
+    readonly Profile profile;
+    readonly ViewerCanvas canvas;
+    public ViewerController(ImageService images, Profile profile, ViewerCanvas canvas) : this(images.LoadAsync, profile, canvas) { }
+    internal ViewerController(Func<string, int, CancellationToken, Task<Pixels>> loadPixels, Profile profile, ViewerCanvas canvas)
+    {
+        this.loadPixels = loadPixels; this.profile = profile; this.canvas = canvas;
+    }
     sealed record Preview(CancellationTokenSource Cancellation, Task<PreparedImage> Task);
     readonly Dictionary<string, Preview> previews = new(StringComparer.OrdinalIgnoreCase);
     CancellationTokenSource? original;
@@ -31,7 +39,7 @@ public sealed class ViewerController(ImageService images, Profile profile, Viewe
     {
         RecordUnpainted(); IsOpen = false; request++; original?.Cancel(); original = null;
         foreach (var p in previews.Values) Release(p); previews.Clear();
-        canvas.SetImage(null, false, true);
+        canvas.SetImage(null, false, true); sequence.Clear(); canvas.Painted -= OnPainted;
     }
     void RecordUnpainted() { if (IsOpen && clock is not null && !painted && !sequence[index].Animated) Unpainted?.Invoke(); clock = null; }
     static void Release(Preview preview)
@@ -44,7 +52,7 @@ public sealed class ViewerController(ImageService images, Profile profile, Viewe
         if (IsOpen && clock is not null && !painted) { painted = true; SharpPaint?.Invoke(clock.Elapsed.TotalMilliseconds); }
     }
     async Task<PreparedImage> Decode(string path, int edge, CancellationToken ct) =>
-        await Task.Run(async () => PreparedImage.Create(await images.LoadAsync(path, edge, ct)), ct);
+        await Task.Run(async () => PreparedImage.Create(await loadPixels(path, edge, ct)), ct);
     Preview GetPreview(LibraryEntry entry)
     {
         if (previews.TryGetValue(entry.Path, out var existing)) return existing;

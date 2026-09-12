@@ -19,6 +19,77 @@ public sealed class ServiceTests
         using var image = Codec.Decode(path, 0);
         Assert.Equal(80, image.Width); Assert.Equal(50, image.Height); Assert.False(AnimationProbe.IsAnimated(path));
     }
+    [Theory]
+    [InlineData("png")]
+    [InlineData("webp")]
+    public void TransparencyAndOriginalDimensionsSurviveDecoding(string extension)
+    {
+        using var f = new Fixture(); string path = Path.Combine(f.Root, "alpha." + extension);
+        using var bitmap = new SKBitmap(new SKImageInfo(3, 2, SKColorType.Bgra8888, SKAlphaType.Unpremul));
+        bitmap.Erase(SKColors.Transparent); bitmap.SetPixel(1, 0, new SKColor(24, 80, 160, 128));
+        bitmap.SetPixel(2, 1, SKColors.Red); Codec.Encode(bitmap, path, extension);
+        using var decoded = Codec.Decode(path, 0);
+        Assert.Equal(3, decoded.Width); Assert.Equal(2, decoded.Height);
+        Assert.Equal(0, decoded.GetPixel(0, 0).Alpha);
+        Assert.Equal(new SKColor(24, 80, 160, 128), decoded.GetPixel(1, 0));
+        Assert.Equal(SKColors.Red, decoded.GetPixel(2, 1));
+    }
+
+    [Theory]
+    [InlineData("jpg")]
+    [InlineData("jpeg")]
+    [InlineData("png")]
+    [InlineData("bmp")]
+    [InlineData("webp")]
+    [InlineData("gif")]
+    public void CorruptImagesFailWithoutChangingSource(string extension)
+    {
+        using var f = new Fixture(); string path = f.Image("bad." + extension);
+        byte[] truncated = File.ReadAllBytes(path)[..12]; File.WriteAllBytes(path, truncated);
+        Assert.Throws<IOException>(() => Codec.Decode(path, 0));
+        Assert.False(AnimationProbe.IsAnimated(path)); Assert.Equal(truncated, File.ReadAllBytes(path));
+    }
+
+    [Fact]
+    public void AnimatedWebpIsDetectedAndRejectedByDecoder()
+    {
+        using var f = new Fixture(); string still = f.Image("still.webp");
+        byte[] imageChunks = File.ReadAllBytes(still)[12..];
+        string path = Path.Combine(f.Root, "animated.webp");
+        using (var data = new MemoryStream())
+        {
+            using var writer = new BinaryWriter(data, System.Text.Encoding.ASCII, true);
+            void Chunk(string name, byte[] bytes)
+            {
+                writer.Write(System.Text.Encoding.ASCII.GetBytes(name)); writer.Write(bytes.Length); writer.Write(bytes);
+                if ((bytes.Length & 1) != 0) writer.Write((byte)0);
+            }
+            // VP8X canvas 80x50, animation flag; two opaque lossless frames.
+            Chunk("VP8X", [2, 0, 0, 0, 79, 0, 0, 49, 0, 0]);
+            Chunk("ANIM", new byte[6]);
+            byte[] frameHeader = [0, 0, 0, 0, 0, 0, 79, 0, 0, 49, 0, 0, 100, 0, 0, 2];
+            Chunk("ANMF", frameHeader.Concat(imageChunks).ToArray());
+            Chunk("ANMF", frameHeader.Concat(imageChunks).ToArray());
+            using var output = new BinaryWriter(File.Create(path));
+            output.Write("RIFF"u8); output.Write((int)data.Length + 4); output.Write("WEBP"u8); output.Write(data.ToArray());
+        }
+        using var codec = SKCodec.Create(path); Assert.NotNull(codec); Assert.Equal(2, codec.FrameCount);
+        Assert.True(AnimationProbe.IsAnimated(path)); Assert.Throws<IOException>(() => Codec.Decode(path, 0));
+    }
+
+    [Fact]
+    public void OversizedBitmapIsRejectedBeforePixelAllocation()
+    {
+        using var f = new Fixture(); string path = Path.Combine(f.Root, "oversized.bmp");
+        using (var writer = new BinaryWriter(File.Create(path)))
+        {
+            writer.Write((ushort)0x4d42); writer.Write(54); writer.Write(0); writer.Write(54);
+            writer.Write(40); writer.Write(8193); writer.Write(8193); writer.Write((ushort)1); writer.Write((ushort)24);
+            for (int i = 0; i < 6; i++) writer.Write(0);
+        }
+        Assert.Contains("256 MiB", Assert.Throws<IOException>(() => Codec.Decode(path, 0)).Message);
+    }
+
     [Fact]
     public void LosslessWebpPreservesPixels()
     {

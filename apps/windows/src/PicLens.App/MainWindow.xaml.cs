@@ -37,11 +37,18 @@ public partial class MainWindow : Window
         Model.LibraryMeasured += ms => libraryMs = ms; Model.SearchMeasured += ms => searchMs = ms;
         Model.PropertyChanged += (_, e) =>
         {
+            if (e.PropertyName == nameof(Model.Folder) && !dragging) ResetDragState();
             if (e.PropertyName == nameof(Model.Count)) EmptyState.Visibility = Model.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             if (e.PropertyName == nameof(Model.SidebarCollapsed)) UpdateSidebar();
         };
         toastTimer.Tick += (_, _) => { Toast.Visibility = Visibility.Collapsed; toastTimer.Stop(); };
         UpdateSidebar();
+        Deactivated += (_, _) => { if (!dragging) ResetDragState(); };
+        Gallery.LostMouseCapture += (_, _) => { if (!dragging) ResetDragState(); };
+        Gallery.QueryContinueDrag += (_, e) =>
+        {
+            if (e.EscapePressed || e.Action == DragAction.Cancel) { e.Action = DragAction.Cancel; ResetDragState(); }
+        };
         if (options.Metrics is not null) Gallery.LayoutUpdated += (_, _) => {
             maxRealizedContainers = Math.Max(maxRealizedContainers, FindVisual<VirtualizingTilePanel>(Gallery)?.RealizedCount ?? 0);
         };
@@ -66,9 +73,9 @@ public partial class MainWindow : Window
     void WindowSizeChanged(object sender, SizeChangedEventArgs e) => UpdateSidebar();
     async void ChooseFolder(object sender, RoutedEventArgs e)
     {
-        if (batchTask is { IsCompleted: false }) return;
+        if (closing || batchTask is { IsCompleted: false }) return;
         var dialog = new OpenFolderDialog { Title = "選擇圖片資料夾", Multiselect = false };
-        if (dialog.ShowDialog(this) == true) { CloseViewerCore(); await Model.Pick(dialog.FolderName); }
+        if (dialog.ShowDialog(this) == true && !closing) { CloseViewerCore(); await Model.Pick(dialog.FolderName); }
     }
     async void RootClicked(object sender, RoutedEventArgs e) => await Model.Navigate(Model.RootPath);
     async void BackClicked(object sender, RoutedEventArgs e) { if (Model.History.Back() is string path) await Model.Navigate(path, false); }
@@ -117,7 +124,7 @@ public partial class MainWindow : Window
         dragging = true;
         DragHint.Visibility = Visibility.Visible; DragHintText.Text = $"正在拖曳 {Model.Selection.Ordered.Count} 張圖片 · 放到目標圖片上重新命名";
         try { DragDrop.DoDragDrop(Gallery, new DataObject("PicLens.Images", Model.Selection.Ordered.ToArray()), DragDropEffects.Move); }
-        finally { dragging = false; pressedTile = null; ClearDrag(); }
+        finally { dragging = false; ResetDragState(); }
     }
     void ShowMenu(TileModel tile)
     {
@@ -130,7 +137,7 @@ public partial class MainWindow : Window
     }
     void OpenViewer(string path)
     {
-        var entries = Model.Items.Where(x => !x.IsFolder).Select(x => x.Entry).ToList();
+        var entries = Model.ViewerSequence(path);
         if (!entries.Any(e => StringComparer.OrdinalIgnoreCase.Equals(e.Path, path))) return;
         Model.Thumbnails.Pause(true); Workspace.Visibility = Visibility.Collapsed; ViewerLayer.Visibility = Visibility.Visible;
         viewer.Open(entries, path); Canvas.Focus();
@@ -153,11 +160,12 @@ public partial class MainWindow : Window
     async void ConvertWebp(object sender, RoutedEventArgs e) => await Convert(OperationKind.Webp);
     async Task Convert(OperationKind kind)
     {
-        if (batchTask is { IsCompleted: false }) return;
+        if (closing || batchTask is { IsCompleted: false }) return;
         try
         {
             var snapshot = Model.Items.Select(x => x.Entry).Where(x => !x.IsFolder).ToList();
             var plans = await Task.Run(() => FilePlans.Convert(snapshot, kind));
+            if (closing) return;
             if (plans.Count == 0) return;
             if (FilePlans.RequiresConversionConfirmation(plans.Count) && !Dialogs.Confirm(this, "確認格式轉換", $"將處理目前顯示的 {plans.Count} 張圖片。保留原檔，目標衝突時略過。", PlanRows(plans))) return;
             await RunBatch(plans);
@@ -166,11 +174,12 @@ public partial class MainWindow : Window
     }
     async void CleanupClicked(object sender, RoutedEventArgs e)
     {
-        if (batchTask is { IsCompleted: false }) return;
+        if (closing || batchTask is { IsCompleted: false }) return;
         try
         {
             var snapshot = Model.Items.Select(x => x.Entry).ToList();
             var plans = await Task.Run(() => FilePlans.Cleanup(snapshot));
+            if (closing) return;
             if (plans.Count == 0) { Model.Status = "沒有可清理的同名格式。"; return; }
             if (Dialogs.Confirm(this, "確認同名清理", $"將 {plans.Count} 張其他同名格式移至回收筒。JPG／JPEG 與 WebP 都會保留。", PlanRows(plans))) await RunBatch(plans);
         }
@@ -178,7 +187,7 @@ public partial class MainWindow : Window
     }
     async Task RenameSelected()
     {
-        if (batchTask is { IsCompleted: false } || Model.Selection.Ordered.Count != 1) return;
+        if (closing || batchTask is { IsCompleted: false } || Model.Selection.Ordered.Count != 1) return;
         string source = Model.Selection.Ordered[0];
         string? name = Dialogs.Rename(this, Path.GetFileNameWithoutExtension(source));
         if (name is null) return;
@@ -192,11 +201,12 @@ public partial class MainWindow : Window
     }
     async Task TrashSelected()
     {
-        if (batchTask is { IsCompleted: false }) return;
+        if (closing || batchTask is { IsCompleted: false }) return;
         try
         {
             var sources = Model.Selection.Ordered.ToArray();
             var plans = await Task.Run(() => sources.Select(p => new FilePlan(p, null, OperationKind.Trash, FileStamp.Capture(p))).ToList());
+            if (closing) return;
             if (plans.Count > 0 && Dialogs.Confirm(this, "移至回收筒", $"確定將 {plans.Count} 張圖片移至 Windows 回收筒？", PlanRows(plans))) await RunBatch(plans);
         }
         catch (Exception ex) { Error(ex); }
@@ -204,7 +214,7 @@ public partial class MainWindow : Window
     static string[] PlanRows(IReadOnlyList<FilePlan> plans) => plans.Select(p => $"{Path.GetFileName(p.Source)} → {(p.Target is null ? "回收筒" : Path.GetFileName(p.Target))}{(p.Skip is null ? "" : " · " + p.Skip)}").ToArray();
     async Task RunBatch(IReadOnlyList<FilePlan> plans)
     {
-        if (batchTask is { IsCompleted: false }) return;
+        if (closing || batchTask is { IsCompleted: false }) return;
         batchCancellation = new(); CancelBatchButton.Visibility = Visibility.Visible;
         batchTask = Execute();
         await batchTask;
@@ -235,31 +245,37 @@ public partial class MainWindow : Window
     }
     void GalleryDragOver(object sender, DragEventArgs e)
     {
-        e.Handled = true; var target = TileBorder(e.OriginalSource as DependencyObject);
-        e.Effects = e.Data.GetDataPresent("PicLens.Images") && target?.DataContext is TileModel { IsFolder: false } ? DragDropEffects.Move : DragDropEffects.None;
+        e.Handled = true; var hit = TileBorder(e.OriginalSource as DependencyObject);
+        var sources = e.Data.GetData("PicLens.Images") as string[];
+        var target = sources is { Length: > 0 } && hit?.DataContext is TileModel { IsFolder: false } candidate &&
+            !sources.Contains(candidate.Path, StringComparer.OrdinalIgnoreCase) ? hit : null;
+        e.Effects = target is null ? DragDropEffects.None : DragDropEffects.Move;
         if (dragTarget != target) { if (dragTarget is not null) ResetBorder(dragTarget); dragTarget = target; }
         if (e.Effects == DragDropEffects.Move && target is not null)
         {
-            target.BorderBrush = Brushes.DarkOrange; DragHintText.Text = $"放到「{((TileModel)target.DataContext).Name}」· 預覽批次重新命名";
+            target.SetResourceReference(Border.BorderBrushProperty, "Accent"); DragHintText.Text = $"放到「{((TileModel)target.DataContext).Name}」· 預覽批次重新命名";
         }
+        else if (sources is { Length: > 0 }) DragHintText.Text = $"正在拖曳 {sources.Length} 張圖片 · 放到其他圖片上重新命名";
         var p = e.GetPosition(Gallery); var panel = FindVisual<VirtualizingTilePanel>(Gallery);
         if (p.Y < 40) panel?.LineUp(); else if (p.Y > Gallery.ActualHeight - 40) panel?.LineDown();
     }
     async void GalleryDrop(object sender, DragEventArgs e)
     {
         e.Handled = true;
-        if (batchTask is { IsCompleted: false }) return;
-        if (e.Data.GetData("PicLens.Images") is not string[] sources || TileBorder(e.OriginalSource as DependencyObject)?.DataContext is not TileModel { IsFolder: false } target) return;
-        ClearDrag();
+        if (closing || batchTask is { IsCompleted: false }) return;
+        if (e.Data.GetData("PicLens.Images") is not string[] sources || TileBorder(e.OriginalSource as DependencyObject)?.DataContext is not TileModel { IsFolder: false } target || sources.Length == 0 || sources.Contains(target.Path, StringComparer.OrdinalIgnoreCase)) return;
+        ResetDragState();
         try
         {
             var plans = await Task.Run(() => FilePlans.DropRename(sources, target.Path, Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(target.Path)!)));
+            if (closing) return;
             if (plans.Count > 0 && Dialogs.Confirm(this, "預覽批次重新命名", $"{plans.Count} 張圖片將依目標名稱編號。確認前不修改檔案；衝突時略過。", PlanRows(plans))) await RunBatch(plans);
         }
         catch (Exception ex) { Error(ex); }
     }
     void GalleryDragLeave(object sender, DragEventArgs e) { if (dragTarget is not null) { ResetBorder(dragTarget); dragTarget = null; } }
     static void ResetBorder(Border border) => border.ClearValue(Border.BorderBrushProperty);
+    void ResetDragState() { pressedTile = null; ClearDrag(); }
     void ClearDrag() { if (dragTarget is not null) ResetBorder(dragTarget); dragTarget = null; DragHint.Visibility = Visibility.Collapsed; }
     public static T? FindVisual<T>(DependencyObject parent) where T : DependencyObject
     {
@@ -278,7 +294,7 @@ public partial class MainWindow : Window
         foreach (var tile in e.RemovedItems.OfType<TileModel>()) Model.Selection.Remove(tile.Path);
         var visible = Model.Items.Where(t => !t.IsFolder).Select(t => t.Path).ToList();
         foreach (var tile in e.AddedItems.OfType<TileModel>().Where(t => !t.IsFolder))
-            if (!Model.Selection.Contains(tile.Path)) Model.Selection.Select(tile.Path, visible, true, false);
+            if (!Model.Selection.Contains(tile.Path)) { Model.Selection.Select(tile.Path, visible, true, false); Model.SelectionFocusPath = tile.Path; }
         Model.SyncSelection();
     }
     void WindowMouseUp(object sender, MouseButtonEventArgs e)
@@ -291,6 +307,7 @@ public partial class MainWindow : Window
     }
     async void WindowKeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Escape && pressedTile is not null) ResetDragState();
         if (e.Key == Key.F && Keyboard.Modifiers.HasFlag(ModifierKeys.Control) && !viewer.IsOpen) { SearchBox.Focus(); SearchBox.SelectAll(); e.Handled = true; return; }
         if (viewer.IsOpen)
         {
@@ -301,7 +318,8 @@ public partial class MainWindow : Window
         }
         if (Keyboard.FocusedElement is TextBox or ComboBox or ComboBoxItem or Slider or CheckBox) return;
         if (e.Key == Key.F5) { await Model.Navigate(Model.Folder, false); e.Handled = true; }
-        if (e.Key == Key.Escape) { Model.Selection.Clear(); Model.SyncSelection(); }
+        if (!Gallery.IsKeyboardFocusWithin) return;
+        if (e.Key == Key.Escape) { Model.Selection.Clear(); Model.SelectionFocusPath = null; Model.SyncSelection(); }
         if (e.Key == Key.Enter && Model.Selection.Ordered.FirstOrDefault() is string selected) { OpenViewer(selected); e.Handled = true; }
         if (e.Key == Key.F2) { await RenameSelected(); e.Handled = true; }
         if (e.Key == Key.Apps || (e.Key == Key.F10 && Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)))
@@ -312,12 +330,10 @@ public partial class MainWindow : Window
         if (e.Key == Key.Delete) { await TrashSelected(); e.Handled = true; }
         if (e.Key is Key.Left or Key.Right or Key.Up or Key.Down or Key.Home or Key.End)
         {
-            var images = Model.Items.Where(t => !t.IsFolder).ToList(); if (images.Count == 0) return;
-            int current = images.FindIndex(t => t.Path == Model.Selection.Ordered.LastOrDefault());
             int columns = Math.Max(1, (int)(Gallery.ActualWidth / Model.TileWidth));
-            int next = e.Key switch { Key.Home => 0, Key.End => images.Count - 1, Key.Left => current - 1, Key.Right => current + 1, Key.Up => current - columns, _ => current + columns };
-            var tile = images[Math.Clamp(next, 0, images.Count - 1)];
-            Model.Select(tile, Keyboard.Modifiers.HasFlag(ModifierKeys.Control), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+            int delta = e.Key switch { Key.Home => -Model.Items.Count, Key.End => Model.Items.Count, Key.Left => -1, Key.Right => 1, Key.Up => -columns, _ => columns };
+            var tile = Model.MoveSelection(delta, Keyboard.Modifiers.HasFlag(ModifierKeys.Control), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+            if (tile is null) return;
             FindVisual<VirtualizingTilePanel>(Gallery)?.ScrollToIndex(Model.Items.IndexOf(tile)); e.Handled = true;
         }
     }
@@ -357,7 +373,7 @@ public partial class MainWindow : Window
     async void WindowClosing(object? sender, CancelEventArgs e)
     {
         if (closed) return; e.Cancel = true; if (closing) return; closing = true;
-        Model.Stop(); viewer.Close(); batchCancellation?.Cancel(); toastTimer.Stop();
+        ResetDragState(); Model.Stop(); viewer.Close(); batchCancellation?.Cancel(); toastTimer.Stop();
         if (batchTask is not null) await batchTask;
         await images.DisposeAsync(); await workers.DisposeAsync(); await Model.FlushSettingsAsync();
         try

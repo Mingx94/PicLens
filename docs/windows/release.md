@@ -22,4 +22,4 @@ Windows MSI 保留 UpgradeCode `{4B3899A4-2E9E-4B4F-9CF5-36F8D8D6767D}`。新 Wi
 - 驗證開始功能表、工作列與執行檔圖示、無 console 的正常啟動、路徑與資料延續性。
 - MSI 驗證乾淨安裝、啟動、舊版升級／替換、解除安裝與 profile 保留；ZIP 另外驗證解壓啟動。
 
-Windows 生命週期腳本是 `packaging/windows/test-lifecycle.ps1`。須在乾淨且已授權的 Windows 環境傳入 `-ConfirmSystemChanges`；`-PreviousMsiPath` 可加入舊版升級測試。未提供舊 MSI 時，升級結果會明確記為 `not-tested`。此腳本保留供手動驗證，不由 Windows 發布 workflow 自動執行。
+Windows 生命週期腳本是 `packaging/windows/test-lifecycle.ps1`。須傳入同版的 `-MsiPath`、`-ZipPath`，並在乾淨且已授權的 Windows 環境加上 `-ConfirmSystemChanges`。腳本會驗證安裝、啟動、修復、解除安裝、profile 保留及 ZIP 解壓啟動；`-PreviousMsiPath` 可再加入舊版升級測試。未提供舊 MSI 時，升級結果會明確記為 `not-tested`。此腳本保留供手動驗證，不由 Windows 發布 workflow 自動執行。

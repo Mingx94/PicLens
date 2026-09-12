@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Automation;
 using PicLens.Core;
 namespace PicLens.App;
 
@@ -31,6 +32,7 @@ public static class Dialogs
         confirm.Click += (_, _) => dialog.DialogResult = true;
         buttons.Children.Add(cancel); buttons.Children.Add(confirm); DockPanel.SetDock(buttons, Dock.Bottom); grid.Children.Add(buttons);
         var list = new ListBox { ItemsSource = rows };
+        AutomationProperties.SetName(list, "待處理檔案");
         VirtualizingPanel.SetIsVirtualizing(list, true); VirtualizingPanel.SetVirtualizationMode(list, VirtualizationMode.Recycling);
         grid.Children.Add(list); dialog.Content = grid;
         return dialog.ShowDialog() == true;
@@ -40,7 +42,7 @@ public static class Dialogs
         var dialog = Create(owner, "重新命名"); dialog.Height = 230;
         var stack = new StackPanel { Margin = new Thickness(24) };
         stack.Children.Add(new TextBlock { Text = "只修改檔名，副檔名保持不變。", Margin = new(0, 0, 0, 16) });
-        var field = new TextBox { Text = current }; stack.Children.Add(field);
+        var field = new TextBox { Text = current }; AutomationProperties.SetName(field, "新檔名（不含副檔名）"); stack.Children.Add(field);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new(0, 18, 0, 0) };
         var cancel = new Button { Content = "取消", IsCancel = true, IsDefault = true };
         var okay = new Button { Content = "重新命名" }; okay.Click += (_, _) => dialog.DialogResult = true;
@@ -57,6 +59,7 @@ public static class Dialogs
         DockPanel.SetDock(close, Dock.Bottom); panel.Children.Add(close);
         string Label(ResultStatus status) => status switch { ResultStatus.Succeeded => "成功", ResultStatus.Skipped => "略過", ResultStatus.Canceled => "取消", ResultStatus.Unknown => "結果待確認", _ => "失敗" };
         var list = new ListBox { ItemsSource = batch.Items.Select(r => $"{Label(r.Status)} · {r.Source}\n→ {r.Target ?? "回收筒"}\n{r.Message}") };
+        AutomationProperties.SetName(list, "逐項操作結果");
         panel.Children.Add(list); dialog.Content = panel; dialog.ShowDialog();
     }
 }
