@@ -49,8 +49,11 @@ def allowed(name):
         return False
     if name in {'LICENSE', 'TODO.arch.md'}:
         return True
-    if name in {'docs/engineering/arch-validation.md', 'docs/engineering/native-cleanup.md'} or (
-        name.startswith('docs/') and name in TRACKED and p.suffix == '.md'
+    if name.startswith('docs/') and p.suffix == '.md' and (
+        name in TRACKED or (
+            len(p.parts) == 3 and p.parts[1] in {'windows', 'linux'}
+            and p.name in {'README.md', 'architecture.md', 'design.md', 'release.md'}
+        )
     ):
         return True
     if name.startswith('apps/linux/'):

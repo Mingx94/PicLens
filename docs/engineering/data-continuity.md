@@ -1,6 +1,6 @@
 # 資料延續性
 
-本文件是兩版重寫必須保留的資料契約。換語言不代表可以重設設定或搬走使用者資料。Windows 已用合成舊設定驗證欄位、原子保存、損壞隔離與鎖定失敗；實際 MSI 升級仍待驗證。完整狀態見 [Windows 驗證紀錄](windows-validation.md)與 [DATA-01](../product/acceptance.md)。
+本文件定義兩版的設定、資料路徑與升級相容契約。驗收案例見 [DATA-01](../product/acceptance.md)。
 
 ## 路徑
 
@@ -46,7 +46,7 @@
 
 損壞設定先改名為 `piclens-settings.json.corrupt.<suffix>`，再使用預設。若無法讀取或隔離舊檔，禁止以預設值直接覆寫，需回報錯誤。
 
-第一階段保留 JSON，不新增 SQLite 遷移。若未來調整 schema，需定義版本、備份、失敗恢復及舊欄位讀取規則。
+設定採 JSON。若未來調整 schema，需定義版本、備份、失敗恢復及舊欄位讀取規則。
 
 ## 快取與紀錄
 

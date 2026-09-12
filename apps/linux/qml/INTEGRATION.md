@@ -1,4 +1,4 @@
-# QML 接線與驗證
+# QML 整合
 
 正式入口為 `Main.qml`，同目錄 QML 已由 CMake 收入 qrc。使用 Qt 6.8 以上的 QtQuick、QtQuick.Controls.Basic、QtQuick.Layouts、QtQuick.Dialogs，以及程式註冊的 `PicLens.Native 1.0`。
 
@@ -32,12 +32,3 @@
 SVG 對應 qrc:/icons/{name}.svg，由正式 CMake 打包。ToolButton.icon.color 隨主題著色，不使用 shader。
 
 Provider URL 為 image://thumb/{imageKey}，cache=false、asynchronous=false。GridView reuseItems=true，cacheBuffer 最多 600。每 120ms 從實體 delegate 篩出可見 paths，送至 setVisible。離開圖庫清空需求；pooled 清空 source，reused 接新來源。
-
-## 本次驗證
-
-後續 QML 修正已留待重新整合驗證：主要按鈕明確設定 icon／buttonText／highlight 前景色；新增 NeutralComboBox、NeutralCheckBox、NeutralSlider；文字統一為回收筒。已選圖片的一般按下延後至未拖曳的 release 才單選，Ctrl／Shift 保留原選取語意；資料夾導覽排至 release 後。Viewer 左右鍵只在 zoom <= 1.01 切圖，工具列移至頂部，畫布以工具列高度加上下間距留白。縮圖 source 改為唯一宣告式 binding，移除 imageKeyChanged／folderChanged／pooled／reused 的 imperative source 寫入，以免初始化或回收移除 binding。
-
-- Windows MSYS2 Qt 6.11.1，CMake Release 正式 piclens 與 piclens-worker 建置通過；輸出 `F:/PicLens/artifacts/qml-native-build/`。使用隔離輸出是因原 windows-preview 目錄拒絕寫入。未修改 C++。
-- 正式執行檔 offscreen Viewer 載入 fixture PNG，exit 0；metrics 記錄 1 次 fullResolution 原圖提交，unpaintedSelections=0。證據：`F:/PicLens/artifacts/qml-native-smoke/viewer-metrics.json`。此指標為 scene graph 提交，不是 OS compositor 顯示時間。
-- 正式執行檔 `--components --dark --width 800 --height 600` offscreen 啟動，exit 0。兩次執行未輸出 QML／qrc 警告。
-- 尚未驗證 Linux 桌面像素、原生 FolderDialog、實際滑鼠拖放、輸入法或輔助工具。未執行檔案修改作業，也未驗證 Qt 6.8 的實際建置。

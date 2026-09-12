@@ -7,27 +7,27 @@ PicLens 是以本機資料夾為中心的圖片瀏覽與整理工具。採同一
 | Windows | C#、.NET、WPF、XAML | [TODO.win.md](TODO.win.md) |
 | Arch Linux | C++20、Qt 6、Qt Quick／QML、CMake | [TODO.arch.md](TODO.arch.md) |
 
-兩版共用產品規格、驗收案例與品牌資產；各自實作 UI、掃描、縮圖、快取與檔案操作。目標版本不保留 Rust，也不設共用 Rust 核心或跨語言橋接。
+兩版共用產品規格、驗收案例與品牌資產；各自實作 UI、掃描、縮圖、快取與檔案操作。兩版不共用執行時核心或跨語言橋接。
 
 ## 目前狀態
 
-Windows WPF 已完成程式實作，提供獨立建置、測試與候選封裝。已驗證功能、效能與仍待人工／安裝環境確認的項目，見 [Windows 驗證紀錄](docs/engineering/windows-validation.md)。Arch Qt 4.0.0 已在 Omarchy 完成本機建置、測試與候選套件；實際 Arch 桌面與套件驗收見 [Arch 驗收紀錄](docs/engineering/arch-validation.md)。
+Windows WPF 與 Arch Qt 各自提供建置、測試與封裝入口。未完成的實作與驗收項目見各平台 TODO。
 
-兩版均不依賴 Rust。發布流程分別使用 `windows/v<version>` 與 `arch/v<version>`；舊 `v*` 發布流程已移除。
+發布流程分別使用 `windows/v<version>` 與 `arch/v<version>`。來源版本分別見 Windows 的 [Directory.Build.props](apps/windows/Directory.Build.props) 與 Arch 的 [CMakeLists.txt](apps/linux/CMakeLists.txt)。
 
-已依使用者指示移除舊 Rust／egui 原始碼、封裝與建置流程。舊行為可從 Git 歷史查閱，見[舊版基準](docs/reference/legacy-baseline.md)。清理不代表兩版的桌面、安裝與升級驗收已完成；剩餘項目仍列於各平台 TODO。
+兩版的桌面、安裝與升級驗收狀態，見各平台 TODO。
 
 ## 功能範圍
 
 保留格狀圖庫、資料夾樹、遞迴瀏覽、搜尋與排序、多選、縮圖、內嵌原圖檢視器、格式轉換、回收筒及拖放重新命名。動畫 GIF／WebP 顯示不支援預覽提示，不新增動畫播放。
 
-詳細行為以[產品規格](docs/product/product-spec.md)為準。Arch 是本次 Linux 發行目標；Ubuntu、Fedora、DEB 與 RPM 不列入此次重寫交付。
+詳細行為以[產品規格](docs/product/product-spec.md)為準。Arch 是本次 Linux 發行目標；Ubuntu、Fedora、DEB 與 RPM 不列入此次交付。
 
 ## 從哪裡開始
 
-1. 閱讀[文件索引](docs/README.md)及[架構](docs/engineering/architecture.md)。
+1. 閱讀[文件索引](docs/README.md)及[共用架構](docs/engineering/architecture.md)，再進入 [Windows 文件](docs/windows/README.md)或 [Linux 文件](docs/linux/README.md)。
 2. 選擇對應平台 TODO，從第一個未完成且前置條件已滿足的項目開始。
-3. 依[驗收對照](docs/product/acceptance.md)與[測試指南](docs/guides/testing.md)留下證據，再勾選完成。
+3. 依[驗收對照](docs/product/acceptance.md)與[測試指南](docs/guides/testing.md)留下證據，完成後移出 TODO。
 
 Windows 建置、執行與診斷指令見 [apps/windows/README.md](apps/windows/README.md)。候選套件由 `packaging/windows/build.ps1` 產生；套件未簽署，尚未公開發布。
 

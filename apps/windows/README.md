@@ -1,6 +1,8 @@
 # PicLens Windows（WPF）
 
-Windows 原生重寫，C#／.NET 10／WPF，獨立於 Rust 舊版。版本來源是 Directory.Build.props。支援目標為 Windows 11 x64；開發使用 global.json 鎖定的 .NET SDK 10.0.401。
+平台架構、設計與發布規則見[平台文件](../../docs/windows/README.md)。
+
+Windows 原生 App，使用 C#／.NET 10／WPF。版本來源是 Directory.Build.props。支援目標為 Windows 11 x64；開發使用 global.json 鎖定的 .NET SDK 10.0.401。
 
 ## 開發
 
@@ -54,7 +56,7 @@ dotnet run --project src/PicLens.App -- --data-root F:\PicLens\artifacts\wpf-pro
 
 從 repo root 執行 `./packaging/windows/build.ps1`。輸出 `dist/PicLens-<version>-windows-x86_64.msi`、同名 ZIP 與各自 SHA-256；`<version>` 取自 `Directory.Build.props`。封裝 self-contained .NET runtime，不要求終端使用者另裝 .NET；預設未簽署。
 
-MSI 保留既有 UpgradeCode；實際舊版升級及乾淨機安裝仍須依授權驗證。建置腳本不安裝、不推送、不發布。Windows workflow 僅在推送 `windows/v<version>` annotated tag 時執行版本核對、建置封裝與發布；PR／main 不觸發，不自動執行測試或安裝驗證。舊 `v*` tag workflow 已移除；歷史原始碼仍可從 Git 查閱。
+MSI 保留既有 UpgradeCode；實際舊版升級及乾淨機安裝仍須依授權驗證。建置腳本不安裝、不推送、不發布。Windows workflow 僅在推送 `windows/v<version>` annotated tag 時執行版本核對、建置封裝與發布；PR／main 不觸發，不自動執行測試或安裝驗證。
 
 回收使用 IFileOperation 與回收檢查；不提供永久刪除替代路徑。網路／非固定磁碟的回收會回報不支援，保留來源。
 

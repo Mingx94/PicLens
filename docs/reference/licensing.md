@@ -2,9 +2,9 @@
 
 ## 狀態與來源
 
-PicLens 原始碼沿用根目錄 MIT LICENSE。重寫不自動改變第三方套件、codec、字型或圖片的授權。
+PicLens 原始碼沿用根目錄 MIT LICENSE。應用程式授權不改變第三方套件、codec、字型或圖片的授權。
 
-Windows 已選定 .NET 10、SkiaSharp 3.119.4、WiX 6.0.2 與 xUnit，實際套件鎖定及授權見 [Windows 清單](../../apps/windows/THIRD-PARTY.md)。封裝複製對應 runtime 與 codec 的授權／聲明。Arch 已選定 Qt 6 與 libwebp，見 [Arch 清單](../../apps/linux/THIRD-PARTY.md)，並以 CMake、PKGBUILD 與最終套件為準。舊 Cargo.lock 已移除，可由 Git 歷史查閱。
+Windows 已選定 .NET 10、SkiaSharp 3.119.4、WiX 6.0.2 與 xUnit，實際套件鎖定及授權見 [Windows 清單](../../apps/windows/THIRD-PARTY.md)。封裝複製對應 runtime 與 codec 的授權／聲明。Arch 已選定 Qt 6 與 libwebp，見 [Arch 清單](../../apps/linux/THIRD-PARTY.md)，並以 CMake、PKGBUILD 與最終套件為準。
 
 ## 每版需要的清單
 

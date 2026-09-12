@@ -1,61 +1,8 @@
 # 設計系統
 
-兩版保留操作資訊層級，分別用 WPF／XAML 和 Qt Quick／QML 實作。使用者已允許 Windows 重新設計；Windows 實作使用下節的暖灰／森林綠方向。其餘基準保留供 Arch 使用。
+兩版保留相同的操作資訊層級與功能行為，使用各平台的原生資源系統管理色彩、字型、間距及尺寸。共用語意角色，不共用控制項程式碼。
 
-色彩、字型、間距與尺寸集中在各平台的資源系統；Windows 用 ResourceDictionary，Arch 用統一的 QML theme。共用語意角色，不共用控制項程式碼。
-
-## 視覺方向
-
-### Windows WPF 實作
-
-下拉選單（含展開清單）、核取方塊與水平縮圖滑桿的樣式集中於 `Themes/SelectionControls.xaml`，沿用 Card、Line、Accent 與選取色。下拉選單採 7 DIP 圓角；核取方塊支援未勾選、已勾選與部分勾選；滑桿採 4 DIP 軌道與 16 DIP 圓形滑塊。三者提供鍵盤焦點與停用狀態，保留 WPF 原生操作行為。
-
-應用內圖示統一使用 `assets/Icons/Lucide` 的固定版本 SVG，透過 `Controls/LucideIcon.cs` 轉為可快取的 WPF 向量。新增圖示應使用同一套資產，並加入 `IconKind`；不以 Unicode 符號代替操作圖示。工具列用 18 DIP、選單用 16 DIP、縮圖預留圖示用 46 DIP。圖示繼承 Foreground，隨明暗主題與系統高對比色更新；圖示按鈕保留提示與輔助工具名稱。Windows 原生控制項的勾選與展開符號由系統繪製。
-
-主畫面使用暖灰底、白卡片與森林綠主色，Viewer 保持深色畫布。Segoe UI 搭配 Microsoft JhengHei UI 使用 Windows 字型，不額外安裝或封裝字型。樣式與色彩集中在 `apps/windows/src/PicLens.App/App.xaml` 的 Application ResourceDictionary；主題切換由 `App.xaml.cs` 更新語意資源。
-
-| 語意 | 淺色 | 深色 |
-|---|---|---|
-| Surface | #F6F5F1 | #202726 |
-| Card | #FFFFFF | #28312F |
-| Ink | #243333 | #ECF0E9 |
-| MutedInk | #687471 | #ABB8B2 |
-| Line | #DDDFD8 | #424D47 |
-| Accent | #245F51 | #9BD1B8 |
-| Selected | #E1EDE7 | #354F43 |
-
-側欄寬 220，窄視窗縮為 170，支援收合。工具列依空間換行，縮圖維持固定正方形預覽，不拉寬填滿整列。可用 `--components` 檢查元件。高對比改用 Windows 系統色；實際 150%／200% DPI、高對比與輔助工具驗證仍見 Windows TODO。
-
-### Arch／原有基準
-
-採中性 Zinc 灰階。白色或近黑背景、細邊框、低彩度次要操作，讓圖片成為主角。主要操作使用黑白反差，危險操作使用紅色。淺色、深色與 Windows 高對比共用同一組語意角色。
-
-## 色彩 token
-
-| Token | 淺色 | 深色 | 用途 |
-|---|---|---|---|
-| background | #FFFFFF | #09090B | 主背景與輸入欄 |
-| foreground | #18181B | #FAFAFA | 主要文字 |
-| card / popover | #FFFFFF | #18181B | 卡片、選單、對話框、toast |
-| sidebar | #FAFAFA | #18181B | 資料夾側欄 |
-| muted / accent | #F4F4F5 | #27272A | 次要表面、滑入與選取背景 |
-| muted_foreground | #71717A | #A1A1AA | 輔助文字 |
-| primary | #18181B | #FAFAFA | 主要按鈕背景 |
-| primary_foreground | #FAFAFA | #18181B | 主要按鈕文字與圖示 |
-| accent_foreground | #18181B | #FAFAFA | 滑入與選取文字 |
-| destructive | #B91C1C | #FCA5A5 | 危險操作與錯誤 |
-| destructive_foreground | #FFFFFF | #450A0A | 危險按鈕文字 |
-| border | #E4E4E7 | #3F3F46 | 邊框與分隔線 |
-| input | #D4D4D8 | #52525B | 輸入欄邊框 |
-| ring | #71717A | #A1A1AA | 鍵盤焦點外框 |
-
-檢視器畫布固定為近黑色，控制列使用對應的深色文字與背景配對。Windows 高對比模式使用系統色，包含選取背景與選取文字，不以固定黑白色蓋過使用者設定。
-
-## 共用尺寸
-
-共用設計基準為間距 4、8、12、16、24 邏輯單位；一般控制項高 36、小型控制項高 28、圖示 16。控制項圓角 6，卡片與浮層圓角 10。邊框寬 1，焦點另外繪製 2 點外框。
-
-字型維持 Noto Sans CJK TC。內文與按鈕為 14，小字為 12，標題為 24。Lucide SVG 與原有品牌圖示繼續使用。
+平台配色、字型與控制項尺寸見 [Windows 設計](../windows/design.md)及 [Linux 設計](../linux/design.md)。
 
 ## 平台元件責任
 
@@ -70,12 +17,9 @@
 
 主要操作有明確視覺權重；危險樣式只用於危險操作。選取與錯誤不可只靠顏色，保留外框、圖示或文字。圖示按鈕有提示與輔助工具名稱。
 
-## 版面基準
+## 共用版面
 
 - 啟動 1600×1000、最小 800×600；視窗尺寸使用平台邏輯單位，超過工作區時需確認可操作性。
-- 側欄預設 208、可調範圍 160～300，可收合。
-- 主內容水平邊距 20、精簡版 16；垂直邊距 16。
-- 800 邏輯單位以下採精簡配置；工具列可用寬度不足 820 時，搜尋與篩選分列。
 - 圖庫僅格狀，正方形預覽、置中裁切，不改動原檔；縮圖大小沿用設定契約。
 - 圖片與資料夾共用清楚的卡片邊界，圖庫捲軸不遮住卡片內容。
 - Viewer 名稱放在主 app bar，畫布保留導覽、縮放控制與圖片。

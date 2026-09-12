@@ -1,10 +1,8 @@
 # 測試與驗收
 
-## 目前狀態
+## 測試入口
 
-Windows 已建立 xUnit、codec／服務整合測試及 STA／Dispatcher 入口，命令見 [Windows README](../../apps/windows/README.md)，結果與未驗證事項見 [Windows 驗證紀錄](../engineering/windows-validation.md)。Arch 仍需建立 CTest／Qt Test 與必要的 Qt Quick 測試。
-
-舊 Cargo tests、egui 測試、舊 MSI 與舊效能腳本只驗證舊版。
+Windows 使用 xUnit、codec／服務整合測試及 STA／Dispatcher 入口，命令見 [Windows README](../../apps/windows/README.md)。Arch 使用四個 CTest suite，命令見 [Arch README](../../apps/linux/README.md)。
 
 ## 依風險選擇驗證
 
@@ -41,12 +39,12 @@ Windows 已建立 xUnit、codec／服務整合測試及 STA／Dispatcher 入口�
 
 兩版 TODO 都需實作 `--folder`、`--data-root`、`--smoke-ms`、`--viewer`、`--metrics` 與 `--screenshot`，供隔離啟動、可見視窗量測與截圖。參數格式、驗證失敗與輸出位置寫入平台 README。
 
-診斷入口的支援範圍與實測結果以各平台 README／驗收紀錄為準。Qt 版已用上述入口完成 Omarchy 本機部分驗收；入口存在不代表完整功能通過。自動 smoke 不得略過檔案操作確認。
+診斷入口的支援範圍以各平台 README 為準。入口存在不代表完整功能通過。自動 smoke 不得略過檔案操作確認。
 
-## 驗收紀錄
+## 完成判定
 
-每個 TODO 完成時，在該檔案的證據表填入項目 ID、commit／dirty state、命令／操作、OS、fixture、結果及證據位置。編譯成功不能勾選互動或效能驗收。
+每個 TODO 都須完成對應案例的驗證後才能移除。編譯成功不能視為互動或效能驗收通過。
 
-證據可保存在 `artifacts/<platform>/<run>/`，但重要結論需摘要在版本控管內，不能只留本機路徑。個人路徑與素材不要公開。兩版都要逐項核對產品規格全文，不只執行少量代表案例。
+測試輸出可保存在 `artifacts/<platform>/<run>/`，不需回填為 repo 內的歷史驗收紀錄。個人路徑與素材不要公開。兩版都要逐項核對產品規格全文，不只執行少量代表案例。
 
 Windows 本機結果不算 Arch 結果。Linux 容器建置／無頭測試不算 Wayland／X11 真實桌面驗證。簽章、公開發佈與 hosted lifecycle 也各自留證據。

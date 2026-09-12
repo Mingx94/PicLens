@@ -1,8 +1,6 @@
 # 效能
 
-## 狀態與目標
-
-WPF 已有 Release 冷暖圖庫、完整原圖與 10,000 筆規模量測，見 [Windows 驗證紀錄](windows-validation.md)。Qt 已有 Omarchy／Wayland 合成圖初步量測：同 Viewer 冷暖各 7 次完整原圖提交，合計 40～289 ms、零未完成；10,000 筆合成 model 投影 64 ms、最多 38 個 delegate。這些不代表真實混合圖庫或萬張圖片驗收，詳見 [Arch 驗收紀錄](arch-validation.md)。歷史資料移至[舊版效能記錄](../reference/legacy-performance.md)，不能當成新平台的效能證據。
+## 目標
 
 保留產品既有目標：代表性本機圖片從選取到完整原圖首次繪製提交，目標 500ms 以內。1024 預覽不能算完成。這不是任意硬體、圖片大小或儲存裝置的保證。
 
@@ -47,7 +45,7 @@ Windows 與 Arch 分開留下 Release 證據。每次記錄：
 | batch counts／duration | 總數、成功、略過、取消、失敗與開始到完成時間 |
 | CPU／memory | 採樣時間、百分比正規化方式、working set／RSS 與峰值 |
 
-新版 schema 必須有獨立版本；禁止沿用 `eframe-egui-wgpu` 身分。WPF 與 Qt 各自記錄實際的繪製提交觀測點，不能把 decode callback 當成 paint，不能宣稱量到 OS compositor 呈現。
+量測 schema 必須有版本，並記錄實際前端名稱。WPF 與 Qt 各自記錄實際的繪製提交觀測點，不能把 decode callback 當成 paint，不能宣稱量到 OS compositor 呈現。
 
 ## 必測情境
 
