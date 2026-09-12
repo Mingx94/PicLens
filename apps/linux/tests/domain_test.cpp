@@ -35,6 +35,20 @@ Entry entry(const QString &path, bool animated = false) {
 void sharedCases(const QString &path) {
     const auto cases = QJsonDocument::fromJson(read(path)).object();
     check(!cases.isEmpty(), "shared fixtures missing");
+    check(cases.value("schemaVersion").toInt() == 1, "shared fixture schema");
+    const auto platforms = cases.value("platforms").toObject();
+    check(platforms.value("windows").toObject().value("pathCase").toString() == "insensitive", "Windows path case manifest");
+    check(platforms.value("windows").toObject().value("pathSeparator").toString() == "\\", "Windows separator manifest");
+    check(platforms.value("arch").toObject().value("pathCase").toString() == "sensitive", "Arch path case manifest");
+    check(platforms.value("arch").toObject().value("pathSeparator").toString() == "/", "Arch separator manifest");
+    const auto windows = platforms.value("windows").toObject();
+    const auto arch = platforms.value("arch").toObject();
+    check(windows.value("illegalBasenames").toArray().contains("CON") && windows.value("illegalBasenames").toArray().contains("NUL"), "Windows reserved basename rules");
+    check(arch.value("illegalBasenames").toArray().contains(".") && arch.value("illegalBasenames").toArray().contains(".."), "Arch dot basename rules");
+    check(arch.value("forbiddenBasenameCharacters").toArray().contains("/")
+              && arch.value("forbiddenBasenameCharacters").toArray().contains("U+0000 (NUL)"), "Arch basename character rules");
+    check(arch.value("acceptedWindowsReservedBasenames").toArray().contains("CON")
+              && arch.value("acceptedWindowsReservedBasenames").toArray().contains("NUL"), "Arch accepts Windows device-name text");
     for (const auto &value : cases.value("settings").toArray()) {
         const auto row = value.toObject();
         check(Settings::fromJson(row.value("input").toObject()).thumbnailSize == row.value("expectedSize").toInt(), "DATA-01 shared settings");
@@ -53,6 +67,9 @@ void domainCases() {
     check(s.sortKey == 1 && s.sortDirection == 0 && s.thumbnailSize == 180 && s.windowWidth == 800 && s.windowHeight == 600, "DATA-01 normalize");
     check(Settings::fromJson(s.toJson()).toJson() == s.toJson(), "DATA-01 roundtrip");
     check(!Settings::fromJson(QJsonObject{{"windowWidth", 900}}).windowWidth, "DATA-01 incomplete window dimensions");
+    const auto legacy = Settings::fromJson(QJsonObject{{"LASTFOLDERPATH", "/tmp/舊資料夾"}, {"SORT", QJsonObject{{"KEY", 1}, {"DIRECTION", 1}}}});
+    check(legacy.lastFolderPath == "/tmp/舊資料夾" && legacy.sortKey == 1 && legacy.sortDirection == 1, "DATA-01 legacy JSON fields");
+    check(Settings::fromJson(QJsonObject{{"lastFolderPath", QJsonValue(QJsonValue::Null)}}).lastFolderPath.isEmpty(), "DATA-01 null path");
     rejects([] { Settings::fromJson(QByteArray("{bad")); });
     rejects([] { Settings::fromJson(QByteArray(R"({"thumbnailSize":"170"})")); });
     rejects([] { Settings::fromJson(QByteArray(R"({"includeSubfolders":1})")); });
@@ -90,6 +107,9 @@ void fileCases() {
     check(dir.isValid(), "temporary fixture directory");
     const auto png = write(dir, "a.png"), jpg = write(dir, "a.jpg"), webp = write(dir, "a.webp"), gif = write(dir, "b.gif");
     const QList<Entry> entries{entry(png), entry(jpg), entry(webp), entry(gif, true)};
+    const auto unicode = write(dir, "旅行 photo.JPG");
+    check(supportedImage(unicode) && QFileInfo(unicode).fileName().contains("旅行"), "A0.3 Arch Unicode path");
+    check(FilePlans::rename(unicode, "新名稱").target.endsWith("新名稱.JPG"), "A6.4 basename Unicode");
     const auto conversion = FilePlans::convert(entries, OperationKind::Webp);
     check(std::count_if(conversion.begin(), conversion.end(), [](const auto &p) { return !p.skip.isEmpty(); }) == 4, "FILE-01 skips and existing target");
     const auto cleanup = FilePlans::cleanup(entries);
@@ -117,6 +137,7 @@ void fileCases() {
     check(ops.execute({race}).skipped() == 1 && read(race.target) == "do-not-overwrite" && QFile::exists(png), "FILE-03 preview collision");
     std::stop_source canceled;
     canceled.request_stop();
+    check(FilePlans::trash({png, png, jpg}).size() == 2, "A4.2 operation source dedup");
     check(ops.execute(FilePlans::trash({png, jpg}), canceled.get_token()).canceled() == 2 && QFile::exists(png), "FILE-02 canceled zero mutation");
     check(FileOperations({dir.filePath("absent-gio"), 100}).execute(FilePlans::trash({png})).failed() == 1 && QFile::exists(png), "FILE-02 helper failure never deletes");
     auto changed = FilePlans::rename(other, "new");

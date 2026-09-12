@@ -10,5 +10,22 @@
     {"input":{"thumbnailSize":170},"expectedSize":180},
     {"input":{"thumbnailSize":999},"expectedSize":240}
   ],
-  "description": "SORT-01/DATA-01 純資料。圖片由 PicLens.Tests.Fixture 產生，無個人圖庫。Windows 名稱採不分大小寫；Arch 差異需由其實作補充。"
+  "description": "SORT-01/DATA-01 純資料。圖片由 PicLens.Tests.Fixture 產生，無個人圖庫。Windows 名稱採不分大小寫；Arch 差異需由其實作補充。",
+  "platforms": {
+    "windows": {
+      "pathCase": "insensitive",
+      "pathSeparator": "\\",
+      "illegalBasenames": [".", "..", "CON", "PRN", "AUX", "NUL", "COM1", "LPT1"],
+      "forbiddenBasenameCharacters": ["/", "\\", "U+0000 (NUL)"],
+      "basenameNotes": "Windows 保留裝置名稱；結尾的句點或空白也受檔案系統規則限制。"
+    },
+    "arch": {
+      "pathCase": "sensitive",
+      "pathSeparator": "/",
+      "illegalBasenames": [".", ".."],
+      "forbiddenBasenameCharacters": ["/", "U+0000 (NUL)"],
+      "acceptedWindowsReservedBasenames": ["CON", "PRN", "AUX", "NUL", "COM1", "LPT1"],
+      "basenameNotes": "Arch 使用 POSIX 名稱規則；/、NUL、.、.. 仍受限制，但 CON、NUL 等 Windows 保留名稱文字本身可作一般 basename（檔案系統允許時）。"
+    }
+  }
 }

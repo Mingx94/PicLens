@@ -38,7 +38,17 @@ Controller::Controller(QString profile,QString worker,ThumbProvider* provider,QO
 Controller::~Controller(){shutdown();}
 void Controller::log(QString message){auto root=profile_;if(closing_)return;(void)QtConcurrent::run(&files_,[root,message]{appendLog(root,message);});}
 void Controller::setStatus(QString text){status_=std::move(text);emit changed();}
-void Controller::start(QString initial){if(initial.isEmpty())initial=settings_.lastFolderPath;if(!initial.isEmpty()){root_=QFileInfo(initial).absoluteFilePath();loadTree(root_);navigate(root_);}}
+void Controller::start(QString initial){
+    if(initial.isEmpty())initial=settings_.lastFolderPath;
+    if(initial.isEmpty())return;
+    const auto path=QFileInfo(initial).absoluteFilePath();const QFileInfo info(path);
+    QString reason;
+    if(!info.exists())reason=QStringLiteral("資料夾不存在");
+    else if(!info.isDir())reason=QStringLiteral("路徑不是資料夾");
+    else if(!info.isReadable())reason=QStringLiteral("資料夾無法讀取");
+    if(!reason.isEmpty()){setStatus(QStringLiteral("無法開啟啟動資料夾：%1（%2）").arg(path,reason));log(QStringLiteral("啟動資料夾無效 %1：%2").arg(path,reason));return;}
+    root_=path;loadTree(root_);navigate(root_);
+}
 void Controller::shutdown(){
     if(closing_)return;closing_=true;saveTimer_.stop();if(scanCancel_)scanCancel_->store(true);treeCancel_->store(true);if(batchCancel_)batchCancel_->store(true);
     imaging_.shutdown();io_.waitForDone();files_.waitForDone();
