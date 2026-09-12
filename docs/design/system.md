@@ -8,6 +8,10 @@
 
 ### Windows WPF 實作
 
+下拉選單（含展開清單）、核取方塊與水平縮圖滑桿的樣式集中於 `Themes/SelectionControls.xaml`，沿用 Card、Line、Accent 與選取色。下拉選單採 7 DIP 圓角；核取方塊支援未勾選、已勾選與部分勾選；滑桿採 4 DIP 軌道與 16 DIP 圓形滑塊。三者提供鍵盤焦點與停用狀態，保留 WPF 原生操作行為。
+
+應用內圖示統一使用 `assets/Icons/Lucide` 的固定版本 SVG，透過 `Controls/LucideIcon.cs` 轉為可快取的 WPF 向量。新增圖示應使用同一套資產，並加入 `IconKind`；不以 Unicode 符號代替操作圖示。工具列用 18 DIP、選單用 16 DIP、縮圖預留圖示用 46 DIP。圖示繼承 Foreground，隨明暗主題與系統高對比色更新；圖示按鈕保留提示與輔助工具名稱。Windows 原生控制項的勾選與展開符號由系統繪製。
+
 主畫面使用暖灰底、白卡片與森林綠主色，Viewer 保持深色畫布。Segoe UI 搭配 Microsoft JhengHei UI 使用 Windows 字型，不額外安裝或封裝字型。樣式與色彩集中在 `apps/windows/src/PicLens.App/App.xaml` 的 Application ResourceDictionary；主題切換由 `App.xaml.cs` 更新語意資源。
 
 | 語意 | 淺色 | 深色 |

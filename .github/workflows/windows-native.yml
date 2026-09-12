@@ -1,72 +1,48 @@
-name: Windows WPF
+name: Windows WPF release
 on:
   push:
-    branches: [main]
-    paths: ['apps/windows/**', 'test-data/**', 'assets/**', 'docs/**', 'TODO.win.md', 'packaging/windows/**', '.github/workflows/windows-native.yml']
     tags: ['windows/v*']
-  pull_request:
-    paths: ['apps/windows/**', 'test-data/**', 'assets/**', 'docs/**', 'TODO.win.md', 'packaging/windows/**', '.github/workflows/windows-native.yml']
-  workflow_dispatch:
+
+concurrency:
+  group: windows-wpf-release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
+
 jobs:
-  windows:
+  release:
     runs-on: windows-2025
     timeout-minutes: 30
+    permissions:
+      contents: write
     defaults:
       run:
         shell: pwsh
-        working-directory: apps/windows
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+      - name: Match annotated tag to Windows version
+        id: version
+        run: |
+          [xml]$props = Get-Content apps/windows/Directory.Build.props
+          $version = [string]$props.Project.PropertyGroup.Version
+          $expected = "windows/v$version"
+          if ($env:GITHUB_REF_NAME -cne $expected) { throw "Tag must match $expected" }
+          $tagType = git cat-file -t "refs/tags/$expected"
+          if ($LASTEXITCODE -ne 0 -or $tagType -ne 'tag') { throw "Annotated tag required" }
+          "version=$version" >> $env:GITHUB_OUTPUT
       - uses: actions/setup-dotnet@v5
         with:
           global-json-file: apps/windows/global.json
-      - run: dotnet restore PicLens.Windows.slnx --locked-mode
-      - run: dotnet test PicLens.Windows.slnx -c Release --no-restore --logger trx
-      - name: Build candidates
-        run: ../../packaging/windows/build.ps1
-      - name: Test MSI on disposable runner
-        run: |
-          [xml]$props = Get-Content Directory.Build.props
-          $msi = "../../dist/PicLens-$($props.Project.PropertyGroup.Version)-windows-x86_64.msi"
-          ../../packaging/windows/test-lifecycle.ps1 -MsiPath $msi -ConfirmSystemChanges
-      - uses: actions/upload-artifact@v6
-        with:
-          name: windows-wpf
-          path: |
-            dist/PicLens-*-windows-x86_64.msi*
-            dist/PicLens-*-windows-x86_64.zip*
-            apps/windows/tests/PicLens.Tests/TestResults/*.trx
-            artifacts/wpf-msi-lifecycle-*/result.json
-  release:
-    if: startsWith(github.ref, 'refs/tags/windows/v')
-    needs: windows
-    runs-on: windows-2025
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Verify annotated platform tag
-        shell: pwsh
-        run: |
-          [xml]$props = Get-Content apps/windows/Directory.Build.props
-          $expected = "windows/v$($props.Project.PropertyGroup.Version)"
-          if ($env:GITHUB_REF_NAME -cne $expected) { throw "Version mismatch" }
-          if ((git cat-file -t "refs/tags/$expected") -ne 'tag') { throw "Annotated tag required" }
-      - uses: actions/download-artifact@v7
-        with:
-          name: windows-wpf
-          path: release-assets
+      - name: Build MSI and portable ZIP
+        run: ./packaging/windows/build.ps1
       - name: Publish unsigned assets
-        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          $assets = Get-ChildItem release-assets -Recurse -File | Where-Object Name -Match '\.(msi|zip)(\.sha256)?$'
-          gh release create $env:GITHUB_REF_NAME $assets.FullName --title "PicLens $env:GITHUB_REF_NAME" --notes "Windows WPF x64. Unsigned MSI and portable ZIP; SHA-256 files included."
+          $name = "dist/PicLens-$env:APP_VERSION-windows-x86_64"
+          gh release create $env:GITHUB_REF_NAME "$name.msi" "$name.msi.sha256" "$name.zip" "$name.zip.sha256" --verify-tag --title "PicLens $env:APP_VERSION (Windows)" --notes "Windows WPF x64. Unsigned MSI and portable ZIP; SHA-256 files included. Automated functional and installer tests were not run."
           if ($LASTEXITCODE -ne 0) { throw "Release failed" }

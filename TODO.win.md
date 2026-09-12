@@ -2,7 +2,7 @@
 
 目標：在同一個 repo 以 C#、.NET、WPF／XAML 完整重寫 PicLens。新版不依賴 Rust、egui、Qt、WinUI 或共用跨語言核心。
 
-狀態：2026-09-12 Windows WPF 4.0.1 程式實作與候選封裝已完成。Release 45 項測試通過。未勾選項目包含仍待人工／OS／安裝環境驗證的部分，不代表全部尚未寫程式。完整差異與證據見 [Windows 驗證紀錄](docs/engineering/windows-validation.md)。現有 Rust 程式依共同退場條件暫留。
+狀態：2026-09-12 Windows WPF 來源版本已升至 4.0.2，包含 Lucide 圖示與元件樣式調整；4.0.2 尚未重新封裝。既有候選封裝為 4.0.1。Release 45 項測試通過。未勾選項目包含仍待人工／OS／安裝環境驗證的部分，不代表全部尚未寫程式。完整差異與證據見 [Windows 驗證紀錄](docs/engineering/windows-validation.md)。現有 Rust 程式依共同退場條件暫留。
 
 ## 執行規則
 
@@ -107,7 +107,7 @@
 - [x] W8.2 使用代表性混合圖庫量測 Release 冷暖快取；完整原圖 500ms 目標、超標與未完成樣本全部回報。
 - [x] W8.3 以 10,000 項目驗證載入、搜尋、連續捲動、CPU、峰值記憶體、取消與關閉；不得只以小圖副本推定解碼效能。
 - [ ] W8.4 核對[驗收對照](docs/product/acceptance.md)及產品規格全文，補齊未完成案例與有意義的失敗路徑。
-- [ ] W8.5 建立 Windows CI 的 locked restore、build、測試與資產檢查；共用規格／fixtures 變更納入觸發，hosted 結果留證據。
+- [x] W8.5 依使用者決定改為 tag-only 發布：版本核對 → 建置封裝 → 發布。移除 PR／main 自動檢查、測試與安裝驗證；此勾選表示流程設定完成，不代表 hosted 或功能驗收通過。
 
 階段驗收：PERF-01、JOB-01 及所有非封裝功能通過；效能或平台未驗證不能標為完成。
 
@@ -139,7 +139,7 @@
 | W7.1～W7.2 | 已檢查 | 1600×1000／800×600 | --screenshot、--dark | 見驗證紀錄，DPI／UIA 人工部分未完成 |
 | W9.1、W9.4～W9.5 | 候選封裝 | self-contained x64 | packaging/windows/build.ps1 | MSI ICE 0 警告／0 錯誤；ZIP、授權、SHA-256 |
 | W1.1、W2.2、W2.5、W3.6、W5.6、W6.5～W6.6、W6.9、W7.3～W7.5、W8.4 | 已實作，驗證未齊 | 需對應實檔、OS 與互動環境 | 見驗收對照 | 保持未勾選，未以程式碼檢查代替人工證據 |
-| W8.5、W9.2～W9.3 | CI／安裝腳本已建立 | 乾淨且已授權 Windows | test-lifecycle.ps1 | 本機未安裝，hosted 與舊版升級未執行 |
+| W8.5、W9.2～W9.3 | tag-only 發布／手動安裝腳本 | 乾淨且已授權 Windows | windows-native.yml、test-lifecycle.ps1 | 自動測試與安裝驗證已停用；安裝與升級另行手動驗證 |
 | W10 | 尚未符合前置條件 | Arch 尚未開始 | — | 保留 Rust 對照 |
 
 ## 待決工程項目

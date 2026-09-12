@@ -50,12 +50,14 @@ public partial class MainWindow : Window
             string? initial = options.Folder ?? Model.Settings.LastFolderPath;
             if (!string.IsNullOrWhiteSpace(initial) && Directory.Exists(initial)) await Model.Pick(initial, persist: false);
             if (closing) return;
-            if (options.Components) new ComponentWindow { Owner = this }.Show();
+            ComponentWindow? components = options.Components ? new ComponentWindow { Owner = this } : null;
+            components?.Show();
             if (options.Viewer is not null) OpenViewer(options.Viewer);
             if (options.Exercise) _ = Exercise();
             if (options.Screenshot is not null)
             {
                 await Task.Delay(1800); if (!closing) await Dispatcher.InvokeAsync(() => Screenshot(options.Screenshot), DispatcherPriority.ApplicationIdle);
+                if (!closing && components is not null) await components.CaptureStates(options.Screenshot, (path, surface) => Screenshot(path, surface));
             }
             if (options.SmokeMs is int timeout) { await Task.Delay(timeout); if (!closing) Close(); }
         };
@@ -120,10 +122,10 @@ public partial class MainWindow : Window
     void ShowMenu(TileModel tile)
     {
         var menu = new ContextMenu();
-        MenuItem Add(string title, RoutedEventHandler action) { var item = new MenuItem { Header = title }; item.Click += action; menu.Items.Add(item); return item; }
-        Add("在檔案總管顯示", (_, _) => Reveal(tile.Path));
-        Add("重新命名", async (_, _) => await RenameSelected()).IsEnabled = Model.Selection.Ordered.Count == 1;
-        Add($"移至回收筒（{Model.Selection.Ordered.Count} 張）", async (_, _) => await TrashSelected());
+        MenuItem Add(string title, IconKind icon, RoutedEventHandler action) { var item = new MenuItem { Header = title, Icon = new LucideIcon { Kind = icon, Width = 16, Height = 16 } }; item.Click += action; menu.Items.Add(item); return item; }
+        Add("在檔案總管顯示", IconKind.FolderOpen, (_, _) => Reveal(tile.Path));
+        Add("重新命名", IconKind.Pencil, async (_, _) => await RenameSelected()).IsEnabled = Model.Selection.Ordered.Count == 1;
+        Add($"移至回收筒（{Model.Selection.Ordered.Count} 張）", IconKind.Trash2, async (_, _) => await TrashSelected());
         menu.Closed += (_, _) => Gallery.Focus(); menu.IsOpen = true;
     }
     void OpenViewer(string path)
@@ -297,7 +299,7 @@ public partial class MainWindow : Window
             else return;
             e.Handled = true; return;
         }
-        if (Keyboard.FocusedElement is TextBox or ComboBox) return;
+        if (Keyboard.FocusedElement is TextBox or ComboBox or ComboBoxItem or Slider or CheckBox) return;
         if (e.Key == Key.F5) { await Model.Navigate(Model.Folder, false); e.Handled = true; }
         if (e.Key == Key.Escape) { Model.Selection.Clear(); Model.SyncSelection(); }
         if (e.Key == Key.Enter && Model.Selection.Ordered.FirstOrDefault() is string selected) { OpenViewer(selected); e.Handled = true; }
@@ -319,12 +321,12 @@ public partial class MainWindow : Window
             FindVisual<VirtualizingTilePanel>(Gallery)?.ScrollToIndex(Model.Items.IndexOf(tile)); e.Handled = true;
         }
     }
-    void Screenshot(string path)
+    void Screenshot(string path, FrameworkElement? target = null)
     {
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            var surface = (FrameworkElement)Content;
+            var surface = target ?? (FrameworkElement)Content;
             var dpi = VisualTreeHelper.GetDpi(surface);
             var bitmap = new RenderTargetBitmap((int)(surface.ActualWidth * dpi.DpiScaleX), (int)(surface.ActualHeight * dpi.DpiScaleY), dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
             bitmap.Render(surface); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
@@ -388,6 +390,8 @@ public partial class MainWindow : Window
             }
         }
         catch (Exception ex) { profile.Log("量測輸出失敗", ex); }
-        profile.Log("正常關閉"); closed = true; Close();
+        profile.Log("正常關閉"); closed = true;
+        // Cleanup can complete synchronously; leave the current Closing event before closing again.
+        _ = Dispatcher.BeginInvoke(new Action(Close));
     }
 }

@@ -19,7 +19,7 @@ public sealed class TileModel(LibraryEntry entry) : Observable
     public string Name => Entry.Name;
     public bool IsFolder => Entry.IsFolder;
     public string Detail => IsFolder ? "資料夾" : Entry.Animated ? "動畫 · 不支援預覽" : Entry.Extension.TrimStart('.').ToUpperInvariant();
-    public string Placeholder => IsFolder ? "▱" : Entry.Animated ? "▷" : "◇";
+    public Controls.IconKind PlaceholderIcon => IsFolder ? Controls.IconKind.Folder : Entry.Animated ? Controls.IconKind.Play : Controls.IconKind.Image;
     bool selected; BitmapSource? image; string? error;
     public bool Selected { get => selected; set => Set(ref selected, value); }
     public BitmapSource? Image { get => image; set => Set(ref image, value); }

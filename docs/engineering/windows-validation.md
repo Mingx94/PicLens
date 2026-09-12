@@ -1,6 +1,6 @@
 # Windows WPF 驗證紀錄
 
-日期：2026-09-11～12。目前候選版 4.0.1；工作目錄實作，尚未提交或發布。Windows 程式不引用 Rust；Arch 尚未開始，舊 Rust 依共同退場條件保留。
+日期：2026-09-11～12。目前來源版本 4.0.2，既有候選封裝為 4.0.1；4.0.2 尚未重新封裝或發布。Windows 程式不引用 Rust；Arch 尚未開始，舊 Rust 依共同退場條件保留。
 
 ## 已交付
 
@@ -21,7 +21,7 @@ dotnet restore PicLens.Windows.slnx --locked-mode
 dotnet test PicLens.Windows.slnx -c Release --no-restore --logger trx
 ~~~
 
-Debug 與 Release 各 45 通過、0 失敗、0 略過。測試結果在本機 apps/windows/tests/PicLens.Tests/TestResults/；CI 會上傳 TRX。主要證據：
+Debug 與 Release 各 45 通過、0 失敗、0 略過。測試結果在本機 apps/windows/tests/PicLens.Tests/TestResults/；這是既有本機證據；精簡後的發布 workflow 不執行測試或上傳 TRX。主要證據：
 
 | 範圍 | 已驗證內容 |
 |---|---|
@@ -100,7 +100,7 @@ Debug 與 Release 各 45 通過、0 失敗、0 略過。測試結果在本機 ap
 
 ## 封裝與發布界線
 
-建置腳本保留舊 UpgradeCode，目前版本為 4.0.1。MSI 使用 per-machine 程式檔案與符合 ICE 規則的捷徑 registry keypath；完整驗證沒有停用。Windows runtime、Skia codec、helper、品牌圖示及必要授權隨套件提供。
+建置腳本保留舊 UpgradeCode，以下既有封裝證據對應 4.0.1。MSI 使用 per-machine 程式檔案與符合 ICE 規則的捷徑 registry keypath；完整驗證沒有停用。Windows runtime、Skia codec、helper、品牌圖示及必要授權隨套件提供。
 
 ZIP 已解壓至新的 artifacts 目錄並成功啟動。用模組路徑確認 coreclr.dll 由解壓套件載入；即使 DOTNET_ROOT 指向不存在位置仍可啟動。合成舊設定的排序、縮圖與側欄保持不變，舊視窗尺寸未被還原；元件展示也可正常關閉。這不取代乾淨機安裝證據。
 
@@ -120,6 +120,6 @@ MSI 資料庫以唯讀方式核對 ProductVersion、UpgradeCode，以及全部 6
 | PicLens-4.0.1-windows-x86_64.msi | 69dba269ad37c1dcbf07138f814472c90ee291ba73547f4c6663ffaa7ee06573 |
 | PicLens-4.0.1-windows-x86_64.zip | cb83b149b06c984cee375d7af75d98a3ad6b46e3995bfd60350ed0c3513ea643 |
 
-未在使用者系統安裝、解除安裝或變更全域設定。生命週期腳本需明確授權；CI 的乾淨 runner 可執行安裝、啟動、修復與解除安裝，但本次沒有推送或執行 hosted workflow。提供 PreviousMsiPath 才能把舊版升級列為通過。
+未在使用者系統安裝、解除安裝或變更全域設定。生命週期腳本需明確授權；精簡後的 workflow 不執行安裝、啟動、修復與解除安裝驗證，腳本保留供手動使用。本次未推送或觸發發布。提供 PreviousMsiPath 才能把舊版升級列為通過。
 
 未提交、推送、建立 tag、簽署或公開發布。Arch 尚未通過 A0～A9，因此 W10 共同移除 Rust 的前置條件仍未滿足。

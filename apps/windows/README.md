@@ -46,11 +46,15 @@ dotnet run --project src/PicLens.App -- --data-root F:\PicLens\artifacts\wpf-pro
 
 圖庫使用自行實作的 VirtualizingPanel 與 WPF container recycling。圖片 UI 資源為 BitmapSource，原圖超過 2048 像素分塊並加一像素邊界；未縮小原圖。SkiaSharp 只在 helper 解碼／編碼。
 
+應用內圖示使用內嵌的 Lucide SVG，由 `Controls/LucideIcon.cs` 以 WPF 向量繪製，不依賴圖示字型或網路。支援的 SVG 元素為 path、circle、rect、line；新增資產時須檢查元素並以 `--components` 確認整套圖示可顯示。授權隨封裝附上。
+
+搭配 `--components --screenshot <path>`，另輸出 `<path>.components.png` 與 `<path>.dropdown.png`，用於檢查元件狀態與展開選單配色。下拉選單、核取方塊及水平滑桿樣式集中於 `Themes/SelectionControls.xaml`。
+
 ## 封裝
 
-從 repo root 執行 `./packaging/windows/build.ps1`。輸出 `dist/PicLens-4.0.1-windows-x86_64.msi`、ZIP 與各自 SHA-256。封裝 self-contained .NET runtime，不要求終端使用者另裝 .NET；預設未簽署。
+從 repo root 執行 `./packaging/windows/build.ps1`。輸出 `dist/PicLens-4.0.2-windows-x86_64.msi`、ZIP 與各自 SHA-256。封裝 self-contained .NET runtime，不要求終端使用者另裝 .NET；預設未簽署。
 
-MSI 保留既有 UpgradeCode；實際舊版升級及乾淨機安裝仍須依授權驗證。建置腳本不安裝、不推送、不發布。新 CI 使用 `windows/v<version>`，舊 `v*` tag 路線保留給 Rust 歷史版。
+MSI 保留既有 UpgradeCode；實際舊版升級及乾淨機安裝仍須依授權驗證。建置腳本不安裝、不推送、不發布。Windows workflow 僅在推送 `windows/v<version>` annotated tag 時執行版本核對、建置封裝與發布；PR／main 不觸發，不自動執行測試或安裝驗證。舊 `v*` tag 路線保留給 Rust 歷史版。
 
 回收使用 IFileOperation 與回收檢查；不提供永久刪除替代路徑。網路／非固定磁碟的回收會回報不支援，保留來源。
 

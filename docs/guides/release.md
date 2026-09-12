@@ -13,13 +13,13 @@
 | Windows | `windows/v<version>` | `apps/windows/Directory.Build.props` 的共用 Version | MSI、portable ZIP、SHA-256 |
 | Arch | `arch/v<version>` | 未來 `apps/linux/CMakeLists.txt` 的 project VERSION | PKGBUILD、來源封存及 SHA-256、可驗證的 `.pkg.tar.zst` |
 
-Windows 目前版本為 4.0.1，self-contained x64，未簽署。Arch 版本檔尚未建立。Arch 的 `pkgrel` 是封裝修訂，與 App 版本分開；`pkgver` 必須能對應來源 tag。
+Windows 目前來源版本為 4.0.2，目標為 self-contained x64；4.0.2 尚未重新封裝或發布。Arch 版本檔尚未建立。Arch 的 `pkgrel` 是封裝修訂，與 App 版本分開；`pkgver` 必須能對應來源 tag。
 
 Windows MSI 保留 UpgradeCode `{4B3899A4-2E9E-4B4F-9CF5-36F8D8D6767D}`。新 Windows 安裝版本需可從既有版本升級；WiX UpgradeCode、產品識別及版本排序在封裝階段檢查，不能因新框架就從不相容的安裝版本重新開始。新版本不再以 Cargo 作權威。
 
 ## CI 與觸發範圍
 
-建立互相獨立的 Windows／Arch 建置與測試工作。平台程式變更觸發該平台；共用規格、test-data 與資產變更需檢查兩版。
+Windows 採精簡發布流程：只有推送 `windows/v*` tag 會觸發，PR／main 推送不執行 Windows CI。單一 job 依序核對 annotated tag 與版本、建置 MSI／ZIP、發布 GitHub Release。建置腳本自行還原鎖定的相依套件；任何建置或封裝失敗都會停止發布。不執行自動測試、MSI 安裝驗證或 job 間的產物上傳／下載。Arch 流程另行建立。
 
 封裝階段建立平台 release workflow，驗證 annotated tag、來源 commit 和平台版本一致。舊 `v*` workflow 必須在新流程啟用前確認隔離，不能產生錯誤的 Rust 產物。第一版平台成果可先是候選套件，不等另一版開發完畢。
 
@@ -33,7 +33,7 @@ Arch 需在記錄版本的乾淨建置環境檢查相依與 PKGBUILD；桌面驗
 - 驗證開始功能表、工作列與執行檔圖示、無 console 的正常啟動、路徑與資料延續性。
 - MSI 驗證乾淨安裝、啟動、舊版升級／替換、解除安裝與 profile 保留；ZIP 另外驗證解壓啟動。
 
-Windows 生命週期腳本是 `packaging/windows/test-lifecycle.ps1`。須在乾淨且已授權的 Windows 環境傳入 `-ConfirmSystemChanges`；`-PreviousMsiPath` 可加入舊版升級測試。未提供舊 MSI 時，升級結果會明確記為 `not-tested`。CI 已接上乾淨 runner 的安裝、啟動、修復、解除安裝與設定保留檢查，但尚未推送或執行 hosted 工作。
+Windows 生命週期腳本是 `packaging/windows/test-lifecycle.ps1`。須在乾淨且已授權的 Windows 環境傳入 `-ConfirmSystemChanges`；`-PreviousMsiPath` 可加入舊版升級測試。未提供舊 MSI 時，升級結果會明確記為 `not-tested`。此腳本保留供手動驗證，不由 Windows 發布 workflow 自動執行。
 
 ## Arch 套件
 
@@ -44,6 +44,8 @@ Windows 生命週期腳本是 `packaging/windows/test-lifecycle.ps1`。須在乾
 - 驗證安裝、桌面啟動、升級、解除安裝與 profile 保留；Wayland／X11 結果分開列出。
 
 ## 發佈完成條件
+
+Windows 自動發布只要求 tag／版本一致且建置封裝成功；功能、效能與安裝驗證改由發布者自行決定是否手動執行，不能把發布成功視為這些驗證已通過。以下完整驗收清單保留作為手動驗證與 Arch 規劃參考。
 
 1. 對應平台功能驗收、測試與效能紀錄齊全。
 2. 建置候選套件，檢查內容、授權、相依及 hash。

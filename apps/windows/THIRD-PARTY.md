@@ -7,6 +7,6 @@
 - WiX Toolset SDK 6.0.2：僅用於 MSI 建置，不加入 App 執行依賴。
 - xUnit、Microsoft.NET.Test.Sdk：僅測試使用，版本見 tests 專案及 packages.lock.json。
 - UI 使用系統 Segoe UI／Microsoft JhengHei UI，不散布系統字型。
-- 品牌 ICO 沿用 repo assets/AppIcon.ico。其他圖示為 UI 文字符號，不複製第三方圖示程式碼。
+- 品牌 ICO 沿用 repo assets/AppIcon.ico。應用內圖示使用 Lucide（ISC），來源固定於 b1a94838ac536c1cef5aaa802f78c07b30cac913；SVG 內嵌於 App，授權隨成品附於 licenses/Lucide-LICENSE.txt。
 
 最終封裝應包含 App、worker、Windows x64 codec、.NET runtime 及本清單。程式不使用 Rust。Skia 的解碼用途不取代 WPF 作為 UI／繪圖框架。

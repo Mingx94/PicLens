@@ -19,6 +19,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $repo 'LICENSE'),(Join-Path $repo 'assets/AppIcon.ico'),(Join-Path $appRoot 'README.md') -Destination $payload
     $notices = Join-Path $payload 'licenses'
     New-Item -ItemType Directory -Path $notices -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $repo 'assets/Icons/Lucide/LICENSE.txt') -Destination (Join-Path $notices 'Lucide-LICENSE.txt')
     $nugetRoot = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { Join-Path $env:USERPROFILE '.nuget/packages' }
     Copy-Item -LiteralPath (Join-Path $nugetRoot 'skiasharp/3.119.4/LICENSE.txt') -Destination (Join-Path $notices 'SkiaSharp-LICENSE.txt')
     Copy-Item -LiteralPath (Join-Path $nugetRoot 'skiasharp.nativeassets.win32/3.119.4/THIRD-PARTY-NOTICES.txt') -Destination (Join-Path $notices 'Skia-NOTICES.txt')
