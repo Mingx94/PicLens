@@ -8,21 +8,21 @@
 
 - **Goal:** 完成剩餘5項Arch驗收；有證據才移除，全部通過才刪除TODO.arch.md.
 
-- **Last update:** 2026-09-13 02:20:03 Asia/Taipei.
+- **Last update:** 2026-09-13 02:23:47 Asia/Taipei.
 
 - **Evidence commit:** 83d7e3d9fa900f676fc7ea34c6d99de5b9fb11e0.
 
 ## Overall state
 
-- **State:** active.
+- **State:** complete.
 
-- **Reason:** Work remains.
+- **Reason:** All accepted tasks completed; independent review and delivery passed.
 
 - **Total:** 4.
 
-- **Completed:** 3.
+- **Completed:** 4.
 
-- **Remaining:** 1.
+- **Remaining:** 0.
 
 ## Accepted task checklist
 
@@ -32,7 +32,7 @@
 
 - [x] **T-3:** 取得可重現的代表性混合圖片素材，以Release量測冷暖快取、完整原圖繪製時間、超標與未完成樣本；保留素材來源、hash、尺寸及量測定義，不以preview冒充完成。Source: A-004. Proof: .agentflow/artifacts/A-004-arch-remaining/evidence/perf-final-cold-1.json; .agentflow/artifacts/A-004-arch-remaining/evidence/perf-final-warm.json.
 
-- [ ] **T-4:** 只移除驗證通過項目，全部完成才刪TODO.arch.md並更新引用；保留證據、完成獨立review、提交與推送。Source: A-004.
+- [x] **T-4:** 只移除驗證通過項目，全部完成才刪TODO.arch.md並更新引用；保留證據、完成獨立review、提交與推送。Source: A-004. Proof: .agentflow/artifacts/A-004-arch-remaining/cross-check-report.md; .agentflow/artifacts/A-004-arch-remaining/host-gate.json; .agentflow/artifacts/A-004-arch-remaining/evidence/implementation-push.log.
 
 ## Accepted scope changes
 
@@ -40,29 +40,29 @@
 
 ## Current recovery
 
-- **Current item:** T-4.
+- **Current item:** none.
 
-- **Last proven result:** KDE/X11各23項全通過；Debug/Release各6組通過，PTY 8案通過；冷max482ms、暖max296ms；53項完成後已刪除TODO。Arch makepkg與check 6/6通過.
+- **Last proven result:** KDE/X11各23項全通過；Debug/Release各6組通過，PTY 8案通過；冷max482ms、暖max296ms；53項完成後已刪除TODO。Arch makepkg與check 6/6通過. 獨立review Outcome/Minimality/Conformance與Host gate PASS；83d7e3d實作及4d58e29紀錄已推送origin/main.
 
-- **Active blocker or running process:** 產品驗收與套件測試全通過；獨立review僅阻擋舊STATUS/tracker描述，現在同步紀錄並作bounded複核.
+- **Active blocker or running process:** none.
 
-- **Next safe action:** 針對舊STATUS/tracker描述複核；T-4只有review/record/push收尾，不表示Arch五項產品TODO未完成.
+- **Next safe action:** none.
 
 - **Expected changed files:** TODO.arch.md、README.md、docs/內Arch驗證與引用文件、apps/linux/README.md、apps/linux/src/、apps/linux/qml/、apps/linux/tests/、apps/linux/CMakeLists.txt、packaging/arch/README.md與handoff.py、.agentflow/devlog.md內STATUS與A-004證據；runtime修改須先有實際失敗與需求對應.
 
 ## Completion proof
 
-- **All accepted tasks checked:** no.
+- **All accepted tasks checked:** yes.
 
 - **Blocking accepted decision:** none.
 
-- **Operation running:** yes.
+- **Operation running:** no.
 
-- **Next action remaining:** T-4.
+- **Next action remaining:** none.
 
-- **Evidence status:** current.
+- **Evidence status:** complete.
 
-- **Judgment:** active.
+- **Judgment:** complete.
 
 ## Update meaning
 

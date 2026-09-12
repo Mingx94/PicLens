@@ -1,0 +1,19 @@
+{
+  "implementation_commit": "83d7e3d9fa900f676fc7ea34c6d99de5b9fb11e0",
+  "records_commit": "4d58e29a0d2c5804a0f7af420cf4def08e708d28",
+  "review_stage": "A-004-final-cross-check",
+  "starts": 2,
+  "first_review_substantive_result": "No source/test/five-acceptance-evidence blocker; stale STATUS/tracker only",
+  "first_fresh_ctest": "6/6 42.79s; host inspected actual LastTest.log",
+  "second_review_report_sha256": "b88ef642e80dd424fae4f02325103f6881ec94088b4eacab117d36e21bb4d445",
+  "second_profile": "codex-default/better gpt-5.6-sol/low",
+  "second_clone_status": "?? cross-check-report.md",
+  "second_exit_code": 0,
+  "stdin_closed": true,
+  "independent_clone": true,
+  "remotes": [],
+  "no_implementation_drift": true,
+  "product_tests_repeated_after_record_changes": false,
+  "host_gate": "PASS",
+  "limitations": "Private native desktops and real AT-SPI/Orca share host kernel. Perf cold means application cache; OS cache retained; actual scene graph submission, not compositor presentation."
+}

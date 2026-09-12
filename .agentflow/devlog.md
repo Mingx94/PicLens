@@ -4,17 +4,17 @@ Project: PicLens
 
 Notebook: .agentflow/devlog.md — root.
 
-Current commit: implementation `83d7e3d9fa900f676fc7ea34c6d99de5b9fb11e0` on main; local commit, final push pending.
+Current commit: implementation `83d7e3d9fa900f676fc7ea34c6d99de5b9fb11e0` on main; pushed to origin/main with record commit 4d58e29.
 
 Tests/scenarios: Debug 6/6 45.78s; Release 6/6 51.86s; private Arch makepkg 6/6 41.49s; independent review Debug 6/6 42.79s and focused QML/imaging pass; X11/KDE each 23 checks; PTY 8 cases; installed package smoke/removal pass.
 
 Configuration: ag.json — schema v7; validated for codex this round.
 
-Proven: All 53 Arch TODO items completed. TODO.arch.md deleted and references updated. Native KDE picker, 200% AT-SPI/Orca, X11/KDE Wayland/IME and 9-file cold/warm full paint acceptance passed; cold max482ms, warm max296ms.
+Proven: All 53 Arch TODO items completed. TODO.arch.md deleted and references updated. Native KDE picker, 200% AT-SPI/Orca, X11/KDE Wayland/IME and 9-file cold/warm full paint acceptance passed; cold max482ms, warm max296ms. Final cross-check and Host gate PASS.
 
-Open: No Arch product TODO remains. A-004 closeout only: resolve stale-record review comment, final Reply/STATUS projection, commit and push. Prior Windows W7.3-W7.5 remain outside this Ask.
+Open: No Arch TODO remains. A-004 complete. Prior Windows W7.3-W7.5 remain outside this Ask.
 
-Next: Finish record-only cross-check clarification and Git delivery. Implementation suites already passed; no source changes are pending.
+Next: none for A-004; all accepted tasks are complete.
 
 Artifacts: .agentflow/artifacts/A-004-arch-remaining; docs/linux/arch-validation.md; dist/arch-validation-A004. Private desktops share host kernel; software display and AT-SPI speech output are not physical display/audio proof. Perf retains OS page cache and measures scene graph submission.
 
@@ -620,3 +620,75 @@ Host gate: PASS
 - 接受STATUS舊48/53與五項Open不正確，現在同步為53/53，並保留本輪review/commit/push收尾尚進行的真實狀態。T-4涵蓋review與push，review尚未完成前不可虛報T-4完成；這不是五項產品TODO仍未完成。
 - 後續start2只複核這個record差異與已通過的實質報告，不重跑未變更的程式測試、不重啟完整實作審查。此為同一review stage第二次start，上限3不變。首輪brief沒有明確區別STATUS最後projection與實作review的時間，已補明。
 - **Scope check:** 83d7e3d後無產品、測試、使用者文件修改；只有notebook/STATUS、tracker、package/review證據。
+
+## [RUN-011] Event — final cross-check accepted and implementation pushed (during round A-004)
+
+- 2026-09-13 02:24:42 Asia/Taipei。start2僅複核record修正，Verdict/Outcome/Minimality/Conformance全PASS；exact implementation83d7e3d9fa900f676fc7ea34c6d99de5b9fb11e0。主流程核對report SHA256 b88ef642e80dd424fae4f02325103f6881ec94088b4eacab117d36e21bb4d445、dispatch gpt-5.6-sol/low、獨立無remote clone、stdin closed、exit0與唯一report檔案變更。Host gate: PASS。
+- 首輪完整fresh測試與實質结論沿用；record修正未重跑產品測試或完整review。fetch後HEAD..origin/main為空，push成功d5e63f3..4d58e29 main→main；單次使用現有gh helper，未改全域設定。
+- Tracker 4/4完成，0剩餘，無執行中作業；complete狀態欄位已機械修正成契約要求的none/complete並驗證PASS。最後只寫Reply/STATUS與review證據，再作preflight、record commit/push。
+- **Scope check:** 83d7e3d後差異均為.agentflow紀錄；產品、測試與使用者文件維持精確review版本。
+
+# ← Reply / A-004
+
+* _2026-09-13 02:24:42 (Codex/GPT-6)_
+
+## [SUMMARY]
+
+- Arch TODO 全部 53 項已完成。本輪補完剩餘 5 項，已刪除 `TODO.arch.md`，並更新相關引用。
+- 修正 KDE 原生資料夾選擇器、圖片與排序選項的輔助功能資訊，以及 PNG 快取壓縮造成的載入延遲。
+- X11／KDE Wayland 各 23 項、Debug／Release 各 6 組、PTY 8 案與 Arch 套件測試全部通過；獨立審查及 Host gate 均 PASS。
+- 實作 `83d7e3d` 與紀錄 `4d58e29` 已推送至 `origin/main`。新版套件在 `dist/arch-validation-A004`。
+
+## [FINAL REPORT]
+
+### 繼續完成 Arch TODO
+
+成功。接續前輪的 5 項，本輪完成下列驗收。詳細內容在 [Arch 驗證紀錄](/home/michael/Work/PicLens/docs/linux/arch-validation.md) 與 [本輪證據索引](/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/README.md)。
+
+| 項目 | 結果 |
+| --- | --- |
+| A2.2 原生 picker | 實際選取、取消、重啟還原及選取空資料夾；取消保留設定，子資料夾導覽不改持久化 root。改用 `QApplication`，讓 KDE 提供原生對話框。Widgets 已包含於既有 qt6-base 套件。 |
+| A7.3 KDE Wayland | 私有 Plasma／KWin 6.7.5，23／23 通過，包含真實注音「中」、焦點、Viewer、選單、picker、拖放取消、Dolphin 與回收筒。 |
+| A7.4 X11 | 獨立 Xvfb／Openbox 的原生 xcb 工作階段，同樣 23／23 通過；未以 Xwayland 代替。 |
+| A7.5 200% 與輔助功能 | 兩種桌面均檢查 gallery、Viewer、picker、確認視窗。AT-SPI／Orca 驗證名稱、角色、選取、排序、勾選、滑桿範圍與停用狀態；補上缺漏並新增 2 個 QML 回歸測試。 |
+| A8.2 混合素材效能 | 9 檔素材，冷暖各 12 次完整原圖繪製。最大 482／296 ms，超過 500 ms 與未完成皆為 0。 |
+
+效能瓶頸是 preview 回傳前同步壓縮 PNG 快取。改為無 deflate 壓縮的無損 PNG，保留像素、原圖解析度、舊快取相容性與 worker 協定。代價是磁碟快取較大，原有 2,000 檔上限不變。來源圖片與轉檔品質未改。
+
+素材包含 3 張公開授權實拍照片，涵蓋 JPG／JPEG／PNG／BMP／無損 WebP、透明圖表及 12 MP 衍生拼圖。來源、授權、尺寸與 hash 都已記錄；12 MP 是衍生案例，沒有稱為相機原始照片。
+
+驗證限制：私有桌面共用主機核心，沒有宣稱獨立開機 VM、實體顯示器或音訊硬體測試。冷快取指應用程式快取，OS page cache 保留；量測為原圖 scene graph 提交，並非 compositor 實際顯示時間。先前超標樣本與負載限制有保留，不宣稱任何負載都能達成 500 ms。
+
+### 完成項目移除，全部完成則刪除檔案
+
+成功。原 53 項均有完成證據後，已刪除 `TODO.arch.md`，同步更新 README、開發／架構／驗收文件與 Arch handoff。變更的 11 個 Markdown 檔案已核對，本地連結無缺漏；後續可直接查閱 Arch 驗證紀錄。
+
+### 測試、套件與交付
+
+| 驗證 | 結果 |
+| --- | --- |
+| 主流程 Debug／Release | 各 6／6；45.78／51.86 秒 |
+| 獨立副本 Debug | 6／6；42.79 秒；聚焦 QML 4 pass、imaging 11 pass |
+| 真實 PTY | 8 案通過，涵蓋參數、錯誤碼、metrics 輸出失敗與正常結束 |
+| 私有 Arch makepkg | 成功；check 6／6，41.49 秒 |
+| 安裝後測試 | Qt Widgets 相依正常、原圖繪製成功、正常結束與移除通過 |
+
+[新版 Arch 套件](/home/michael/Work/PicLens/dist/arch-validation-A004/piclens-4.0.0-1-x86_64.pkg.tar.zst) 是本地 working-tree snapshot 建置。SHA-256：`dcad158b9df876e62b8741578f0ee4a9365b0ca357ee2265aaf49bc93774c27b`。同目錄保留來源 tar、PKGBUILD、SOURCE-MANIFEST 與 SHA256SUMS。runtime 與測試逐檔 hash 均和 `83d7e3d` 相同；快照中的驗證文件僅少了最後「選项」改「選項」的字形修正。沒有安裝到主機或發布 release／AUR。
+
+獨立審查首輪未發現程式、測試或驗收證據缺陷，只指出 notebook 首頁與 tracker 的舊進度。已同步紀錄，第二輪僅複核這項修正，沿用已通過的程式測試。最終 Verdict、Outcome、Minimality、Conformance 及主流程 Host gate 都是 PASS。附加套件 smoke 曾因測試命令漏給 `--viewer` 路徑而未定時退出；已停止該私有程序、修正命令後通過，未擴張產品修改範圍。
+
+實作 commit `83d7e3d9fa900f676fc7ea34c6d99de5b9fb11e0` 及紀錄 commit `4d58e29a0d2c5804a0f7af420cf4def08e708d28` 已推送。最後只同步本輪完成紀錄；Arch 沒有剩餘待辦，原有 Windows 驗收不屬本輪範圍。
+
+Cross-check review: `.agentflow/artifacts/A-004-arch-remaining/cross-check-report.md`
+Cross-check implementation: 83d7e3d9fa900f676fc7ea34c6d99de5b9fb11e0
+Host gate: PASS
+
+## Questions (batched — each with a suggested default)
+
+- None.
+
+---
+
+# → Ask / A-005
+
++
