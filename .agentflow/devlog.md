@@ -4,19 +4,19 @@ Project: PicLens
 
 Notebook: .agentflow/devlog.md — root.
 
-Current commit: implementation `85727206c92e62a13f24eb16742f8d561bf4bd50`; Agentflow records tracked on `main`.
+Current commit: implementation `cbb33d80c4b3a40a8ad2ea4628969c85cd3ea9d2`; Agentflow blocked-round records tracked on `main`.
 
-Tests/scenarios: `git diff --check`, `ag.json` JSON parse, and `resume-intake.js` passed; product tests not run because product code did not change.
+Tests/scenarios: Windows locked restore and Release build passed with 0 warnings/errors; 66 Release tests passed; isolated PicLens launch passed; native UI control failed because trusted `sky` RPC is not configured.
 
 Configuration: ag.json — schema v7; validated for codex this round.
 
-Proven: Agentflow initialized; targeted cross-check and Host gate passed for the implementation commit.
+Proven: Windows source/test baseline is green; W7.3-W7.5 remain open; narrow cross-check and Host gate passed for the truthful blocked record and the owner removal condition.
 
-Open: none.
+Open: W7.3 actual IME/assistive-tool validation; W7.4 high-contrast and 150%/200% DPI validation; W7.5 native picker/reveal/taskbar/icon validation; trusted native Computer Use RPC is unavailable.
 
-Next: await Ask A-002.
+Next: await native Computer Use enablement and owner `繼續`, or owner-performed manual evidence; remove `TODO.win.md` only after all three checks pass.
 
-Artifacts: `.agentflow/artifacts/A-001-agentflow-init/` — brief, plan, diagnostics, runner record, and review report.
+Artifacts: `.agentflow/artifacts/A-002-windows-todo/` — tracker, frozen cross-check facts/plan/brief, runner record, and PASS report.
 
 Archived eras: none.
 
@@ -132,3 +132,54 @@ godev
 - Owner 補充：`完成就移除`。
 - Scope 已納入 tracker T-5：只有 W7.3 至 W7.5 全部取得真實互動證據後，才刪除已變空的 `TODO.win.md` 並同步必要文件連結；目前保留。
 - 這項補充不解除 native Computer Use RPC blocker，也不授權把自動化測試當成實機驗收。
+
+## [RUN-005] Event — blocked-record cross-check accepted (during round A-002)
+
+- external-runner-v1 建立獨立、無 remote 的 disposable clone；profile `codex-default`，model `gpt-5.6-sol/low`，exit 0，stdin closed，無 timeout。
+- Clone 只新增允許的 `agentflow-review.md`；報告 SHA-256 `77D267B9D74A516A319D35B4632A5DF66694D2D87EBC251325DE122EAD801CDE`。
+- 報告針對 implementation tip `cbb33d80c4b3a40a8ad2ea4628969c85cd3ea9d2` 回傳 Outcome、Minimality、Conformance 各唯一一次且皆 PASS；並明說 owner outcome 仍 blocked。
+- Coordinator 重查 commit、range diff、TODO 狀態、報告界線與 runner record：PASS。Host gate: PASS。
+- Disposable clone 已移到資源回收筒，可復原；限制為 OS-level confinement 與 remote-provider cancellation 未證明。
+
+
+# ← Reply / A-002
+
+* _2026-09-12 20:43:35 Asia/Taipei (Codex/GPT-5)_
+
+## [SUMMARY]
+
+- 已納入「完成就移除」：W7.3～W7.5 全部通過後，會刪除已變空的 `TODO.win.md` 並同步必要連結。
+- 目前仍受阻，不能先刪：三項都缺真實互動桌面證據。
+- Windows Release build 通過，0 warnings/errors；66 tests passed。
+- 原生 Computer Use 無法連線：`Trusted RPC service is not configured: sky`。
+
+## [FINAL REPORT]
+
+### 原始要求：`godev`／「完成 windows TODO」／「完成就移除」
+
+結果：移除條件已記錄，但 Windows TODO 尚未完成，因此 `TODO.win.md` 仍保留。
+
+- 目前只剩 W7.3、W7.4、W7.5：實際 IME＋輔助工具、Windows 高對比＋150%／200% DPI、原生 picker／檔案總管 reveal／工作列與 exe 圖示。
+- 我已用目前 HEAD 重建 Release。Build 為 0 warnings、0 errors；66 個 Windows tests 全部通過。
+- 環境證據：2560×1440、AppliedDPI=96（100%）、HighContrast=false，已安裝 `zh-Hant-TW` Microsoft Bopomofo IME。
+- 最新 PicLens 已用隔離 profile 與兩張 fixture 圖啟動成功，未接觸使用者圖片；測試 process 已停止。
+- Computer Use runtime 沒有 native `getApp`。依 computer-use skill 載入 `@oai/sky` 後，服務明確回覆 `Trusted RPC service is not configured: sky`。
+- 因此目前不能可信地送出 Bopomofo composition、切換顯示設定後觀察 renderer，或點擊 picker/reveal 並觀察工作列。
+- 產品程式碼、`TODO.win.md`、系統 DPI 與高對比設定都沒有改動。
+- 紀錄 commits：`7d58b208`、`cbb33d80`。獨立 narrow cross-check 的 Outcome、Minimality、Conformance 都是 PASS；Host gate PASS。這只證明受阻紀錄誠實，不表示 W7.3～W7.5 完成。
+
+Cross-check review: `.agentflow/artifacts/A-002-windows-todo/cross-check-report.md`
+Cross-check implementation: cbb33d80c4b3a40a8ad2ea4628969c85cd3ea9d2
+
+## Questions (batched — each with a suggested default)
+
+- 請啟用這個任務的原生 Computer Use（trusted `sky` RPC）後回覆「繼續」；若無法啟用，要改由你手動跑三項互動驗收嗎？
+- Suggested default: 啟用 native Computer Use 後回覆「繼續」，我會完成 W7.3～W7.5，接著移除 `TODO.win.md`、更新連結、驗證並提交。
+- ans:
+
+
+---
+
+# → Ask / A-003
+
++
