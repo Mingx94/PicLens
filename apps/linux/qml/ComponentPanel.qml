@@ -8,7 +8,13 @@ Dialog {
     anchors.centerIn: Overlay.overlay
     title: "元件展示"
     modal: true
-    standardButtons: Dialog.Close
+    footer: DialogButtonBox {
+        Button {
+            text: "關閉"
+            DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
+        }
+        onRejected: panel.close()
+    }
     contentItem: ScrollView {
         clip: true
         contentWidth: availableWidth

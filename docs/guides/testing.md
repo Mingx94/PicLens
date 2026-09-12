@@ -2,7 +2,7 @@
 
 ## 測試入口
 
-Windows 使用 xUnit、codec／服務整合測試及 STA／Dispatcher 入口，命令見 [Windows README](../../apps/windows/README.md)。Arch 使用四個 CTest suite，命令見 [Arch README](../../apps/linux/README.md)。
+Windows 使用 xUnit、codec／服務整合測試及 STA／Dispatcher 入口，命令見 [Windows README](../../apps/windows/README.md)。Arch 使用目前定義的 CTest suites，命令見 [Arch README](../../apps/linux/README.md)。
 
 ## 依風險選擇驗證
 
