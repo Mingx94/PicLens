@@ -1,0 +1,10 @@
+{
+    "allCompleted": true,
+    "deduplicatedHelperCount": 1,
+    "enqueued": true,
+    "goodCompletedBeforeStall": true,
+    "pendingWhenGoodCompleted": 2,
+    "reaped": true,
+    "remainingTemporaryDirectoryCount": 0,
+    "timeoutResults": 2
+}

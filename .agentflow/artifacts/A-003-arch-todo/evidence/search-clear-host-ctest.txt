@@ -1,0 +1,148 @@
+Start testing: Sep 13 00:12 CST
+----------------------------------------------------------
+1/5 Testing: domain
+1/5 Test: domain
+Command: "/tmp/piclens-search-clear-build/domain_test"
+Directory: /tmp/piclens-search-clear-build
+"domain" start time: Sep 13 00:12 CST
+Output:
+----------------------------------------------------------
+Domain and file operation tests passed
+<end of output>
+Test time =   0.16 sec
+----------------------------------------------------------
+Test Passed.
+"domain" end time: Sep 13 00:12 CST
+"domain" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/5 Testing: imaging
+2/5 Test: imaging
+Command: "/tmp/piclens-search-clear-build/imaging_test"
+Directory: /tmp/piclens-search-clear-build
+"imaging" start time: Sep 13 00:12 CST
+Output:
+----------------------------------------------------------
+********* Start testing of ImagingTest *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : ImagingTest::initTestCase()
+PASS   : ImagingTest::staticFormats(png)
+PASS   : ImagingTest::staticFormats(jpg)
+PASS   : ImagingTest::staticFormats(jpeg)
+PASS   : ImagingTest::staticFormats(bmp)
+PASS   : ImagingTest::staticFormats(webp)
+PASS   : ImagingTest::staticFormats(gif)
+PASS   : ImagingTest::animationAndOversizeRejected()
+PASS   : ImagingTest::animatedWebpAlphaAndCorruptionAreRecognized()
+PASS   : ImagingTest::coldWarmAndIdentity()
+PASS   : ImagingTest::sameInputRequestsHaveIndependentResults()
+PASS   : ImagingTest::recentCacheEvictsOldEntriesPast32MiB()
+PASS   : ImagingTest::threePreviewsFitActualAllocationBudget()
+PASS   : ImagingTest::originalTilesAndBorders()
+PASS   : ImagingTest::conversionPreservesSourceAndRefusesOverwrite()
+PASS   : ImagingTest::failuresAndCancellationAreTerminal()
+PASS   : ImagingTest::queueBoundAndShutdownReap()
+PASS   : ImagingTest::stalledWorkerTimeout()
+PASS   : ImagingTest::quiesceReapsAndAllowsResume()
+PASS   : ImagingTest::startupAndDirtyCachePruneKeepsTwoThousandOwnedEntries()
+PASS   : ImagingTest::zoomAndOriginalPaintSignal()
+PASS   : ImagingTest::cleanupTestCase()
+Totals: 22 passed, 0 failed, 0 skipped, 0 blacklisted, 37515ms
+********* Finished testing of ImagingTest *********
+<end of output>
+Test time =  37.58 sec
+----------------------------------------------------------
+Test Passed.
+"imaging" end time: Sep 13 00:12 CST
+"imaging" time elapsed: 00:00:37
+----------------------------------------------------------
+
+3/5 Testing: app
+3/5 Test: app
+Command: "/tmp/piclens-search-clear-build/app_test"
+Directory: /tmp/piclens-search-clear-build
+"app" start time: Sep 13 00:12 CST
+Output:
+----------------------------------------------------------
+********* Start testing of AppTest *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : AppTest::initTestCase()
+PASS   : AppTest::atomicSettings()
+PASS   : AppTest::scanProjection()
+PASS   : AppTest::singleReset()
+PASS   : AppTest::dataRootPrecedenceAndAtomicFailure()
+PASS   : AppTest::recursiveScanSymlinkCancelAndErrors()
+PASS   : AppTest::cleanupTestCase()
+Totals: 7 passed, 0 failed, 0 skipped, 0 blacklisted, 62ms
+********* Finished testing of AppTest *********
+<end of output>
+Test time =   0.09 sec
+----------------------------------------------------------
+Test Passed.
+"app" end time: Sep 13 00:12 CST
+"app" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/5 Testing: controller
+4/5 Test: controller
+Command: "/tmp/piclens-search-clear-build/controller_test"
+Directory: /tmp/piclens-search-clear-build
+"controller" start time: Sep 13 00:12 CST
+Output:
+----------------------------------------------------------
+********* Start testing of ControllerTest *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : ControllerTest::initTestCase()
+PASS   : ControllerTest::missingStartupPathKeepsPickerState()
+PASS   : ControllerTest::fileStartupPathKeepsPickerState()
+PASS   : ControllerTest::unreadableStartupPathKeepsPickerState()
+PASS   : ControllerTest::invalidRestoredStartupPathKeepsPickerState()
+PASS   : ControllerTest::shiftUpKeepsIndependentCursor()
+PASS   : ControllerTest::navigationAndThumbnails()
+PASS   : ControllerTest::canceledConfirmationDoesNotWrite()
+PASS   : ControllerTest::controllerUsesSingleResetForLargeSearch()
+PASS   : ControllerTest::staleNavigationAndImmutableViewerSnapshot()
+QINFO  : ControllerTest::renameReportsResultAndKeepsSourceScope() file-operation 0 source= /tmp/controller_test-dhnFza/圖片/source.png target= /tmp/controller_test-dhnFza/圖片/新名稱.png reason= 完成
+PASS   : ControllerTest::renameReportsResultAndKeepsSourceScope()
+PASS   : ControllerTest::cleanupTestCase()
+Totals: 12 passed, 0 failed, 0 skipped, 0 blacklisted, 1419ms
+********* Finished testing of ControllerTest *********
+<end of output>
+Test time =   1.48 sec
+----------------------------------------------------------
+Test Passed.
+"controller" end time: Sep 13 00:12 CST
+"controller" time elapsed: 00:00:01
+----------------------------------------------------------
+
+5/5 Testing: qml
+5/5 Test: qml
+Command: "/tmp/piclens-search-clear-build/qml_test"
+Directory: /tmp/piclens-search-clear-build
+"qml" start time: Sep 13 00:12 CST
+Output:
+----------------------------------------------------------
+********* Start testing of QmlIntegrationTest *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : QmlIntegrationTest::initTestCase()
+PASS   : QmlIntegrationTest::entrySettingsAndNarrowLayout()
+PASS   : QmlIntegrationTest::largeModelUsesBoundedRealDelegates()
+PASS   : QmlIntegrationTest::searchSelectionAndContextMenuUseActualDelegates()
+PASS   : QmlIntegrationTest::searchClearControlUsesActualInputAndPreservesProjection()
+PASS   : QmlIntegrationTest::resetClearsSelectionAndThumbnailBindings()
+PASS   : QmlIntegrationTest::dragDropUsesThresholdPreviewAndCancelWithoutMutation()
+PASS   : QmlIntegrationTest::viewerUsesSnapshotZoomInputAndReturnsFocus()
+QINFO  : QmlIntegrationTest::toastDetailsAndComponentPanelAreRealQml() file-operation 0 source= /tmp/qml_test-IyHdbq/library/source.png target= /tmp/qml_test-IyHdbq/library/renamed.png reason= 完成
+PASS   : QmlIntegrationTest::toastDetailsAndComponentPanelAreRealQml()
+PASS   : QmlIntegrationTest::cleanupTestCase()
+Totals: 10 passed, 0 failed, 0 skipped, 0 blacklisted, 2844ms
+********* Finished testing of QmlIntegrationTest *********
+<end of output>
+Test time =   2.90 sec
+----------------------------------------------------------
+Test Passed.
+"qml" end time: Sep 13 00:12 CST
+"qml" time elapsed: 00:00:02
+----------------------------------------------------------
+
+End testing: Sep 13 00:12 CST

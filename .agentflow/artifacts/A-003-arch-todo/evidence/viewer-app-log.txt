@@ -1,0 +1,21 @@
+2026-09-12T14:57:03.055Z [Qt] 啟動 version=4.0.0 Qt=6.11.2 platform=wayland
+2026-09-12T14:57:03.339Z [Qt] 掃描 /tmp/piclens-arch-fixtures 項目=6
+2026-09-12T14:57:04.696Z [Qt] Viewer /tmp/piclens-arch-fixtures/image0.jpeg
+2026-09-12T14:57:05.141Z [Qt] Viewer /tmp/piclens-arch-fixtures/image1.png
+2026-09-12T14:57:05.845Z [Qt] Viewer /tmp/piclens-arch-fixtures/image0.jpeg
+2026-09-12T14:57:06.509Z [Qt] Viewer /tmp/piclens-arch-fixtures/image1.png
+2026-09-12T14:57:07.309Z [Qt] Viewer /tmp/piclens-arch-fixtures/image0.jpeg
+2026-09-12T14:57:07.910Z [Qt] Viewer /tmp/piclens-arch-fixtures/image1.png
+2026-09-12T14:57:08.709Z [Qt] Viewer /tmp/piclens-arch-fixtures/image0.jpeg
+2026-09-12T14:57:09.971Z [Qt] 截圖 /tmp/piclens-arch-native/viewer.png
+2026-09-12T14:57:10.911Z [Qt] 正常關閉；背景工作已回收
+2026-09-12T14:58:05.460Z [Qt] 啟動 version=4.0.0 Qt=6.11.2 platform=wayland
+2026-09-12T14:58:05.684Z [Qt] 掃描 /tmp/piclens-arch-fixtures 項目=6
+2026-09-12T14:58:07.063Z [Qt] Viewer /tmp/piclens-arch-fixtures/image0.jpeg
+2026-09-12T14:58:07.506Z [Qt] Viewer /tmp/piclens-arch-fixtures/image1.png
+2026-09-12T14:58:08.206Z [Qt] Viewer /tmp/piclens-arch-fixtures/image0.jpeg
+2026-09-12T14:58:08.909Z [Qt] Viewer /tmp/piclens-arch-fixtures/image1.png
+2026-09-12T14:58:09.509Z [Qt] Viewer /tmp/piclens-arch-fixtures/image0.jpeg
+2026-09-12T14:58:10.409Z [Qt] Viewer /tmp/piclens-arch-fixtures/image1.png
+2026-09-12T14:58:10.910Z [Qt] Viewer /tmp/piclens-arch-fixtures/image0.jpeg
+2026-09-12T14:58:12.911Z [Qt] 正常關閉；背景工作已回收

@@ -1,0 +1,31 @@
+{
+  "changed_files": [
+    "TODO.arch.md",
+    "apps/linux/CMakeLists.txt",
+    "apps/linux/README.md",
+    "apps/linux/THIRD-PARTY.md",
+    "apps/linux/qml/ComponentPanel.qml",
+    "apps/linux/qml/Gallery.qml",
+    "apps/linux/qml/Main.qml",
+    "apps/linux/src/controller.cpp",
+    "apps/linux/src/controller.h",
+    "apps/linux/src/main.cpp",
+    "apps/linux/tests/app_test.cpp",
+    "apps/linux/tests/controller_test.cpp",
+    "apps/linux/tests/domain_test.cpp",
+    "apps/linux/tests/imaging_test.cpp",
+    "apps/linux/tests/metrics_test.cpp",
+    "apps/linux/tests/qml_test.cpp",
+    "docs/guides/testing.md",
+    "docs/linux/arch-validation.md",
+    "test-data/README.md",
+    "test-data/windows-native-cases.json"
+  ],
+  "changed_lines": 1957,
+  "behavior_change": true,
+  "trust_boundary": false,
+  "broad_change": true,
+  "consequential_change": false,
+  "workspace_layout_change": false,
+  "owner_control": "default"
+}

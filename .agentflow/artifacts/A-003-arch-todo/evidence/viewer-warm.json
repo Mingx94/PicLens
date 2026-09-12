@@ -1,0 +1,53 @@
+{
+    "buildProfile": "Release",
+    "frontEnd": "qt-quick",
+    "fullPaintSamples": [
+        {
+            "fullResolution": true,
+            "milliseconds": 106,
+            "path": "/tmp/piclens-arch-fixtures/image0.jpeg"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 180,
+            "path": "/tmp/piclens-arch-fixtures/image1.png"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 62,
+            "path": "/tmp/piclens-arch-fixtures/image0.jpeg"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 181,
+            "path": "/tmp/piclens-arch-fixtures/image1.png"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 63,
+            "path": "/tmp/piclens-arch-fixtures/image0.jpeg"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 178,
+            "path": "/tmp/piclens-arch-fixtures/image1.png"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 62,
+            "path": "/tmp/piclens-arch-fixtures/image0.jpeg"
+        }
+    ],
+    "itemCount": 6,
+    "libraryMilliseconds": 62,
+    "maxMaterialized": 6,
+    "maxVisible": 6,
+    "observation": "scene graph submission; not compositor presentation",
+    "platformPlugin": "wayland",
+    "qtVersion": "6.11.2",
+    "readyThumbnailCount": 0,
+    "schemaVersion": 1,
+    "searchMilliseconds": 4,
+    "unpaintedSelections": 0,
+    "viewerSelections": 7
+}

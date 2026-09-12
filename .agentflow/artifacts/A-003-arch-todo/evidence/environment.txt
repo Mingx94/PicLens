@@ -1,0 +1,26 @@
+NAME="Omarchy"
+PRETTY_NAME="Omarchy"
+ID=omarchy
+ID_LIKE=arch
+BUILD_ID="4.0.3"
+VERSION_ID="4.0.3"
+ANSI_COLOR="38;2;158;206;106"
+HOME_URL="https://omarchy.org/"
+DOCUMENTATION_URL="https://learn.omacom.io/2/the-omarchy-manual"
+SUPPORT_URL="https://discord.gg/tXFUdasqhY"
+BUG_REPORT_URL="https://github.com/basecamp/omarchy/issues"
+LOGO=omarchy
+x86_64
+Session=wayland Desktop=Hyprland Platform override=wayland;xcb
+base-devel 1-2
+cmake 4.4.3-2
+ninja 1.13.2-3
+pkgconf 3.0.7-1
+qt6-base 6.11.2-3
+qt6-declarative 6.11.2-1
+qt6-svg 6.11.2-1
+qt6-imageformats 6.11.2-1
+qt6-wayland 6.11.2-1
+libwebp 1.6.0-2
+glib2 2.88.3-1
+/usr/bin/gio

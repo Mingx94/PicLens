@@ -1,0 +1,92 @@
+[
+  {
+    "terminal": "/dev/pts/0",
+    "argv": [
+      "--help"
+    ],
+    "exit": 0,
+    "expected": 0,
+    "output": "Usage: /tmp/piclens-arch-validation.IHj5Y4Ng/stage/usr/bin/piclens [options]\r\nPicLens Arch Linux / Qt development preview\r\n\r\nOptions:\r\n  -h, --help                  Displays help on commandline options.\r\n  --help-all                  Displays help, including generic Qt options.\r\n  -v, --version               Displays version information.\r\n  --folder <value>            folder\r\n  --data-root <value>         data-root\r\n  --smoke-ms <value>          smoke-ms\r\n  --screenshot <value>        screenshot\r\n  --metrics <value>           metrics\r\n  --viewer <value>            viewer\r\n  --width <value>             width\r\n  --height <value>            height\r\n  --diagnostic-items <value>  diagnostic-items\r\n  --dark                      Use dark palette\r\n  --exercise                  Exercise non-destructive navigation\r\n  --components                Show component gallery\r\n"
+  },
+  {
+    "terminal": "/dev/pts/0",
+    "argv": [
+      "--version"
+    ],
+    "exit": 0,
+    "expected": 0,
+    "output": "PicLens 4.0.0\r\n"
+  },
+  {
+    "terminal": "/dev/pts/0",
+    "argv": [
+      "--unknown"
+    ],
+    "exit": 2,
+    "expected": 2,
+    "output": "Unknown option 'unknown'.\r\n"
+  },
+  {
+    "terminal": "/dev/pts/0",
+    "argv": [
+      "--smoke-ms",
+      "abc"
+    ],
+    "exit": 2,
+    "expected": 2,
+    "output": "Invalid --smoke-ms\r\n"
+  },
+  {
+    "terminal": "/dev/pts/0",
+    "argv": [
+      "--smoke-ms",
+      "-1"
+    ],
+    "exit": 2,
+    "expected": 2,
+    "output": "Invalid --smoke-ms\r\n"
+  },
+  {
+    "terminal": "/dev/pts/0",
+    "argv": [
+      "--width",
+      "799"
+    ],
+    "exit": 2,
+    "expected": 2,
+    "output": "Invalid --width\r\n"
+  },
+  {
+    "terminal": "/dev/pts/0",
+    "argv": [
+      "--height",
+      "599"
+    ],
+    "exit": 2,
+    "expected": 2,
+    "output": "Invalid --height\r\n"
+  },
+  {
+    "terminal": "/dev/pts/0",
+    "argv": [
+      "--folder"
+    ],
+    "exit": 2,
+    "expected": 2,
+    "output": "Missing value after '--folder'.\r\n"
+  },
+  {
+    "terminal": "/dev/pts/0",
+    "argv": [
+      "--data-root",
+      "/tmp/piclens-arch-cli/cli-profile",
+      "--folder",
+      "/tmp/piclens-arch-cli",
+      "--smoke-ms",
+      "100"
+    ],
+    "exit": 0,
+    "expected": 0,
+    "output": ""
+  }
+]

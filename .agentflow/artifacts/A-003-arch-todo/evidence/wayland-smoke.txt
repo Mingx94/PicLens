@@ -1,0 +1,3 @@
+2026-09-12T14:54:30.659Z [Qt] 啟動 version=4.0.0 Qt=6.11.2 platform=wayland
+2026-09-12T14:54:31.003Z [Qt] 掃描 /tmp/piclens-arch-validation.U1VwtjWA/fixtures 項目=0
+2026-09-12T14:54:32.414Z [Qt] 正常關閉；背景工作已回收

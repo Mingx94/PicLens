@@ -1,0 +1,16 @@
+{
+    "adjacentPreloadsComplete": true,
+    "afterBatchStatus": "正在處理 1 個項目…",
+    "beforeBatchBusy": false,
+    "beforeBatchConfirm": false,
+    "beforeBatchStatus": "1 個項目",
+    "canceledBatchTemporaryCleanAndSourcePreserved": true,
+    "currentFullThenNextPreviousPreviewOrder": true,
+    "encoderReaped": true,
+    "encoderStarted": true,
+    "failureToastTimerMilliseconds": 12000,
+    "fullFailureKeepsPreview": true,
+    "permissionFailureResultAndSourcePreserved": true,
+    "previewFailureStillLoadsOriginal": true,
+    "shutdownMilliseconds": 37
+}

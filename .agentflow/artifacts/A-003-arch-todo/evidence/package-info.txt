@@ -1,0 +1,20 @@
+Name            : piclens
+Version         : 4.0.0-1
+Description     : Local image viewer and organizer using Qt Quick
+Architecture    : x86_64
+URL             : https://github.com/Mingx94/PicLens
+Licenses        : MIT
+Groups          : None
+Provides        : None
+Depends On      : qt6-base>=6.8  qt6-declarative>=6.8  qt6-svg>=6.8  qt6-imageformats>=6.8  qt6-wayland>=6.8  libwebp  glib2
+Optional Deps   : None
+Conflicts With  : None
+Replaces        : None
+Compressed Size : 293.84 KiB
+Installed Size  : 586.53 KiB
+Packager        : Unknown Packager
+Build Date      : Sat Sep 12 22:58:26 2026
+Install Script  : No
+Validated By    : None
+Signatures      : None
+

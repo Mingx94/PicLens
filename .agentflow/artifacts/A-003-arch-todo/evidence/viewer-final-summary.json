@@ -1,0 +1,35 @@
+[
+  {
+    "case": "direct",
+    "exit": 0,
+    "wallSeconds": 2.650692609999169,
+    "selections": 1,
+    "paintCount": 1,
+    "maxMs": 216,
+    "misses": 0,
+    "unpainted": 0,
+    "peakRssKiB": 172492
+  },
+  {
+    "case": "cold",
+    "exit": 0,
+    "wallSeconds": 7.393653610999536,
+    "selections": 7,
+    "paintCount": 7,
+    "maxMs": 336,
+    "misses": 0,
+    "unpainted": 0,
+    "peakRssKiB": 172816
+  },
+  {
+    "case": "warm",
+    "exit": 0,
+    "wallSeconds": 7.971624757999962,
+    "selections": 7,
+    "paintCount": 7,
+    "maxMs": 269,
+    "misses": 0,
+    "unpainted": 0,
+    "peakRssKiB": 172500
+  }
+]

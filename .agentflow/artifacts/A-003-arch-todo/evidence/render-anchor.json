@@ -1,0 +1,12 @@
+{
+    "afterAnchorColor": "#825964",
+    "beforeAnchorColor": "#825964",
+    "frameReleasedAfterSceneGraphUpdate": true,
+    "panMovesImageWithPointer": true,
+    "platform": "wayland",
+    "pointerAnchorPreserved": true,
+    "resetFit100Percent": true,
+    "windowHeight": 1054,
+    "windowWidth": 960,
+    "zoomStep1p2": true
+}

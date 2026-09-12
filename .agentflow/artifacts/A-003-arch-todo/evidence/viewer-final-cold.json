@@ -1,0 +1,159 @@
+{
+    "averageCpuUtilizationPercent": 1.5009639217846322,
+    "buildProfile": "Release",
+    "childProcessesIncluded": false,
+    "cpuNormalization": "processCpuMilliseconds / metricsElapsedMilliseconds / logicalProcessorCount * 100",
+    "cpuNormalizedByLogicalProcessors": true,
+    "firstThumbnailReadyMilliseconds": 677,
+    "frontEnd": "qt-quick",
+    "fullPaintSamples": [
+        {
+            "fullResolution": true,
+            "milliseconds": 170,
+            "path": "/tmp/piclens-arch-fixtures/image0.jpeg",
+            "selectionId": "1",
+            "viewerSessionId": "1"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 336,
+            "path": "/tmp/piclens-arch-fixtures/image1.png",
+            "selectionId": "2",
+            "viewerSessionId": "1"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 85,
+            "path": "/tmp/piclens-arch-fixtures/image0.jpeg",
+            "selectionId": "3",
+            "viewerSessionId": "1"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 250,
+            "path": "/tmp/piclens-arch-fixtures/image1.png",
+            "selectionId": "4",
+            "viewerSessionId": "1"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 77,
+            "path": "/tmp/piclens-arch-fixtures/image0.jpeg",
+            "selectionId": "5",
+            "viewerSessionId": "1"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 238,
+            "path": "/tmp/piclens-arch-fixtures/image1.png",
+            "selectionId": "6",
+            "viewerSessionId": "1"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 78,
+            "path": "/tmp/piclens-arch-fixtures/image0.jpeg",
+            "selectionId": "7",
+            "viewerSessionId": "1"
+        }
+    ],
+    "gpuCopyBytes": null,
+    "gpuMemoryBytes": null,
+    "gpuMetricsIncluded": false,
+    "imageCopyMetricsIncluded": false,
+    "itemCount": 6,
+    "lastCompletedBatch": null,
+    "libraryMilliseconds": 105,
+    "logicalProcessorCount": 8,
+    "maxMaterialized": 6,
+    "maxVisible": 6,
+    "metricsElapsedMilliseconds": 7262,
+    "metricsTimestampUtc": "2026-09-12T17:05:41.911Z",
+    "observation": "scene graph submission; not compositor presentation",
+    "peakRssBytes": 176963584,
+    "peakRssSource": "getrusage(RUSAGE_SELF).ru_maxrss; process lifetime; self only",
+    "platformPlugin": "wayland",
+    "processCpuMilliseconds": 872,
+    "processScope": "self",
+    "qtVersion": "6.11.2",
+    "readyThumbnailCount": 0,
+    "rssBytes": 177709056,
+    "rssSource": "/proc/self/statm resident pages; self only",
+    "schemaVersion": 1,
+    "searchMilliseconds": 6,
+    "unpaintedSelections": 0,
+    "viewerPreviewReadyMilliseconds": [
+        77,
+        73,
+        0,
+        0,
+        0,
+        0,
+        0
+    ],
+    "viewerPreviewSamples": [
+        {
+            "milliseconds": 77,
+            "path": "/tmp/piclens-arch-fixtures/image0.jpeg",
+            "ready": true,
+            "selectionId": "1",
+            "viewerSessionId": "1"
+        },
+        {
+            "milliseconds": 73,
+            "path": "/tmp/piclens-arch-fixtures/image1.png",
+            "ready": true,
+            "selectionId": "2",
+            "viewerSessionId": "1"
+        },
+        {
+            "milliseconds": 0,
+            "path": "/tmp/piclens-arch-fixtures/image0.jpeg",
+            "ready": true,
+            "selectionId": "3",
+            "viewerSessionId": "1"
+        },
+        {
+            "milliseconds": 0,
+            "path": "/tmp/piclens-arch-fixtures/image1.png",
+            "ready": true,
+            "selectionId": "4",
+            "viewerSessionId": "1"
+        },
+        {
+            "milliseconds": 0,
+            "path": "/tmp/piclens-arch-fixtures/image0.jpeg",
+            "ready": true,
+            "selectionId": "5",
+            "viewerSessionId": "1"
+        },
+        {
+            "milliseconds": 0,
+            "path": "/tmp/piclens-arch-fixtures/image1.png",
+            "ready": true,
+            "selectionId": "6",
+            "viewerSessionId": "1"
+        },
+        {
+            "milliseconds": 0,
+            "path": "/tmp/piclens-arch-fixtures/image0.jpeg",
+            "ready": true,
+            "selectionId": "7",
+            "viewerSessionId": "1"
+        }
+    ],
+    "viewerSelections": 7,
+    "viewerSharpPaintCount": 7,
+    "viewerSharpPaintMaximumMilliseconds": 336,
+    "viewerSharpPaintMilliseconds": [
+        170,
+        336,
+        85,
+        250,
+        77,
+        238,
+        78
+    ],
+    "viewerSharpTargetMilliseconds": 500,
+    "viewerSharpTargetMisses": 0
+}

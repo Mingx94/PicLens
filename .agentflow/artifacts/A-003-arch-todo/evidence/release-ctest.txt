@@ -1,0 +1,13 @@
+Test project /tmp/piclens-arch-validation.IHj5Y4Ng/build
+    Start 1: domain
+1/4 Test #1: domain ...........................   Passed    0.19 sec
+    Start 2: imaging
+2/4 Test #2: imaging ..........................   Passed   17.27 sec
+    Start 3: app
+3/4 Test #3: app ..............................   Passed    0.04 sec
+    Start 4: controller
+4/4 Test #4: controller .......................   Passed    0.38 sec
+
+100% tests passed out of 4
+
+Total Test time (real) =  17.88 sec

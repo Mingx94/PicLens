@@ -1,0 +1,13 @@
+{
+  "desktopLaunchExit": "0",
+  "wrapperExit": 0,
+  "nativeWindow": [
+    {
+      "pid": 84022,
+      "class": "piclens",
+      "title": "PicLens",
+      "address": "0x55ce47f63b10"
+    }
+  ],
+  "sharedDesktopEndpoint": "single Wayland socket; no host libraries/plugins/font/cache/home mounted"
+}

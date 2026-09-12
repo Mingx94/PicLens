@@ -1,0 +1,8 @@
+{
+  "exit": 0,
+  "wallSeconds": 4.772502782001538,
+  "userCpuSeconds": 0.759146,
+  "systemCpuSeconds": 0.22377799999999998,
+  "peakRssKiB": 182656,
+  "scope": "wait4 observed child including reaped descendants; synthetic model starts no decoder"
+}

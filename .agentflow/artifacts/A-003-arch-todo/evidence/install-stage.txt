@@ -1,0 +1,11 @@
+-- Install configuration: "Release"
+-- Installing: /tmp/piclens-arch-validation.IHj5Y4Ng/stage/usr/bin/piclens
+-- Set non-toolchain portion of runtime path of "/tmp/piclens-arch-validation.IHj5Y4Ng/stage/usr/bin/piclens" to "$ORIGIN:$ORIGIN/../lib"
+-- Installing: /tmp/piclens-arch-validation.IHj5Y4Ng/stage/usr/libexec/piclens/piclens-worker
+-- Set non-toolchain portion of runtime path of "/tmp/piclens-arch-validation.IHj5Y4Ng/stage/usr/libexec/piclens/piclens-worker" to "$ORIGIN:$ORIGIN/../lib"
+-- Installing: /tmp/piclens-arch-validation.IHj5Y4Ng/stage/usr/share/applications/piclens.desktop
+-- Installing: /tmp/piclens-arch-validation.IHj5Y4Ng/stage/usr/share/icons/hicolor/48x48/apps/piclens.png
+-- Installing: /tmp/piclens-arch-validation.IHj5Y4Ng/stage/usr/share/metainfo/io.github.Mingx94.PicLens.metainfo.xml
+-- Installing: /tmp/piclens-arch-validation.IHj5Y4Ng/stage/usr/share/licenses/piclens/LICENSE
+-- Installing: /tmp/piclens-arch-validation.IHj5Y4Ng/stage/usr/share/licenses/piclens/THIRD-PARTY.md
+-- Installing: /tmp/piclens-arch-validation.IHj5Y4Ng/stage/usr/share/licenses/piclens/Lucide-LICENSE.txt

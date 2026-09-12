@@ -1,0 +1,27 @@
+[
+  {
+    "failureLogged": true,
+    "failureReported": true,
+    "path": "/tmp/piclens-reveal-verification/offscreen/PicLens A003 臺灣 空白 ;$()/圖片 空白;$().png",
+    "platform": "offscreen",
+    "selectionAndFolderPreserved": true,
+    "status": "無法開啟檔案管理器。"
+  },
+  {
+    "failureLogged": false,
+    "failureReported": false,
+    "path": "/tmp/piclens-reveal-verification/wayland/PicLens A003 臺灣 空白 ;$()/圖片 空白;$().png",
+    "platform": "wayland",
+    "selectionAndFolderPreserved": true,
+    "status": "2 個項目",
+    "nativeFolderWindows": [
+      {
+        "address": "0x55ce47fb74c0",
+        "pid": 75755,
+        "class": "org.gnome.Nautilus",
+        "title": "PicLens A003 臺灣 空白 ;$()"
+      }
+    ],
+    "newFolderWindowVerified": true
+  }
+]

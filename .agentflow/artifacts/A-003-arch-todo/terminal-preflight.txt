@@ -1,0 +1,31 @@
+SKIP  terminal_one_line  terminal output was not provided
+PASS  timestamps_sane  1 timestamp(s) are within the allowed window
+PASS  reply_structure  the mandatory headings are present, ordered, and non-empty
+PASS  round_boundaries  checked 4 Ask span(s)
+PASS  next_ask_scaffold  the notebook ends with empty A-004
+PASS  tracker  complete tracker has the canonical sections, fields, checklist, counts, recovery values, and internally consistent judgment; evidence truth is checked separately
+WARN  checkpoint_still_to_do  Legacy checker expects numbered WIP sections; current skill explicitly uses short bullet checkpoints. No historical record rewritten.
+SKIP  checkpoint_verification  verification facts were not provided
+SKIP  round_reporting  substantial-round facts were not provided
+SKIP  direct_route_completion  direct-route completion facts were not provided
+SKIP  evidence_classification  defect-class facts were not provided
+SKIP  material_claims  material-claim facts were not provided
+SKIP  report_only_validation  report-only facts were not provided
+SKIP  route_decision  route decision facts were not provided
+SKIP  executor_decision  executor decision facts were not provided
+SKIP  large_work_route  large-work facts were not provided
+SKIP  queue_contract  queue-contract facts were not provided
+SKIP  review_preflight  preflight facts were not provided
+SKIP  review_attempts  review-stage facts were not provided
+SKIP  progress_boundaries  progress facts were not provided
+SKIP  security_disposition  security facts were not provided
+SKIP  acceptance_disposition  acceptance facts were not provided
+SKIP  formal_repair  formal-repair facts were not provided
+SKIP  pipeline_artifacts  pipeline context was not provided
+SKIP  quality_gate  quality-gate facts were not provided
+PASS  cross_check  .agentflow/artifacts/A-003-arch-todo/cross-check-report.md records a PASS verdict for a named implementation commit; pipeline acceptance may supply this same report
+SKIP  no_invented_ask  owner Ask ids were not provided
+PASS  push_claim_valid  push claim matches the host result
+PASS  configuration_valid  ag.json is valid for codex
+PASS  status_projection_valid  STATUS has every fixed field exactly once and in order, with valid configuration and stream fields
+PASS  terminal preflight

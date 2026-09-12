@@ -1,0 +1,63 @@
+{
+    "averageCpuUtilizationPercent": 2.6806989674344717,
+    "buildProfile": "Release",
+    "childProcessesIncluded": false,
+    "cpuNormalization": "processCpuMilliseconds / metricsElapsedMilliseconds / logicalProcessorCount * 100",
+    "cpuNormalizedByLogicalProcessors": true,
+    "firstThumbnailReadyMilliseconds": null,
+    "frontEnd": "qt-quick",
+    "fullPaintSamples": [
+        {
+            "fullResolution": true,
+            "milliseconds": 216,
+            "path": "/tmp/piclens-arch-fixtures/image0.jpeg",
+            "selectionId": "1",
+            "viewerSessionId": "1"
+        }
+    ],
+    "gpuCopyBytes": null,
+    "gpuMemoryBytes": null,
+    "gpuMetricsIncluded": false,
+    "imageCopyMetricsIncluded": false,
+    "itemCount": 6,
+    "lastCompletedBatch": null,
+    "libraryMilliseconds": 97,
+    "logicalProcessorCount": 8,
+    "maxMaterialized": 0,
+    "maxVisible": 0,
+    "metricsElapsedMilliseconds": 2518,
+    "metricsTimestampUtc": "2026-09-12T17:05:34.510Z",
+    "observation": "scene graph submission; not compositor presentation",
+    "peakRssBytes": 176631808,
+    "peakRssSource": "getrusage(RUSAGE_SELF).ru_maxrss; process lifetime; self only",
+    "platformPlugin": "wayland",
+    "processCpuMilliseconds": 540,
+    "processScope": "self",
+    "qtVersion": "6.11.2",
+    "readyThumbnailCount": 0,
+    "rssBytes": 177238016,
+    "rssSource": "/proc/self/statm resident pages; self only",
+    "schemaVersion": 1,
+    "searchMilliseconds": 18,
+    "unpaintedSelections": 0,
+    "viewerPreviewReadyMilliseconds": [
+        102
+    ],
+    "viewerPreviewSamples": [
+        {
+            "milliseconds": 102,
+            "path": "/tmp/piclens-arch-fixtures/image0.jpeg",
+            "ready": true,
+            "selectionId": "1",
+            "viewerSessionId": "1"
+        }
+    ],
+    "viewerSelections": 1,
+    "viewerSharpPaintCount": 1,
+    "viewerSharpPaintMaximumMilliseconds": 216,
+    "viewerSharpPaintMilliseconds": [
+        216
+    ],
+    "viewerSharpTargetMilliseconds": 500,
+    "viewerSharpTargetMisses": 0
+}

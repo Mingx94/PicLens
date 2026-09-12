@@ -1,0 +1,18 @@
+{
+    "buildProfile": "Release",
+    "frontEnd": "qt-quick",
+    "fullPaintSamples": [
+    ],
+    "itemCount": 6,
+    "libraryMilliseconds": 98,
+    "maxMaterialized": 6,
+    "maxVisible": 6,
+    "observation": "scene graph submission; not compositor presentation",
+    "platformPlugin": "wayland",
+    "qtVersion": "6.11.2",
+    "readyThumbnailCount": 6,
+    "schemaVersion": 1,
+    "searchMilliseconds": 12,
+    "unpaintedSelections": 0,
+    "viewerSelections": 0
+}

@@ -1,0 +1,30 @@
+{
+  "installed": "piclens 4.0.0-1",
+  "upgraded": "piclens 4.0.0-2",
+  "upgradeFixture": "pkgrel 2 made by makepkg --repackage from identical verified source; local test only, no public release/version change",
+  "legacyProfileSha256": "2fb6b79a3bfe7a81cd42153537d5ab5da83d5c5d05b1c67facbb072f8d5c6bd6",
+  "profilePreservedAfterInstallLaunchUpgradeUninstall": true,
+  "restoredFolder": "/work/lifecycle-images",
+  "upgradedItemCount": 1,
+  "upgradedReadyThumbnails": 1,
+  "managedFilesRemoved": [
+    "usr/bin/piclens",
+    "usr/libexec/piclens/piclens-worker",
+    "usr/share/applications/piclens.desktop",
+    "usr/share/licenses/piclens/LICENSE"
+  ],
+  "nativeDesktopLaunch": {
+    "desktopLaunchExit": "0",
+    "wrapperExit": 0,
+    "nativeWindow": [
+      {
+        "pid": 84022,
+        "class": "piclens",
+        "title": "PicLens",
+        "address": "0x55ce47f63b10"
+      }
+    ],
+    "sharedDesktopEndpoint": "single Wayland socket; no host libraries/plugins/font/cache/home mounted"
+  },
+  "environment": "single-uid rootless Arch userland, shared host kernel; Wayland socket only for desktop launch; software rendering fallback, no GPU device mounted"
+}

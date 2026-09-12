@@ -1,0 +1,5 @@
+透明 PNG source=(80,140,200), alpha=140/255。
+原生 gallery 白底(255,255,255)混合實測=(159,192,225)。
+原生 Viewer 背景(9,9,11)混合實測=(48,81,115)。
+FileOperations 實際 gio trash：total=1 success=1 failed=0 unknown=0 sourceExists=0 trashBytesVerified=1。
+來源為 /tmp/piclens-arch-trash/fixtures/測試 空白;$().png，XDG/HOME 隔離至同一工作根目錄。

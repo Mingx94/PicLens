@@ -1,0 +1,23 @@
+{
+    "buildProfile": "Release",
+    "frontEnd": "qt-quick",
+    "fullPaintSamples": [
+        {
+            "fullResolution": true,
+            "milliseconds": 141,
+            "path": "/tmp/piclens-arch-fixtures/透明 圖片.png"
+        }
+    ],
+    "itemCount": 6,
+    "libraryMilliseconds": 115,
+    "maxMaterialized": 0,
+    "maxVisible": 0,
+    "observation": "scene graph submission; not compositor presentation",
+    "platformPlugin": "wayland",
+    "qtVersion": "6.11.2",
+    "readyThumbnailCount": 0,
+    "schemaVersion": 1,
+    "searchMilliseconds": 16,
+    "unpaintedSelections": 0,
+    "viewerSelections": 1
+}

@@ -1,0 +1,8 @@
+********* Start testing of QmlIntegrationTest *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : QmlIntegrationTest::initTestCase()
+FAIL!  : QmlIntegrationTest::actualDragDropMouseJourneyOpensConfirmationAndCancelPreservesFiles() 'h.controller.confirmOpen()' returned FALSE. ()
+   Loc: [/tmp/piclens-drag-drop/clone/apps/linux/tests/qml_test.cpp(619)]
+PASS   : QmlIntegrationTest::cleanupTestCase()
+Totals: 2 passed, 1 failed, 0 skipped, 0 blacklisted, 15852ms
+********* Finished testing of QmlIntegrationTest *********

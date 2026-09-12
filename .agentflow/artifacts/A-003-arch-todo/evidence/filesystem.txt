@@ -1,0 +1,15 @@
+{
+   "filesystems": [
+      {
+         "target": "/tmp",
+         "source": "tmpfs",
+         "fstype": "tmpfs",
+         "options": "ro,nosuid,nodev,nr_inodes=1048576,inode64,huge=advise,usrquota"
+      },{
+         "target": "/tmp",
+         "source": "tmpfs",
+         "fstype": "tmpfs",
+         "options": "rw,nosuid,nodev,nr_inodes=1048576,inode64,huge=advise,usrquota"
+      }
+   ]
+}

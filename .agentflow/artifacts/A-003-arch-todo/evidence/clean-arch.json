@@ -1,0 +1,50 @@
+{
+  "runtimeAndTestCommit": "27464f3fa33bf999540fc3745f07e3b596b2c74d",
+  "bootstrapRelease": "2026.09.01",
+  "bootstrapSha256": "895661bdf6c64e91b7725874165fd05dd30c438d3ffec661671ab5cfb261ca58",
+  "bootstrapSigningKey": "3E80CA1A8B89F69CBA57D98A76A5EF9054449A5C",
+  "bootstrapSource": "https://geo.mirror.pkgbuild.com/iso/2026.09.01/archlinux-bootstrap-2026.09.01-x86_64.tar.zst",
+  "sourceSha256": "5868e13e988de9757e53d0f0e0675600ba76285d6475ee58b1752f761b9e85bf",
+  "packageSha256": "593e3431f308a34758264ddc8c9eaac06498565d1f003ff6dee5d8e9051eb602",
+  "cleanBuildExit": 0,
+  "ctestSuites": 6,
+  "ctestSeconds": 42.85,
+  "environment": "Official fresh Arch userland in rootless bwrap; shared host kernel, single UID namespace. No host library, Qt plugin, cache, config or home mounted. Network disabled during build/check/package. Only Wayland socket mounted for installed desktop launch; software renderer fallback. Not a booted VM or KDE/X11 session.",
+  "dependencyCommand": "pacman -Syu --needed --noconfirm base-devel cmake ninja pkgconf qt6-base qt6-declarative qt6-svg qt6-imageformats qt6-wayland libwebp glib2",
+  "buildCommand": "uid1000 builder: CMAKE_BUILD_PARALLEL_LEVEL=2 QT_QPA_PLATFORMTHEME= makepkg --noconfirm",
+  "adjustments": [
+    "GNU tar --delay-directory-restore --no-same-owner --no-xattrs --no-acls for rootless extraction",
+    "DownloadUser omitted only in isolated pacman.conf because alpm UID is not mapped; package signature checking remains Required",
+    "pkgrel2 local fixture made with makepkg --repackage; repository pkgrel remains1; no release publishing"
+  ],
+  "lifecycle": {
+    "installed": "piclens 4.0.0-1",
+    "upgraded": "piclens 4.0.0-2",
+    "upgradeFixture": "pkgrel 2 made by makepkg --repackage from identical verified source; local test only, no public release/version change",
+    "legacyProfileSha256": "2fb6b79a3bfe7a81cd42153537d5ab5da83d5c5d05b1c67facbb072f8d5c6bd6",
+    "profilePreservedAfterInstallLaunchUpgradeUninstall": true,
+    "restoredFolder": "/work/lifecycle-images",
+    "upgradedItemCount": 1,
+    "upgradedReadyThumbnails": 1,
+    "managedFilesRemoved": [
+      "usr/bin/piclens",
+      "usr/libexec/piclens/piclens-worker",
+      "usr/share/applications/piclens.desktop",
+      "usr/share/licenses/piclens/LICENSE"
+    ],
+    "nativeDesktopLaunch": {
+      "desktopLaunchExit": "0",
+      "wrapperExit": 0,
+      "nativeWindow": [
+        {
+          "pid": 84022,
+          "class": "piclens",
+          "title": "PicLens",
+          "address": "0x55ce47f63b10"
+        }
+      ],
+      "sharedDesktopEndpoint": "single Wayland socket; no host libraries/plugins/font/cache/home mounted"
+    },
+    "environment": "single-uid rootless Arch userland, shared host kernel; Wayland socket only for desktop launch; software rendering fallback, no GPU device mounted"
+  }
+}

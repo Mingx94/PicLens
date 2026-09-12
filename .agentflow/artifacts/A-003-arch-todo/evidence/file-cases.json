@@ -1,0 +1,8 @@
+{
+    "caseOnlyRename": true,
+    "cleanupProtectsJpgJpegWebp": true,
+    "cleanupSucceeded": 3,
+    "permissionFailurePreservesSource": true,
+    "sourceDisappeared": true,
+    "unicodeDecomposedName": true
+}

@@ -1,0 +1,59 @@
+[
+  {
+    "case": "wide",
+    "scale": 1,
+    "requestedLogical": [
+      1600,
+      1000
+    ],
+    "beforeSize": [
+      960,
+      1054
+    ],
+    "afterSize": [
+      1600,
+      1000
+    ],
+    "floating": true,
+    "exit": 0,
+    "screenshot": "/tmp/piclens-native-size-check/wide/window.png"
+  },
+  {
+    "case": "minimum",
+    "scale": 1,
+    "requestedLogical": [
+      800,
+      600
+    ],
+    "beforeSize": [
+      960,
+      1054
+    ],
+    "afterSize": [
+      800,
+      600
+    ],
+    "floating": true,
+    "exit": 0,
+    "screenshot": "/tmp/piclens-native-size-check/minimum/window.png"
+  },
+  {
+    "case": "dpi150",
+    "scale": 1.5,
+    "requestedLogical": [
+      800,
+      600
+    ],
+    "beforeSize": [
+      960,
+      1054
+    ],
+    "afterSize": [
+      1200,
+      900
+    ],
+    "floating": true,
+    "exit": 0,
+    "screenshot": "/tmp/piclens-native-size-check/dpi150/window.png"
+  }
+]

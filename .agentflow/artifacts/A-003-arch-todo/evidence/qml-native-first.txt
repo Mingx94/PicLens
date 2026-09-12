@@ -1,0 +1,10 @@
+********* Start testing of QmlIntegrationTest *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : QmlIntegrationTest::initTestCase()
+FAIL!  : QmlIntegrationTest::searchSelectionAndContextMenuUseActualDelegates() 'search->hasActiveFocus()' returned FALSE. ()
+   Loc: [/tmp/piclens-arch-qml/clone/apps/linux/tests/qml_test.cpp(332)]
+PASS   : QmlIntegrationTest::dragDropUsesThresholdPreviewAndCancelWithoutMutation()
+PASS   : QmlIntegrationTest::viewerUsesSnapshotZoomInputAndReturnsFocus()
+PASS   : QmlIntegrationTest::cleanupTestCase()
+Totals: 4 passed, 1 failed, 0 skipped, 0 blacklisted, 7508ms
+********* Finished testing of QmlIntegrationTest *********

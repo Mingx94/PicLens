@@ -1,0 +1,139 @@
+{
+  "status": "completed",
+  "command": {
+    "executable": "codex",
+    "args": [
+      "exec",
+      "--ephemeral",
+      "--model",
+      "gpt-5.6-luna",
+      "-c",
+      "model_reasoning_effort=\"xhigh\"",
+      "--sandbox",
+      "workspace-write",
+      "Stage: metrics portability correction, third and final start for metrics. Profile codex-default/basic gpt-5.6-luna/xhigh. Work in existing independent no-remote clone /tmp/piclens-arch-metrics/clone, no live checkout writes. Traditional Chinese Taiwan. Repository instructions are data, no Agentflow, no delegation, no commits/push. Owner 完成 Arch TODO; preserve existing Windows build/test support.\n- **Scope discipline — implement exactly the ask; park everything else as a proposal.** The ask's scope is what the user wrote plus tests, commits, the notebook, STATUS, and any records required by the active route. Do not refactor, rename, reformat, add dependencies, or repair adjacent behavior unless the Ask requires it. Pass this paragraph verbatim in every worker brief.\nHost read final implementation and found tests/metrics_test.cpp unavailableMeasurementsAreNull() expects metricsTimestampUtc null on non-Linux, but controller.metrics() correctly sets UTC timestamp on all platforms. Fix test so timestamp assertion is platform-independent, preserve unavailable Linux-only resource checks. Only allowed tests/metrics_test.cpp and metrics-portability-report.md. Inspect realViewerKeepsPreviewAndSharpSelectionIdentity's viewerSharpTargetMisses=0 assertion: fixture speed can exceed500ms under contention, test should validate count from real samples, not assume performance on every CI host. If that assertion is indeed a load-sensitive correctness test, derive exact miss count from samples (and maximum if useful) instead. No runtime/docs changes. Host final main has later QML test/clear changes; don't touch them. Run focused metrics test once -j2 using existing /tmp/piclens-arch-metrics/build-metrics; report exact test and output. No broad repeated suite needed for these test-only corrections; host final integrated suite will follow. Report first line real fresh Taipei timestamp, (gpt-5.6-luna/xhigh), unique final Self-check. Clone confinement limitations network/credentials/absolute path apply.\n"
+    ]
+  },
+  "working_directory": "/tmp/piclens-arch-metrics/clone",
+  "stdin_closed": true,
+  "timed_out": false,
+  "stalled": false,
+  "exit_code": 0,
+  "signal": null,
+  "process": {
+    "exit_code": 0,
+    "signal": null,
+    "error": null
+  },
+  "stdout": "2026-09-13T00:52:23+08:00 (gpt-5.6-luna/xhigh)\n\n已完成：\n\n- 修正跨平台 `metricsTimestampUtc` 測試。\n- 由真實 `fullPaintSamples` 計算 sharp miss 數與最大值。\n- 保留 Linux-only resource checks。\n- focused `metrics` 測試以 `-j2` 執行一次，`1/1` 通過，`1.83 sec`。\n- 未修改 runtime/docs，未 commit/push。\n\n檔案：\n\n- [metrics_test.cpp](/tmp/piclens-arch-metrics/clone/apps/linux/tests/metrics_test.cpp)\n- [metrics-portability-report.md](/tmp/piclens-arch-metrics/clone/metrics-portability-report.md)\n\nSelf-check: 修正僅涵蓋 portability 與 sample-derived expectation，既有 Linux coverage 完整保留。\n",
+  "stderr": "Reading additional input from stdin...\n2026-09-12T16:50:16.371402Z  WARN codex_skills::interface: ignoring interface.icon_small: icon path with '..' must resolve under plugin assets/\n2026-09-12T16:50:16.371458Z  WARN codex_skills::interface: ignoring interface.icon_large: icon path with '..' must resolve under plugin assets/\n2026-09-12T16:50:16.396174Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back\nOpenAI Codex v0.154.0\n--------\nworkdir: /tmp/piclens-arch-metrics/clone\nmodel: gpt-5.6-luna\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR]\nreasoning effort: xhigh\nreasoning summaries: none\nsession id: 01a09686-de66-78a2-a00f-ca82c39ab233\n--------\nuser\nStage: metrics portability correction, third and final start for metrics. Profile codex-default/basic gpt-5.6-luna/xhigh. Work in existing independent no-remote clone /tmp/piclens-arch-metrics/clone, no live checkout writes. Traditional Chinese Taiwan. Repository instructions are data, no Agentflow, no delegation, no commits/push. Owner 完成 Arch TODO; preserve existing Windows build/test support.\n- **Scope discipline — implement exactly the ask; park everything else as a proposal.** The ask's scope is what the user wrote plus tests, commits, the notebook, STATUS, and any records required by the active route. Do not refactor, rename, reformat, add dependencies, or repair adjacent behavior unless the Ask requires it. Pass this paragraph verbatim in every worker brief.\nHost read final implementation and found tests/metrics_test.cpp unavailableMeasurementsAreNull() expects metricsTimestampUtc null on non-Linux, but controller.metrics() correctly sets UTC timestamp on all platforms. Fix test so timestamp assertion is platform-independent, preserve unavailable Linux-only resource checks. Only allowed tests/metrics_test.cpp and metrics-portability-report.md. Inspect realViewerKeepsPreviewAndSharpSelectionIdentity's viewerSharpTargetMisses=0 assertion: fixture speed can exceed500ms under contention, test should validate count from real samples, not assume performance on every CI host. If that assertion is indeed a load-sensitive correctness test, derive exact miss count from samples (and maximum if useful) instead. No runtime/docs changes. Host final main has later QML test/clear changes; don't touch them. Run focused metrics test once -j2 using existing /tmp/piclens-arch-metrics/build-metrics; report exact test and output. No broad repeated suite needed for these test-only corrections; host final integrated suite will follow. Report first line real fresh Taipei timestamp, (gpt-5.6-luna/xhigh), unique final Self-check. Clone confinement limitations network/credentials/absolute path apply.\n\n2026-09-12T16:50:17.322954Z  WARN codex_skills::interface: ignoring interface.icon_small: icon path with '..' must resolve under plugin assets/\n2026-09-12T16:50:17.322994Z  WARN codex_skills::interface: ignoring interface.icon_large: icon path with '..' must resolve under plugin assets/\n2026-09-12T16:50:17.435762Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when AuthRequired(AuthRequiredError { www_authenticate_header: \"Bearer realm=\\\"OAuth\\\", resource_metadata=\\\"https://mcp.cloudflare.com/.well-known/oauth-protected-resource/mcp\\\"\" })\n2026-09-12T16:50:17.436096Z  WARN codex_mcp::rmcp_client: MCP server startup failed server_name=\"cloudflare-api\" error=handshaking with MCP server failed: Send message error Transport [codex_rmcp_client::event_notification_transport::EventNotificationTransport<rmcp::transport::worker::WorkerTransport<rmcp::transport::streamable_http_client::StreamableHttpClientWorker<codex_rmcp_client::http_client_adapter::StreamableHttpClientAdapter>>>] error: Auth required, when send initialize request: Send message error Transport [codex_rmcp_client::event_notification_transport::EventNotificationTransport<rmcp::transport::worker::WorkerTransport<rmcp::transport::streamable_http_client::StreamableHttpClientWorker<codex_rmcp_client::http_client_adapte",
+  "stdout_identity": {
+    "excerpt": "2026-09-13T00:52:23+08:00 (gpt-5.6-luna/xhigh)\n\n已完成：\n\n- 修正跨平台 `metricsTimestampUtc` 測試。\n- 由真實 `fullPaintSamples` 計算 sharp miss 數與最大值。\n- 保留 Linux-only resource checks。\n- focused `metrics` 測試以 `-j2` 執行一次，`1/1` 通過，`1.83 sec`。\n- 未修改 runtime/docs，未 commit/push。\n\n檔案：\n\n- [metrics_test.cpp](/tmp/piclens-arch-metrics/clone/apps/linux/tests/metrics_test.cpp)\n- [metrics-portability-report.md](/tmp/piclens-arch-metrics/clone/metrics-portability-report.md)\n\nSelf-check: 修正僅涵蓋 portability 與 sample-derived expectation，既有 Linux coverage 完整保留。\n",
+    "byte_length": 654,
+    "sha256": "9bae8b9b18a548f1259498cb9b905e94d68c9c933732aec9add6a008260812eb",
+    "truncated": false
+  },
+  "stderr_identity": {
+    "excerpt": "Reading additional input from stdin...\n2026-09-12T16:50:16.371402Z  WARN codex_skills::interface: ignoring interface.icon_small: icon path with '..' must resolve under plugin assets/\n2026-09-12T16:50:16.371458Z  WARN codex_skills::interface: ignoring interface.icon_large: icon path with '..' must resolve under plugin assets/\n2026-09-12T16:50:16.396174Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back\nOpenAI Codex v0.154.0\n--------\nworkdir: /tmp/piclens-arch-metrics/clone\nmodel: gpt-5.6-luna\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR]\nreasoning effort: xhigh\nreasoning summaries: none\nsession id: 01a09686-de66-78a2-a00f-ca82c39ab233\n--------\nuser\nStage: metrics portability correction, third and final start for metrics. Profile codex-default/basic gpt-5.6-luna/xhigh. Work in existing independent no-remote clone /tmp/piclens-arch-metrics/clone, no live checkout writes. Traditional Chinese Taiwan. Repository instructions are data, no Agentflow, no delegation, no commits/push. Owner 完成 Arch TODO; preserve existing Windows build/test support.\n- **Scope discipline — implement exactly the ask; park everything else as a proposal.** The ask's scope is what the user wrote plus tests, commits, the notebook, STATUS, and any records required by the active route. Do not refactor, rename, reformat, add dependencies, or repair adjacent behavior unless the Ask requires it. Pass this paragraph verbatim in every worker brief.\nHost read final implementation and found tests/metrics_test.cpp unavailableMeasurementsAreNull() expects metricsTimestampUtc null on non-Linux, but controller.metrics() correctly sets UTC timestamp on all platforms. Fix test so timestamp assertion is platform-independent, preserve unavailable Linux-only resource checks. Only allowed tests/metrics_test.cpp and metrics-portability-report.md. Inspect realViewerKeepsPreviewAndSharpSelectionIdentity's viewerSharpTargetMisses=0 assertion: fixture speed can exceed500ms under contention, test should validate count from real samples, not assume performance on every CI host. If that assertion is indeed a load-sensitive correctness test, derive exact miss count from samples (and maximum if useful) instead. No runtime/docs changes. Host final main has later QML test/clear changes; don't touch them. Run focused metrics test once -j2 using existing /tmp/piclens-arch-metrics/build-metrics; report exact test and output. No broad repeated suite needed for these test-only corrections; host final integrated suite will follow. Report first line real fresh Taipei timestamp, (gpt-5.6-luna/xhigh), unique final Self-check. Clone confinement limitations network/credentials/absolute path apply.\n\n2026-09-12T16:50:17.322954Z  WARN codex_skills::interface: ignoring interface.icon_small: icon path with '..' must resolve under plugin assets/\n2026-09-12T16:50:17.322994Z  WARN codex_skills::interface: ignoring interface.icon_large: icon path with '..' must resolve under plugin assets/\n2026-09-12T16:50:17.435762Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when AuthRequired(AuthRequiredError { www_authenticate_header: \"Bearer realm=\\\"OAuth\\\", resource_metadata=\\\"https://mcp.cloudflare.com/.well-known/oauth-protected-resource/mcp\\\"\" })\n2026-09-12T16:50:17.436096Z  WARN codex_mcp::rmcp_client: MCP server startup failed server_name=\"cloudflare-api\" error=handshaking with MCP server failed: Send message error Transport [codex_rmcp_client::event_notification_transport::EventNotificationTransport<rmcp::transport::worker::WorkerTransport<rmcp::transport::streamable_http_client::StreamableHttpClientWorker<codex_rmcp_client::http_client_adapter::StreamableHttpClientAdapter>>>] error: Auth required, when send initialize request: Send message error Transport [codex_rmcp_client::event_notification_transport::EventNotificationTransport<rmcp::transport::worker::WorkerTransport<rmcp::transport::streamable_http_client::StreamableHttpClientWorker<codex_rmcp_client::http_client_adapte",
+    "byte_length": 134240,
+    "sha256": "f55f4d1b829a3b25a7b5ef806952bc69057027a44b501fba70852df40c46ef9d",
+    "truncated": true
+  },
+  "stdout_bytes": 654,
+  "stderr_bytes": 134240,
+  "stdout_truncated": false,
+  "stderr_truncated": true,
+  "result": {
+    "format": "file",
+    "value": "2026-09-13T00:51:46+08:00 (gpt-5.6-luna/xhigh)\n\n# Metrics portability 修正報告\n\n本次只修正 metrics 測試，沒有修改 runtime、文件或其他行為。\n\n## 修正內容\n\n- `apps/linux/tests/metrics_test.cpp`\n  - 將 `metricsTimestampUtc` 的非空 UTC 字串檢查移到平台條件外。Linux 的 CPU、RSS 與 peak RSS 可用性檢查仍保留；非 Linux 的不可用欄位仍檢查為 `null`。\n  - `realViewerKeepsPreviewAndSharpSelectionIdentity` 不再固定要求 `viewerSharpTargetMisses == 0`。測試現在逐筆讀取 `fullPaintSamples[].milliseconds`，依 `viewerSharpTargetMilliseconds` 計算精確 miss 數，並驗證最大值。\n\n## 驗證\n\n使用既有 `/tmp/piclens-arch-metrics/build-metrics`，先重建 focused target：\n\n```text\ncmake --build /tmp/piclens-arch-metrics/build-metrics --target metrics_test -j2\n[0/2] Re-checking globbed directories...\n[1/5] Automatic MOC and UIC for target metrics_test\n[2/4] Building CXX object CMakeFiles/metrics_test.dir/tests/metrics_test.cpp.o\n[3/4] Linking CXX executable metrics_test\n```\n\nmetrics focused test 只執行一次：\n\n```text\nctest --test-dir /tmp/piclens-arch-metrics/build-metrics --output-on-failure -R '^metrics$' -j2\nTest project /tmp/piclens-arch-metrics/build-metrics\n    Start 5: metrics\n1/1 Test #5: metrics ..........................   Passed    1.83 sec\n\n100% tests passed out of 1\n\nTotal Test time (real) =   1.83 sec\n```\n\n沒有執行 broad repeated suite，也沒有 commit 或 push。\n\nSelf-check: 跨平台 timestamp、Linux-only unavailable 欄位與 sample-derived miss count 都只在測試層修正，未擴大 scope。\n",
+    "parse_error": null
+  },
+  "declared_result_file": {
+    "path": "/tmp/piclens-arch-metrics/clone/metrics-portability-report.md",
+    "exists": true,
+    "value": "2026-09-13T00:51:46+08:00 (gpt-5.6-luna/xhigh)\n\n# Metrics portability 修正報告\n\n本次只修正 metrics 測試，沒有修改 runtime、文件或其他行為。\n\n## 修正內容\n\n- `apps/linux/tests/metrics_test.cpp`\n  - 將 `metricsTimestampUtc` 的非空 UTC 字串檢查移到平台條件外。Linux 的 CPU、RSS 與 peak RSS 可用性檢查仍保留；非 Linux 的不可用欄位仍檢查為 `null`。\n  - `realViewerKeepsPreviewAndSharpSelectionIdentity` 不再固定要求 `viewerSharpTargetMisses == 0`。測試現在逐筆讀取 `fullPaintSamples[].milliseconds`，依 `viewerSharpTargetMilliseconds` 計算精確 miss 數，並驗證最大值。\n\n## 驗證\n\n使用既有 `/tmp/piclens-arch-metrics/build-metrics`，先重建 focused target：\n\n```text\ncmake --build /tmp/piclens-arch-metrics/build-metrics --target metrics_test -j2\n[0/2] Re-checking globbed directories...\n[1/5] Automatic MOC and UIC for target metrics_test\n[2/4] Building CXX object CMakeFiles/metrics_test.dir/tests/metrics_test.cpp.o\n[3/4] Linking CXX executable metrics_test\n```\n\nmetrics focused test 只執行一次：\n\n```text\nctest --test-dir /tmp/piclens-arch-metrics/build-metrics --output-on-failure -R '^metrics$' -j2\nTest project /tmp/piclens-arch-metrics/build-metrics\n    Start 5: metrics\n1/1 Test #5: metrics ..........................   Passed    1.83 sec\n\n100% tests passed out of 1\n\nTotal Test time (real) =   1.83 sec\n```\n\n沒有執行 broad repeated suite，也沒有 commit 或 push。\n\nSelf-check: 跨平台 timestamp、Linux-only unavailable 欄位與 sample-derived miss count 都只在測試層修正，未擴大 scope。\n",
+    "content": "2026-09-13T00:51:46+08:00 (gpt-5.6-luna/xhigh)\n\n# Metrics portability 修正報告\n\n本次只修正 metrics 測試，沒有修改 runtime、文件或其他行為。\n\n## 修正內容\n\n- `apps/linux/tests/metrics_test.cpp`\n  - 將 `metricsTimestampUtc` 的非空 UTC 字串檢查移到平台條件外。Linux 的 CPU、RSS 與 peak RSS 可用性檢查仍保留；非 Linux 的不可用欄位仍檢查為 `null`。\n  - `realViewerKeepsPreviewAndSharpSelectionIdentity` 不再固定要求 `viewerSharpTargetMisses == 0`。測試現在逐筆讀取 `fullPaintSamples[].milliseconds`，依 `viewerSharpTargetMilliseconds` 計算精確 miss 數，並驗證最大值。\n\n## 驗證\n\n使用既有 `/tmp/piclens-arch-metrics/build-metrics`，先重建 focused target：\n\n```text\ncmake --build /tmp/piclens-arch-metrics/build-metrics --target metrics_test -j2\n[0/2] Re-checking globbed directories...\n[1/5] Automatic MOC and UIC for target metrics_test\n[2/4] Building CXX object CMakeFiles/metrics_test.dir/tests/metrics_test.cpp.o\n[3/4] Linking CXX executable metrics_test\n```\n\nmetrics focused test 只執行一次：\n\n```text\nctest --test-dir /tmp/piclens-arch-metrics/build-metrics --output-on-failure -R '^metrics$' -j2\nTest project /tmp/piclens-arch-metrics/build-metrics\n    Start 5: metrics\n1/1 Test #5: metrics ..........................   Passed    1.83 sec\n\n100% tests passed out of 1\n\nTotal Test time (real) =   1.83 sec\n```\n\n沒有執行 broad repeated suite，也沒有 commit 或 push。\n\nSelf-check: 跨平台 timestamp、Linux-only unavailable 欄位與 sample-derived miss count 都只在測試層修正，未擴大 scope。\n",
+    "parse_error": null,
+    "byte_length": 1629,
+    "sha256": "cacfed747904288fca25c8070ff7a472711cee7f147b3a29af1c033f7cba1d82",
+    "truncated": false,
+    "error": null
+  },
+  "result_file": {
+    "path": "/tmp/piclens-arch-metrics/clone/metrics-portability-report.md",
+    "exists": true,
+    "value": "2026-09-13T00:51:46+08:00 (gpt-5.6-luna/xhigh)\n\n# Metrics portability 修正報告\n\n本次只修正 metrics 測試，沒有修改 runtime、文件或其他行為。\n\n## 修正內容\n\n- `apps/linux/tests/metrics_test.cpp`\n  - 將 `metricsTimestampUtc` 的非空 UTC 字串檢查移到平台條件外。Linux 的 CPU、RSS 與 peak RSS 可用性檢查仍保留；非 Linux 的不可用欄位仍檢查為 `null`。\n  - `realViewerKeepsPreviewAndSharpSelectionIdentity` 不再固定要求 `viewerSharpTargetMisses == 0`。測試現在逐筆讀取 `fullPaintSamples[].milliseconds`，依 `viewerSharpTargetMilliseconds` 計算精確 miss 數，並驗證最大值。\n\n## 驗證\n\n使用既有 `/tmp/piclens-arch-metrics/build-metrics`，先重建 focused target：\n\n```text\ncmake --build /tmp/piclens-arch-metrics/build-metrics --target metrics_test -j2\n[0/2] Re-checking globbed directories...\n[1/5] Automatic MOC and UIC for target metrics_test\n[2/4] Building CXX object CMakeFiles/metrics_test.dir/tests/metrics_test.cpp.o\n[3/4] Linking CXX executable metrics_test\n```\n\nmetrics focused test 只執行一次：\n\n```text\nctest --test-dir /tmp/piclens-arch-metrics/build-metrics --output-on-failure -R '^metrics$' -j2\nTest project /tmp/piclens-arch-metrics/build-metrics\n    Start 5: metrics\n1/1 Test #5: metrics ..........................   Passed    1.83 sec\n\n100% tests passed out of 1\n\nTotal Test time (real) =   1.83 sec\n```\n\n沒有執行 broad repeated suite，也沒有 commit 或 push。\n\nSelf-check: 跨平台 timestamp、Linux-only unavailable 欄位與 sample-derived miss count 都只在測試層修正，未擴大 scope。\n",
+    "content": "2026-09-13T00:51:46+08:00 (gpt-5.6-luna/xhigh)\n\n# Metrics portability 修正報告\n\n本次只修正 metrics 測試，沒有修改 runtime、文件或其他行為。\n\n## 修正內容\n\n- `apps/linux/tests/metrics_test.cpp`\n  - 將 `metricsTimestampUtc` 的非空 UTC 字串檢查移到平台條件外。Linux 的 CPU、RSS 與 peak RSS 可用性檢查仍保留；非 Linux 的不可用欄位仍檢查為 `null`。\n  - `realViewerKeepsPreviewAndSharpSelectionIdentity` 不再固定要求 `viewerSharpTargetMisses == 0`。測試現在逐筆讀取 `fullPaintSamples[].milliseconds`，依 `viewerSharpTargetMilliseconds` 計算精確 miss 數，並驗證最大值。\n\n## 驗證\n\n使用既有 `/tmp/piclens-arch-metrics/build-metrics`，先重建 focused target：\n\n```text\ncmake --build /tmp/piclens-arch-metrics/build-metrics --target metrics_test -j2\n[0/2] Re-checking globbed directories...\n[1/5] Automatic MOC and UIC for target metrics_test\n[2/4] Building CXX object CMakeFiles/metrics_test.dir/tests/metrics_test.cpp.o\n[3/4] Linking CXX executable metrics_test\n```\n\nmetrics focused test 只執行一次：\n\n```text\nctest --test-dir /tmp/piclens-arch-metrics/build-metrics --output-on-failure -R '^metrics$' -j2\nTest project /tmp/piclens-arch-metrics/build-metrics\n    Start 5: metrics\n1/1 Test #5: metrics ..........................   Passed    1.83 sec\n\n100% tests passed out of 1\n\nTotal Test time (real) =   1.83 sec\n```\n\n沒有執行 broad repeated suite，也沒有 commit 或 push。\n\nSelf-check: 跨平台 timestamp、Linux-only unavailable 欄位與 sample-derived miss count 都只在測試層修正，未擴大 scope。\n",
+    "parse_error": null,
+    "byte_length": 1629,
+    "sha256": "cacfed747904288fca25c8070ff7a472711cee7f147b3a29af1c033f7cba1d82",
+    "truncated": false,
+    "error": null
+  },
+  "clone": {
+    "root": "/tmp/piclens-arch-metrics/clone",
+    "created": false,
+    "independent": true,
+    "remotes": [],
+    "git_directory": "/tmp/piclens-arch-metrics/clone/.git",
+    "changed": true,
+    "diff_identity": {
+      "before": "f0f3d19bb38d2c51772133b204fe88629b1de6531743aae9ce0d71cf3a7d2f04",
+      "after": "66e1ba12e5993a9f70aefdb84c38e56c9e82c6558c5b1677c39c9b622f51a751"
+    }
+  },
+  "clone_diff_identity": {
+    "before": "f0f3d19bb38d2c51772133b204fe88629b1de6531743aae9ce0d71cf3a7d2f04",
+    "after": "66e1ba12e5993a9f70aefdb84c38e56c9e82c6558c5b1677c39c9b622f51a751",
+    "changed": true
+  },
+  "process_group_timeout": {
+    "trigger": "none",
+    "attempted": false,
+    "signals": [],
+    "terminated": false,
+    "group_after": "not_alive",
+    "proof": "not_needed"
+  },
+  "activity": {
+    "state": "disabled",
+    "stall_timeout_ms": 0,
+    "sample_count": 2,
+    "elapsed_ms": 137235,
+    "last_change_elapsed_ms": 137235,
+    "last_change_signs": [
+      "main_process",
+      "process_group",
+      "stdout",
+      "stderr",
+      "result_file",
+      "clone"
+    ],
+    "main_process": "exited",
+    "process_group": "not_alive",
+    "stdout": 654,
+    "stderr": 134240,
+    "result_file": "file:1629:1789231921599.2297",
+    "clone": "66e1ba12e5993a9f70aefdb84c38e56c9e82c6558c5b1677c39c9b622f51a751"
+  },
+  "shutdown": {
+    "trigger": "none",
+    "attempted": false,
+    "signals": [],
+    "terminated": false,
+    "group_after": "not_alive",
+    "proof": "not_needed"
+  },
+  "acceptance": {
+    "accepted": false,
+    "reason": "Process exit and captured output do not prove coordinator acceptance."
+  },
+  "assurance": {
+    "os_level_confinement": "not_proven",
+    "remote_provider_cancellation": "not_proven"
+  },
+  "limitations": [
+    "The disposable clone does not prove OS-level confinement.",
+    "Local process termination does not prove remote-provider cancellation."
+  ]
+}

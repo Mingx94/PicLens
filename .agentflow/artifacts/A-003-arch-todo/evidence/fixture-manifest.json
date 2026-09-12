@@ -1,0 +1,38 @@
+[
+  {
+    "path": "image0.jpeg",
+    "bytes": 92196,
+    "sha256": "9f2956cf6f19155c4736f74ce0486bcce009faa9df44ae7cb1a58360603d2f03",
+    "image": "JPEG 2400x1600"
+  },
+  {
+    "path": "image1.png",
+    "bytes": 35279,
+    "sha256": "bda7a4832afc11f0b10ab3da86d5e9f65c69165faa1e5869ee58b348338982e1",
+    "image": "PNG 1800x2400"
+  },
+  {
+    "path": "image2.bmp",
+    "bytes": 9437322,
+    "sha256": "d75ae38ca56b3c7f7abb966bf1d7f73cb4c63f65726dd42daa0b34e8fd455f6d",
+    "image": "BMP 2048x1536"
+  },
+  {
+    "path": "image3.webp",
+    "bytes": 16168,
+    "sha256": "cbab938f4d0c851775dc69c1610a5a10dcc057a2ce287201787eccdc62fad5ec",
+    "image": "WEBP 3000x2000"
+  },
+  {
+    "path": "image4.gif",
+    "bytes": 28958,
+    "sha256": "dcb41c50195b093f002f99df0dfd0e308b4eb10ea78f420fab4e9352212eaf09",
+    "image": "GIF 800x600"
+  },
+  {
+    "path": "透明 圖片.png",
+    "bytes": 416,
+    "sha256": "102da96ee6699e5c0422882471b8dc78b945150c1e3d108f6d2baca4fca47158",
+    "image": "PNG 1024x768"
+  }
+]

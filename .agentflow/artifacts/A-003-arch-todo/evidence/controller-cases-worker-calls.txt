@@ -1,0 +1,6 @@
+--decode|/tmp/piclens-controller-cases-2/images/b.png|1024
+--decode|/tmp/piclens-controller-cases-2/images/b.png|0
+--decode|/tmp/piclens-controller-cases-2/images/c.png|1024
+--decode|/tmp/piclens-controller-cases-2/images/a.png|1024
+--decode|/tmp/piclens-controller-cases-2/images/a.png|320
+--encode-temp|/tmp/piclens-controller-cases-2/images/a.png|/tmp/piclens-controller-cases-2/images/.piclens-jGWaUb.tmp

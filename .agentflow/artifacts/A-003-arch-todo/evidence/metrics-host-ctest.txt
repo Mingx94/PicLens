@@ -1,0 +1,133 @@
+Start testing: Sep 13 00:17 CST
+----------------------------------------------------------
+1/5 Testing: domain
+1/5 Test: domain
+Command: "/tmp/piclens-arch-metrics/build-metrics/domain_test"
+Directory: /tmp/piclens-arch-metrics/build-metrics
+"domain" start time: Sep 13 00:17 CST
+Output:
+----------------------------------------------------------
+Domain and file operation tests passed
+<end of output>
+Test time =   0.16 sec
+----------------------------------------------------------
+Test Passed.
+"domain" end time: Sep 13 00:17 CST
+"domain" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/5 Testing: imaging
+2/5 Test: imaging
+Command: "/tmp/piclens-arch-metrics/build-metrics/imaging_test"
+Directory: /tmp/piclens-arch-metrics/build-metrics
+"imaging" start time: Sep 13 00:17 CST
+Output:
+----------------------------------------------------------
+********* Start testing of ImagingTest *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : ImagingTest::initTestCase()
+PASS   : ImagingTest::staticFormats(png)
+PASS   : ImagingTest::staticFormats(jpg)
+PASS   : ImagingTest::staticFormats(jpeg)
+PASS   : ImagingTest::staticFormats(bmp)
+PASS   : ImagingTest::staticFormats(webp)
+PASS   : ImagingTest::staticFormats(gif)
+PASS   : ImagingTest::animationAndOversizeRejected()
+PASS   : ImagingTest::coldWarmAndIdentity()
+PASS   : ImagingTest::threePreviewsFitActualAllocationBudget()
+PASS   : ImagingTest::originalTilesAndBorders()
+PASS   : ImagingTest::conversionPreservesSourceAndRefusesOverwrite()
+PASS   : ImagingTest::failuresAndCancellationAreTerminal()
+PASS   : ImagingTest::queueBoundAndShutdownReap()
+PASS   : ImagingTest::stalledWorkerTimeout()
+PASS   : ImagingTest::quiesceReapsAndAllowsResume()
+PASS   : ImagingTest::zoomAndOriginalPaintSignal()
+PASS   : ImagingTest::cleanupTestCase()
+Totals: 18 passed, 0 failed, 0 skipped, 0 blacklisted, 17087ms
+********* Finished testing of ImagingTest *********
+<end of output>
+Test time =  17.14 sec
+----------------------------------------------------------
+Test Passed.
+"imaging" end time: Sep 13 00:17 CST
+"imaging" time elapsed: 00:00:17
+----------------------------------------------------------
+
+3/5 Testing: app
+3/5 Test: app
+Command: "/tmp/piclens-arch-metrics/build-metrics/app_test"
+Directory: /tmp/piclens-arch-metrics/build-metrics
+"app" start time: Sep 13 00:17 CST
+Output:
+----------------------------------------------------------
+********* Start testing of AppTest *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : AppTest::initTestCase()
+PASS   : AppTest::atomicSettings()
+PASS   : AppTest::scanProjection()
+PASS   : AppTest::singleReset()
+PASS   : AppTest::cleanupTestCase()
+Totals: 5 passed, 0 failed, 0 skipped, 0 blacklisted, 25ms
+********* Finished testing of AppTest *********
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"app" end time: Sep 13 00:17 CST
+"app" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/5 Testing: controller
+4/5 Test: controller
+Command: "/tmp/piclens-arch-metrics/build-metrics/controller_test"
+Directory: /tmp/piclens-arch-metrics/build-metrics
+"controller" start time: Sep 13 00:17 CST
+Output:
+----------------------------------------------------------
+********* Start testing of ControllerTest *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : ControllerTest::initTestCase()
+PASS   : ControllerTest::shiftUpKeepsIndependentCursor()
+PASS   : ControllerTest::navigationAndThumbnails()
+PASS   : ControllerTest::canceledConfirmationDoesNotWrite()
+PASS   : ControllerTest::cleanupTestCase()
+Totals: 5 passed, 0 failed, 0 skipped, 0 blacklisted, 317ms
+********* Finished testing of ControllerTest *********
+<end of output>
+Test time =   0.36 sec
+----------------------------------------------------------
+Test Passed.
+"controller" end time: Sep 13 00:17 CST
+"controller" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/5 Testing: metrics
+5/5 Test: metrics
+Command: "/tmp/piclens-arch-metrics/build-metrics/metrics_test"
+Directory: /tmp/piclens-arch-metrics/build-metrics
+"metrics" start time: Sep 13 00:17 CST
+Output:
+----------------------------------------------------------
+********* Start testing of MetricsTest *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : MetricsTest::initTestCase()
+PASS   : MetricsTest::unavailableMeasurementsAreNull()
+PASS   : MetricsTest::realViewerKeepsPreviewAndSharpSelectionIdentity()
+PASS   : MetricsTest::canceledConfirmationDoesNotCreateBatchResult()
+QINFO  : MetricsTest::completedBatchRecordsCountsAndDuration() file-operation 1 source= /tmp/metrics_test-cVMQfR/images/same.png target= /tmp/metrics_test-cVMQfR/images/same.png reason= 檔名未變更
+PASS   : MetricsTest::completedBatchRecordsCountsAndDuration()
+PASS   : MetricsTest::missingSelectionIsNotAZeroDurationPaint()
+PASS   : MetricsTest::delayedRealPaintIsASeparateTargetMiss()
+PASS   : MetricsTest::metricsOutputFailureReturnsThree()
+PASS   : MetricsTest::cleanupTestCase()
+Totals: 9 passed, 0 failed, 0 skipped, 0 blacklisted, 1751ms
+********* Finished testing of MetricsTest *********
+<end of output>
+Test time =   1.80 sec
+----------------------------------------------------------
+Test Passed.
+"metrics" end time: Sep 13 00:17 CST
+"metrics" time elapsed: 00:00:01
+----------------------------------------------------------
+
+End testing: Sep 13 00:17 CST

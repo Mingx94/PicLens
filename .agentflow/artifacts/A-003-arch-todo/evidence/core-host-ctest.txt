@@ -1,0 +1,118 @@
+Start testing: Sep 12 23:49 CST
+----------------------------------------------------------
+1/4 Testing: domain
+1/4 Test: domain
+Command: "/tmp/piclens-core-worker-build/domain_test"
+Directory: /tmp/piclens-core-worker-build
+"domain" start time: Sep 12 23:49 CST
+Output:
+----------------------------------------------------------
+Domain and file operation tests passed
+<end of output>
+Test time =   0.16 sec
+----------------------------------------------------------
+Test Passed.
+"domain" end time: Sep 12 23:49 CST
+"domain" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/4 Testing: imaging
+2/4 Test: imaging
+Command: "/tmp/piclens-core-worker-build/imaging_test"
+Directory: /tmp/piclens-core-worker-build
+"imaging" start time: Sep 12 23:49 CST
+Output:
+----------------------------------------------------------
+********* Start testing of ImagingTest *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : ImagingTest::initTestCase()
+PASS   : ImagingTest::staticFormats(png)
+PASS   : ImagingTest::staticFormats(jpg)
+PASS   : ImagingTest::staticFormats(jpeg)
+PASS   : ImagingTest::staticFormats(bmp)
+PASS   : ImagingTest::staticFormats(webp)
+PASS   : ImagingTest::staticFormats(gif)
+PASS   : ImagingTest::animationAndOversizeRejected()
+PASS   : ImagingTest::animatedWebpAlphaAndCorruptionAreRecognized()
+PASS   : ImagingTest::coldWarmAndIdentity()
+PASS   : ImagingTest::sameInputRequestsHaveIndependentResults()
+PASS   : ImagingTest::recentCacheEvictsOldEntriesPast32MiB()
+PASS   : ImagingTest::threePreviewsFitActualAllocationBudget()
+PASS   : ImagingTest::originalTilesAndBorders()
+PASS   : ImagingTest::conversionPreservesSourceAndRefusesOverwrite()
+PASS   : ImagingTest::failuresAndCancellationAreTerminal()
+PASS   : ImagingTest::queueBoundAndShutdownReap()
+PASS   : ImagingTest::stalledWorkerTimeout()
+PASS   : ImagingTest::quiesceReapsAndAllowsResume()
+PASS   : ImagingTest::startupAndDirtyCachePruneKeepsTwoThousandOwnedEntries()
+PASS   : ImagingTest::zoomAndOriginalPaintSignal()
+PASS   : ImagingTest::cleanupTestCase()
+Totals: 22 passed, 0 failed, 0 skipped, 0 blacklisted, 37139ms
+********* Finished testing of ImagingTest *********
+<end of output>
+Test time =  37.19 sec
+----------------------------------------------------------
+Test Passed.
+"imaging" end time: Sep 12 23:50 CST
+"imaging" time elapsed: 00:00:37
+----------------------------------------------------------
+
+3/4 Testing: app
+3/4 Test: app
+Command: "/tmp/piclens-core-worker-build/app_test"
+Directory: /tmp/piclens-core-worker-build
+"app" start time: Sep 12 23:50 CST
+Output:
+----------------------------------------------------------
+********* Start testing of AppTest *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : AppTest::initTestCase()
+PASS   : AppTest::atomicSettings()
+PASS   : AppTest::scanProjection()
+PASS   : AppTest::singleReset()
+PASS   : AppTest::dataRootPrecedenceAndAtomicFailure()
+PASS   : AppTest::recursiveScanSymlinkCancelAndErrors()
+PASS   : AppTest::cleanupTestCase()
+Totals: 7 passed, 0 failed, 0 skipped, 0 blacklisted, 73ms
+********* Finished testing of AppTest *********
+<end of output>
+Test time =   0.11 sec
+----------------------------------------------------------
+Test Passed.
+"app" end time: Sep 12 23:50 CST
+"app" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/4 Testing: controller
+4/4 Test: controller
+Command: "/tmp/piclens-core-worker-build/controller_test"
+Directory: /tmp/piclens-core-worker-build
+"controller" start time: Sep 12 23:50 CST
+Output:
+----------------------------------------------------------
+********* Start testing of ControllerTest *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : ControllerTest::initTestCase()
+PASS   : ControllerTest::missingStartupPathKeepsPickerState()
+PASS   : ControllerTest::fileStartupPathKeepsPickerState()
+PASS   : ControllerTest::unreadableStartupPathKeepsPickerState()
+PASS   : ControllerTest::invalidRestoredStartupPathKeepsPickerState()
+PASS   : ControllerTest::shiftUpKeepsIndependentCursor()
+PASS   : ControllerTest::navigationAndThumbnails()
+PASS   : ControllerTest::canceledConfirmationDoesNotWrite()
+PASS   : ControllerTest::controllerUsesSingleResetForLargeSearch()
+PASS   : ControllerTest::staleNavigationAndImmutableViewerSnapshot()
+QINFO  : ControllerTest::renameReportsResultAndKeepsSourceScope() file-operation 0 source= /tmp/controller_test-MOmpkC/圖片/source.png target= /tmp/controller_test-MOmpkC/圖片/新名稱.png reason= 完成
+PASS   : ControllerTest::renameReportsResultAndKeepsSourceScope()
+PASS   : ControllerTest::cleanupTestCase()
+Totals: 12 passed, 0 failed, 0 skipped, 0 blacklisted, 1317ms
+********* Finished testing of ControllerTest *********
+<end of output>
+Test time =   1.41 sec
+----------------------------------------------------------
+Test Passed.
+"controller" end time: Sep 12 23:50 CST
+"controller" time elapsed: 00:00:01
+----------------------------------------------------------
+
+End testing: Sep 12 23:50 CST
