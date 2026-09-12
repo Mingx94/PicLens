@@ -27,12 +27,16 @@ jobs:
       - name: Match annotated tag and export release source
         env:
           RELEASE_TAG: ${{ github.ref_name }}
-        run: python3 packaging/arch/handoff.py --release-tag "$RELEASE_TAG" --output dist/arch-release
+        run: |
+          test ! -L dist
+          test ! -L dist/arch
+          rm -rf -- dist/arch
+          python3 packaging/arch/handoff.py --release-tag "$RELEASE_TAG" --output dist/arch
       - name: Build Arch package without tests
         run: |
           docker run --rm \
             --env "BUILD_UID=$(id -u)" \
-            --mount "type=bind,source=$GITHUB_WORKSPACE/dist/arch-release,target=/work" \
+            --mount "type=bind,source=$GITHUB_WORKSPACE/dist/arch,target=/work" \
             --mount "type=bind,source=$GITHUB_WORKSPACE/packaging/arch/build-release.sh,target=/build-release.sh,readonly" \
             archlinux:base-devel bash /build-release.sh
       - name: Hash and publish unsigned assets
@@ -41,10 +45,10 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          cd dist/arch-release
+          cd dist/arch
           version="${RELEASE_TAG#arch/v}"
           pkgrel=$(python3 -c 'import json; print(json.load(open("SOURCE-MANIFEST.json"))["pkgrel"])')
-          package="piclens-$version-$pkgrel-x86_64.pkg.tar.zst"
+          package="piclens-$version-$pkgrel-x86_64"
           test -s "$package"
           assets=("$package" "piclens-$version-source.tar.gz" PKGBUILD SOURCE-MANIFEST.json build-environment.txt)
           sha256sum "${assets[@]}" > SHA256SUMS

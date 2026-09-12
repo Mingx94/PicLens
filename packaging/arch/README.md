@@ -4,9 +4,25 @@
 
 最終來源包由下方腳本產生，檔名與 checksum 以該次交付目錄的 `SHA256SUMS` 為準。2026-09-12 已在 Omarchy 4.0.3 建置 Linux 主套件與 debug 套件，放於 `dist/piclens-4.0.0-arch-validation-20260912/`，連同固定來源、manifest 與 SHA256SUMS。makepkg check() 4/4、成品 Wayland 啟閉與隔離 pacman 檔案生命週期通過；乾淨 Arch、真正舊版升級與主機桌面整合仍待驗。詳見 [Arch 驗收紀錄](../../docs/engineering/arch-validation.md)。
 
+## 本機 sudo 建置
+
+在完整 Git 工作樹的根目錄執行：
+
+```bash
+sudo ./packaging/arch/build-release.sh
+```
+
+腳本會以 `SUDO_UID` 找回原使用者。每次建置前，先清空 repo 的 `dist/arch/`，包含隱藏檔、舊來源及先前成品，再以原使用者匯出來源並執行 makepkg。原本 `package/` 裡的內容統一放在 `dist/arch/`：PKGBUILD、SOURCE-MANIFEST.json、SHA256SUMS、來源 tarball、build-environment.txt、`src/`、`pkg/` 與最終套件，不再多包一層 `package/`。主套件路徑例如 `dist/arch/piclens-4.0.0-1-x86_64`。Git、來源匯出、建置及成品都不使用 root；不建立本機 builder 帳號，也不更改整個 repo 的擁有者。可從其他目錄用腳本的絕對路徑執行。
+
+相依齊備時直接建置；缺少相依時，以 root 執行 `pacman -Syu --needed` 更新系統並安裝工具。此入口沿用 release 設定，不建置或執行測試，也不安裝 PicLens 成品。完成後列出套件路徑；要跑測試，使用 `validate.sh build` 或下方的一般 makepkg 流程。
+
+`build-release.sh` 在本機與容器都會直接重新命名建置成品，移除 `.pkg.tar.*`，保留名稱、版本、封裝修訂與平台架構。例如主套件為 `piclens-4.0.0-1-x86_64`，debug 套件為 `piclens-debug-4.0.0-1-x86_64`；不另存副本，也不保留原本含封裝副檔名的檔案。完成時會印出「安裝套件」路徑，可用 `sudo pacman -U <完整路徑>/piclens-4.0.0-1-x86_64` 安裝。套件內容與相依不變；若有簽章檔，也會跟著改名。直接執行一般 makepkg 時仍使用 makepkg 的標準檔名。
+
+GitHub Actions 先清空並匯出到 `dist/arch/`，再將該目錄掛載為 `/work`，沿用 `BUILD_UID` 與 `/work/PKGBUILD` 的容器入口。容器內保留剛匯出的來源，不再清空一次。未使用 sudo、缺少來源或 UID 無效時，腳本會顯示原因並以 exit 2 結束。`--help` 不需 sudo。
+
 ## Windows 產生快照
 
-需要 PowerShell 7、Git、Python 3.10 以上。輸出目錄必須不存在，可在 repo 外或 repo 的 `dist/` 下新建子目錄；不覆寫既有交付。`dist` 同時受 Git ignore 與 exporter 允許清單排除，不會遞迴打包先前成品。
+需要 PowerShell 7、Git、Python 3.10 以上。直接呼叫 exporter 時，輸出目錄必須不存在，可使用 repo 外或 `dist/` 下的新子目錄，包含固定的 `dist/arch/`。exporter 本身不清空目錄；本機 build-release.sh 與發布 workflow 會先清空 `dist/arch/` 再匯出。`dist` 由 Git ignore 與 exporter 排除，不會遞迴打包先前成品。
 
 ```powershell
 pwsh -File F:/PicLens/packaging/arch/New-Handoff.ps1 -OutputDirectory F:/PicLens/dist/piclens-4.0.0-handoff

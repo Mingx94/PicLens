@@ -11,7 +11,7 @@
 | 平台 | 新版 tag | 版本權威 | 目標產物 |
 |---|---|---|---|
 | Windows | `windows/v<version>` | `apps/windows/Directory.Build.props` 的共用 Version | MSI、portable ZIP、SHA-256 |
-| Arch | `arch/v<version>` | `apps/linux/CMakeLists.txt` 的 project VERSION | PKGBUILD、來源封存及 SHA-256、`.pkg.tar.zst` |
+| Arch | `arch/v<version>` | `apps/linux/CMakeLists.txt` 的 project VERSION | PKGBUILD、來源封存及 SHA-256、`piclens-<version>-<pkgrel>-x86_64` |
 
 Windows 目前來源版本為 4.0.2，目標為 self-contained x64。Arch 來源版本為 4.0.0，`pkgrel=1`；`pkgrel` 是封裝修訂，與 App 版本分開，`pkgver` 必須與 CMake 版本及來源 tag 一致。
 
@@ -21,7 +21,9 @@ Windows MSI 保留 UpgradeCode `{4B3899A4-2E9E-4B4F-9CF5-36F8D8D6767D}`。新 Wi
 
 兩版採精簡發布流程。Windows 只由 `windows/v*` tag 觸發；單一 job 核對 annotated tag 與版本、建置 MSI／ZIP、發布 GitHub Release。Arch 只由 `arch/v*` tag 觸發；單一 job 核對乾淨 checkout、annotated tag 指向 HEAD、CMake／pkgver／pkgrel，匯出來源後在 `archlinux:base-devel` 容器建置並發布。PR／main 推送不跑這兩個流程。
 
-Arch 容器更新完整套件庫並安裝 Qt 相依，以一般帳號執行 `makepkg --nocheck`，同時設定 `PICLENS_BUILD_TESTING=OFF`。發布未簽署 `.pkg.tar.zst`、來源 tar.gz、已填 checksum 的 PKGBUILD、來源 manifest、套件版本清單及 SHA256SUMS。一般本機 makepkg 仍預設建置及執行測試；只有發布流程省略測試。建置失敗會停止發布，不執行功能、桌面或安裝測試。流程遵守 [makepkg 的一般帳號與 --nocheck 規則](https://man.archlinux.org/man/makepkg.8)。
+Arch 容器在缺少相依時更新完整套件庫並安裝 Qt 相依，以一般帳號執行 `makepkg --nocheck`，同時設定 `PICLENS_BUILD_TESTING=OFF`。發布未簽署 `piclens-<version>-<pkgrel>-x86_64` 套件、來源 tar.gz、已填 checksum 的 PKGBUILD、來源 manifest、套件版本清單及 SHA256SUMS。一般本機 makepkg 仍預設建置及執行測試；release 腳本的本機 sudo 與容器模式均省略測試。建置失敗會停止發布，不執行功能、桌面或安裝測試。流程遵守 [makepkg 的一般帳號與 --nocheck 規則](https://man.archlinux.org/man/makepkg.8)。
+
+本機可在 repo 根目錄執行 `sudo ./packaging/arch/build-release.sh`。腳本以 sudo 的原使用者匯出來源並建置，每次建置先清空 `dist/arch/`，來源、建置中間檔與成品全部放在該目錄，例如 `dist/arch/piclens-4.0.0-1-x86_64`；相依齊備時不更新系統。詳見 [Arch 本機交付](../../packaging/arch/README.md)。
 
 封裝階段建立平台 release workflow，驗證 annotated tag、來源 commit 和平台版本一致。舊 `v*` workflow 必須在新流程啟用前確認隔離，不能產生錯誤的 Rust 產物。第一版平台成果可先是候選套件，不等另一版開發完畢。
 
