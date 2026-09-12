@@ -1,0 +1,2 @@
+18:06:30.782553 - SPEECH OUTPUT: '螢幕閱讀器開啟。' {'established': False}
+18:07:40.582043 - SPEECH OUTPUT: '螢幕閱讀器關閉。' {'established': False}

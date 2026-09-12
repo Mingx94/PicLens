@@ -1,0 +1,1789 @@
+{
+  "name": "PicLens",
+  "role": "application",
+  "states": [
+    "enabled",
+    "sensitive",
+    "showing",
+    "visible"
+  ],
+  "children": [
+    {
+      "name": "中圖.jpg — PicLens",
+      "role": "frame",
+      "states": [
+        "active",
+        "enabled",
+        "sensitive",
+        "showing",
+        "visible"
+      ],
+      "children": [
+        {
+          "name": "返回圖庫",
+          "role": "button",
+          "states": [
+            "enabled",
+            "focusable",
+            "sensitive",
+            "showing",
+            "visible"
+          ],
+          "children": []
+        },
+        {
+          "name": "PicLens",
+          "role": "label",
+          "states": [
+            "enabled",
+            "focusable",
+            "sensitive",
+            "showing",
+            "visible",
+            "read-only"
+          ],
+          "children": []
+        },
+        {
+          "name": "中圖.jpg",
+          "role": "label",
+          "states": [
+            "enabled",
+            "focusable",
+            "sensitive",
+            "showing",
+            "visible",
+            "read-only"
+          ],
+          "children": []
+        },
+        {
+          "name": "切換明暗主題",
+          "role": "button",
+          "states": [
+            "enabled",
+            "focusable",
+            "sensitive",
+            "showing",
+            "visible"
+          ],
+          "children": []
+        },
+        {
+          "name": "開啟資料夾",
+          "role": "button",
+          "states": [
+            "enabled",
+            "focusable",
+            "sensitive",
+            "showing",
+            "visible"
+          ],
+          "children": []
+        },
+        {
+          "name": "設定無法儲存：",
+          "role": "label",
+          "states": [
+            "enabled",
+            "focusable",
+            "sensitive",
+            "read-only"
+          ],
+          "children": []
+        },
+        {
+          "name": "重試",
+          "role": "button",
+          "states": [
+            "enabled",
+            "focusable",
+            "sensitive"
+          ],
+          "children": []
+        },
+        {
+          "name": "",
+          "role": "filler",
+          "states": [
+            "enabled",
+            "sensitive",
+            "showing",
+            "visible"
+          ],
+          "children": [
+            {
+              "name": "",
+              "role": "panel",
+              "states": [
+                "enabled",
+                "sensitive"
+              ],
+              "children": [
+                {
+                  "name": "資料夾",
+                  "role": "label",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "read-only"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "/work/runtime/kde-2-1789236373/library",
+                  "role": "button",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive"
+                  ],
+                  "children": [
+                    {
+                      "name": "/work/runtime/kde-2-1789236373/library",
+                      "role": "label",
+                      "states": [
+                        "enabled",
+                        "focusable",
+                        "sensitive",
+                        "read-only"
+                      ],
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "name": "展開 child",
+                  "role": "button",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "/work/runtime/kde-2-1789236373/library/child",
+                  "role": "button",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive"
+                  ],
+                  "children": [
+                    {
+                      "name": "child",
+                      "role": "label",
+                      "states": [
+                        "enabled",
+                        "focusable",
+                        "sensitive",
+                        "read-only"
+                      ],
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "name": "",
+                  "role": "scroll bar",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "vertical"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "上一個資料夾（Alt+Left）",
+                  "role": "button",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "下一個資料夾（Alt+Right）",
+                  "role": "button",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "重新整理（F5）",
+                  "role": "button",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "搜尋圖庫",
+                  "role": "text",
+                  "states": [
+                    "editable",
+                    "enabled",
+                    "focusable",
+                    "sensitive"
+                  ],
+                  "children": [
+                    {
+                      "name": "清除搜尋",
+                      "role": "button",
+                      "states": [
+                        "enabled",
+                        "focusable",
+                        "sensitive"
+                      ],
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "name": "排序方式",
+                  "role": "combo box",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "包含子資料夾",
+                  "role": "check box",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "checkable"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "縮圖大小",
+                  "role": "slider",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "將目前搜尋與篩選結果轉為 JPG",
+                  "role": "button",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "將目前搜尋與篩選結果轉為 WebP",
+                  "role": "button",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "清理目前搜尋與篩選結果中的同名格式，保留 JPG／JPEG 與 WebP",
+                  "role": "button",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "重新命名",
+                  "role": "button",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "移到回收筒",
+                  "role": "button",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "取消選取",
+                  "role": "button",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "",
+                  "role": "button",
+                  "states": [],
+                  "children": []
+                },
+                {
+                  "name": "",
+                  "role": "label",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "read-only"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "child",
+                  "role": "label",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "read-only"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "資料夾",
+                  "role": "label",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "read-only"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "child",
+                  "role": "list item",
+                  "states": [
+                    "enabled",
+                    "sensitive",
+                    "transient"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "",
+                  "role": "button",
+                  "states": [],
+                  "children": []
+                },
+                {
+                  "name": "",
+                  "role": "label",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "read-only"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "bird.jpg",
+                  "role": "label",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "read-only"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "JPG",
+                  "role": "label",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "read-only"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "bird.jpg",
+                  "role": "list item",
+                  "states": [
+                    "enabled",
+                    "selectable",
+                    "sensitive",
+                    "transient"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "",
+                  "role": "button",
+                  "states": [],
+                  "children": []
+                },
+                {
+                  "name": "",
+                  "role": "label",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "read-only"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "falls.jpg",
+                  "role": "label",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "read-only"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "JPG",
+                  "role": "label",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "read-only"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "falls.jpg",
+                  "role": "list item",
+                  "states": [
+                    "enabled",
+                    "selectable",
+                    "sensitive",
+                    "transient"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "",
+                  "role": "button",
+                  "states": [],
+                  "children": []
+                },
+                {
+                  "name": "已選取",
+                  "role": "label",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "read-only"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "中圖.jpg",
+                  "role": "label",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "read-only"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "JPG",
+                  "role": "label",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "read-only"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "中圖.jpg",
+                  "role": "list item",
+                  "states": [
+                    "enabled",
+                    "selectable",
+                    "selected",
+                    "sensitive",
+                    "transient"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "",
+                  "role": "scroll bar",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "vertical"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "沒有符合條件的圖片",
+                  "role": "label",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "read-only"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "試著清除搜尋，或切換資料夾。",
+                  "role": "label",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive",
+                    "read-only"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "開啟資料夾",
+                  "role": "button",
+                  "states": [
+                    "enabled",
+                    "focusable",
+                    "sensitive"
+                  ],
+                  "children": []
+                }
+              ]
+            },
+            {
+              "name": "",
+              "role": "label",
+              "states": [
+                "enabled",
+                "focusable",
+                "sensitive",
+                "read-only"
+              ],
+              "children": []
+            },
+            {
+              "name": "上一張（←）",
+              "role": "button",
+              "states": [
+                "enabled",
+                "focusable",
+                "sensitive",
+                "showing",
+                "visible"
+              ],
+              "children": []
+            },
+            {
+              "name": "3 / 3",
+              "role": "label",
+              "states": [
+                "enabled",
+                "focusable",
+                "sensitive",
+                "showing",
+                "visible",
+                "read-only"
+              ],
+              "children": []
+            },
+            {
+              "name": "下一張（→）",
+              "role": "button",
+              "states": [
+                "showing",
+                "visible"
+              ],
+              "children": []
+            },
+            {
+              "name": "縮小（−）",
+              "role": "button",
+              "states": [
+                "enabled",
+                "focusable",
+                "sensitive",
+                "showing",
+                "visible"
+              ],
+              "children": []
+            },
+            {
+              "name": "重設縮放（0）",
+              "role": "button",
+              "states": [
+                "enabled",
+                "focusable",
+                "sensitive",
+                "showing",
+                "visible"
+              ],
+              "children": []
+            },
+            {
+              "name": "放大（+）",
+              "role": "button",
+              "states": [
+                "enabled",
+                "focusable",
+                "sensitive",
+                "showing",
+                "visible"
+              ],
+              "children": []
+            },
+            {
+              "name": "關閉檢視器（Esc）",
+              "role": "button",
+              "states": [
+                "enabled",
+                "focusable",
+                "sensitive",
+                "showing",
+                "visible"
+              ],
+              "children": []
+            }
+          ]
+        },
+        {
+          "name": "",
+          "role": "unknown",
+          "states": [
+            "enabled",
+            "sensitive"
+          ],
+          "children": []
+        },
+        {
+          "name": "4 個項目",
+          "role": "label",
+          "states": [
+            "enabled",
+            "focusable",
+            "sensitive",
+            "showing",
+            "visible",
+            "read-only"
+          ],
+          "children": []
+        },
+        {
+          "name": "4 個項目 · 已選取 1",
+          "role": "label",
+          "states": [
+            "enabled",
+            "focusable",
+            "sensitive",
+            "showing",
+            "visible",
+            "read-only"
+          ],
+          "children": []
+        },
+        {
+          "name": "取消作業",
+          "role": "button",
+          "states": [
+            "enabled",
+            "focusable",
+            "sensitive"
+          ],
+          "children": []
+        },
+        {
+          "name": "作業結果",
+          "role": "button",
+          "states": [
+            "enabled",
+            "focusable",
+            "sensitive",
+            "showing",
+            "visible"
+          ],
+          "children": []
+        }
+      ]
+    },
+    {
+      "name": "",
+      "role": "dialog",
+      "states": [
+        "enabled",
+        "resizable",
+        "sensitive"
+      ],
+      "children": [
+        {
+          "name": "",
+          "role": "filler",
+          "states": [
+            "enabled",
+            "sensitive"
+          ],
+          "children": [
+            {
+              "name": "",
+              "role": "split pane",
+              "states": [
+                "enabled",
+                "sensitive"
+              ],
+              "children": [
+                {
+                  "name": "快速存取",
+                  "role": "panel",
+                  "states": [
+                    "enabled",
+                    "sensitive"
+                  ],
+                  "children": [
+                    {
+                      "name": "",
+                      "role": "list",
+                      "states": [
+                        "enabled",
+                        "focusable",
+                        "sensitive",
+                        "manages-descendants"
+                      ],
+                      "children": [
+                        {
+                          "name": "家目錄",
+                          "role": "list item",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "selectable",
+                            "sensitive",
+                            "showing",
+                            "transient",
+                            "visible"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "桌面",
+                          "role": "list item",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "selectable",
+                            "sensitive",
+                            "showing",
+                            "transient",
+                            "visible"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "垃圾桶",
+                          "role": "list item",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "selectable",
+                            "sensitive",
+                            "showing",
+                            "transient",
+                            "visible"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "網路",
+                          "role": "list item",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "selectable",
+                            "sensitive",
+                            "showing",
+                            "transient",
+                            "visible"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "最近檔案",
+                          "role": "list item",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "selectable",
+                            "sensitive",
+                            "showing",
+                            "transient",
+                            "visible"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "最近位置",
+                          "role": "list item",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "selectable",
+                            "sensitive",
+                            "showing",
+                            "transient",
+                            "visible"
+                          ],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "name": "",
+                      "role": "filler",
+                      "states": [
+                        "enabled",
+                        "sensitive"
+                      ],
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "name": "",
+                  "role": "filler",
+                  "states": [
+                    "enabled",
+                    "sensitive"
+                  ],
+                  "children": [
+                    {
+                      "name": "",
+                      "role": "filler",
+                      "states": [
+                        "enabled",
+                        "sensitive"
+                      ],
+                      "children": [
+                        {
+                          "name": "",
+                          "role": "filler",
+                          "states": [
+                            "enabled",
+                            "sensitive"
+                          ],
+                          "children": [
+                            {
+                              "name": "位置",
+                              "role": "push button menu",
+                              "states": [
+                                "enabled",
+                                "focusable",
+                                "sensitive",
+                                "has-popup"
+                              ],
+                              "children": []
+                            },
+                            {
+                              "name": "file",
+                              "role": "push button menu",
+                              "states": [
+                                "enabled",
+                                "focusable",
+                                "sensitive",
+                                "has-popup"
+                              ],
+                              "children": []
+                            },
+                            {
+                              "name": "前往路徑中的位置",
+                              "role": "button",
+                              "states": [
+                                "enabled",
+                                "focusable",
+                                "sensitive"
+                              ],
+                              "children": []
+                            },
+                            {
+                              "name": "/work/runtime/kde-2-1789236373/library/",
+                              "role": "combo box",
+                              "states": [
+                                "editable",
+                                "enabled",
+                                "expandable",
+                                "focusable",
+                                "sensitive"
+                              ],
+                              "children": [
+                                {
+                                  "name": "",
+                                  "role": "list",
+                                  "states": [
+                                    "enabled",
+                                    "focusable",
+                                    "sensitive",
+                                    "manages-descendants"
+                                  ],
+                                  "children": [
+                                    {
+                                      "name": "/work/runtime/kde-2-1789236373/library/",
+                                      "role": "list item",
+                                      "states": [
+                                        "enabled",
+                                        "focusable",
+                                        "focused",
+                                        "selectable",
+                                        "selected",
+                                        "sensitive",
+                                        "showing",
+                                        "transient",
+                                        "visible"
+                                      ],
+                                      "children": []
+                                    },
+                                    {
+                                      "name": "/work/runtime/kde-2-1789236373/library/",
+                                      "role": "list item",
+                                      "states": [
+                                        "enabled",
+                                        "focusable",
+                                        "selectable",
+                                        "sensitive",
+                                        "showing",
+                                        "transient",
+                                        "visible"
+                                      ],
+                                      "children": []
+                                    }
+                                  ]
+                                },
+                                {
+                                  "name": "",
+                                  "role": "text",
+                                  "states": [
+                                    "editable",
+                                    "enabled",
+                                    "focusable",
+                                    "sensitive"
+                                  ],
+                                  "children": [
+                                    {
+                                      "name": "",
+                                      "role": "button",
+                                      "states": [
+                                        "enabled",
+                                        "sensitive"
+                                      ],
+                                      "children": []
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "name": "",
+                              "role": "filler",
+                              "states": [
+                                "enabled",
+                                "sensitive"
+                              ],
+                              "children": []
+                            },
+                            {
+                              "name": "編輯模式",
+                              "role": "check box",
+                              "states": [
+                                "checked",
+                                "enabled",
+                                "focusable",
+                                "sensitive",
+                                "checkable"
+                              ],
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "",
+                      "role": "filler",
+                      "states": [
+                        "enabled",
+                        "focusable",
+                        "sensitive"
+                      ],
+                      "children": [
+                        {
+                          "name": "",
+                          "role": "split pane",
+                          "states": [
+                            "enabled",
+                            "sensitive"
+                          ],
+                          "children": [
+                            {
+                              "name": "",
+                              "role": "tree",
+                              "states": [
+                                "enabled",
+                                "focusable",
+                                "sensitive",
+                                "manages-descendants"
+                              ],
+                              "children": [
+                                {
+                                  "name": "名稱",
+                                  "role": "table column header",
+                                  "states": [
+                                    "enabled",
+                                    "sensitive"
+                                  ],
+                                  "children": []
+                                },
+                                {
+                                  "name": "大小",
+                                  "role": "table column header",
+                                  "states": [
+                                    "enabled",
+                                    "sensitive"
+                                  ],
+                                  "children": []
+                                },
+                                {
+                                  "name": "日期",
+                                  "role": "table column header",
+                                  "states": [
+                                    "enabled",
+                                    "sensitive"
+                                  ],
+                                  "children": []
+                                },
+                                {
+                                  "name": "權限",
+                                  "role": "table column header",
+                                  "states": [
+                                    "enabled",
+                                    "sensitive"
+                                  ],
+                                  "children": []
+                                },
+                                {
+                                  "name": "擁有者",
+                                  "role": "table column header",
+                                  "states": [
+                                    "enabled",
+                                    "sensitive"
+                                  ],
+                                  "children": []
+                                },
+                                {
+                                  "name": "群組",
+                                  "role": "table column header",
+                                  "states": [
+                                    "enabled",
+                                    "sensitive"
+                                  ],
+                                  "children": []
+                                },
+                                {
+                                  "name": "類型",
+                                  "role": "table column header",
+                                  "states": [
+                                    "enabled",
+                                    "sensitive"
+                                  ],
+                                  "children": []
+                                },
+                                {
+                                  "name": "child",
+                                  "role": "table cell",
+                                  "states": [
+                                    "enabled",
+                                    "focusable",
+                                    "selectable",
+                                    "sensitive",
+                                    "showing",
+                                    "transient",
+                                    "visible"
+                                  ],
+                                  "children": []
+                                },
+                                {
+                                  "name": "18 B",
+                                  "role": "table cell",
+                                  "states": [
+                                    "enabled",
+                                    "focusable",
+                                    "selectable",
+                                    "sensitive",
+                                    "showing",
+                                    "transient",
+                                    "visible"
+                                  ],
+                                  "children": []
+                                },
+                                {
+                                  "name": "剛剛",
+                                  "role": "table cell",
+                                  "states": [
+                                    "enabled",
+                                    "focusable",
+                                    "selectable",
+                                    "sensitive",
+                                    "showing",
+                                    "transient",
+                                    "visible"
+                                  ],
+                                  "children": []
+                                },
+                                {
+                                  "name": "drwxr-xr-x",
+                                  "role": "table cell",
+                                  "states": [
+                                    "enabled",
+                                    "focusable",
+                                    "selectable",
+                                    "sensitive",
+                                    "transient"
+                                  ],
+                                  "children": []
+                                },
+                                {
+                                  "name": "builder",
+                                  "role": "table cell",
+                                  "states": [
+                                    "enabled",
+                                    "focusable",
+                                    "selectable",
+                                    "sensitive",
+                                    "transient"
+                                  ],
+                                  "children": []
+                                },
+                                {
+                                  "name": "builder",
+                                  "role": "table cell",
+                                  "states": [
+                                    "enabled",
+                                    "focusable",
+                                    "selectable",
+                                    "sensitive",
+                                    "transient"
+                                  ],
+                                  "children": []
+                                },
+                                {
+                                  "name": "Folder",
+                                  "role": "table cell",
+                                  "states": [
+                                    "enabled",
+                                    "focusable",
+                                    "selectable",
+                                    "sensitive",
+                                    "transient"
+                                  ],
+                                  "children": []
+                                }
+                              ]
+                            },
+                            {
+                              "name": "",
+                              "role": "unknown",
+                              "states": [
+                                "enabled",
+                                "sensitive"
+                              ],
+                              "children": []
+                            }
+                          ]
+                        },
+                        {
+                          "name": "",
+                          "role": "progress bar",
+                          "states": [
+                            "enabled",
+                            "sensitive",
+                            "read-only"
+                          ],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "name": "",
+                      "role": "tool bar",
+                      "states": [
+                        "enabled",
+                        "sensitive"
+                      ],
+                      "children": [
+                        {
+                          "name": "",
+                          "role": "push button menu",
+                          "states": [
+                            "focusable",
+                            "checkable",
+                            "has-popup"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "返回(B)",
+                          "role": "button",
+                          "states": [
+                            "focusable"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "往前(F)",
+                          "role": "button",
+                          "states": [
+                            "focusable"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "上層資料夾",
+                          "role": "button",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "sensitive"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "重新載入",
+                          "role": "button",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "sensitive"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "",
+                          "role": "filler",
+                          "states": [
+                            "enabled",
+                            "sensitive"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "圖示檢視",
+                          "role": "check box",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "sensitive",
+                            "checkable"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "精簡檢視",
+                          "role": "check box",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "sensitive",
+                            "checkable"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "詳細檢視",
+                          "role": "check box",
+                          "states": [
+                            "checked",
+                            "enabled",
+                            "focusable",
+                            "sensitive",
+                            "checkable"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "",
+                          "role": "filler",
+                          "states": [
+                            "enabled",
+                            "sensitive"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "顯示預覽",
+                          "role": "check box",
+                          "states": [
+                            "checked",
+                            "enabled",
+                            "focusable",
+                            "sensitive",
+                            "checkable"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "排序",
+                          "role": "push button menu",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "sensitive",
+                            "has-popup"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "書籤",
+                          "role": "push button menu",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "sensitive",
+                            "has-popup"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "",
+                          "role": "filler",
+                          "states": [
+                            "enabled",
+                            "sensitive"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "縮小(O)",
+                          "role": "button",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "sensitive"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "",
+                          "role": "slider",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "horizontal",
+                            "sensitive"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "放大(I)",
+                          "role": "button",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "sensitive"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "",
+                          "role": "filler",
+                          "states": [
+                            "enabled",
+                            "sensitive"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "選項",
+                          "role": "push button menu",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "sensitive",
+                            "has-popup"
+                          ],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "name": "錯誤",
+                      "role": "panel",
+                      "states": [
+                        "enabled",
+                        "sensitive"
+                      ],
+                      "children": [
+                        {
+                          "name": "",
+                          "role": "label",
+                          "states": [
+                            "enabled",
+                            "sensitive",
+                            "read-only"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "",
+                          "role": "label",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "sensitive",
+                            "read-only"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "關閉(C)",
+                          "role": "button",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "sensitive"
+                          ],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "name": "",
+                      "role": "panel",
+                      "states": [
+                        "enabled",
+                        "sensitive"
+                      ],
+                      "children": []
+                    },
+                    {
+                      "name": "",
+                      "role": "panel",
+                      "states": [
+                        "enabled",
+                        "sensitive"
+                      ],
+                      "children": []
+                    },
+                    {
+                      "name": "",
+                      "role": "filler",
+                      "states": [
+                        "enabled",
+                        "sensitive"
+                      ],
+                      "children": [
+                        {
+                          "name": "",
+                          "role": "check box",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "sensitive",
+                            "checkable"
+                          ],
+                          "children": []
+                        },
+                        {
+                          "name": "",
+                          "role": "text",
+                          "states": [
+                            "editable",
+                            "enabled",
+                            "focusable",
+                            "sensitive"
+                          ],
+                          "children": [
+                            {
+                              "name": "",
+                              "role": "button",
+                              "states": [
+                                "enabled",
+                                "sensitive"
+                              ],
+                              "children": []
+                            }
+                          ]
+                        },
+                        {
+                          "name": "",
+                          "role": "button",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "sensitive"
+                          ],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "name": "名稱(N)：",
+                      "role": "label",
+                      "states": [
+                        "enabled",
+                        "sensitive",
+                        "read-only"
+                      ],
+                      "children": []
+                    },
+                    {
+                      "name": "/work/runtime/kde-2-1789236373/library",
+                      "role": "combo box",
+                      "states": [
+                        "editable",
+                        "enabled",
+                        "expandable",
+                        "focusable",
+                        "sensitive"
+                      ],
+                      "children": [
+                        {
+                          "name": "",
+                          "role": "list",
+                          "states": [
+                            "enabled",
+                            "focusable",
+                            "sensitive",
+                            "manages-descendants"
+                          ],
+                          "children": [
+                            {
+                              "name": "/work/runtime/kde-2-1789236373/library",
+                              "role": "list item",
+                              "states": [
+                                "enabled",
+                                "focusable",
+                                "focused",
+                                "selectable",
+                                "selected",
+                                "sensitive",
+                                "showing",
+                                "transient",
+                                "visible"
+                              ],
+                              "children": []
+                            }
+                          ]
+                        },
+                        {
+                          "name": "",
+                          "role": "text",
+                          "states": [
+                            "editable",
+                            "enabled",
+                            "focusable",
+                            "sensitive"
+                          ],
+                          "children": [
+                            {
+                              "name": "",
+                              "role": "button",
+                              "states": [],
+                              "children": []
+                            },
+                            {
+                              "name": "復原檔名變更",
+                              "role": "button",
+                              "states": [],
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "檔案類型(F)：",
+                      "role": "label",
+                      "states": [
+                        "enabled",
+                        "sensitive",
+                        "read-only"
+                      ],
+                      "children": []
+                    },
+                    {
+                      "name": "Folder",
+                      "role": "combo box",
+                      "states": [
+                        "editable",
+                        "expandable",
+                        "focusable"
+                      ],
+                      "children": [
+                        {
+                          "name": "",
+                          "role": "list",
+                          "states": [
+                            "focusable",
+                            "manages-descendants"
+                          ],
+                          "children": [
+                            {
+                              "name": "Folder",
+                              "role": "list item",
+                              "states": [
+                                "enabled",
+                                "focusable",
+                                "focused",
+                                "selectable",
+                                "selected",
+                                "sensitive",
+                                "showing",
+                                "transient",
+                                "visible"
+                              ],
+                              "children": []
+                            }
+                          ]
+                        },
+                        {
+                          "name": "",
+                          "role": "text",
+                          "states": [
+                            "editable",
+                            "focusable"
+                          ],
+                          "children": [
+                            {
+                              "name": "",
+                              "role": "button",
+                              "states": [],
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "",
+                      "role": "check box",
+                      "states": [
+                        "enabled",
+                        "focusable",
+                        "sensitive",
+                        "checkable"
+                      ],
+                      "children": []
+                    },
+                    {
+                      "name": "開啟(O)",
+                      "role": "button",
+                      "states": [
+                        "enabled",
+                        "focusable",
+                        "sensitive",
+                        "is-default"
+                      ],
+                      "children": []
+                    },
+                    {
+                      "name": "取消(C)",
+                      "role": "button",
+                      "states": [
+                        "enabled",
+                        "focusable",
+                        "sensitive"
+                      ],
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "name": "",
+                  "role": "unknown",
+                  "states": [
+                    "enabled",
+                    "sensitive"
+                  ],
+                  "children": []
+                },
+                {
+                  "name": "",
+                  "role": "unknown",
+                  "states": [
+                    "enabled",
+                    "sensitive"
+                  ],
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "",
+          "role": "filler",
+          "states": [
+            "enabled",
+            "sensitive"
+          ],
+          "children": []
+        }
+      ]
+    },
+    {
+      "name": "",
+      "role": "list",
+      "states": [
+        "enabled",
+        "focusable",
+        "resizable",
+        "sensitive",
+        "manages-descendants"
+      ],
+      "children": [
+        {
+          "name": "/work/runtime/kde-2-1789236373/library/",
+          "role": "list item",
+          "states": [
+            "enabled",
+            "focusable",
+            "selectable",
+            "sensitive",
+            "showing",
+            "transient",
+            "visible"
+          ],
+          "children": []
+        }
+      ]
+    }
+  ]
+}

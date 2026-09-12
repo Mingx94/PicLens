@@ -7,4 +7,4 @@
 - [封裝與發布](release.md)：版本、產物與 GitHub Actions。
 - [開發與診斷入口](../../apps/linux/README.md)：工具、建置、測試及命令列參數。
 - [第三方授權](../../apps/linux/THIRD-PARTY.md)：平台依賴與散布聲明。
-- [未完成 TODO](../../TODO.arch.md)。
+- [Arch 驗證紀錄](arch-validation.md)：已完成項目、測試結果與環境限制。

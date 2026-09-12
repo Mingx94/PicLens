@@ -189,13 +189,13 @@ Domain／Application／Services、Qt models、QML 與 helper 分層依照[架構
 
 App 必須能從 `/usr/bin/piclens` 找到 `/usr/libexec/piclens/piclens-worker`，開發建置則找到 build 目錄內 helper。CMake 需依[封裝安裝表](../../packaging/arch/README.md)安裝；打包檢查不會補上缺漏，未整合就會失敗。CLI 及資料根目錄遵守[資料延續性](../../docs/engineering/data-continuity.md)：`--data-root` 優先於 `PICLENS_DATA_ROOT`，預設 `$XDG_DATA_HOME/PicLens` 或 `~/.local/share/PicLens`。
 
-完整功能、Wayland／X11、IME、DPI 與安裝生命週期的待辦見 [Arch TODO](../../TODO.arch.md)。GitHub 的 `arch/v*` tag 發布流程建置套件，但不跑功能／桌面／安裝測試；詳細產物見[Linux 發布指南](../../docs/linux/release.md)。
+完整功能、Wayland／X11、IME、DPI 與安裝生命週期的結果見 [Arch 驗證紀錄](../../docs/linux/arch-validation.md)。GitHub 的 `arch/v*` tag 發布流程建置套件，但不跑功能／桌面／安裝測試；詳細產物見[Linux 發布指南](../../docs/linux/release.md)。
 
 ## 本機開發驗證（2026-09-12）
 
 基準 commit：`743199b619be46971323eb797acd89f5294e0e1c`。以下為開發機基準結果。
 
-以下只轉錄本次主機提供的結果，不延伸成未觀察的支援承諾：
+以下保留早期開發機基準。最新桌面、效能與套件驗收結果見 [Arch 驗證紀錄](../../docs/linux/arch-validation.md)。
 
 - Omarchy `4.0.3` Arch derivative、`x86_64`、Hyprland Wayland、Qt `6.11.2`；GCC `16.2.1`、CMake `4.4.3`、Ninja `1.13.2`、libwebp `1.6.0`。
 - Debug／Release configure、build 與目前所有 CTest 均通過，耗時分別為 `18.40`／`17.88` 秒。DESTDIR install、`desktop-file-validate` 與 AppStream 檢查通過；後者有 2 個 informational advisories：content-rating、developer-info。
@@ -205,5 +205,5 @@ App 必須能從 `/usr/bin/piclens` 找到 `/usr/libexec/piclens/piclens-worker`
 - 六種產生圖片（JPEG 2400x1600、PNG 1800x2400、BMP 2048x1536、WebP 3000x2000、GIF 800x600、alpha PNG 1024x768）均完成 gallery thumbnail render。
 - synthetic same-viewer A-B-A 共 7 個 samples：cold `58–186 ms`、warm `62–181 ms`，unpainted 為零。這不代表 representative-photo acceptance，也不代表冷 OS cache。
 - 一般 `makepkg` baseline 通過並產生 `pkg.tar.zst`；這不是乾淨 OS 或完整 lifecycle 驗證。
-- KDE、native X11、IME、accessibility、DPI、clean OS，以及 install／upgrade／uninstall 仍未證實。Docker access denied，sudo 需要密碼。
-- 本次沒有授權 release、tag 或 AUR 動作，也不宣稱 Arch TODO 已完成。
+- 當時尚未證實 KDE、native X11、IME、accessibility、DPI 與套件生命週期；後續已完成，隔離 userland 仍不等同完整開機 OS。
+- 沒有建立公開 release、tag 或上傳 AUR；平台驗收結果另見 Arch 驗證紀錄。

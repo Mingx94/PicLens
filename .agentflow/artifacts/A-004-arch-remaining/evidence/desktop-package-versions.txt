@@ -1,0 +1,17 @@
+kwin 6.7.5-1
+plasma-workspace 6.7.5-1
+plasma-desktop 6.7.5-1
+plasma-integration 6.7.5-1
+qt6-base 6.11.2-3
+qt6-declarative 6.11.2-1
+qt6-wayland 6.11.2-1
+qt6-imageformats 6.11.2-1
+xorg-server-xvfb 21.1.24-1
+openbox 3.6.1-14
+fcitx5 5.1.22-1
+fcitx5-chewing 5.1.13-1
+fcitx5-qt 5.1.15-1
+orca 50.2-1
+at-spi2-core 2.60.6-1
+python-atspi 2.58.2-1
+mesa 1:26.2.2-1

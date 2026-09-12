@@ -1,0 +1,277 @@
+{
+  "mode": "x11",
+  "scale": "2",
+  "base": "/work/runtime/x11-2-1789236373",
+  "checks": {
+    "emptyStartup": true,
+    "nativeKdePicker": true,
+    "emptyPickerCancelPreservesEmpty": true,
+    "pickerSetsPersistentRoot": true,
+    "populatedPickerCancelPreservesProfile": true,
+    "keyboardSearchFocus": true,
+    "realBopomofoCommit": true,
+    "accessibleTileSelection": true,
+    "contextMenu": true,
+    "viewerOpen": true,
+    "revealOpensDolphin": true,
+    "trashCancelPreservesFile": true,
+    "trashMovesToPrivateRecycleBin": true,
+    "pointerGrabEscapeCancels": true,
+    "dragDropCancelPreservesFiles": true,
+    "checkboxState": true,
+    "sortOptionsNamed": true,
+    "sortSelectedState": true,
+    "sliderAccessibleRange": true,
+    "childNavigationPreservesRoot": true,
+    "startupRestoresPickerFolder": true,
+    "emptyFolderSelection": true,
+    "disabledEmptyOperations": true
+  },
+  "errors": [],
+  "inputMethod": "chewing",
+  "imeCommittedText": "中",
+  "clicks": [
+    {
+      "name": "中圖.jpg",
+      "logicalRect": [
+        961,
+        289,
+        168,
+        216
+      ],
+      "pixel": [
+        2090,
+        794
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "中圖.jpg",
+      "logicalRect": [
+        961,
+        289,
+        168,
+        216
+      ],
+      "pixel": [
+        2090,
+        794
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "中圖.jpg",
+      "logicalRect": [
+        961,
+        289,
+        168,
+        216
+      ],
+      "pixel": [
+        2090,
+        794
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "中圖.jpg",
+      "logicalRect": [
+        961,
+        289,
+        168,
+        216
+      ],
+      "pixel": [
+        2090,
+        794
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "bird.jpg",
+      "logicalRect": [
+        609,
+        289,
+        168,
+        216
+      ],
+      "pixel": [
+        1386,
+        794
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "中圖.jpg",
+      "logicalRect": [
+        785,
+        289,
+        168,
+        216
+      ],
+      "pixel": [
+        1738,
+        794
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "falls.jpg",
+      "logicalRect": [
+        609,
+        289,
+        168,
+        216
+      ],
+      "pixel": [
+        1386,
+        794
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "中圖.jpg",
+      "logicalRect": [
+        785,
+        289,
+        168,
+        216
+      ],
+      "pixel": [
+        1738,
+        794
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "falls.jpg",
+      "logicalRect": [
+        609,
+        289,
+        168,
+        216
+      ],
+      "pixel": [
+        1386,
+        794
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "包含子資料夾",
+      "logicalRect": [
+        1090,
+        187,
+        122,
+        36
+      ],
+      "pixel": [
+        2302,
+        410
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "包含子資料夾",
+      "logicalRect": [
+        1090,
+        187,
+        122,
+        36
+      ],
+      "pixel": [
+        2302,
+        410
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "排序方式",
+      "logicalRect": [
+        932,
+        187,
+        150,
+        36
+      ],
+      "pixel": [
+        2014,
+        410
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "child",
+      "logicalRect": [
+        433,
+        289,
+        168,
+        216
+      ],
+      "pixel": [
+        1034,
+        794
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    }
+  ],
+  "selectedTileStates": [
+    "enabled",
+    "selectable",
+    "selected",
+    "sensitive",
+    "showing",
+    "transient",
+    "visible"
+  ],
+  "dolphinPids": [
+    443
+  ],
+  "revealDesktopApps": [
+    "ksecretd",
+    "xdg-desktop-portal-kde",
+    "PicLens",
+    "orca",
+    "dolphin"
+  ],
+  "revealProcesses": "    443 /usr/bin/dolphin /work/runtime/x11-2-1789236373/library",
+  "orcaRunning": true
+}

@@ -1,0 +1,8 @@
+18:06:19.054543 - SPEECH OUTPUT: '螢幕閱讀器開啟。' {'established': False}
+18:06:39.067078 - SPEECH OUTPUT: '搜尋圖庫' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'zh', 'dialect': 'TW', 'variant': None}}
+18:06:52.758863 - SPEECH OUTPUT: '沒有選取.' {'established': False}
+18:06:57.618703 - SPEECH OUTPUT: '確認執行' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'zh', 'dialect': 'TW', 'variant': None}}
+18:06:58.850010 - SPEECH OUTPUT: '確認執行' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'zh', 'dialect': 'TW', 'variant': None}}
+18:07:03.966020 - SPEECH OUTPUT: '確認執行' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'zh', 'dialect': 'TW', 'variant': None}}
+18:07:08.977955 - SPEECH OUTPUT: '排序方式' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'zh', 'dialect': 'TW', 'variant': None}}
+18:07:23.784664 - SPEECH OUTPUT: '螢幕閱讀器關閉。' {'established': False}

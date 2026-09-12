@@ -34,7 +34,7 @@ pwsh -File F:/PicLens/packaging/arch/New-Handoff.ps1 -OutputDirectory F:/PicLens
 
 來源透過 `git ls-files --cached --others --exclude-standard -z` 取得，讀取目前磁碟內容，包含未提交變更。固定 tar 順序、mode、uid/gid、mtime 與 gzip 時間；相同檔案位元組在相同 Python/zlib 工具鏈下產生相同 checksum。base commit 只是來源追溯，不代表內容等於 HEAD；SHA-256 鎖定的是 tarball 本身。
 
-允許清單只接受 Linux 原始碼／QML／CMake／測試、Arch 封裝、已 tracked 的共用 assets／圖片 fixtures、test-data 的 JSON／TXT／Markdown、LICENSE、TODO.arch.md、tracked 規格文件。排除 ignored 檔案、隱藏目錄、個人 profile、build、cache、binary 與 symlink／reparse 路徑。不讀個人設定。新共用圖片 fixture 必須先經主 agent 納入 tracked 清單，或明確審查並調整允許清單；不自動打包任意本機圖片。程式無法判斷原始碼內容是否含個資，交付前必須核對 manifest 的檔名與內容。
+允許清單只接受 Linux 原始碼／QML／CMake／測試、Arch 封裝、已 tracked 的共用 assets／圖片 fixtures、test-data 的 JSON／TXT／Markdown、LICENSE、tracked 規格文件。排除 ignored 檔案、隱藏目錄、個人 profile、build、cache、binary 與 symlink／reparse 路徑。不讀個人設定。新共用圖片 fixture 必須先經主 agent 納入 tracked 清單，或明確審查並調整允許清單；不自動打包任意本機圖片。程式無法判斷原始碼內容是否含個資，交付前必須核對 manifest 的檔名與內容。
 
 請在各 agent 停止修改後產生；產生器重讀比對已選檔案以偵測同時修改，但不是檔案系統交易快照。新增必要路徑或 build 產物變更後重新產生至新目錄。不要修改已交付 tarball 或把 checksum 改成 SKIP。
 

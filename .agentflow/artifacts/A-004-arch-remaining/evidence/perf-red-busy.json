@@ -1,0 +1,313 @@
+{
+    "averageCpuUtilizationPercent": 1.9907152411676763,
+    "buildProfile": "Release",
+    "childProcessesIncluded": false,
+    "cpuNormalization": "processCpuMilliseconds / metricsElapsedMilliseconds / logicalProcessorCount * 100",
+    "cpuNormalizedByLogicalProcessors": true,
+    "devicePixelRatio": 1,
+    "firstThumbnailReadyMilliseconds": 921,
+    "frontEnd": "qt-quick",
+    "fullPaintSamples": [
+        {
+            "fullResolution": true,
+            "milliseconds": 1128,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/Gull_portrait_ca_usa.jpg",
+            "selectionId": "1",
+            "viewerSessionId": "1"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 798,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/Hopetoun_falls.jpg",
+            "selectionId": "2",
+            "viewerSessionId": "1"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 547,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/Shaki_waterfall.jpg",
+            "selectionId": "3",
+            "viewerSessionId": "1"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 1239,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/森林_WebP.webp",
+            "selectionId": "4",
+            "viewerSessionId": "1"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 1242,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/海鷗_原檔.jpeg",
+            "selectionId": "5",
+            "viewerSessionId": "1"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 982,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/海鷗_無壓縮.bmp",
+            "selectionId": "6",
+            "viewerSessionId": "1"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 697,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/瀑布_無損.png",
+            "selectionId": "7",
+            "viewerSessionId": "1"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 150,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/海鷗_無壓縮.bmp",
+            "selectionId": "8",
+            "viewerSessionId": "1"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 113,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/瀑布_無損.png",
+            "selectionId": "9",
+            "viewerSessionId": "1"
+        },
+        {
+            "fullResolution": true,
+            "milliseconds": 116,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/瀑布_無損.png",
+            "selectionId": "10",
+            "viewerSessionId": "3"
+        }
+    ],
+    "gpuCopyBytes": null,
+    "gpuMemoryBytes": null,
+    "gpuMetricsIncluded": false,
+    "imageCopyMetricsIncluded": false,
+    "itemCount": 7,
+    "lastCompletedBatch": null,
+    "libraryMilliseconds": 11,
+    "logicalProcessorCount": 8,
+    "manifest": [
+        {
+            "bytes": 718902,
+            "height": 1704,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/Gull_portrait_ca_usa.jpg",
+            "sha256": "524368d286d63cd02c319b7447a664f15d434fec594f1849fc9b73de68d40f14",
+            "width": 2272
+        },
+        {
+            "bytes": 2954043,
+            "height": 2048,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/Hopetoun_falls.jpg",
+            "sha256": "5619a95628ab5a3a6f12ee9fc284abe7c9dd64910052543d831af0f167386b14",
+            "width": 3072
+        },
+        {
+            "bytes": 377828,
+            "height": 959,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/Shaki_waterfall.jpg",
+            "sha256": "ebd341c5054591f4ba50c1debc796b29a47a4595323c953549417f796be16910",
+            "width": 1280
+        },
+        {
+            "bytes": 6648380,
+            "height": 2048,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/森林_WebP.webp",
+            "sha256": "e430a158514d825f8055c9470b62f7747a253827e2dd12e2ba13995c4564ee75",
+            "width": 3072
+        },
+        {
+            "bytes": 718902,
+            "height": 1704,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/海鷗_原檔.jpeg",
+            "sha256": "524368d286d63cd02c319b7447a664f15d434fec594f1849fc9b73de68d40f14",
+            "width": 2272
+        },
+        {
+            "bytes": 11614518,
+            "height": 1704,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/海鷗_無壓縮.bmp",
+            "sha256": "74b39932bf4b833f01ac85d06f8c75d112dc3c9eeeb9676e164c952cd360d573",
+            "width": 2272
+        },
+        {
+            "bytes": 2247588,
+            "height": 959,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/瀑布_無損.png",
+            "sha256": "2c50e82ebea93103137a4ad53147aa50d9602bdb39b2bf2d4213d8688975889c",
+            "width": 1280
+        }
+    ],
+    "maxMaterialized": 7,
+    "maxVisible": 7,
+    "metricsElapsedMilliseconds": 12709,
+    "metricsTimestampUtc": "2026-09-12T17:53:09.333Z",
+    "observation": "scene graph submission; not compositor presentation",
+    "peakRssBytes": 202555392,
+    "peakRssSource": "getrusage(RUSAGE_SELF).ru_maxrss; process lifetime; self only",
+    "platformPlugin": "wayland",
+    "processCpuMilliseconds": 2024,
+    "processScope": "self",
+    "qtVersion": "6.11.2",
+    "readyThumbnailCount": 0,
+    "rssBytes": 192790528,
+    "rssSource": "/proc/self/statm resident pages; self only",
+    "schemaVersion": 1,
+    "searchMilliseconds": 11,
+    "serialObservations": [
+        {
+            "error": "",
+            "index": 0,
+            "name": "Gull_portrait_ca_usa.jpg",
+            "painted": true,
+            "waitMilliseconds": 1132
+        },
+        {
+            "error": "",
+            "index": 1,
+            "name": "Hopetoun_falls.jpg",
+            "painted": true,
+            "waitMilliseconds": 804
+        },
+        {
+            "error": "",
+            "index": 2,
+            "name": "Shaki_waterfall.jpg",
+            "painted": true,
+            "waitMilliseconds": 552
+        },
+        {
+            "error": "",
+            "index": 3,
+            "name": "森林_WebP.webp",
+            "painted": true,
+            "waitMilliseconds": 1246
+        },
+        {
+            "error": "",
+            "index": 4,
+            "name": "海鷗_原檔.jpeg",
+            "painted": true,
+            "waitMilliseconds": 1246
+        },
+        {
+            "error": "",
+            "index": 5,
+            "name": "海鷗_無壓縮.bmp",
+            "painted": true,
+            "waitMilliseconds": 986
+        },
+        {
+            "error": "",
+            "index": 6,
+            "name": "瀑布_無損.png",
+            "painted": true,
+            "waitMilliseconds": 702
+        }
+    ],
+    "shutdownMilliseconds": 0,
+    "unpaintedSelections": 0,
+    "viewerPreviewReadyMilliseconds": [
+        960,
+        562,
+        486,
+        843,
+        1062,
+        894,
+        532,
+        0,
+        0,
+        44
+    ],
+    "viewerPreviewSamples": [
+        {
+            "milliseconds": 960,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/Gull_portrait_ca_usa.jpg",
+            "ready": true,
+            "selectionId": "1",
+            "viewerSessionId": "1"
+        },
+        {
+            "milliseconds": 562,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/Hopetoun_falls.jpg",
+            "ready": true,
+            "selectionId": "2",
+            "viewerSessionId": "1"
+        },
+        {
+            "milliseconds": 486,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/Shaki_waterfall.jpg",
+            "ready": true,
+            "selectionId": "3",
+            "viewerSessionId": "1"
+        },
+        {
+            "milliseconds": 843,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/森林_WebP.webp",
+            "ready": true,
+            "selectionId": "4",
+            "viewerSessionId": "1"
+        },
+        {
+            "milliseconds": 1062,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/海鷗_原檔.jpeg",
+            "ready": true,
+            "selectionId": "5",
+            "viewerSessionId": "1"
+        },
+        {
+            "milliseconds": 894,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/海鷗_無壓縮.bmp",
+            "ready": true,
+            "selectionId": "6",
+            "viewerSessionId": "1"
+        },
+        {
+            "milliseconds": 532,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/瀑布_無損.png",
+            "ready": true,
+            "selectionId": "7",
+            "viewerSessionId": "1"
+        },
+        {
+            "milliseconds": 0,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/海鷗_無壓縮.bmp",
+            "ready": true,
+            "selectionId": "8",
+            "viewerSessionId": "1"
+        },
+        {
+            "milliseconds": 0,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/瀑布_無損.png",
+            "ready": true,
+            "selectionId": "9",
+            "viewerSessionId": "1"
+        },
+        {
+            "milliseconds": 44,
+            "path": "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/corpus/瀑布_無損.png",
+            "ready": true,
+            "selectionId": "10",
+            "viewerSessionId": "3"
+        }
+    ],
+    "viewerSelections": 10,
+    "viewerSharpPaintCount": 10,
+    "viewerSharpPaintMaximumMilliseconds": 1242,
+    "viewerSharpPaintMilliseconds": [
+        1128,
+        798,
+        547,
+        1239,
+        1242,
+        982,
+        697,
+        150,
+        113,
+        116
+    ],
+    "viewerSharpTargetMilliseconds": 500,
+    "viewerSharpTargetMisses": 7,
+    "windowHeight": 1054,
+    "windowWidth": 960
+}

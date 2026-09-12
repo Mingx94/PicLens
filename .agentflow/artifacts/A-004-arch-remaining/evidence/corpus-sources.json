@@ -1,0 +1,32 @@
+[
+  {
+    "file": "Gull_portrait_ca_usa.jpg",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:Gull_portrait_ca_usa.jpg",
+    "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/9/9a/Gull_portrait_ca_usa.jpg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+    "sha256": "524368d286d63cd02c319b7447a664f15d434fec594f1849fc9b73de68d40f14",
+    "bytes": 718902,
+    "author": "Daniel Schwen",
+    "license": "CC BY 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.5/"
+  },
+  {
+    "file": "Hopetoun_falls.jpg",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:Hopetoun_falls.jpg",
+    "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/3/36/Hopetoun_falls.jpg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+    "sha256": "5619a95628ab5a3a6f12ee9fc284abe7c9dd64910052543d831af0f167386b14",
+    "bytes": 2954043,
+    "author": "David Iliff",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+  },
+  {
+    "file": "Shaki_waterfall.jpg",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:Shaki_waterfall.jpg",
+    "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/3/3c/Shaki_waterfall.jpg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+    "sha256": "ebd341c5054591f4ba50c1debc796b29a47a4595323c953549417f796be16910",
+    "bytes": 377828,
+    "author": "Sisianci",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+  }
+]

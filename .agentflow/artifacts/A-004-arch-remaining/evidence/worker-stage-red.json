@@ -1,0 +1,42 @@
+[
+  {
+    "edge": 256,
+    "cache": false,
+    "milliseconds": 80,
+    "returncode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "edge": 256,
+    "cache": true,
+    "milliseconds": 161,
+    "returncode": 0,
+    "stdout": "cache-written\n",
+    "stderr": ""
+  },
+  {
+    "edge": 1024,
+    "cache": false,
+    "milliseconds": 127,
+    "returncode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "edge": 1024,
+    "cache": true,
+    "milliseconds": 718,
+    "returncode": 0,
+    "stdout": "cache-written\n",
+    "stderr": ""
+  },
+  {
+    "edge": 0,
+    "cache": false,
+    "milliseconds": 145,
+    "returncode": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+]

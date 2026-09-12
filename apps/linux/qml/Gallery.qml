@@ -276,6 +276,8 @@ Item {
                     ToolTip.text: tile.name + (tile.error ? "\n" + tile.error : "")
                     Accessible.name: tile.name
                     Accessible.role: Accessible.ListItem
+                    Accessible.selectable: !tile.folder
+                    Accessible.selected: tile.selected
                 }
             }
         }

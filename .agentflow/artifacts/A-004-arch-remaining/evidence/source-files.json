@@ -1,0 +1,8 @@
+{
+  "apps/linux/CMakeLists.txt": "054fec9fa9530cda565489eac1bfff6c0565879f17c54e4c2584c7745b7dc98a",
+  "apps/linux/src/main.cpp": "485e8440657c8435f69ee8bbb45bccfb240e1ef7cbd10bdb9e432395855980c2",
+  "apps/linux/src/worker_main.cpp": "3b2eb9a9cb31d50cf5620bc91e2d9e9dd667565bb99a7d66f1089b62baf97de8",
+  "apps/linux/qml/Gallery.qml": "bff76e9b8fbe46d62d9553fde0ad9798256a95b73e49c24cc8449164c63349bb",
+  "apps/linux/qml/NeutralComboBox.qml": "16544497be49c4945785a5c11d3158191c75b20946585f46e2da0396bbb5d110",
+  "apps/linux/tests/qml_test.cpp": "d8f8f58a96272b7214936b09002285c2806562ff2f7c943c841dc4368612d64a"
+}

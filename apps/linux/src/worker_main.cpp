@@ -145,7 +145,11 @@ int main(int argc, char **argv) {
             // PNG is cache-only. Exclusive creation also protects symlinks and source aliases.
             QFile cached(cache);
             if (cached.open(QIODevice::WriteOnly | QIODevice::NewOnly)) {
-                if (image.save(&cached, "PNG") && cached.flush()) QTextStream(stdout) << "cache-written\n";
+                // Cache encoding is on the preview's critical path. Store lossless
+                // PNG without deflate compression; source/export quality is unchanged.
+                QImageWriter writer(&cached, "PNG");
+                writer.setCompression(0);
+                if (writer.write(image) && cached.flush()) QTextStream(stdout) << "cache-written\n";
             }
         }
     }

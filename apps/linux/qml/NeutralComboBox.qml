@@ -24,6 +24,7 @@ ComboBox {
         glyph: "chevron-right"
         rotation: 90
         enabled: false
+        Accessible.ignored: true
         opacity: 1
         background: Item {}
     }
@@ -40,6 +41,9 @@ ComboBox {
         width: control.width
         height: 36
         highlighted: control.highlightedIndex === index
+        Accessible.name: modelData
+        Accessible.selectable: true
+        Accessible.selected: control.currentIndex === index
         contentItem: Text {
             text: option.modelData
             font: control.font

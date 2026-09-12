@@ -1,0 +1,5 @@
+https://raw.githubusercontent.com/KDE/plasma-integration/Plasma/6.7/qt6/src/platformtheme/kdeplatformtheme.cpp
+bool KdePlatformTheme::usePlatformNativeDialog(QPlatformTheme::DialogType type) const
+{
+    return (type == QPlatformTheme::FileDialog || type == QPlatformTheme::MessageDialog) && qobject_cast<QApplication *>(QCoreApplication::instance());
+}

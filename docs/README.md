@@ -1,6 +1,6 @@
 # PicLens 文件
 
-本文件集描述 Windows／WPF 與 Arch Linux／Qt Quick 的原生實作。兩版放在同一個 repo，分別實作。Windows 已完成；Arch TODO 只保留未完成項目。
+本文件集描述 Windows／WPF 與 Arch Linux／Qt Quick 的原生實作。兩版放在同一個 repo，分別實作。Windows 與 Arch 已完成平台驗收，證據與限制見各平台紀錄。
 
 ## 文件分工
 
@@ -13,7 +13,7 @@
 
 - [Windows 文件](windows/README.md)：架構、設計、發布、開發入口及完成驗收證據。
 - [Linux／Arch 文件](linux/README.md)：架構、設計、發布及開發入口。
-- [Arch TODO](../TODO.arch.md)：C++20、Qt Quick／QML。
+- [Arch 驗證紀錄](linux/arch-validation.md)：C++20、Qt Quick／QML。
 - [開發指南](guides/development.md)：執行順序、文件更新與交付方式。
 
 ## 文件權責

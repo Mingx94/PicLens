@@ -1,6 +1,6 @@
 #include "controller.h"
 #include "imageitem.h"
-#include <QGuiApplication>
+#include <QApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickWindow>
@@ -13,7 +13,7 @@
 #include <QTimer>
 
 int main(int argc,char**argv){
-    QGuiApplication gui(argc,argv);QGuiApplication::setApplicationName("PicLens");QGuiApplication::setApplicationVersion(PICLENS_VERSION);
+    QApplication gui(argc,argv);QGuiApplication::setApplicationName("PicLens");QGuiApplication::setApplicationVersion(PICLENS_VERSION);
     QGuiApplication::setDesktopFileName("piclens");QGuiApplication::setWindowIcon(QIcon(":/Square150x150Logo.scale-200.png"));
     QQuickStyle::setStyle("Basic");QCommandLineParser parser;parser.setApplicationDescription("PicLens Arch Linux / Qt development preview");parser.addHelpOption();parser.addVersionOption();
     for(const auto& name:{"folder","data-root","smoke-ms","screenshot","metrics","viewer","width","height","diagnostic-items"})parser.addOption(QCommandLineOption(name,name,"value"));

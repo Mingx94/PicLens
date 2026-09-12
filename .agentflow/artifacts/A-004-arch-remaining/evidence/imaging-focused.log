@@ -1,0 +1,26 @@
+********* Start testing of ImagingTest *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : ImagingTest::initTestCase()
+PASS   : ImagingTest::staticFormats(png)
+PASS   : ImagingTest::staticFormats(jpg)
+PASS   : ImagingTest::staticFormats(jpeg)
+PASS   : ImagingTest::staticFormats(bmp)
+PASS   : ImagingTest::staticFormats(webp)
+PASS   : ImagingTest::staticFormats(gif)
+PASS   : ImagingTest::animationAndOversizeRejected()
+PASS   : ImagingTest::animatedWebpAlphaAndCorruptionAreRecognized()
+PASS   : ImagingTest::coldWarmAndIdentity()
+PASS   : ImagingTest::sameInputRequestsHaveIndependentResults()
+PASS   : ImagingTest::recentCacheEvictsOldEntriesPast32MiB()
+PASS   : ImagingTest::threePreviewsFitActualAllocationBudget()
+PASS   : ImagingTest::originalTilesAndBorders()
+PASS   : ImagingTest::conversionPreservesSourceAndRefusesOverwrite()
+PASS   : ImagingTest::failuresAndCancellationAreTerminal()
+PASS   : ImagingTest::queueBoundAndShutdownReap()
+PASS   : ImagingTest::stalledWorkerTimeout()
+PASS   : ImagingTest::quiesceReapsAndAllowsResume()
+PASS   : ImagingTest::startupAndDirtyCachePruneKeepsTwoThousandOwnedEntries()
+PASS   : ImagingTest::zoomAndOriginalPaintSignal()
+PASS   : ImagingTest::cleanupTestCase()
+Totals: 22 passed, 0 failed, 0 skipped, 0 blacklisted, 35617ms
+********* Finished testing of ImagingTest *********

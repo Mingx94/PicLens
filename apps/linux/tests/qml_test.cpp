@@ -258,6 +258,62 @@ private slots:
         qmlRegisterType<ImageItem>("PicLens.Native", 1, 0, "ImageItem");
     }
 
+    void sortOptionsExposeAccessibleNames()
+    {
+        Harness h;
+        QVERIFY(h.load());
+        auto *combo = findItem(h.window, [](QQuickItem *item) {
+            auto *accessible = QAccessible::queryAccessibleInterface(item);
+            return item->isVisible() && accessible
+                && accessible->role() == QAccessible::ComboBox
+                && accessible->text(QAccessible::Name) == QStringLiteral("排序方式");
+        });
+        QVERIFY(combo);
+        auto *popup = combo->property("popup").value<QObject *>();
+        QVERIFY(popup);
+        QVERIFY(QMetaObject::invokeMethod(popup, "open"));
+        QTRY_VERIFY(popup->property("visible").toBool());
+        const QStringList names = {QStringLiteral("名稱（升冪）"), QStringLiteral("名稱（降冪）"),
+                                   QStringLiteral("修改時間（最舊優先）"), QStringLiteral("修改時間（最新優先）")};
+        for (int index = 0; index < names.size(); ++index) {
+            QQuickItem *option = nullptr;
+            QTRY_VERIFY((option = findVisualItem(h.window->contentItem(), [index](QQuickItem *item) {
+                return item->isVisible() && item->property("modelData").isValid()
+                    && item->property("highlighted").isValid() && item->property("index").toInt() == index;
+            })));
+            auto *accessible = QAccessible::queryAccessibleInterface(option);
+            QVERIFY(accessible);
+            QCOMPARE(accessible->role(), QAccessible::ListItem);
+            QCOMPARE(accessible->text(QAccessible::Name), names.at(index));
+        }
+    }
+
+    void galleryAccessibilityTracksSelection()
+    {
+        Harness h;
+        QVERIFY(h.filesReady());
+        QVERIFY(h.load());
+        h.controller.start(h.library);
+        waitForGallery(h, 8);
+        const QString path = h.path("alpha.png");
+        auto accessible = [&]() {
+            return QAccessible::queryAccessibleInterface(findTilePointer(findDelegate(h.window, path)));
+        };
+        QTRY_VERIFY(findDelegate(h.window, path));
+        QVERIFY(accessible());
+        QCOMPARE(accessible()->role(), QAccessible::ListItem);
+        QCOMPARE(accessible()->text(QAccessible::Name), QStringLiteral("alpha.png"));
+        QVERIFY(accessible()->state().selectable);
+        QVERIFY(!accessible()->state().selected);
+        QTest::mouseClick(h.window, Qt::LeftButton, Qt::NoModifier,
+                         itemCenter(findDelegate(h.window, path), h.window));
+        QTRY_COMPARE(h.controller.selectionCount(), 1);
+        QTRY_VERIFY(accessible()->state().selected);
+        h.controller.clearSelection();
+        QTRY_COMPARE(h.controller.selectionCount(), 0);
+        QTRY_VERIFY(!accessible()->state().selected);
+    }
+
     void entrySettingsAndNarrowLayout()
     {
         Harness h;

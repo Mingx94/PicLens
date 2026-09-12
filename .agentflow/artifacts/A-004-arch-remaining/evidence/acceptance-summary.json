@@ -1,0 +1,66 @@
+{
+  "desktop": {
+    "x11": {
+      "scale": 2,
+      "checks": 23,
+      "passed": true,
+      "errors": [],
+      "orcaRunning": true,
+      "base": "/work/runtime/x11-2-1789236373"
+    },
+    "kde": {
+      "scale": 2,
+      "checks": 23,
+      "passed": true,
+      "errors": [],
+      "orcaRunning": true,
+      "base": "/work/runtime/kde-2-1789236373"
+    }
+  },
+  "performance": {
+    "cold": {
+      "viewerSelections": 12,
+      "viewerSharpPaintCount": 12,
+      "viewerSharpPaintMaximumMilliseconds": 482,
+      "viewerSharpTargetMisses": 0,
+      "unpaintedSelections": 0,
+      "rssBytes": 222420992,
+      "peakRssBytes": 221855744,
+      "processCpuMilliseconds": 1497,
+      "windowWidth": 960,
+      "windowHeight": 1054,
+      "devicePixelRatio": 1,
+      "platformPlugin": "wayland"
+    },
+    "warm": {
+      "viewerSelections": 12,
+      "viewerSharpPaintCount": 12,
+      "viewerSharpPaintMaximumMilliseconds": 296,
+      "viewerSharpTargetMisses": 0,
+      "unpaintedSelections": 0,
+      "rssBytes": 221831168,
+      "peakRssBytes": 221061120,
+      "processCpuMilliseconds": 1469,
+      "windowWidth": 960,
+      "windowHeight": 1054,
+      "devicePixelRatio": 1,
+      "platformPlugin": "wayland"
+    }
+  },
+  "tests": {
+    "Debug": {
+      "ctest": 6,
+      "seconds": 45.78
+    },
+    "Release": {
+      "ctest": 6,
+      "seconds": 51.86
+    },
+    "realPtyCases": 8
+  },
+  "limitations": [
+    "Private Xvfb/Openbox native X11 and nested KWin/Plasma Wayland; shared host kernel, software rendering; not booted VMs or physical displays.",
+    "Orca speech output and real AT-SPI bridge observed; no physical audio or braille hardware validation.",
+    "App cache cold/warm with OS page cache retained; idle task load; scene graph submission, not compositor presentation."
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "mode": "x11",
+  "scale": "2",
+  "base": "/work/runtime/x11-2-1789235567",
+  "checks": {
+    "emptyStartup": true,
+    "nativeKdePicker": true,
+    "emptyPickerCancelPreservesEmpty": true,
+    "pickerSetsPersistentRoot": true,
+    "populatedPickerCancelPreservesProfile": true,
+    "keyboardSearchFocus": true,
+    "realBopomofoCommit": true,
+    "accessibleTileSelection": false,
+    "contextMenu": false,
+    "viewerOpen": true,
+    "childNavigationPreservesRoot": true,
+    "startupRestoresPickerFolder": true,
+    "emptyFolderSelection": true
+  },
+  "errors": [],
+  "inputMethod": "chewing",
+  "imeCommittedText": "中",
+  "clicks": [
+    {
+      "name": "中圖.jpg",
+      "logicalRect": [
+        961,
+        289,
+        168,
+        216
+      ],
+      "pixel": [
+        2090,
+        794
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "中圖.jpg",
+      "logicalRect": [
+        961,
+        289,
+        168,
+        216
+      ],
+      "pixel": [
+        2090,
+        794
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "中圖.jpg",
+      "logicalRect": [
+        961,
+        289,
+        168,
+        216
+      ],
+      "pixel": [
+        2090,
+        794
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "child",
+      "logicalRect": [
+        433,
+        289,
+        168,
+        216
+      ],
+      "pixel": [
+        1034,
+        794
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    }
+  ],
+  "selectedTileStates": [
+    "enabled",
+    "sensitive",
+    "showing",
+    "transient",
+    "visible"
+  ],
+  "orcaRunning": true
+}

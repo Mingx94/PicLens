@@ -1,0 +1,116 @@
+[
+  {
+    "name": "help",
+    "terminal": "/dev/pts/0",
+    "argv": [
+      "/tmp/piclens-arch-validation.IHj5Y4Ng/build/piclens",
+      "--data-root",
+      "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/help",
+      "--help"
+    ],
+    "exit": 0,
+    "expected": 0,
+    "output": "tty\r\n/tmp/piclens-arch-validation.IHj5Y4Ng/build/piclens --data-root /home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/help --help\r\nresult=$?\r\nprintf 'PICLENS_EXIT=%s\\n' \"$result\"\r\nexit \"$result\"\r\npiclens-check> tty\r\n/dev/pts/0\r\npiclens-check> \r<rtifacts/A-004-arch-remaining/cli-final/help --help\r\nUsage: /tmp/piclens-arch-validation.IHj5Y4Ng/build/piclens [options]\r\nPicLens Arch Linux / Qt development preview\r\n\r\nOptions:\r\n  -h, --help                  Displays help on commandline options.\r\n  --help-all                  Displays help, including generic Qt options.\r\n  -v, --version               Displays version information.\r\n  --folder <value>            folder\r\n  --data-root <value>         data-root\r\n  --smoke-ms <value>          smoke-ms\r\n  --screenshot <value>        screenshot\r\n  --metrics <value>           metrics\r\n  --viewer <value>            viewer\r\n  --width <value>             width\r\n  --height <value>            height\r\n  --diagnostic-items <value>  diagnostic-items\r\n  --dark                      Use dark palette\r\n  --exercise                  Exercise non-destructive navigation\r\n  --components                Show component gallery\r\npiclens-check> result=$?\r\npiclens-check> printf 'PICLENS_EXIT=%s\\n' \"$result\"\r\nPICLENS_EXIT=0\r\npiclens-check> exit \"$result\"\r\nexit\r\n"
+  },
+  {
+    "name": "version",
+    "terminal": "/dev/pts/0",
+    "argv": [
+      "/tmp/piclens-arch-validation.IHj5Y4Ng/build/piclens",
+      "--data-root",
+      "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/version",
+      "--version"
+    ],
+    "exit": 0,
+    "expected": 0,
+    "output": "tty\r\n/tmp/piclens-arch-validation.IHj5Y4Ng/build/piclens --data-root /home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/version --version\r\nresult=$?\r\nprintf 'PICLENS_EXIT=%s\\n' \"$result\"\r\nexit \"$result\"\r\npiclens-check> tty\r\n/dev/pts/0\r\npiclens-check> \r<ts/A-004-arch-remaining/cli-final/version --version\r\nPicLens 4.0.0\r\npiclens-check> result=$?\r\npiclens-check> printf 'PICLENS_EXIT=%s\\n' \"$result\"\r\nPICLENS_EXIT=0\r\npiclens-check> exit \"$result\"\r\nexit\r\n"
+  },
+  {
+    "name": "unknown",
+    "terminal": "/dev/pts/0",
+    "argv": [
+      "/tmp/piclens-arch-validation.IHj5Y4Ng/build/piclens",
+      "--data-root",
+      "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/unknown",
+      "--unknown"
+    ],
+    "exit": 2,
+    "expected": 2,
+    "output": "tty\r\n/tmp/piclens-arch-validation.IHj5Y4Ng/build/piclens --data-root /home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/unknown --unknown\r\nresult=$?\r\nprintf 'PICLENS_EXIT=%s\\n' \"$result\"\r\nexit \"$result\"\r\npiclens-check> tty\r\n/dev/pts/0\r\npiclens-check> \r<ts/A-004-arch-remaining/cli-final/unknown --unknown\r\nUnknown option 'unknown'.\r\npiclens-check> result=$?\r\npiclens-check> printf 'PICLENS_EXIT=%s\\n' \"$result\"\r\nPICLENS_EXIT=2\r\npiclens-check> exit \"$result\"\r\nexit\r\n"
+  },
+  {
+    "name": "missing-argument",
+    "terminal": "/dev/pts/0",
+    "argv": [
+      "/tmp/piclens-arch-validation.IHj5Y4Ng/build/piclens",
+      "--data-root",
+      "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/missing-argument",
+      "--metrics"
+    ],
+    "exit": 2,
+    "expected": 2,
+    "output": "tty\r\n/tmp/piclens-arch-validation.IHj5Y4Ng/build/piclens --data-root /home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/missing-argument --metrics\r\nresult=$?\r\nprintf 'PICLENS_EXIT=%s\\n' \"$result\"\r\nexit \"$result\"\r\npiclens-check> tty\r\n/dev/pts/0\r\npiclens-check> \r<arch-remaining/cli-final/missing-argument --metrics\r\nMissing value after '--metrics'.\r\npiclens-check> result=$?\r\npiclens-check> printf 'PICLENS_EXIT=%s\\n' \"$result\"\r\nPICLENS_EXIT=2\r\npiclens-check> exit \"$result\"\r\nexit\r\n"
+  },
+  {
+    "name": "invalid-number",
+    "terminal": "/dev/pts/0",
+    "argv": [
+      "/tmp/piclens-arch-validation.IHj5Y4Ng/build/piclens",
+      "--data-root",
+      "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/invalid-number",
+      "--smoke-ms",
+      "bad"
+    ],
+    "exit": 2,
+    "expected": 2,
+    "output": "tty\r\n/tmp/piclens-arch-validation.IHj5Y4Ng/build/piclens --data-root /home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/invalid-number --smoke-ms bad\r\nresult=$?\r\nprintf 'PICLENS_EXIT=%s\\n' \"$result\"\r\nexit \"$result\"\r\npiclens-check> tty\r\n/dev/pts/0\r\npiclens-check> \r<h-remaining/cli-final/invalid-number --smoke-ms bad\r\nInvalid --smoke-ms\r\npiclens-check> result=$?\r\npiclens-check> printf 'PICLENS_EXIT=%s\\n' \"$result\"\r\nPICLENS_EXIT=2\r\npiclens-check> exit \"$result\"\r\nexit\r\n"
+  },
+  {
+    "name": "metrics-full",
+    "terminal": "/dev/pts/0",
+    "argv": [
+      "/tmp/piclens-arch-validation.IHj5Y4Ng/build/piclens",
+      "--data-root",
+      "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/metrics-full",
+      "--metrics",
+      "/dev/full",
+      "--smoke-ms",
+      "1"
+    ],
+    "exit": 3,
+    "expected": 3,
+    "output": "tty\r\n/tmp/piclens-arch-validation.IHj5Y4Ng/build/piclens --data-root /home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/metrics-full --metrics /dev/full --smoke-ms 1\r\nresult=$?\r\nprintf 'PICLENS_EXIT=%s\\n' \"$result\"\r\nexit \"$result\"\r\npiclens-check> tty\r\n/dev/pts/0\r\npiclens-check> \r<final/metrics-full --metrics /dev/full --smoke-ms 1\r\npiclens-check> result=$?\r\npiclens-check> printf 'PICLENS_EXIT=%s\\n' \"$result\"\r\nPICLENS_EXIT=3\r\npiclens-check> exit \"$result\"\r\nexit\r\n"
+  },
+  {
+    "name": "metrics-success",
+    "terminal": "/dev/pts/0",
+    "argv": [
+      "/tmp/piclens-arch-validation.IHj5Y4Ng/build/piclens",
+      "--data-root",
+      "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/metrics-success",
+      "--metrics",
+      "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/metrics.json",
+      "--smoke-ms",
+      "100"
+    ],
+    "exit": 0,
+    "expected": 0,
+    "output": "tty\r\n/tmp/piclens-arch-validation.IHj5Y4Ng/build/piclens --data-root /home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/metrics-success --metrics /home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/metrics.json --smoke-ms 100\r\nresult=$?\r\nprintf 'PICLENS_EXIT=%s\\n' \"$result\"\r\nexit \"$result\"\r\npiclens-check> tty\r\n/dev/pts/0\r\npiclens-check> \r<rch-remaining/cli-final/metrics.json --smoke-ms 100\r\npiclens-check> result=$?\r\npiclens-check> printf 'PICLENS_EXIT=%s\\n' \"$result\"\r\nPICLENS_EXIT=0\r\npiclens-check> exit \"$result\"\r\nexit\r\n"
+  },
+  {
+    "name": "missing-folder",
+    "terminal": "/dev/pts/0",
+    "argv": [
+      "/tmp/piclens-arch-validation.IHj5Y4Ng/build/piclens",
+      "--data-root",
+      "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/missing-folder",
+      "--folder",
+      "/home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/missing",
+      "--smoke-ms",
+      "100"
+    ],
+    "exit": 0,
+    "expected": 0,
+    "output": "tty\r\n/tmp/piclens-arch-validation.IHj5Y4Ng/build/piclens --data-root /home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/missing-folder --folder /home/michael/Work/PicLens/.agentflow/artifacts/A-004-arch-remaining/cli-final/missing --smoke-ms 100\r\nresult=$?\r\nprintf 'PICLENS_EXIT=%s\\n' \"$result\"\r\nexit \"$result\"\r\npiclens-check> tty\r\n/dev/pts/0\r\npiclens-check> \r<004-arch-remaining/cli-final/missing --smoke-ms 100\r\npiclens-check> result=$?\r\npiclens-check> printf 'PICLENS_EXIT=%s\\n' \"$result\"\r\nPICLENS_EXIT=0\r\npiclens-check> exit \"$result\"\r\nexit\r\n"
+  }
+]

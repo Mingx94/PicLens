@@ -47,7 +47,7 @@ def allowed(name):
         return False
     if p.name in {'CMakeUserPresets.json', 'CMakeCache.txt', 'compile_commands.json'}:
         return False
-    if name in {'LICENSE', 'TODO.arch.md'}:
+    if name == 'LICENSE':
         return True
     if name.startswith('docs/') and p.suffix == '.md' and (
         name in TRACKED or (

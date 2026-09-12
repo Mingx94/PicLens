@@ -1,0 +1,11 @@
+********* Start testing of QmlIntegrationTest *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : QmlIntegrationTest::initTestCase()
+FAIL!  : QmlIntegrationTest::sortOptionsExposeAccessibleNames() Compared values are not the same
+   Actual   (accessible->text(QAccessible::Name)): ""
+   Expected (names.at(index))                    : "\u540D\u7A31\uFF08\u5347\u51AA\uFF09"
+   Loc: [/home/michael/Work/PicLens/apps/linux/tests/qml_test.cpp(287)]
+PASS   : QmlIntegrationTest::galleryAccessibilityTracksSelection()
+PASS   : QmlIntegrationTest::cleanupTestCase()
+Totals: 3 passed, 1 failed, 0 skipped, 0 blacklisted, 295ms
+********* Finished testing of QmlIntegrationTest *********
