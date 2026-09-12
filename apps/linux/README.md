@@ -133,7 +133,7 @@ bash packaging/arch/validate.sh build
 | `--exercise` | 執行非破壞性的搜尋、選取與 Viewer A-B-A 來回流程。 |
 | `--components` | 顯示元件展示 Dialog；只展示控制項，不執行檔案操作。 |
 
-數字欄位只接受整數。CLI parse／驗證、`piclens-worker` 缺失及 QML 根物件載入失敗回傳 `2`。截圖儲存失敗或 metrics 輸出檔無法開啟回傳 `3`；其他正常關閉為 `0`。目前程式未把 metrics `write()` 的短寫入另轉成錯誤。
+數字欄位只接受整數。CLI parse／驗證、`piclens-worker` 缺失及 QML 根物件載入失敗回傳 `2`。截圖儲存失敗，或 metrics 輸出檔無法開啟、`write()` 短寫入、`flush()` 失敗，皆回傳 `3`；其他正常關閉為 `0`。
 
 診斷計時器是固定的。`--diagnostic-items` 先在 `0 ms` 注入資料，接著在 `600/1200/1800/2400/3000 ms` 發出捲動位置。`--exercise` 在 `1200 ms` 開始，250 ms 後清除搜尋、選取第一個非資料夾項目並開啟 Viewer；之後在 `700/1400/2100/2800/3500/4200 ms` 交替前後移動，包含初始選取共可觀察 7 次選取。它不呼叫檔案轉換、重新命名或回收。
 

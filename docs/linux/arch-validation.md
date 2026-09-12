@@ -1,7 +1,9 @@
 # Arch 平台驗證紀錄
 
-驗證日期：2026-09-13（Asia/Taipei）  
-runtime／tests 來源 commit：`27464f3fa33bf999540fc3745f07e3b596b2c74d`  
+驗證日期：2026-09-13（Asia/Taipei）
+
+runtime／tests 來源 commit：`27464f3fa33bf999540fc3745f07e3b596b2c74d`
+
 平台：Omarchy 4.0.3 x86_64、Hyprland Wayland、Qt 6.11.2、GCC 16.2.1、Intel UHD 620、Mesa 26.2.2。乾淨建置另使用官方簽章驗證的 2026.09.01 Arch bootstrap。
 
 ## 結論
