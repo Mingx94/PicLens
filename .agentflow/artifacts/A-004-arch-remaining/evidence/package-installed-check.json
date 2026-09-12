@@ -1,0 +1,84 @@
+{
+  "environment": "private rootless Arch, offscreen rendering; no host installation",
+  "harness_correction": "Earlier --viewer lacked its required image path and consumed --smoke-ms; coordinator stopped only that own private process and removed package. Correct final invocation supplies an explicit image path. No product change.",
+  "checks": [
+    {
+      "name": "prior-status",
+      "argv": [
+        "pacman",
+        "-Q",
+        "piclens"
+      ],
+      "uid": "1000",
+      "exitCode": 1
+    },
+    {
+      "name": "install",
+      "argv": [
+        "pacman",
+        "-U",
+        "--noconfirm",
+        "/packages/piclens-4.0.0-1-x86_64.pkg.tar.zst"
+      ],
+      "uid": "0",
+      "exitCode": 0
+    },
+    {
+      "name": "dependencies",
+      "argv": [
+        "ldd",
+        "/usr/bin/piclens"
+      ],
+      "uid": "1000",
+      "exitCode": 0
+    },
+    {
+      "name": "version",
+      "argv": [
+        "piclens",
+        "--version"
+      ],
+      "uid": "1000",
+      "exitCode": 0
+    },
+    {
+      "name": "smoke",
+      "argv": [
+        "piclens",
+        "--data-root",
+        "/work/package-home/final-profile",
+        "--folder",
+        "/work/corpus",
+        "--viewer",
+        "/work/corpus/Gull_portrait_ca_usa.jpg",
+        "--smoke-ms",
+        "5000",
+        "--metrics",
+        "/work/evidence/package-smoke-metrics.json"
+      ],
+      "uid": "1000",
+      "exitCode": 0
+    },
+    {
+      "name": "remove",
+      "argv": [
+        "pacman",
+        "-R",
+        "--noconfirm",
+        "piclens"
+      ],
+      "uid": "0",
+      "exitCode": 0
+    },
+    {
+      "name": "removed-status",
+      "argv": [
+        "pacman",
+        "-Q",
+        "piclens"
+      ],
+      "uid": "1000",
+      "exitCode": 1
+    }
+  ]
+}

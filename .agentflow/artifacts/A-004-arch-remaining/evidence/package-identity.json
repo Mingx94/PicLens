@@ -1,0 +1,23 @@
+{
+  "implementation_commit": "83d7e3d9fa900f676fc7ea34c6d99de5b9fb11e0",
+  "source_kind": "working-tree snapshot; NOT a release tag",
+  "snapshot_base_commit": "d5e63f37b6d8cc5c86c135e9061900de54e25432",
+  "source_sha256": "533f0549bf86da487aa2f488d4794e46ba9345f610a1d357c408716eff7157e3",
+  "source_manifest_differences": [
+    "docs/linux/arch-validation.md"
+  ],
+  "all_runtime_and_tests_match": true,
+  "packages": {
+    "piclens-4.0.0-1-x86_64.pkg.tar.zst": {
+      "sha256": "dcad158b9df876e62b8741578f0ee4a9365b0ca357ee2265aaf49bc93774c27b",
+      "bytes": 308120
+    },
+    "piclens-debug-4.0.0-1-x86_64.pkg.tar.zst": {
+      "sha256": "48f97ce21fae330ffa9da77f3ae4b67ba0be8025631863c61027228dd654ada1",
+      "bytes": 4415863
+    }
+  },
+  "host_install": false,
+  "public_release": false,
+  "snapshot_document_difference": "docs/linux/arch-validation.md: only 選项 → 選項 in accessibility row after snapshot; runtime and tests byte-identical."
+}

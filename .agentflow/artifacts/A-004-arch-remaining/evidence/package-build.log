@@ -1,0 +1,76 @@
+[40/66] Building CXX object CMakeFiles/app_test.dir/tests/app_test.cpp.o
+[41/66] Building CXX object CMakeFiles/app_test.dir/src/services.cpp.o
+[42/66] Building CXX object CMakeFiles/app_test.dir/src/models.cpp.o
+[43/66] Building CXX object CMakeFiles/controller_test.dir/controller_test_autogen/mocs_compilation.cpp.o
+[44/66] Building CXX object CMakeFiles/controller_test.dir/tests/controller_test.cpp.o
+[45/66] Building CXX object CMakeFiles/controller_test.dir/src/controller.cpp.o
+[46/66] Building CXX object CMakeFiles/controller_test.dir/src/services.cpp.o
+[47/66] Building CXX object CMakeFiles/controller_test.dir/src/models.cpp.o
+[48/66] Building CXX object CMakeFiles/qml_test.dir/qml_test_autogen/mocs_compilation.cpp.o
+[49/66] Building CXX object CMakeFiles/qml_test.dir/tests/qml_test.cpp.o
+[50/66] Building CXX object CMakeFiles/qml_test.dir/src/controller.cpp.o
+[51/66] Building CXX object CMakeFiles/qml_test.dir/src/services.cpp.o
+[52/66] Building CXX object CMakeFiles/qml_test.dir/.qt/rcc/qrc_qml.cpp.o
+[53/66] Building CXX object CMakeFiles/qml_test.dir/.qt/rcc/qrc_icons.cpp.o
+[54/66] Building CXX object CMakeFiles/qml_test.dir/src/models.cpp.o
+[55/66] Building CXX object CMakeFiles/metrics_test.dir/metrics_test_autogen/mocs_compilation.cpp.o
+[56/66] Building CXX object CMakeFiles/metrics_test.dir/tests/metrics_test.cpp.o
+[57/66] Building CXX object CMakeFiles/metrics_test.dir/src/controller.cpp.o
+[58/66] Building CXX object CMakeFiles/metrics_test.dir/src/services.cpp.o
+[59/66] Building CXX object CMakeFiles/metrics_test.dir/src/models.cpp.o
+[60/66] Linking CXX executable domain_test
+[61/66] Linking CXX executable imaging_test
+[62/66] Linking CXX executable app_test
+[63/66] Linking CXX executable controller_test
+[64/66] Linking CXX executable qml_test
+[65/66] Linking CXX executable metrics_test
+==> Starting check()...
+Test project /work/src/build
+    Start 1: domain
+1/6 Test #1: domain ...........................   Passed    0.14 sec
+    Start 2: imaging
+2/6 Test #2: imaging ..........................   Passed   35.72 sec
+    Start 3: app
+3/6 Test #3: app ..............................   Passed    0.04 sec
+    Start 4: controller
+4/6 Test #4: controller .......................   Passed    0.76 sec
+    Start 5: qml
+5/6 Test #5: qml ..............................   Passed    3.03 sec
+    Start 6: metrics
+6/6 Test #6: metrics ..........................   Passed    1.80 sec
+
+100% tests passed out of 6
+
+Total Test time (real) =  41.49 sec
+==> Entering fakeroot environment...
+==> Starting package()...
+-- Install configuration: "Release"
+-- Installing: /work/pkg/piclens/usr/bin/piclens
+-- Set non-toolchain portion of runtime path of "/work/pkg/piclens/usr/bin/piclens" to "$ORIGIN:$ORIGIN/../lib"
+-- Installing: /work/pkg/piclens/usr/libexec/piclens/piclens-worker
+-- Set non-toolchain portion of runtime path of "/work/pkg/piclens/usr/libexec/piclens/piclens-worker" to "$ORIGIN:$ORIGIN/../lib"
+-- Installing: /work/pkg/piclens/usr/share/applications/piclens.desktop
+-- Installing: /work/pkg/piclens/usr/share/icons/hicolor/48x48/apps/piclens.png
+-- Installing: /work/pkg/piclens/usr/share/metainfo/io.github.Mingx94.PicLens.metainfo.xml
+-- Installing: /work/pkg/piclens/usr/share/licenses/piclens/LICENSE
+-- Installing: /work/pkg/piclens/usr/share/licenses/piclens/THIRD-PARTY.md
+-- Installing: /work/pkg/piclens/usr/share/licenses/piclens/Lucide-LICENSE.txt
+==> Tidying install...
+  -> Removing libtool files...
+  -> Removing static library files...
+  -> Purging unwanted files...
+  -> Stripping unneeded symbols from binaries and libraries...
+  -> Compressing man and info pages...
+==> Checking for packaging issues...
+==> Creating package "piclens"...
+  -> Generating .PKGINFO file...
+  -> Generating .BUILDINFO file...
+  -> Generating .MTREE file...
+  -> Compressing package...
+==> Creating package "piclens-debug"...
+  -> Generating .PKGINFO file...
+  -> Generating .BUILDINFO file...
+  -> Generating .MTREE file...
+  -> Compressing package...
+==> Leaving fakeroot environment.
+==> Finished making: piclens 4.0.0-1 (Sat Sep 12 18:13:17 2026)

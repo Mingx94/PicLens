@@ -1,0 +1,26 @@
+{
+  "implementation_commit": "83d7e3d9fa900f676fc7ea34c6d99de5b9fb11e0",
+  "changed_markdown_checked": [
+    ".agentflow/artifacts/A-004-arch-remaining/README.md",
+    "README.md",
+    "apps/linux/README.md",
+    "docs/README.md",
+    "docs/engineering/architecture.md",
+    "docs/engineering/performance.md",
+    "docs/guides/development.md",
+    "docs/linux/README.md",
+    "docs/linux/arch-validation.md",
+    "docs/product/acceptance.md",
+    "packaging/arch/README.md"
+  ],
+  "missing_local_links": [],
+  "source_evidence_hashes_match": {
+    "apps/linux/CMakeLists.txt": true,
+    "apps/linux/src/main.cpp": true,
+    "apps/linux/src/worker_main.cpp": true,
+    "apps/linux/qml/Gallery.qml": true,
+    "apps/linux/qml/NeutralComboBox.qml": true,
+    "apps/linux/tests/qml_test.cpp": true
+  },
+  "todo_removed": true
+}

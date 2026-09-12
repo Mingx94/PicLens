@@ -1,0 +1,20 @@
+{
+  "test_log_path": "/tmp/piclens-A004-crosscheck-build/Testing/Temporary/LastTest.log",
+  "test_passed_count": 6,
+  "test_failed_count": 0,
+  "suite_names": [
+    "domain",
+    "imaging",
+    "app",
+    "controller",
+    "qml",
+    "metrics"
+  ],
+  "qt_totals": [
+    "Totals: 22 passed, 0 failed, 0 skipped, 0 blacklisted, 35465ms",
+    "Totals: 7 passed, 0 failed, 0 skipped, 0 blacklisted, 51ms",
+    "Totals: 12 passed, 0 failed, 0 skipped, 0 blacklisted, 1384ms",
+    "Totals: 13 passed, 0 failed, 0 skipped, 0 blacklisted, 3652ms",
+    "Totals: 9 passed, 0 failed, 0 skipped, 0 blacklisted, 1808ms"
+  ]
+}

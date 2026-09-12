@@ -8,9 +8,9 @@
 
 - **Goal:** 完成剩餘5項Arch驗收；有證據才移除，全部通過才刪除TODO.arch.md.
 
-- **Last update:** 2026-09-13 02:05:44 Asia/Taipei.
+- **Last update:** 2026-09-13 02:20:03 Asia/Taipei.
 
-- **Evidence commit:** uncommitted.
+- **Evidence commit:** 83d7e3d9fa900f676fc7ea34c6d99de5b9fb11e0.
 
 ## Overall state
 
@@ -42,13 +42,13 @@
 
 - **Current item:** T-4.
 
-- **Last proven result:** KDE/X11 19項journey全通過；選取與排序a11y缺口已修正，更新後正複核。9檔混合圖庫冷暖各12次原圖paint均無超標/未完成，冷最大482ms.
+- **Last proven result:** KDE/X11各23項全通過；Debug/Release各6組通過，PTY 8案通過；冷max482ms、暖max296ms；53項完成後已刪除TODO。Arch makepkg與check 6/6通過.
 
-- **Active blocker or running process:** 最後原生a11y、Debug/Release suite正開始.
+- **Active blocker or running process:** 產品驗收與套件測試全通過；獨立review僅阻擋舊STATUS/tracker描述，現在同步紀錄並作bounded複核.
 
-- **Next safe action:** 收取最後原生與suite結果，移除所有已完成TODO並更新驗證文件.
+- **Next safe action:** 針對舊STATUS/tracker描述複核；T-4只有review/record/push收尾，不表示Arch五項產品TODO未完成.
 
-- **Expected changed files:** TODO.arch.md、docs/linux/arch-validation.md、apps/linux/src/、apps/linux/qml/、apps/linux/tests/、apps/linux/CMakeLists.txt、.agentflow/devlog.md與A-004證據；runtime修改須先有實際失敗與需求對應.
+- **Expected changed files:** TODO.arch.md、README.md、docs/內Arch驗證與引用文件、apps/linux/README.md、apps/linux/src/、apps/linux/qml/、apps/linux/tests/、apps/linux/CMakeLists.txt、packaging/arch/README.md與handoff.py、.agentflow/devlog.md內STATUS與A-004證據；runtime修改須先有實際失敗與需求對應.
 
 ## Completion proof
 

@@ -4,19 +4,19 @@ Project: PicLens
 
 Notebook: .agentflow/devlog.md — root.
 
-Current commit: implementation `3d486321151e654de43dab62793a938cd435721e` on main, pushed to origin/main.
+Current commit: implementation `83d7e3d9fa900f676fc7ea34c6d99de5b9fb11e0` on main; local commit, final push pending.
 
-Tests/scenarios: Arch Debug 6/6 43.81s, Release 6/6 42.61s, isolated clean Arch makepkg 6/6 42.85s, independent review 6/6 43.46s; native Wayland/PTY/package lifecycle and profile retention passed within documented limits.
+Tests/scenarios: Debug 6/6 45.78s; Release 6/6 51.86s; private Arch makepkg 6/6 41.49s; independent review Debug 6/6 42.79s and focused QML/imaging pass; X11/KDE each 23 checks; PTY 8 cases; installed package smoke/removal pass.
 
 Configuration: ag.json — schema v7; validated for codex this round.
 
-Proven: 48 of 53 Arch TODO items completed and removed; startup/search/drop fixes and diagnostics implemented; final independent review and Host gate PASS for implementation 3d486321; package available in dist/arch-validation-A003.
+Proven: All 53 Arch TODO items completed. TODO.arch.md deleted and references updated. Native KDE picker, 200% AT-SPI/Orca, X11/KDE Wayland/IME and 9-file cold/warm full paint acceptance passed; cold max482ms, warm max296ms.
 
-Open: A2.2 native picker interaction; A7.3 KDE Wayland/IME; A7.4 native X11; A7.5 200% and native accessibility tools; A8.2 representative mixed-image corpus performance. These five remain in TODO.arch.md. Prior Windows W7.3-W7.5 remain unchanged.
+Open: No Arch product TODO remains. A-004 closeout only: resolve stale-record review comment, final Reply/STATUS projection, commit and push. Prior Windows W7.3-W7.5 remain outside this Ask.
 
-Next: obtain the specified desktop/tool/corpus evidence for the remaining five Arch items; remove TODO.arch.md only when all pass. Current executable A-003 work and review are complete.
+Next: Finish record-only cross-check clarification and Git delivery. Implementation suites already passed; no source changes are pending.
 
-Artifacts: .agentflow/artifacts/A-003-arch-todo — tracker, briefs, reports and bounded evidence; docs/linux/arch-validation.md summarizes results and limits. Rootless userland shares the host kernel; no full VM, KDE/X11 or representative image-performance claim.
+Artifacts: .agentflow/artifacts/A-004-arch-remaining; docs/linux/arch-validation.md; dist/arch-validation-A004. Private desktops share host kernel; software display and AT-SPI speech output are not physical display/audio proof. Perf retains OS page cache and measures scene graph submission.
 
 Archived eras: none.
 
@@ -513,4 +513,110 @@ Host gate: PASS
 
 # → Ask / A-004
 
-+
+繼續完成
+
+## [RUN-001] Event — remaining Arch acceptance resumed (during round A-004)
+
+- Owner「繼續完成」已逐字納入A-004。bounded intake PASS，main工作樹乾淨，前輪交付d5e63f37。
+- Route: direct。剩餘5項是平台/原生操作與代表性素材驗證；先建立可重現隔離環境，不假定一定受阻，也不改使用者桌面或主機套件。
+- 本機有Xorg、fcitx5與小麥注音、AT-SPI、wtype，缺KDE、Xvfb、Orca。前輪私有Arch rootfs可重用；考慮在私有環境安裝必要工具並以獨立DBus/顯示server測試。
+- 已向owner詢問代表性圖庫路徑，預設公開授權實際素材；獨立桌面/輸入驗證不依賴回答。
+
+## [RUN-002] Event — isolated desktop and accessibility bridge running (during round A-004)
+
+- 2026-09-13 01:40:27 Asia/Taipei。私有Arch套件安裝exit0，KDE6.7.5、Xvfb21.1.24、fcitx5/chewing、Orca50.2及python-atspi已具備；約594MiB下載，沒有主機套件更動。非booted rootfs的systemd/kernel hook無法執行，已保存原始log，不當成完整開機VM。
+- 第一native probe因bootstrap machine-id仍uninitialized而使Qt DBus abort。只在私有rootfs產生有效machine-id；修正後PicLens在獨立Xvfb/Openbox與DBus啟動，AT-SPI已讀到真實按鈕、搜尋、排序與狀態。未將Qt啟動失敗當產品缺陷。
+- 已備妥可重跑private-session.py/run-private.py；每次程序組與HOME/XDG隔離，測試结束只終止自身children。正驗證Ctrl+O原生對話框；尚未證明picker互動或200%。
+- Wikimedia3张實際照片已下載；另2張被伺服器限流拒絕，未繞過。將保留已取得素材的來源、授權、尺寸與hash，另補不同格式、介面截圖及大型案例，不以同一小圖複製聲稱代表性。
+- Tracker範圍與實際變更吻合：只有A-004 probe/證據與notebook；產品source未更動，TODO未移除。
+
+## [WIP-001] Checkpoint (during round A-004)
+
+- **Finished:** 建立私有KDE、X11、注音與Orca工具環境；PicLens已在獨立X11啟動並透過AT-SPI讀出真實控制項。
+- **Running now:** 原生picker鍵盤與對話框操作；整理實際照片的代表性混合圖庫。
+- **Still to do:** picker/200%輔助工具、KDE Wayland/IME、X11完整journey、Release冷暖效能、依證據更新TODO及最終review推送。
+- **Next work action:** 驗證Ctrl+O與對話框選取/取消，擴充AT-SPI操作腳本並啟動KDE Wayland。
+- **Checks:** [x] tracker.md | [x] devlog RUN | [x] scope matches tracker
+
+## [RUN-003] Event — native KDE picker failure reproduced (during round A-004)
+
+- 獨立X11真實Ctrl+O開出Qt Quick fallback：AT-SPI為Quick dialog/listitem/breadcrumb，沒有KDE KDirSelectDialog；已保存x11-picker-atspi.json與截圖。
+- KDE Plasma/6.7官方platformtheme程式碼直接要求qobject_cast<QApplication*>才usePlatformNativeDialog；本程式main只有QGuiApplication。已核對當前plugin KDEPlasmaPlatformTheme6.so存在，不能以fallback驗證冒充原生picker。
+- Owner「繼續完成」所承接A2.2/A7.3明確要求原生picker；最小修正是main改QApplication並在既有Qt6-base的CMake component/target加入Widgets。仍用QtQuick.Dialogs，沒有新dialog管理層/持久格式/信任邊界，direct可逆修正。只換環境成GTK無法滿足KDE原生整合，因此不以環境變更掩蓋問題。
+- 先保留上述失敗實證與同一可重跑private-session.py；修改後必須辨認KDE widget原生dialog、實際選取/取消/持久化，最後再跑完整relevant suite。
+
+## [RUN-004] Event — native dialogs and first corpus measurements (during round A-004)
+
+- QApplication最小修正已編譯。KDE原生picker樹與Places/名稱/開啟控制項透過AT-SPI可見；真實fcitx5-chewing在X11與KDE Wayland送出「中」。完整journey仍需重跑，舊proxy及200%座標和繁中原生按鈕名稱造成測試誤判，未當產品缺陷。
+- 第一輪Release真實混合照片7檔10次原圖繪製，7次超標，最大1242ms，未完成0。此輪同時有私有桌面測試負載，保留raw evidence；後續隔离負載核對並分析preview排程，未弱化500ms標準。
+- Tracker scope comparison: git僅修改main.cpp/CMakeLists.txt與devlog；其他為tracker允許的A-004私有probe/素材/證據。TODO仍5項，範圍吻合。
+
+## [WIP-002] Checkpoint (during round A-004)
+
+- **Finished:** 原生KDE picker缺口已修正並編譯；X11/KDE真實注音已送出；混合照片第一次原圖量測完成。
+- **Running now:** X11 200%互動及AT-SPI完整狀態，分析冷載入500ms超標。
+- **Still to do:** 完整桌面檔案操作、200%輔助工具、效能改善與冷暖驗收、TODO清理、review及推送。
+- **Next work action:** 完成原生picker繁中按鈕操作與正確DPI點擊，保留真實失敗再決定最小修正。
+- **Checks:** [x] tracker.md | [x] devlog RUN | [x] scope matches tracker
+
+## [RUN-005] Event — accessibility regression and cold-cache bottleneck proven (during round A-004)
+
+- X11 200%實際點選後画面已選取1，但fresh AT-SPI list item沒有selected/selectable。新增galleryAccessibilityTracksSelection先紅（selectable FALSE），補Gallery Accessible.selectable/selected綁定後綠。原生截圖與red JSON已另存不覆寫。
+- picker選取/取消/啟動還原/空資料夾與child navigation持久化路徑均通過X11完整流程。contextMenu之前false只是測試應辨認popup menu，已依真實tree修正。
+- 無私有桌面負載的Release重現原圖6/10超標，最大約850ms。單獨worker同一Gull preview：不寫cache127ms，寫PNG cache718ms；原圖145ms。瓶頸是回傳前同步壓縮暫存PNG。
+- 最小修正選擇僅將cache PNG的QImageWriter compression設0，仍lossless且仍支援舊cache；代價是cache檔案較大，原2000檔上限不變。拒絕新增worker通知協定或非同步cache程序，因目前不需要新生命週期/格式。來源輸出轉檔品質與像素傳輸不改。
+- 範圍仍對應A7.5/A8.2；效能必須在相同素材與真正paint指標重驗，不調整500ms，也不省略未完成。
+
+## [RUN-006] Event — sorting accessibility and desktop harness corrections (during round A-004)
+
+- 原生AT-SPI排序popup實際顯示四個無名list item；已保存red-sort-options-atspi.json。ItemDelegate只有contentItem.Text，沒有自身text；最小修正綁定text:modelData，補選取狀態並忽略純裝飾箭頭，不更動排序行為。
+- 私有桌面需KDE_SESSION_VERSION=6才能讓xdg-open選正確kde-open；修正環境後X11實際Dolphin在指定library啟動。未將環境錯誤當產品缺陷。
+- KDE Wayland的AT-SPI SCREEN座標實為client-local；改透過KWin標準scripting/DBus取得clientGeometry後合成私有Xvfb輸入座標。先前選到相鄰圖片不算KDE驗收證據。
+- xdotool --clearmodifiers會干擾持續按住的滑鼠狀態，Escape拖曳測試改用不清modifier的真實按鍵，待重新核對。原X11release後取消、回收筒與勾選狀態已通過。
+- compression0後暖快取12/12原圖繪製最大317ms，超標0、未完成0；冷WebP尚有526ms样本。這一輪與建置可能重疊，將做無測試/建置負載的冷暖獨立量測，仍保留歷次失敗。
+
+## [RUN-007] Event — desktop journeys and representative performance pass (during round A-004)
+
+- X11與KDE Wayland19項native journey均true，無errors；真實fcitx-chewing、200%選取狀態、native picker選/取消/還原/空folder、Dolphin、回收筒、hold+Escape、drop取消、child root持久化均通過。最後補排序選項名稱/選取、slider range、空狀態disabled與Viewer screenshot再複核。
+- 排序ItemDelegate的text仍未讓Qt bridge給名稱；重新核對最小設計，改直接Accessible.name:modelData，不增加text中介；focused test 4 passed/0 failed。保留真實native red與最終focused green。
+- 最終閒置負載Release9檔混合圖庫，含3張公開實拍照片、JPG/JPEG/PNG/BMP/lossless WebP、透明圖表與12MP衍生拼圖。冷暖各12次完整原圖scene graph paint；冷max482ms，暖max296ms，miss0、unpainted0。先前忙碌樣本仍保存，不泛稱所有負載均500ms。
+- 源碼变更只在CMake、main、Gallery/NeutralComboBox、worker cache PNG與qml_test，符合tracker既定界線。Imaging完整focused 22 passed，35.617秒。正跑最終完整Debug/Release suite與兩個native journey；tracker現有Proof欄位已修正並驗證PASS。
+
+## [WIP-003] Checkpoint (during round A-004)
+
+- **Finished:** X11/KDE真實桌面journey全通過；原生picker、選取/排序輔助名稱狀態已修正；代表性混合圖庫冷暖500ms量測均通過。
+- **Running now:** 最終native accessibility補充驗證與Debug/Release完整測試。
+- **Still to do:** 依最終證據移除TODO、更新文件、重建套件、獨立cross-check、提交推送。
+- **Next work action:** 收取suite與原生檢查，保存有界證據並更新Arch驗證紀錄。
+- **Checks:** [x] tracker.md | [x] devlog RUN | [x] scope matches tracker
+
+## [RUN-008] Event — final suites pass, TODO removed, immutable review started (during round A-004)
+
+- 2026-09-13 02:14:54 Asia/Taipei。Debug 6/6（45.78秒）、Release 6/6（51.86秒）、real PTY 8案通過；X11/KDE各23項與errors[]通過，Orca兩環境均運行。原53項全部完成後刪TODO.arch.md並更新使用者文件與handoff引用。
+- 實作/文件/原生與效能證據已提交83d7e3d9fa900f676fc7ea34c6d99de5b9fb11e0。Arch私有userland makepkg exit0，check 6/6（41.49秒）；套件runtime/source/tests逐檔hash與該commit相同。來源快照僅arch-validation.md有後續繁中字形修正差異，記錄manifest，不宣稱快照就是release tag。
+- cross-check-plan由72個改動檔、32884行與behavior/broad=true選full。A-004-final-cross-check start1透過external-runner-v1在無remote獨立clone啟動；codex-default/better gpt-5.6-sol/low，brief/input/output已凍結，僅report與指定/tmp build可寫。程序存活，authentication等待實際provider回應；不推定未觀察事實。
+- 範圍核對：目前改動仅tracker、devlog與review/package records，前一commit的source/docs路徑均已納入Expected changed files；沒有主機安裝、桌面設定或發布。Tracker validate PASS。
+
+## [WIP-004] Checkpoint (during round A-004)
+
+- **Finished:** 53項Arch驗收全部完成，TODO已刪除；原生X11/KDE各23項、Debug/Release各6組、PTY 8案及Arch makepkg/check均通過。
+- **Running now:** 已提交版本的獨立full review與私有套件安裝啟動檢查。
+- **Still to do:** 核對review與套件證據，完成notebook、STATUS、最終提交與推送。
+- **Next work action:** 收取獨立review，檢查精確commit與測試報告並作host gate判斷。
+- **Checks:** [x] tracker.md | [x] devlog RUN | [x] scope matches tracker
+
+## [RUN-009] Event — installed package and local record integrity verified (during round A-004)
+
+- 2026-09-13 02:17:48 Asia/Taipei。私有Arch環境pacman安裝新版4.0.0-1成功；ldd確認Qt6Widgets可載入且無missing，--version為4.0.0。安裝後以正確--viewer圖片路徑啟動，9檔library、1次fullResolution原圖paint 310ms，unpainted0，smoke正常exit0。移除成功且pacman -Q確認不存在。主機無安裝。
+- 第一個附加smoke命令漏了--viewer所需path，吞掉--smoke-ms導致未定時退出；只終止該私有PicLens程序並移除套件，再以正確参数通過。這是測試命令錯誤，不新增CLI修補範圍。詳見package-installed-check.json。
+- 套件SHA256 dcad158b9df876e62b8741578f0ee4a9365b0ca357ee2265aaf49bc93774c27b；source/runtime/tests hash核對一致。source tar文件唯一差異已直接比對，僅arch-validation.md的「選项」轉「選項」字形修正。dist/arch-validation-A004/SHA256SUMS含來源及兩個package。
+- 主流程核對全部11個改動Markdown之本地連結無缺漏，6個source evidence hash皆相符，TODO已不存在。獨立review仍運行，已到CTest，尚未宣告review PASS。
+- **Scope check:** 僅notebook、tracker與A-004 review/package證據變動；實作commit83d7e3d保持不變，符合tracker核准範圍。
+
+## [RUN-010] Event — substantive review passed, stale record blocker isolated (during round A-004)
+
+- 2026-09-13 02:20:03 Asia/Taipei。review start1 exit0、無timeout、獨立clone且無remote、stdin closed，report SHA256 fafdb7c283d49817e00cb4f6c1f2ec1778177911b60a47ce1d647dfcb6bb7a4d已比對。clone只新增允許的cross-check-report.md；未改產品source。
+- 外部fresh Debug CTest 6/6（42.79秒）；focused QML 4 pass、imaging 11 pass。主流程直接讀取LastTest.log核對6組passed與無failed。五項產品/原生/效能證據與Minimality均無阻擋；Outcome/Conformance BLOCKING僅因clone notebook STATUS及tracker仍為commit前的舊進度。
+- 接受STATUS舊48/53與五項Open不正確，現在同步為53/53，並保留本輪review/commit/push收尾尚進行的真實狀態。T-4涵蓋review與push，review尚未完成前不可虛報T-4完成；這不是五項產品TODO仍未完成。
+- 後續start2只複核這個record差異與已通過的實質報告，不重跑未變更的程式測試、不重啟完整實作審查。此為同一review stage第二次start，上限3不變。首輪brief沒有明確區別STATUS最後projection與實作review的時間，已補明。
+- **Scope check:** 83d7e3d後無產品、測試、使用者文件修改；只有notebook/STATUS、tracker、package/review證據。
