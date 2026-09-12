@@ -8,7 +8,7 @@ public sealed class Fixture : IDisposable
 {
     public static string Repo
     {
-        get { var p = new DirectoryInfo(AppContext.BaseDirectory); while (p is not null && !System.IO.File.Exists(Path.Combine(p.FullName, "TODO.win.md"))) p = p.Parent; return p?.FullName ?? throw new IOException("找不到 repo"); }
+        get { var p = new DirectoryInfo(AppContext.BaseDirectory); while (p is not null && !System.IO.File.Exists(Path.Combine(p.FullName, "apps", "windows", "PicLens.Windows.slnx"))) p = p.Parent; return p?.FullName ?? throw new IOException("找不到 repo"); }
     }
     public static string Worker => Path.Combine(Repo, "apps", "windows", "src", "PicLens.Worker", "bin",
 #if DEBUG

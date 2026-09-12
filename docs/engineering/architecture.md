@@ -4,7 +4,7 @@
 
 同一個 repo 維護兩套獨立 App。Windows 使用 C#、.NET 與 WPF；Arch Linux 使用 C++20、Qt 6、Qt Quick／QML 與 CMake。兩版後端各自實作，不共用執行時服務。
 
-建置與封裝入口見 [Windows README](../../apps/windows/README.md) 與 [Arch README](../../apps/linux/README.md)。剩餘工作見 [Windows TODO](../../TODO.win.md) 與 [Arch TODO](../../TODO.arch.md)。
+建置與封裝入口見 [Windows README](../../apps/windows/README.md) 與 [Arch README](../../apps/linux/README.md)。Windows 已完成；剩餘工作見 [Arch TODO](../../TODO.arch.md)。
 
 ## 目標目錄
 
@@ -30,7 +30,6 @@ docs/
   design/             共用設計原則
   guides/             共用開發、測試與發布原則
   reference/          共用參考資料
-TODO.win.md
 TODO.arch.md
 ```
 

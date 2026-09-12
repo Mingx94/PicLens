@@ -3,7 +3,7 @@
 ## 開始工作
 
 1. 讀取根目錄 AGENTS.md，檢查分支與工作目錄變更，保留無關修改。
-2. 選擇 [Windows TODO](../../TODO.win.md) 或 [Arch TODO](../../TODO.arch.md)，確認前置階段。
+2. 選擇 [Windows 文件](../windows/README.md) 或 [Arch TODO](../../TODO.arch.md)；有未完成項目的平台先確認前置階段。
 3. 閱讀對應[產品規格](../product/product-spec.md)、[驗收案例](../product/acceptance.md)及[不變條件](../engineering/runtime-invariants.md)。
 4. 完成一個可驗收的項目，再執行最小且有意義的驗證，並從 TODO 移除已完成項目。
 

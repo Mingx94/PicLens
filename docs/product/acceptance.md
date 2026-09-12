@@ -1,8 +1,8 @@
 # 共用驗收對照
 
-本頁將[產品規格](product-spec.md)與[執行時不變條件](../engineering/runtime-invariants.md)對應到兩份 TODO，不取代完整規格。案例 ID 在兩版保持一致；每個案例都需滿足所有條件。未完成項目見 [Windows TODO](../../TODO.win.md) 與 [Arch TODO](../../TODO.arch.md)。
+本頁將[產品規格](product-spec.md)與[執行時不變條件](../engineering/runtime-invariants.md)對應到兩平台實作，不取代完整規格。案例 ID 在兩版保持一致；每個案例都需滿足所有條件。Windows 已完成，證據見 [Windows 文件](../windows/README.md)；Arch 未完成項目見 [Arch TODO](../../TODO.arch.md)。
 
-階段欄的 W／A 分別指 [Windows TODO](../../TODO.win.md) 與 [Arch TODO](../../TODO.arch.md)。同一列涉及多階段時，須全部完成才能視為通過。
+階段欄的 W／A 分別指 Windows 與 [Arch TODO](../../TODO.arch.md) 的實作階段。同一列涉及多階段時，須全部完成才能視為通過。
 
 ## 功能案例
 

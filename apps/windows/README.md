@@ -62,4 +62,4 @@ MSI 保留既有 UpgradeCode；實際舊版升級及乾淨機安裝仍須依授�
 
 回收使用 IFileOperation 與回收檢查；不提供永久刪除替代路徑。網路／非固定磁碟的回收會回報不支援，保留來源。
 
-第三方清單見 THIRD-PARTY.md。功能與未完成驗收狀態見 repo 根目錄 TODO.win.md。
+第三方清單見 THIRD-PARTY.md。功能與完成驗收狀態見 [Windows 平台文件](../../docs/windows/README.md)。
