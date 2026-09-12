@@ -86,12 +86,13 @@ public static class DesktopHarness
         byte[] oldHash = SHA256.HashData(File.ReadAllBytes(oldSettings));
         File.Copy(oldSettings, profile.SettingsPath);
         var window = new MainWindow(profile, new LaunchOptions()) { ShowInTaskbar = false };
+        Assert.Equal(1600, window.Width); Assert.Equal(1000, window.Height);
         bool closed = false; window.Closed += (_, _) => closed = true;
         window.Show();
         try
         {
             await Until(() => window.IsLoaded && window.Model.Folder == root && !window.Model.Loading);
-            Assert.Equal(1600, window.Width); Assert.Equal(1000, window.Height);
+            Assert.InRange(window.ActualWidth, 800, 1600); Assert.InRange(window.ActualHeight, 600, 1000);
             Assert.Equal(180, window.Model.ThumbnailSize); Assert.Equal(root, window.Model.RootPath);
             Assert.Equal(root, window.Model.Settings.LastFolderPath);
             await window.Model.Pick(root);

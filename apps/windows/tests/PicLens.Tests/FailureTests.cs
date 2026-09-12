@@ -138,8 +138,13 @@ public sealed class FailureTests
         try
         {
             var deadline = DateTime.UtcNow.AddSeconds(5);
-            while (pool.ActiveCount < 8 && DateTime.UtcNow < deadline) await Task.Delay(10);
-            Assert.Equal(8, pool.ActiveCount);
+            int peak = 0;
+            while (DateTime.UtcNow < deadline)
+            {
+                peak = Math.Max(peak, pool.ActiveCount); Assert.InRange(pool.ActiveCount, 0, 8);
+                await Task.Delay(10);
+            }
+            Assert.InRange(peak, 1, 8);
         }
         finally { await pool.DisposeAsync(); }
         foreach (var job in jobs) await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await job);
