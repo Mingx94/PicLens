@@ -103,6 +103,7 @@ Cross-check implementation: 85727206c92e62a13f24eb16742f8d561bf4bd50
 
 godev
 完成 windows TODO
+完成就移除
 
 ## [RUN-001] Event — route selection and Windows TODO inventory (during round A-002)
 
@@ -125,3 +126,9 @@ godev
 - 統一 CUA runtime 只暴露 browser API，沒有 native `getApp`；依 computer-use skill 載入 `@oai/sky` 後，`sky.list_apps()` 明確失敗：`Trusted RPC service is not configured: sky`。
 - 因此不能送出實際 Bopomofo composition、切換高對比/DPI 後觀察 renderer、或操作 picker/reveal/taskbar；不以單元測試或 CLI 截圖取代這些證據。
 - 隔離 PicLens process 11508 已停止。Tracker 判定 blocked；產品程式碼與 `TODO.win.md` 均未變更。
+
+## [RUN-004] Event — owner clarified completed TODO removal (during round A-002)
+
+- Owner 補充：`完成就移除`。
+- Scope 已納入 tracker T-5：只有 W7.3 至 W7.5 全部取得真實互動證據後，才刪除已變空的 `TODO.win.md` 並同步必要文件連結；目前保留。
+- 這項補充不解除 native Computer Use RPC blocker，也不授權把自動化測試當成實機驗收。
