@@ -5,6 +5,7 @@
 #include <QAccessible>
 #include <QColor>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -603,6 +604,122 @@ private slots:
                             QPoint(h.window->width() / 2, h.window->height() - 4));
         QVERIFY(!gallery->property("dragging").toBool());
         QVERIFY(!h.controller.confirmOpen());
+    }
+
+    void actualDragDropMouseJourneyOpensConfirmationAndCancelPreservesFiles()
+    {
+        Harness h;
+        QVERIFY(h.filesReady());
+        QVERIFY(h.load());
+        h.controller.start(h.library);
+        waitForGallery(h, 8);
+
+        auto *grid = findGrid(h.window, h.controller.library());
+        QVERIFY(grid);
+        grid->setProperty("contentY", 200);
+        QTest::qWait(100);
+        auto *gallery = findGallery(h.window);
+        QVERIFY(gallery);
+        const auto source = h.path("source.png");
+        const auto secondary = h.path("alpha.png");
+        const auto target = h.path("target.png");
+        auto *sourceDelegate = findDelegate(h.window, source);
+        auto *targetDelegate = findDelegate(h.window, target);
+        QVERIFY(sourceDelegate);
+        QVERIFY(targetDelegate);
+        auto *sourcePointer = findTilePointer(sourceDelegate);
+        QVERIFY(sourcePointer);
+        auto *dropArea = findVisualItem(targetDelegate, [](QQuickItem *item) {
+            return item->property("containsDrag").isValid();
+        });
+        QVERIFY(dropArea);
+        auto *targetHint = dropArea->childItems().value(0);
+        QVERIFY(targetHint);
+
+        h.controller.select(h.row(source), 0);
+        h.controller.select(h.row(secondary), Qt::ControlModifier);
+        QCOMPARE(h.controller.selectionCount(), 2);
+
+        const auto sourcePoint = itemCenter(sourceDelegate, h.window);
+        const auto targetPoint = itemCenter(targetDelegate, h.window);
+        const int dragThreshold = QGuiApplication::styleHints()->startDragDistance();
+        QVERIFY(dragThreshold > 0);
+
+        auto *ghost = findVisualItem(gallery, [](QQuickItem *item) {
+            return item->width() == 32 && item->height() == 32
+                && qFuzzyCompare(item->opacity(), qreal(0.65));
+        });
+        QVERIFY(ghost);
+
+        const auto readFile = [](const QString &path) {
+            QFile file(path);
+            if (!file.open(QIODevice::ReadOnly))
+                return QByteArray();
+            return file.readAll();
+        };
+        const auto sourceBefore = readFile(source);
+        const auto secondaryBefore = readFile(secondary);
+        const auto targetBefore = readFile(target);
+        const auto targetJpgBefore = readFile(h.path("target-01.jpg"));
+        const auto targetPngBefore = readFile(h.path("target-02.png"));
+        QVERIFY(!sourceBefore.isEmpty());
+        QVERIFY(!secondaryBefore.isEmpty());
+        QVERIFY(!targetBefore.isEmpty());
+        QVERIFY(!targetJpgBefore.isEmpty());
+        QVERIFY(!targetPngBefore.isEmpty());
+
+        QSignalSpy entered(dropArea, SIGNAL(entered(QQuickDragEvent*)));
+        QSignalSpy moved(dropArea, SIGNAL(positionChanged(QQuickDragEvent*)));
+        QSignalSpy dropped(dropArea, SIGNAL(dropped(QQuickDragEvent*)));
+
+        QTest::mousePress(h.window, Qt::LeftButton, Qt::NoModifier, sourcePoint);
+        QVERIFY(sourcePointer->property("pressed").toBool());
+        QVERIFY(!gallery->property("dragging").toBool());
+        QTest::mouseMove(h.window,
+                         sourcePoint + QPoint(dragThreshold + 1, dragThreshold + 1));
+        QTRY_VERIFY_WITH_TIMEOUT(gallery->property("dragging").toBool(), 1000);
+        QVERIFY(sourcePointer->property("pressed").toBool());
+        QVERIFY(ghost->isVisible());
+
+        QTest::mouseMove(h.window, targetPoint);
+        QTest::mouseMove(h.window, targetPoint + QPoint(2, 2));
+        QTest::qWait(50);
+        QTRY_VERIFY_WITH_TIMEOUT(dropArea->property("containsDrag").toBool(), 1000);
+        QVERIFY(entered.count() > 0);
+        QVERIFY(moved.count() > 0);
+        QVERIFY(ghost->isVisible());
+        QVERIFY(targetHint->isVisible());
+
+        QTest::mouseRelease(h.window, Qt::LeftButton, Qt::NoModifier, targetPoint);
+        QTRY_VERIFY_WITH_TIMEOUT(h.controller.confirmOpen(), 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(dropped.count() > 0, 1000);
+        QVERIFY(h.controller.confirmText().contains(source));
+        QVERIFY(h.controller.confirmText().contains(secondary));
+        QVERIFY(h.controller.confirmText().contains(h.path("target-03.png")));
+        QVERIFY(h.controller.confirmText().contains(h.path("target-04.png")));
+        QCOMPARE(readFile(source), sourceBefore);
+        QCOMPARE(readFile(secondary), secondaryBefore);
+        QCOMPARE(readFile(target), targetBefore);
+        QCOMPARE(readFile(h.path("target-01.jpg")), targetJpgBefore);
+        QCOMPARE(readFile(h.path("target-02.png")), targetPngBefore);
+        QVERIFY(!QFileInfo::exists(h.path("target-03.png")));
+        QVERIFY(!QFileInfo::exists(h.path("target-04.png")));
+
+        h.controller.confirm(false);
+        QTRY_VERIFY_WITH_TIMEOUT(!h.controller.confirmOpen(), 1000);
+        QTRY_VERIFY_WITH_TIMEOUT(!gallery->property("dragging").toBool(), 1000);
+        QTRY_VERIFY_WITH_TIMEOUT(!sourcePointer->property("pressed").toBool(), 1000);
+        QCOMPARE(gallery->property("dragPath").toString(), QString());
+        QVERIFY(!dropArea->property("containsDrag").toBool());
+        QVERIFY(!ghost->isVisible());
+        QVERIFY(!targetHint->isVisible());
+        QCOMPARE(readFile(source), sourceBefore);
+        QCOMPARE(readFile(secondary), secondaryBefore);
+        QCOMPARE(readFile(target), targetBefore);
+        QCOMPARE(readFile(h.path("target-01.jpg")), targetJpgBefore);
+        QCOMPARE(readFile(h.path("target-02.png")), targetPngBefore);
+        QVERIFY(!QFileInfo::exists(h.path("target-03.png")));
+        QVERIFY(!QFileInfo::exists(h.path("target-04.png")));
     }
 
     void viewerUsesSnapshotZoomInputAndReturnsFocus()

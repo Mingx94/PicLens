@@ -207,6 +207,7 @@ Item {
                     id: pointer
                     anchors.fill: parent
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    preventStealing: true
                     hoverEnabled: true
                     property point pressPoint
                     property bool moved: false
@@ -289,7 +290,7 @@ Item {
         visible: gallery.dragging
         z: 100
         Drag.active: gallery.dragging
-        Drag.source: gallery
+        Drag.source: ghost
         Drag.hotSpot.x: 16
         Drag.hotSpot.y: 16
     }
