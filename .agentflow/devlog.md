@@ -101,4 +101,27 @@ Cross-check implementation: 85727206c92e62a13f24eb16742f8d561bf4bd50
 
 # → Ask / A-002
 
-+
+godev
+完成 windows TODO
+
+## [RUN-001] Event — route selection and Windows TODO inventory (during round A-002)
+
+- Owner Ask 已逐字寫入 A-002；bounded intake 證明目前在 `main`，`HEAD == origin/main`，原始工作樹乾淨。
+- `TODO.win.md` 只剩 W7.3、W7.4、W7.5；三項都是互動 Windows 桌面驗收，不是已知缺少產品功能。
+- Route: direct。工作拆成環境、IME/UIA、高對比/DPI、picker/reveal/icon、文件與完成閘門五項；不碰 Arch TODO，也不把既有自動化結果冒充實機證據。
+- Tracker: `.agentflow/artifacts/A-002-windows-todo/tracker.md`；tracker contract 已驗證。
+
+
+## [RUN-002] Event — Windows baseline complete (during round A-002)
+
+- T-1 complete。系統為 2560×1440、AppliedDPI=96（100%）、HighContrast=false；已安裝 `zh-Hant-TW` Microsoft Bopomofo IME。
+- `dotnet restore --locked-mode`、Release build 與 Release tests 均 exit 0；build 0 warnings/errors，66 tests passed。
+- 既有 tests 只作為回歸基線；W7.3 至 W7.5 仍需真實互動桌面證據。下一步是以隔離 profile/fixture 啟動最新 Release build。
+
+
+## [RUN-003] Event — native Windows automation blocked (during round A-002)
+
+- 最新 Release PicLens 已用隔離 fixture/profile 啟動；process 11508 可正常建立。
+- 統一 CUA runtime 只暴露 browser API，沒有 native `getApp`；依 computer-use skill 載入 `@oai/sky` 後，`sky.list_apps()` 明確失敗：`Trusted RPC service is not configured: sky`。
+- 因此不能送出實際 Bopomofo composition、切換高對比/DPI 後觀察 renderer、或操作 picker/reveal/taskbar；不以單元測試或 CLI 截圖取代這些證據。
+- 隔離 PicLens process 11508 已停止。Tracker 判定 blocked；產品程式碼與 `TODO.win.md` 均未變更。
