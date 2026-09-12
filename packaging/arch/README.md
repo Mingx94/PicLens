@@ -2,7 +2,7 @@
 
 此目錄是 4.0.0 Qt 工作樹交付，不是已發布版本。`PKGBUILD` 含明確 checksum 佔位符，不能直接 makepkg。沒有虛構的 tag、commit source URL 或 `SKIP`。
 
-最終來源包由下方腳本產生，檔名與 checksum 以該次交付目錄的 `SHA256SUMS` 為準。這是待 Arch 驗收的來源快照，尚未產生 Linux 二進位套件。
+最終來源包由下方腳本產生，檔名與 checksum 以該次交付目錄的 `SHA256SUMS` 為準。2026-09-12 已在 Omarchy 4.0.3 建置 Linux 主套件與 debug 套件，放於 `dist/piclens-4.0.0-arch-validation-20260912/`，連同固定來源、manifest 與 SHA256SUMS。makepkg check() 4/4、成品 Wayland 啟閉與隔離 pacman 檔案生命週期通過；乾淨 Arch、真正舊版升級與主機桌面整合仍待驗。詳見 [Arch 驗收紀錄](../../docs/engineering/arch-validation.md)。
 
 ## Windows 產生快照
 
@@ -38,7 +38,7 @@ PKGBUILD 將 `qt6-wayland>=6.8` 列為必要執行相依，`pkgconf` 列為建�
 
 ## CMake 安裝整合表
 
-已核對目前 `apps/linux/CMakeLists.txt` 的安裝來源與下表一致；實際 Arch DESTDIR 安裝與 mode 仍待驗證。本目錄不修改 CMake。使用 GNUInstallDirs、`CMAKE_INSTALL_PREFIX=/usr` 及 DESTDIR；禁止硬編開發機路徑。
+已核對目前 `apps/linux/CMakeLists.txt` 的安裝來源與下表一致；Omarchy 本次已核對 DESTDIR 與實際 `.pkg.tar.zst` 的安裝位置及 mode。本目錄不修改 CMake。使用 GNUInstallDirs、`CMAKE_INSTALL_PREFIX=/usr` 及 DESTDIR；禁止硬編開發機路徑。
 
 | 來源／target | 安裝位置 | mode |
 |---|---|---|

@@ -172,7 +172,7 @@ int main(int argc, char **argv) {
     QCoreApplication app(argc, argv);
     try {
         const auto fixture = argc > 1 ? QString::fromLocal8Bit(argv[1])
-            : QDir(QFileInfo(QString::fromUtf8(__FILE__)).absolutePath()).absoluteFilePath("../../../test-data/windows-native-cases.json");
+            : QDir(QString::fromUtf8(PICLENS_REPO)).filePath("test-data/windows-native-cases.json");
         sharedCases(fixture); domainCases(); fileCases();
         QTextStream(stdout) << "Domain and file operation tests passed\n";
         return 0;

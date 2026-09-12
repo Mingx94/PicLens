@@ -41,7 +41,7 @@ Windows 已建立 xUnit、codec／服務整合測試及 STA／Dispatcher 入口�
 
 兩版 TODO 都需實作 `--folder`、`--data-root`、`--smoke-ms`、`--viewer`、`--metrics` 與 `--screenshot`，供隔離啟動、可見視窗量測與截圖。參數格式、驗證失敗與輸出位置寫入平台 README。
 
-這些參數目前僅存在於舊版或規劃中，不代表新版已能執行。自動 smoke 不得略過檔案操作確認。
+診斷入口的支援範圍與實測結果以各平台 README／驗收紀錄為準。Qt 版已用上述入口完成 Omarchy 本機部分驗收；入口存在不代表完整功能通過。自動 smoke 不得略過檔案操作確認。
 
 ## 驗收紀錄
 

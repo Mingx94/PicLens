@@ -1,6 +1,6 @@
 # PicLens Qt / Arch Linux
 
-新版目標為 Arch x86_64、C++20、Qt Quick，版本 `4.0.0`，最低 Qt `6.8`。App target 為 `piclens`，解碼 helper 為 `piclens-worker`。Windows MSYS2 Qt 6.11.1 可作開發建置；不能替代 Arch 建置、套件與桌面驗收。2026-09-12 Windows Qt 6.11.1 的 domain／imaging／app／controller 四個 suite 已通過，真實 App 完整原圖提交已確認。目前沒有 Arch distro，Arch 驗收仍未執行。
+新版目標為 Arch x86_64、C++20、Qt Quick，版本 `4.0.0`，最低 Qt `6.8`。App target 為 `piclens`，解碼 helper 為 `piclens-worker`。Windows MSYS2 Qt 6.11.1 可作開發建置；不能替代 Arch 建置、套件與桌面驗收。2026-09-12 Windows Qt 6.11.1 的 domain／imaging／app／controller 四個 suite 已通過，真實 App 完整原圖提交已確認。2026-09-12 已在 Omarchy 4.0.3／Hyprland 完成 Debug／Release 建置、各 4/4 CTest、Wayland／XWayland 隔離啟閉及部分圖片／檔案驗收；完整結果與限制見 [Arch 驗收紀錄](../../docs/engineering/arch-validation.md)。
 
 ## 平台限制與已知證據
 
@@ -41,9 +41,9 @@ bash packaging/arch/validate.sh inspect
 bash packaging/arch/validate.sh build
 ```
 
-`build` 在新建 `/tmp/piclens-arch-validation.*` configure、Release build、CTest 及 DESTDIR 暫存安裝；保留完整路徑與紀錄，不寫 `/usr`，不自動清除。CTest 使用 offscreen 與隔離 HOME／XDG／profile。它不代表真實桌面通過。
+`build` 在新建 `/tmp/piclens-arch-validation.*` configure、Release build、CTest 及 DESTDIR 暫存安裝；保留完整路徑與紀錄，不寫 `/usr`，不自動清除。CTest 使用 offscreen 與隔離 HOME／XDG／profile，並清空測試子程序的 `QT_QPA_PLATFORMTHEME`，避免 GTK 佈景仍要求螢幕連線。它不代表真實桌面通過。
 
-CMake presets 為 `debug`、`release`、`windows-preview`。Windows 已測流程在 `apps/linux` 執行 `cmake --preset windows-preview`、`cmake --build --preset windows-preview`、`ctest --preset windows-preview`，需先讓 MSYS2 UCRT64 工具及 Qt DLL 可由 PATH 找到。現有 4/4 紀錄見 `build/windows-preview/Testing/Temporary/LastTest.log`。Arch 的 debug／release 仍待實測。
+CMake presets 為 `debug`、`release`、`windows-preview`。Windows 已測流程在 `apps/linux` 執行 `cmake --preset windows-preview`、`cmake --build --preset windows-preview`、`ctest --preset windows-preview`，需先讓 MSYS2 UCRT64 工具及 Qt DLL 可由 PATH 找到。現有 4/4 紀錄見 `build/windows-preview/Testing/Temporary/LastTest.log`。Omarchy 本機已使用 `Unix Makefiles` generator，分別在 `/tmp/piclens-arch-20260912-debug` 與 `/tmp/piclens-arch-20260912-release` 建置 Debug／Release；`cmake --build <build-dir> --parallel 2` 與隔離 CTest 通過，兩種組態各 4/4。Ninja／makepkg 的實測結果另見驗收紀錄。
 
 需要逐步開發時：
 
