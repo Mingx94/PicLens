@@ -50,7 +50,7 @@ int main(int argc,char**argv){
         if(smoke)QTimer::singleShot(qMax(smoke,parser.isSet("screenshot")?(parser.isSet("exercise")?6500:2600):smoke),&gui,&QGuiApplication::quit);
         QObject::connect(&gui,&QGuiApplication::aboutToQuit,&controller,[&]{controller.shutdown();});
         int result=gui.exec();controller.shutdown();
-        if(parser.isSet("metrics")){QString path=QFileInfo(parser.value("metrics")).absoluteFilePath();QDir().mkpath(QFileInfo(path).absolutePath());QFile file(path);if(!file.open(QIODevice::WriteOnly))return 3;file.write(QJsonDocument(controller.metrics()).toJson());}
+        if(parser.isSet("metrics")){QString path=QFileInfo(parser.value("metrics")).absoluteFilePath();QDir().mkpath(QFileInfo(path).absolutePath());QFile file(path);const auto data=QJsonDocument(controller.metrics()).toJson();if(!file.open(QIODevice::WriteOnly)||file.write(data)!=data.size()||!file.flush())return 3;}
         // Controller's destructor is idempotent and does not access the provider after shutdown.
         return result;
     }catch(const std::exception&e){qCritical().noquote()<<e.what();return 2;}

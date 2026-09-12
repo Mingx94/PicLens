@@ -9,6 +9,8 @@
 #include <QTimer>
 #include <QElapsedTimer>
 #include <QReadWriteLock>
+#include <QJsonObject>
+#include <optional>
 
 namespace piclens {
 class ImageItem;
@@ -94,14 +96,15 @@ private:
     QThreadPool io_,files_;QTimer saveTimer_;bool closing_=false,scanRunning_=false,scanPending_=false,saveRunning_=false,savePending_=false,profileWritable_=true;
     quint64 generation_=0,treeGeneration_=0,serial_=0,saveRevision_=0,viewerSession_=0;
     Cancel scanCancel_,treeCancel_=std::make_shared<std::atomic_bool>(false),batchCancel_;
-    QElapsedTimer lifetime_,scanClock_,viewerClock_;double scanMs_=0,searchMs_=0;int maxVisible_=0,maxMaterialized_=0;QVariantList paints_;int selectedViews_=0;
+    QElapsedTimer lifetime_,scanClock_,viewerClock_,batchClock_;std::optional<qint64> cpuStartMs_,firstThumbnailMs_;qint64 scanMs_=0,searchMs_=0;std::optional<QJsonObject> lastCompletedBatch_;int maxVisible_=0,maxMaterialized_=0;QVariantList paints_;int selectedViews_=0;
     QSet<QString> treeExpanded_,treeLoading_;QHash<QString,QStringList> treeChildren_;int treeOutstanding_=0;
     Imaging imaging_;ThumbProvider* provider_;ImageItem* imageItem_=nullptr;
     struct Request {QString path;int edge;quint64 session;};QHash<QString,Request> requests_;QHash<QString,QString> thumbTokens_,imageKeys_;QSet<QString> visible_;
-    QHash<QString,FramePtr> previews_;QSet<QString> previewFailures_;QString fullToken_;bool viewerOpen_=false;int viewerIndex_=0;QString viewerError_;bool sharpRecorded_=false;
+    struct PreviewSample {quint64 selectionId=0,viewerSessionId=0;QString path;std::optional<qint64> milliseconds;};
+    QHash<QString,FramePtr> previews_;QSet<QString> previewFailures_;QList<PreviewSample> previewSamples_;quint64 selectionSerial_=0,currentSelectionId_=0;QString fullToken_;bool viewerOpen_=false;int viewerIndex_=0;QString viewerError_;bool sharpRecorded_=false;
     bool batchBusy_=false,confirmOpen_=false,renameOpen_=false,resultsOpen_=false,toastOpen_=false,toastError_=false,dark_=false,dragActive_=false;
     QString confirmTitle_,confirmText_,renameStem_,toastText_,pendingKind_,pendingTarget_;QList<FilePlan> plans_;QVariantList results_;
-    void log(QString message);void scheduleSave();void save();void launchScan();void projectModel();void syncSelection();
+    void log(QString message);void scheduleSave();void save();void launchScan();void projectModel();void syncSelection();void recordPreviewReady(const QString& path);
     void loadTree(QString path);void rebuildTree();void treeRows(QString path,int depth,QVariantList& rows);
     void cancelGallery();void completeImage(const QString& token,FramePtr frame,const QString& error);
     QString enqueueImage(const QString& path,int edge,int priority);void showCurrent();void requestFull();void prefetch();

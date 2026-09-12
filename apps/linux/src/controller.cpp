@@ -3,6 +3,7 @@
 #include <QtConcurrent>
 #include <QDesktopServices>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QProcess>
@@ -12,8 +13,31 @@
 #include <QStyleHints>
 #include <stop_token>
 #include <thread>
+#ifdef Q_OS_LINUX
+#include <sys/resource.h>
+#include <unistd.h>
+#endif
 
 namespace piclens {
+namespace {
+#ifdef Q_OS_LINUX
+std::optional<qint64> selfCpuMilliseconds(){
+    struct rusage usage{};
+    if(getrusage(RUSAGE_SELF,&usage)!=0)return {};
+    const auto milliseconds=[](const timeval& value){return qint64(value.tv_sec)*1000+value.tv_usec/1000;};
+    return milliseconds(usage.ru_utime)+milliseconds(usage.ru_stime);
+}
+std::optional<qint64> selfResidentRssBytes(){
+    QFile file(QStringLiteral("/proc/self/statm"));if(!file.open(QIODevice::ReadOnly))return {};
+    const auto parts=file.readAll().simplified().split(' ');bool ok=false;const qint64 pages=parts.value(1).toLongLong(&ok);const long pageSize=sysconf(_SC_PAGESIZE);
+    if(!ok||pages<0||pageSize<=0)return {};return pages*qint64(pageSize);
+}
+std::optional<qint64> selfPeakRssBytes(){
+    struct rusage usage{};if(getrusage(RUSAGE_SELF,&usage)!=0||usage.ru_maxrss<0)return {};
+    return qint64(usage.ru_maxrss)*1024;
+}
+#endif
+}
 QImage ThumbProvider::requestImage(const QString& id,QSize* size,const QSize&){QReadLocker guard(&lock);auto f=frames.value(id);if(!f){if(size)*size={};return {};}if(size)*size=f->image.size();return f->image;}
 void ThumbProvider::put(const QString& key,FramePtr frame){QWriteLocker guard(&lock);frames[key]=std::move(frame);}
 void ThumbProvider::remove(const QString& key){QWriteLocker guard(&lock);frames.remove(key);}
@@ -22,6 +46,9 @@ void ThumbProvider::clear(){QWriteLocker guard(&lock);frames.clear();}
 Controller::Controller(QString profile,QString worker,ThumbProvider* provider,QObject* parent)
     :QObject(parent),profile_(std::move(profile)),worker_(std::move(worker)),imaging_(worker_,profile_+"/Thumbnails",this),provider_(provider){
     io_.setMaxThreadCount(2);files_.setMaxThreadCount(1);lifetime_.start();
+#ifdef Q_OS_LINUX
+    cpuStartMs_=selfCpuMilliseconds();
+#endif
     auto initial=readProfile(profile_);profileWritable_=initial.writable;settingsError_=initial.error;
     try{settings_=Settings::fromJson(initial.settings);}catch(const std::exception& e){
         QFile f(profile_+"/piclens-settings.json");QString quarantine=f.fileName()+".corrupt."+QString::number(QDateTime::currentMSecsSinceEpoch());
@@ -141,7 +168,22 @@ QString Controller::viewerName()const{return viewerOpen_&&viewerIndex_>=0&&viewe
 double Controller::zoom()const{return imageItem_?imageItem_->zoom():1.0;}
 void Controller::attachItem(QObject* item){imageItem_=qobject_cast<ImageItem*>(item);if(!imageItem_)return;
     connect(imageItem_,&ImageItem::zoomChanged,this,&Controller::changed);
-    connect(imageItem_,&ImageItem::framePresented,this,[this](const QString& token){if(!viewerOpen_||token!=fullToken_||sharpRecorded_)return;sharpRecorded_=true;paints_<<QVariantMap{{"path",snapshot_[viewerIndex_].path},{"milliseconds",viewerClock_.elapsed()},{"fullResolution",true}};});
+    connect(imageItem_,&ImageItem::framePresented,this,[this](const QString& token){
+        if(!viewerOpen_||token!=fullToken_||sharpRecorded_||currentSelectionId_==0||viewerIndex_<0||viewerIndex_>=snapshot_.size())return;
+        sharpRecorded_=true;
+        paints_<<QVariantMap{{"path",snapshot_[viewerIndex_].path},{"milliseconds",viewerClock_.elapsed()},{"fullResolution",true},
+                              {"selectionId",QString::number(currentSelectionId_)},{"viewerSessionId",QString::number(viewerSession_)}};
+    });
+}
+void Controller::recordPreviewReady(const QString& path){
+    if(!viewerOpen_||currentSelectionId_==0||viewerIndex_<0||viewerIndex_>=snapshot_.size()||snapshot_[viewerIndex_].path!=path)return;
+    for(auto i=previewSamples_.size();i-- > 0;){
+        auto &sample=previewSamples_[i];
+        if(sample.selectionId==currentSelectionId_&&sample.viewerSessionId==viewerSession_&&sample.path==path){
+            if(!sample.milliseconds)sample.milliseconds=viewerClock_.elapsed();
+            return;
+        }
+    }
 }
 void Controller::zoomBy(double factor){if(imageItem_)imageItem_->zoomBy(factor);}
 void Controller::resetZoom(){if(imageItem_)imageItem_->reset();}
@@ -152,17 +194,18 @@ void Controller::openViewer(int row){
 }
 void Controller::closeViewer(){
     if(!viewerOpen_)return;viewerOpen_=false;++viewerSession_;for(auto i=requests_.begin();i!=requests_.end();){if(i.value().edge==0||i.value().edge==1024){imaging_.cancel(i.key());i=requests_.erase(i);}else ++i;}
-    previews_.clear();snapshot_.clear();fullToken_.clear();if(imageItem_)imageItem_->setFrame({});emit changed();emit focusGallery();
+    previews_.clear();snapshot_.clear();currentSelectionId_=0;fullToken_.clear();if(imageItem_)imageItem_->setFrame({});emit changed();emit focusGallery();
 }
 void Controller::viewerStep(int delta){if(!viewerOpen_)return;int next=viewerIndex_+delta;if(next<0||next>=snapshot_.size())return;viewerIndex_=next;showCurrent();}
 void Controller::showCurrent(){
     if(!fullToken_.isEmpty()){imaging_.cancel(fullToken_);requests_.remove(fullToken_);}fullToken_.clear();viewerError_.clear();sharpRecorded_=false;viewerClock_.restart();++selectedViews_;
     if(imageItem_){imageItem_->setFrame({});imageItem_->reset();}const auto&e=snapshot_[viewerIndex_];
+    currentSelectionId_=++selectionSerial_;previewSamples_.append({currentSelectionId_,viewerSession_,e.path,{}});
     QSet<QString> keep;for(int i=qMax(0,viewerIndex_-1);i<=qMin(int(snapshot_.size())-1,viewerIndex_+1);++i)keep.insert(snapshot_[i].path);
     for(auto i=previews_.begin();i!=previews_.end();)if(!keep.contains(i.key()))i=previews_.erase(i);else ++i;
     for(auto i=requests_.begin();i!=requests_.end();)if(i->edge==1024&&!keep.contains(i->path)){imaging_.cancel(i.key());i=requests_.erase(i);}else ++i;
     if(e.animated){viewerError_=QStringLiteral("動畫圖片不支援預覽。");emit changed();return;}
-    if(previews_.contains(e.path)){if(imageItem_)imageItem_->setFrame(previews_[e.path]);requestFull();}
+    if(previews_.contains(e.path)){if(imageItem_)imageItem_->setFrame(previews_[e.path]);recordPreviewReady(e.path);requestFull();}
     else if(previewFailures_.contains(e.path))requestFull();
     else{bool pending=false;for(const auto&r:requests_)if(r.edge==1024&&r.path==e.path)pending=true;if(!pending)enqueueImage(e.path,1024,10);}
     log("Viewer "+e.path);emit changed();
@@ -177,11 +220,20 @@ void Controller::completeImage(const QString& token,FramePtr frame,const QString
     if(!requests_.contains(token)||closing_)return;auto request=requests_.take(token);
     if(request.edge>0&&request.edge<1024){
         if(thumbTokens_.value(request.path)!=token)return;thumbTokens_.remove(request.path);if(!visible_.contains(request.path)||viewerOpen_)return;
-        if(frame){provider_->put(token,frame);imageKeys_[request.path]=token;}else {imageKeys_[request.path]="failed";log("縮圖 "+request.path+" "+error);}
+        if(frame){
+            if(!firstThumbnailMs_)firstThumbnailMs_=lifetime_.elapsed();
+            provider_->put(token,frame);imageKeys_[request.path]=token;
+        }else {imageKeys_[request.path]="failed";log("縮圖 "+request.path+" "+error);}
         for(int i=0;i<projection_.size();++i)if(projection_[i].path==request.path)library_.change(i,{{"imageKey",frame?token:QString{}},{"error",error}});return;
     }
     if(!viewerOpen_||request.session!=viewerSession_)return;bool current=snapshot_[viewerIndex_].path==request.path;
-    if(request.edge==1024){if(frame)previews_[request.path]=frame;else previewFailures_.insert(request.path);if(current){if(frame&&imageItem_&&fullToken_.isEmpty())imageItem_->setFrame(frame);requestFull();}else prefetch();}
+    if(request.edge==1024){
+        if(frame)previews_[request.path]=frame;else previewFailures_.insert(request.path);
+        if(current){
+            if(frame){if(imageItem_&&fullToken_.isEmpty())imageItem_->setFrame(frame);recordPreviewReady(request.path);}
+            requestFull();
+        }else prefetch();
+    }
     else if(current&&token==fullToken_){if(frame&&imageItem_)imageItem_->setFrame(frame);else {viewerError_=error;log("Viewer 原圖 "+request.path+" "+error);}prefetch();}
     emit changed();
 }
@@ -221,12 +273,14 @@ void Controller::confirm(bool accepted){
 }
 void Controller::cancelBatch(){if(batchCancel_)batchCancel_->store(true);}
 void Controller::executePlans(){
-    if(plans_.isEmpty())return;batchBusy_=true;cancelGallery();batchCancel_=std::make_shared<std::atomic_bool>(false);imaging_.quiesce();emit changed();
+    if(plans_.isEmpty())return;batchBusy_=true;batchClock_.restart();cancelGallery();batchCancel_=std::make_shared<std::atomic_bool>(false);imaging_.quiesce();emit changed();
 }
 void Controller::executeQuietPlans(){
     auto cancel=batchCancel_;auto plans=plans_;auto worker=worker_;auto root=profile_;
     status_=QStringLiteral("正在處理 %1 個項目…").arg(plans.size());emit changed();auto* watcher=new QFutureWatcher<BatchResult>(this);
-    connect(watcher,&QFutureWatcher<BatchResult>::finished,this,[this,watcher]{auto batch=watcher->result();watcher->deleteLater();batchBusy_=false;if(closing_)return;
+    connect(watcher,&QFutureWatcher<BatchResult>::finished,this,[this,watcher]{auto batch=watcher->result();watcher->deleteLater();
+        lastCompletedBatch_=QJsonObject{{"total",static_cast<double>(batch.total())},{"succeeded",static_cast<double>(batch.succeeded())},{"skipped",static_cast<double>(batch.skipped())},{"canceled",static_cast<double>(batch.canceled())},{"failed",static_cast<double>(batch.failed())},{"unknown",static_cast<double>(batch.unknown())},{"durationMilliseconds",static_cast<double>(batchClock_.elapsed())}};
+        batchBusy_=false;if(closing_)return;
         results_.clear();for(const auto&r:batch.items){QString status;switch(r.status){case ResultStatus::Succeeded:status="成功";break;case ResultStatus::Skipped:status="略過";break;case ResultStatus::Canceled:status="取消";break;case ResultStatus::Unknown:status="結果不確定";break;default:status="失敗";}
             results_<<QVariantMap{{"source",r.source},{"target",r.target},{"status",status},{"reason",r.message}};}
         toastText_=batch.summary();toastError_=batch.failed()>0;toastOpen_=true;plans_.clear();refresh();emit changed();});
@@ -248,14 +302,78 @@ void Controller::executeQuietPlans(){
     }));
 }
 QJsonObject Controller::metrics()const{
+    const auto optionalMilliseconds=[](const std::optional<qint64>& value)->QJsonValue{
+        return value?QJsonValue(static_cast<double>(*value)):QJsonValue(QJsonValue::Null);
+    };
     int readyThumbnailCount=0;for(const auto& key:imageKeys_)if(!key.isEmpty()&&key!="failed")++readyThumbnailCount;
-    return {{"schemaVersion",1},{"frontEnd","qt-quick"},{"buildProfile",
+    QJsonArray previewSamples,previewMilliseconds;
+    for(const auto& sample:previewSamples_){
+        QJsonObject value{{"selectionId",QString::number(sample.selectionId)},
+                          {"viewerSessionId",QString::number(sample.viewerSessionId)},
+                          {"path",sample.path},
+                          {"milliseconds",optionalMilliseconds(sample.milliseconds)},
+                          {"ready",sample.milliseconds.has_value()}};
+        previewSamples.append(value);if(sample.milliseconds)previewMilliseconds.append(static_cast<double>(*sample.milliseconds));
+    }
+    QJsonArray sharpMilliseconds;std::optional<double> sharpMaximum;int targetMisses=0;
+    for(const auto& paint:paints_){
+        const auto milliseconds=paint.toMap().value("milliseconds").toDouble();
+        sharpMilliseconds.append(milliseconds);if(!sharpMaximum||milliseconds>*sharpMaximum)sharpMaximum=milliseconds;if(milliseconds>500)++targetMisses;
+    }
+    QJsonObject result{{"schemaVersion",1},{"frontEnd","qt-quick"},{"buildProfile",
 #ifdef NDEBUG
     "Release"
 #else
     "Debug"
 #endif
-    },{"qtVersion",qVersion()},{"platformPlugin",QGuiApplication::platformName()},{"itemCount",count()},{"readyThumbnailCount",readyThumbnailCount},{"maxMaterialized",maxMaterialized_},{"maxVisible",maxVisible_},{"libraryMilliseconds",scanMs_},{"searchMilliseconds",searchMs_},{"viewerSelections",selectedViews_},{"fullPaintSamples",QJsonArray::fromVariantList(paints_)},{"unpaintedSelections",selectedViews_-paints_.size()},{"observation","scene graph submission; not compositor presentation"}};
+    },{"qtVersion",qVersion()},{"platformPlugin",QGuiApplication::platformName()},{"itemCount",count()},{"readyThumbnailCount",readyThumbnailCount},{"maxMaterialized",maxMaterialized_},{"maxVisible",maxVisible_},{"libraryMilliseconds",static_cast<double>(scanMs_)},{"searchMilliseconds",static_cast<double>(searchMs_)},{"viewerSelections",selectedViews_},{"fullPaintSamples",QJsonArray::fromVariantList(paints_)},{"unpaintedSelections",qMax(0,selectedViews_-int(paints_.size()))},{"observation","scene graph submission; not compositor presentation"}};
+    result.insert("firstThumbnailReadyMilliseconds",optionalMilliseconds(firstThumbnailMs_));
+    result.insert("viewerPreviewReadyMilliseconds",previewMilliseconds.isEmpty()?QJsonValue(QJsonValue::Null):QJsonValue(previewMilliseconds));
+    result.insert("viewerPreviewSamples",previewSamples);
+    result.insert("viewerSharpPaintMilliseconds",sharpMilliseconds.isEmpty()?QJsonValue(QJsonValue::Null):QJsonValue(sharpMilliseconds));
+    result.insert("viewerSharpPaintCount",paints_.size());
+    result.insert("viewerSharpPaintMaximumMilliseconds",sharpMaximum?QJsonValue(*sharpMaximum):QJsonValue(QJsonValue::Null));
+    result.insert("viewerSharpTargetMilliseconds",500);
+    result.insert("viewerSharpTargetMisses",targetMisses);
+    result.insert("lastCompletedBatch",lastCompletedBatch_?QJsonValue(*lastCompletedBatch_):QJsonValue(QJsonValue::Null));
+
+    const QString timestamp=QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs);
+    result.insert("metricsTimestampUtc",timestamp);
+    result.insert("metricsElapsedMilliseconds",lifetime_.isValid()?QJsonValue(static_cast<double>(lifetime_.elapsed())):QJsonValue(QJsonValue::Null));
+    result.insert("processScope","self");
+    result.insert("childProcessesIncluded",false);
+    result.insert("cpuNormalization","processCpuMilliseconds / metricsElapsedMilliseconds / logicalProcessorCount * 100");
+    result.insert("gpuMemoryBytes",QJsonValue(QJsonValue::Null));
+    result.insert("gpuCopyBytes",QJsonValue(QJsonValue::Null));
+    result.insert("gpuMetricsIncluded",false);
+    result.insert("imageCopyMetricsIncluded",false);
+#ifdef Q_OS_LINUX
+    const auto processCpu=selfCpuMilliseconds();
+    const auto elapsed=lifetime_.isValid()?lifetime_.elapsed():0;
+    long logical=sysconf(_SC_NPROCESSORS_ONLN);
+    result.insert("logicalProcessorCount",logical>0?QJsonValue(static_cast<int>(logical)):QJsonValue(QJsonValue::Null));
+    if(processCpu&&cpuStartMs_){
+        const qint64 milliseconds=qMax<qint64>(0,*processCpu-*cpuStartMs_);result.insert("processCpuMilliseconds",static_cast<double>(milliseconds));
+        if(elapsed>0&&logical>0)result.insert("averageCpuUtilizationPercent",static_cast<double>(milliseconds)/elapsed/logical*100.0);
+        else result.insert("averageCpuUtilizationPercent",QJsonValue(QJsonValue::Null));
+    }else{result.insert("processCpuMilliseconds",QJsonValue(QJsonValue::Null));result.insert("averageCpuUtilizationPercent",QJsonValue(QJsonValue::Null));}
+    result.insert("cpuNormalizedByLogicalProcessors",true);
+    const auto rss=selfResidentRssBytes();const auto peakRss=selfPeakRssBytes();
+    result.insert("rssBytes",rss?QJsonValue(static_cast<double>(*rss)):QJsonValue(QJsonValue::Null));
+    result.insert("peakRssBytes",peakRss?QJsonValue(static_cast<double>(*peakRss)):QJsonValue(QJsonValue::Null));
+    result.insert("rssSource","/proc/self/statm resident pages; self only");
+    result.insert("peakRssSource","getrusage(RUSAGE_SELF).ru_maxrss; process lifetime; self only");
+#else
+    result.insert("logicalProcessorCount",QJsonValue(QJsonValue::Null));
+    result.insert("processCpuMilliseconds",QJsonValue(QJsonValue::Null));
+    result.insert("averageCpuUtilizationPercent",QJsonValue(QJsonValue::Null));
+    result.insert("cpuNormalizedByLogicalProcessors",QJsonValue(QJsonValue::Null));
+    result.insert("rssBytes",QJsonValue(QJsonValue::Null));
+    result.insert("peakRssBytes",QJsonValue(QJsonValue::Null));
+    result.insert("rssSource","unavailable on this preview platform");
+    result.insert("peakRssSource","unavailable on this preview platform");
+#endif
+    return result;
 }
 void Controller::diagnose(int count){source_.clear();for(int i=0;i<count;++i){Entry e;e.path=QStringLiteral("/diagnostic/image%1.png").arg(i);e.name=QStringLiteral("image%1.png").arg(i);e.extension=".png";e.animated=true;source_<<e;}projectModel();}
 void Controller::exercise(){

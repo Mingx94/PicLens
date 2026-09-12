@@ -141,25 +141,43 @@ bash packaging/arch/validate.sh build
 
 ## Metrics schema v1
 
-`--metrics` 目前輸出 `schemaVersion: 1`。欄位是目前實作的觀測值，不是完整效能合約：
+`--metrics` 輸出 JSON `schemaVersion: 1`。以下是目前實作的觀測值，不是完整效能合約。所有時間單位都是毫秒；沒有可用樣本的時間或資源數值是 JSON `null`，不把 `0` 當成未知。例外是相容性欄位 `libraryMilliseconds`／`searchMilliseconds`：尚未有掃描或 projection 觀測時仍保留初始數值 `0`。
 
-| 欄位 | 意義與限制 |
+| 欄位 | 型別與意義 |
 |---|---|
 | `frontEnd` | 固定為 `qt-quick`。 |
 | `buildProfile` | 編譯時有 `NDEBUG` 為 `Release`，否則為 `Debug`。 |
-| `qtVersion`／`platformPlugin` | `qVersion()` 與 `QGuiApplication::platformName()` 的執行時值，例如 `wayland` 或 `offscreen`。 |
-| `itemCount` | 目前資料夾經排序、搜尋後的 projection 項目數，包含資料夾項目；診斷模式則為合成項目數。 |
-| `readyThumbnailCount` | 目前 gallery `imageKeys_` 中已取得且不是 `failed` 的縮圖數，不是完整圖庫的成功總數。 |
-| `maxMaterialized` | 本次執行由 QML `GridView` 回報的 delegate 高峰數，包含 QML 物件生命週期觀測；不是解碼像素或程序記憶體。 |
-| `maxVisible` | 本次 QML 回報 viewport 路徑數的高峰；不是 compositor 實際可見像素數。 |
-| `libraryMilliseconds` | 最近一次有效資料夾掃描從背景掃描開始到完成的毫秒數；不是完整首屏呈現時間。 |
-| `searchMilliseconds` | projection 排序、篩選與 model replace 的單次量測毫秒數；不是磁碟搜尋獨立時間。 |
-| `viewerSelections` | Viewer `showCurrent()` 的選取次數，包含開啟與有效前後移動。 |
-| `fullPaintSamples` | 每次選取最多一筆成功樣本，記錄 path、毫秒數與 `fullResolution: true`。樣本來自 `ImageItem` 的 scene graph frame 提交觀測。 |
-| `unpaintedSelections` | `viewerSelections - fullPaintSamples` 筆數；代表目前沒有成功完整圖提交樣本的選取。 |
-| `observation` | 固定說明 `scene graph submission; not compositor presentation`。 |
+| `qtVersion`／`platformPlugin` | `qVersion()` 與 `QGuiApplication::platformName()` 的執行時值。 |
+| `itemCount` | 目前排序、搜尋後的 projection 項目數，包含資料夾項目；診斷模式則為合成項目數。 |
+| `readyThumbnailCount` | 目前 gallery `imageKeys_` 中已取得且不是 `failed` 的縮圖數，不是完整圖庫成功總數。 |
+| `maxMaterialized`／`maxVisible` | QML `GridView` 回報的 delegate／viewport 路徑高峰；不是解碼像素、程序記憶體或 compositor 像素。 |
+| `libraryMilliseconds`／`searchMilliseconds` | 最近一次有效掃描／projection 排序、篩選與 model replace 的耗時；尚未有觀測時依 legacy 相容性保留數值 `0`。兩者都不是完整首屏呈現時間。 |
+| `firstThumbnailReadyMilliseconds` | 從 Controller `lifetime_` 啟動到第一筆成功且仍屬可見 gallery 的縮圖交付；沒有成功縮圖為 `null`。 |
+| `viewerSelections` | Viewer `showCurrent()` 的選取次數，包含開啟、前後移動與重新開啟。 |
+| `viewerPreviewReadyMilliseconds` | 成功可用的 1024 預覽耗時陣列；可重用已有效預覽，沒有成功預覽為 `null`。1024 預覽不算完整原圖。 |
+| `viewerPreviewSamples` | 每次選取一筆 `{selectionId, viewerSessionId, path, milliseconds, ready}`。`selectionId` 與 `viewerSessionId` 是字串；失敗或尚未有可用預覽時 `milliseconds` 為 `null`、`ready` 為 `false`。 |
+| `fullPaintSamples` | 既有欄位。每次選取最多一筆成功完整圖提交，保留 `path`、`milliseconds`、`fullResolution: true`，並加入 `selectionId`、`viewerSessionId` 身分。 |
+| `viewerSharpPaintMilliseconds` | `fullPaintSamples` 成功提交耗時的陣列；沒有成功提交為 `null`。 |
+| `viewerSharpPaintCount`／`viewerSharpPaintMaximumMilliseconds` | 成功完整圖提交總數／最大耗時；count 沒有樣本時為 `0`，maximum 沒有樣本時為 `null`。 |
+| `viewerSharpTargetMilliseconds`／`viewerSharpTargetMisses` | 目標固定為 `500`；misses 只計成功提交且耗時 `> 500` 的樣本。未提交樣本另計，不混入 misses。 |
+| `unpaintedSelections` | 沒有成功完整圖提交的選取數，等於 `viewerSelections - viewerSharpPaintCount`；動畫、解碼失敗、取消或關閉都保留在這裡。 |
+| `lastCompletedBatch` | 尚未由既有完成 callback 觀察到批次結果時為 `null`；否則為最新一筆 `{total, succeeded, skipped, canceled, failed, unknown, durationMilliseconds}`。耗時從接受執行的 `executePlans` 到既有 `finished` callback，單位為毫秒；只保留最新結果，批次進行中或 UI callback 尚未抵達時仍保留前一筆。`failed` 沿用 `BatchResult.failed()` 並包含 `unknown`；`unknown` 是其中的子集合，不可再相加。 |
+| `observation` | 固定為 `scene graph submission; not compositor presentation`。`ImageItem::framePresented` 仍觀察 Qt `afterRendering`，不宣稱 OS compositor 已呈現。 |
 
-`fullPaintSamples` 每次選取最多計一次，不是 compositor 已呈現時間。schema v1 目前沒有 preview-ready timing、CPU、RSS 或 target-miss 欄位，也沒有因此完成完整效能契約。`maxMaterialized`、`maxVisible` 與各時間欄位都只描述該次執行與目前觀測點。
+CPU、RSS 與量測範圍欄位如下：
+
+| 欄位 | 型別與意義 |
+|---|---|
+| `metricsTimestampUtc` | 輸出當下的 UTC ISO 8601 時間，含毫秒。 |
+| `metricsElapsedMilliseconds` | 從 Controller 建構時的 `lifetime_` 到輸出的經過時間；可為有效的 `0`。 |
+| `processCpuMilliseconds` | Linux `getrusage(RUSAGE_SELF)` 的 user + system CPU 毫秒，扣除 Controller 建構時基準；worker child 不含在內。非 Linux preview 或無法量測為 `null`。 |
+| `averageCpuUtilizationPercent` | `processCpuMilliseconds / metricsElapsedMilliseconds / logicalProcessorCount * 100`，明確正規化為整台機器邏輯處理器容量；輸入不可用或經過時間為 `0` 時為 `null`。 |
+| `cpuNormalizedByLogicalProcessors`／`logicalProcessorCount` | Linux 正規化標記與線上邏輯處理器數；非 Linux preview 為 `null`。 |
+| `rssBytes`／`peakRssBytes` | Linux self process 的目前 resident RSS（`/proc/self/statm` resident pages）與 process lifetime peak（`ru_maxrss`），單位為 bytes；不可用為 `null`。 |
+| `processScope`／`childProcessesIncluded` | 固定為 `self`／`false`；CPU、RSS 與峰值只屬於主程序，reaped worker child 不包含在內。 |
+| `gpuMemoryBytes`／`gpuCopyBytes`／`gpuMetricsIncluded`／`imageCopyMetricsIncluded` | 固定為 `null`／`null`／`false`／`false`；GPU 記憶體、scene graph 上傳副本與 compositor 未量測。 |
+
+`fullPaintSamples` 與 `viewerPreviewSamples` 的身分欄位避免 A-B-A、快速切換及關閉後重開的舊 callback 混入目前選取。`viewerSharpPaintCount`、maximum 與 target misses 都從既有成功 paint sample 推導，不另建第二份成功計數器。`lastCompletedBatch` 只保存最新已完成結果，不建立歷史 telemetry；`unknown` 已包含在 `failed` 內。CPU/RSS 是 metrics emission 當下的 Linux self snapshot；worker child、GPU 記憶體、像素複製與 compositor 限制已明確標示，不能用這份輸出宣稱代表性圖片效能或完整程序總記憶體。
 
 ## 工作樹交付與封裝
 
