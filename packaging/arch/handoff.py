@@ -49,7 +49,7 @@ def allowed(name):
         return False
     if name in {'LICENSE', 'TODO.arch.md'}:
         return True
-    if name == 'docs/engineering/arch-validation.md' or (
+    if name in {'docs/engineering/arch-validation.md', 'docs/engineering/native-cleanup.md'} or (
         name.startswith('docs/') and name in TRACKED and p.suffix == '.md'
     ):
         return True

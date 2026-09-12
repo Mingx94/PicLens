@@ -6,7 +6,7 @@
 
 ## 執行規則
 
-- 依 A0 → A9 順序整合；可先完成有平台無關證據的實作，但不跳過 Arch 階段驗收。A10 須同時滿足 Arch 與 Windows 收尾條件。
+- 依 A0 → A9 順序整合，不跳過 Arch 階段驗收；A10 來源清理已依使用者指示先執行，乾淨 OS 驗證仍待完成。
 - 先讀[產品規格](docs/product/product-spec.md)、[架構](docs/engineering/architecture.md)、[不變條件](docs/engineering/runtime-invariants.md)與[驗收對照](docs/product/acceptance.md)。
 - 勾選代表該列界定的實作／平台無關測試有證據，不代表整階段或 Arch 已驗收。混合項目另列已完成子項，原項目保持未勾選；Windows 編譯／測試不能代替 Linux 專用分支、Wayland／X11 或安裝生命週期。
 - 每次交付填寫末尾證據表。先做有界限的最小驗證，遇到問題再擴大範圍。
@@ -19,7 +19,7 @@
 - [ ] A0.3 依[舊版基準](docs/reference/legacy-baseline.md)盤點產品規格與純規則，建立或重用 `test-data/`；與 Windows 共用案例 ID，明列路徑大小寫及非法名稱差異。
 - [x] A0.3a 已重用 `test-data/windows-native-cases.json` 的設定與自然排序案例；domain suite 通過。完整平台差異盤點仍待補齊。
 - [ ] A0.4 建立平台 README，記錄實測的 configure、Debug／Release build、CTest、run 命令及 Qt 模組需求，更新開發指南連結。
-- [x] A0.4a 已提供 README、Qt 模組／相依、debug／release／windows-preview presets；Windows preview 建置與四個 suite 有紀錄。Arch 命令尚未實測。
+- [x] A0.4a 已提供 README、Qt 模組／相依、debug／release／windows-preview presets；Windows preview 建置與四個 suite 有紀錄，Omarchy 實測另見 A0.4b。
 - [x] A0.4b Omarchy／Qt 6.11.2 已實測 GNU Make Debug／Release configure、build、隔離 CTest 各 4/4；Ninja 封裝另留證據。
 - [ ] A0.5 建立 app log、`--folder`／`--data-root`／`--smoke-ms` 與隔離啟動；錯誤參數有明確回饋與 exit code。
 - [x] A0.5a 已建立 log 與隔離 CLI；Windows 真 App 啟動及原圖提交有證據。所有錯誤參數／exit code 組合仍待核對。
@@ -37,7 +37,7 @@
 - [x] A1.2 確定 JPG quality 100 與無損 WebP 編碼實作，以解碼像素驗證無損；記錄外掛／codec 相依，不只依 quality 值推定。
 - [ ] A1.3 以 10,000 筆 QAbstractListModel 驗證 GridView、reuseItems、cacheBuffer、視窗縮放與捲軸；記錄 delegate 數有界限。
 - [x] A1.3a Windows Qt 真實 App 的 10,000 筆合成 model 定時捲動，最多 27 個 delegate（含 pooled）；1600×1000／800×600 截圖已檢查。Arch 與真實萬張圖庫仍待驗證。
-- [x] A1.3a app suite 已驗證 10,000 筆單次 model reset；真實 GridView delegate／捲動上限仍待驗。
+- [x] A1.3b app suite 已驗證 10,000 筆單次 model reset；真實 GridView delegate／捲動上限仍待驗。
 - [ ] A1.4 驗證 QML 圖片提供介面與完整原圖／分塊的 scene graph 提交方式；確認 QImage、紋理、alpha、render thread 的所有權。
 - [x] A1.4a imaging suite 已驗證完整原圖分塊、邊界像素及 premultiplied RGBA；Windows 真 App 有原圖 scene graph 提交紀錄。
 - [ ] A1.5 以刻意卡住的 helper 驗證 QProcess 取消、逾時終止、回收與暫存清理；在平台 README 記錄 codec、渲染與工作傳輸決策。
@@ -169,11 +169,11 @@
 
 ## A10 — 共同移除 Rust 與 egui
 
-前置條件：A0～A9 與 [W0～W9](TODO.win.md) 均完成，兩版可獨立建置、測試與封裝。此階段不要求兩版同日公開發布。
+2026-09-12 使用者明確要求「開始清理」，調整原先完整驗收後才移除的順序。清理與驗收分開記錄，A0～A9／W0～W9 的未完成項目保持待辦。
 
-- [ ] A10.1 和 W10 共用一次清理清單，核對 Rust crates、Cargo、toolchain、egui 腳本及舊封裝／workflow，確認沒有新版引用。
-- [ ] A10.2 配合 W10 移除舊實作與工具，保留 assets、LICENSE、規格、fixtures、Git 歷史與舊版定位，不重複執行清理。
-- [ ] A10.3 在不安裝 Rust 的乾淨 Arch 環境重跑新版建置、測試與 PKGBUILD；Windows 對應證據齊全後一起完成收尾。
+- [x] A10.1 已核對兩版原生專案與封裝，不引用 Cargo、Rust crates 或舊腳本；共用清理紀錄見 [原生遷移清理](docs/engineering/native-cleanup.md)。
+- [x] A10.2 已移除 60 個追蹤的舊來源／建置／封裝檔案，保留 assets、LICENSE、規格、fixtures 與 Git 歷史，更新 README。
+- [ ] A10.3 無 Rust 工具鏈的乾淨 OS 建置、測試與封裝仍待執行；本機原生建置不代替此項驗收。
 
 ## 完成證據
 
@@ -182,7 +182,7 @@
 | A0.1／A0.2 | 4.0.0 未提交工作樹 | Windows MSYS2 Qt 6.11.1 | CMake windows-preview；C++20／Qt >=6.8 | `apps/linux/CMakeLists.txt`、presets 與 README |
 | A1.2／A2.4／A3.4／A4.1 及已勾選子項 | 同上 | 隔離合成 fixture | domain／imaging／app／controller，4/4 Passed | `apps/linux/build/windows-preview/Testing/Temporary/LastTest.log`，2026-09-12 11:32；Linux 條件分支未執行 |
 | A1.4a／A7.6a／A8.1a | 同上 | Windows Qt platform plugin | 真 App 完整原圖提交 1 筆、未完成 0 筆 | `artifacts/arch-qt-second/viewer.json`；2526 ms，不是 500ms 通過或 Arch 驗收 |
-| A9.1a／A9.2a／A9.6a | 等待 source 凍結 | 封裝來源與語法核對 | 不產包、不 commit、不啟用 CI | `packaging/arch/`；實際 Arch build／makepkg／安裝待驗 |
+| A9.1a／A9.2a／A9.6a | 初期 Windows 準備紀錄 | 封裝來源與語法核對 | 當時尚未產包 | 後續已有 Omarchy makepkg 與 tag workflow，見下方新增證據；完整安裝驗收仍待完成 |
 
 本機新增證據（2026-09-12；基準 commit `146187b10dc13291998596dced8075b2d0c11411`，其後修正測試環境與 fixture 路徑）：
 

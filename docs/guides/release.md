@@ -2,7 +2,7 @@
 
 ## 狀態
 
-目前的 `.github/workflows/release.yml`、Cargo 版本與封裝腳本仍屬舊 Rust／egui 版。Windows 新流程是 `.github/workflows/windows-native.yml`；Arch 新流程是 `.github/workflows/arch-native.yml`，封裝使用 `packaging/arch/PKGBUILD`。歷史資料見[舊版基準](../reference/legacy-baseline.md)。
+Rust／egui 的 `release.yml`、Cargo 與舊封裝腳本已移除。Windows 使用 `.github/workflows/windows-native.yml`；Arch 使用 `.github/workflows/arch-native.yml`，封裝使用 `packaging/arch/PKGBUILD`。歷史資料見[舊版基準](../reference/legacy-baseline.md)。
 
 ## 新版版本規則
 
@@ -25,7 +25,7 @@ Arch 容器在缺少相依時更新完整套件庫並安裝 Qt 相依，以一�
 
 本機可在 repo 根目錄執行 `sudo ./packaging/arch/build-release.sh`。腳本以 sudo 的原使用者匯出來源並建置，每次建置先清空 `dist/arch/`，來源、建置中間檔與成品全部放在該目錄，例如 `dist/arch/piclens-4.0.0-1-x86_64`；相依齊備時不更新系統。詳見 [Arch 本機交付](../../packaging/arch/README.md)。
 
-封裝階段建立平台 release workflow，驗證 annotated tag、來源 commit 和平台版本一致。舊 `v*` workflow 必須在新流程啟用前確認隔離，不能產生錯誤的 Rust 產物。第一版平台成果可先是候選套件，不等另一版開發完畢。
+平台 release workflow 核對 annotated tag、來源 commit 和平台版本。舊 `v*` workflow 已移除，兩版使用各自的 tag 命名空間。第一版平台成果可先是候選套件，不等另一版開發完畢。
 
 Arch 需在記錄版本的乾淨建置環境檢查相依與 PKGBUILD；桌面驗證另外執行。發布至 AUR 或其他外部位置不屬於建立 PKGBUILD 本身。
 
@@ -61,6 +61,6 @@ Windows 自動發布只要求 tag／版本一致且建置封裝成功；功能�
 
 ## Rust 退場
 
-兩版皆通過功能與封裝驗收，且替代流程已能獨立運作後，才移除 Rust crates、Cargo／toolchain、egui 專用腳本與舊 workflow。保留使用中的 assets、LICENSE、規格、案例與 Git 歷史。
+2026-09-12 依使用者「開始清理」指示，移除 Rust crates、Cargo／toolchain、egui 專用腳本與舊 workflow，保留 assets、LICENSE、規格、案例與 Git 歷史。
 
-這是共同最後一步：一版先完成可以先交付，但不能提前刪除另一版仍需對照的舊程式。兩份 TODO 的收尾項目都需引用同一份清理證據。
+此決定調整原先「兩版完整驗收後才刪除」的順序。來源清理與功能驗收分開記錄；兩版仍須完成各自未勾選的桌面／安裝／升級驗收，不將它們隨清理一起勾選。

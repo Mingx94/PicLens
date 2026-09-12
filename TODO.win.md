@@ -2,11 +2,11 @@
 
 目標：在同一個 repo 以 C#、.NET、WPF／XAML 完整重寫 PicLens。新版不依賴 Rust、egui、Qt、WinUI 或共用跨語言核心。
 
-狀態：2026-09-12 Windows WPF 來源版本已升至 4.0.2，包含 Lucide 圖示與元件樣式調整；4.0.2 尚未重新封裝。既有候選封裝為 4.0.1。Release 45 項測試通過。未勾選項目包含仍待人工／OS／安裝環境驗證的部分，不代表全部尚未寫程式。完整差異與證據見 [Windows 驗證紀錄](docs/engineering/windows-validation.md)。現有 Rust 程式依共同退場條件暫留。
+狀態：2026-09-12 Windows WPF 來源版本已升至 4.0.2，包含 Lucide 圖示與元件樣式調整；本機已存在 4.0.2 MSI／ZIP，後續清理時已核對 SHA-256；不代表安裝／升級驗收通過。Release 45 項測試通過。未勾選項目包含仍待人工／OS／安裝環境驗證的部分，不代表全部尚未寫程式。完整差異與證據見 [Windows 驗證紀錄](docs/engineering/windows-validation.md)。舊 Rust 來源已依使用者指示移除。
 
 ## 執行規則
 
-- 依 W0 → W9 順序推進；W10 須同時滿足 Arch 收尾條件。每階段前置條件是上一階段通過驗收。
+- W0 → W9 保留原有驗收順序；W10 來源清理已依使用者指示先執行，乾淨 OS 驗證仍待完成。
 - 先讀[產品規格](docs/product/product-spec.md)、[架構](docs/engineering/architecture.md)、[不變條件](docs/engineering/runtime-invariants.md)與[驗收對照](docs/product/acceptance.md)。
 - 勾選代表該項實作與對應驗證都完成。只有計畫、可編譯或畫面骨架不能勾選功能完成。
 - 每次交付填寫末尾證據表；無法驗證的項目保持未勾選。工程選型在階段內完成，不把未定套件留到功能交付後。
@@ -123,11 +123,11 @@
 
 ## W10 — 共同移除 Rust 與 egui
 
-前置條件：W0～W9 與 [A0～A9](TODO.arch.md) 均完成，兩版可獨立建置、測試與封裝。此階段不要求兩版同日公開發布。
+2026-09-12 使用者明確要求「開始清理」，調整原先完整驗收後才移除的順序。清理與驗收分開記錄，A0～A9／W0～W9 的未完成項目保持待辦。
 
-- [ ] W10.1 和 A10 共用一次清理清單，辨識 Rust crates、Cargo、toolchain、egui 腳本及舊封裝／workflow；確認沒有新版引用。
-- [ ] W10.2 移除上述舊實作與工具，保留 assets、LICENSE、共用規格、fixtures、Git 歷史與舊版定位；更新 README 的實際狀態。
-- [ ] W10.3 在不安裝 Rust 的 Windows 環境重跑新版建置、測試及封裝；確認 Arch 的對應證據也存在，再勾選兩份共同收尾。
+- [x] W10.1 已核對兩版原生專案與封裝，不引用 Cargo、Rust crates 或舊腳本；共用清理紀錄見 [原生遷移清理](docs/engineering/native-cleanup.md)。
+- [x] W10.2 已移除 60 個追蹤的舊來源／建置／封裝檔案，保留 assets、LICENSE、規格、fixtures 與 Git 歷史，更新 README。
+- [ ] W10.3 無 Rust 工具鏈的乾淨 OS 建置、測試與封裝仍待執行；本機原生建置不代替此項驗收。
 
 ## 完成證據
 
@@ -140,7 +140,7 @@
 | W9.1、W9.4～W9.5 | 候選封裝 | self-contained x64 | packaging/windows/build.ps1 | MSI ICE 0 警告／0 錯誤；ZIP、授權、SHA-256 |
 | W1.1、W2.2、W2.5、W3.6、W5.6、W6.5～W6.6、W6.9、W7.3～W7.5、W8.4 | 已實作，驗證未齊 | 需對應實檔、OS 與互動環境 | 見驗收對照 | 保持未勾選，未以程式碼檢查代替人工證據 |
 | W8.5、W9.2～W9.3 | tag-only 發布／手動安裝腳本 | 乾淨且已授權 Windows | windows-native.yml、test-lifecycle.ps1 | 自動測試與安裝驗證已停用；安裝與升級另行手動驗證 |
-| W10 | 尚未符合前置條件 | Arch 尚未開始 | — | 保留 Rust 對照 |
+| W10 | 來源清理完成 | 兩版原生實作 | 60 個追蹤檔案移除 | 見 native-cleanup.md；乾淨 OS 驗收仍待完成 |
 
 ## 待決工程項目
 

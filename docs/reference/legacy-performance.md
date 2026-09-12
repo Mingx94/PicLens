@@ -125,7 +125,7 @@ app metrics 記錄 `displayScale: 1.5` 與 `windowSize: "1280x800"`。內建 Gal
 
 ## Windows 批次操作證據 — 2026-09-03
 
-使用 [`scripts/measure-windows-batch-performance.ps1`](../../scripts/measure-windows-batch-performance.ps1) 建立隔離的 copied fixture，並在可見的 Windows Release app 中執行 JPG 轉換。指令範例：
+使用 `scripts/measure-windows-batch-performance.ps1`（已移除，可由歷史基準查閱） 建立隔離的 copied fixture，並在可見的 Windows Release app 中執行 JPG 轉換。指令範例：
 
 ```powershell
 .\scripts\measure-windows-batch-performance.ps1 -SourcePng <representative-png> -OutputDirectory <new-output-directory>

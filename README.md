@@ -13,9 +13,9 @@ PicLens 是以本機資料夾為中心的圖片瀏覽與整理工具。採同一
 
 Windows WPF 已完成程式實作，提供獨立建置、測試與候選封裝。已驗證功能、效能與仍待人工／安裝環境確認的項目，見 [Windows 驗證紀錄](docs/engineering/windows-validation.md)。Arch Qt 4.0.0 已在 Omarchy 完成本機建置、測試與候選套件；實際 Arch 桌面與套件驗收見 [Arch 驗收紀錄](docs/engineering/arch-validation.md)。
 
-Windows 新版不依賴 Rust。現有 Cargo 與舊 release workflow 只適用歷史版；新流程使用 `windows/v<version>`。
+兩版均不依賴 Rust。發布流程分別使用 `windows/v<version>` 與 `arch/v<version>`；舊 `v*` 發布流程已移除。
 
-本次先保留舊程式作為行為參考。兩版完成驗收後，再依 TODO 移除 Rust、egui 與舊建置流程。歷史版本與查閱方式見[舊版基準](docs/reference/legacy-baseline.md)。
+已依使用者指示移除舊 Rust／egui 原始碼、封裝與建置流程。舊行為可從 Git 歷史查閱，見[舊版基準](docs/reference/legacy-baseline.md)。清理不代表兩版的桌面、安裝與升級驗收已完成；剩餘項目仍列於各平台 TODO。
 
 ## 功能範圍
 

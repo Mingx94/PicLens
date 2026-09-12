@@ -25,7 +25,7 @@ GitHub Actions 先清空並匯出到 `dist/arch/`，再將該目錄掛載為 `/w
 需要 PowerShell 7、Git、Python 3.10 以上。直接呼叫 exporter 時，輸出目錄必須不存在，可使用 repo 外或 `dist/` 下的新子目錄，包含固定的 `dist/arch/`。exporter 本身不清空目錄；本機 build-release.sh 與發布 workflow 會先清空 `dist/arch/` 再匯出。`dist` 由 Git ignore 與 exporter 排除，不會遞迴打包先前成品。
 
 ```powershell
-pwsh -File F:/PicLens/packaging/arch/New-Handoff.ps1 -OutputDirectory F:/PicLens/dist/piclens-4.0.0-handoff
+pwsh -File F:/PicLens/packaging/arch/New-Handoff.ps1 -OutputDirectory F:/PicLens/dist/new-arch-handoff
 ```
 
 產生 source tarball、填入真實 SHA-256 的 `PKGBUILD`、`SHA256SUMS` 與逐檔 `SOURCE-MANIFEST.json`。Linux 也可執行 `python packaging/arch/handoff.py --output /tmp/piclens-handoff`。
@@ -41,7 +41,7 @@ pwsh -File F:/PicLens/packaging/arch/New-Handoff.ps1 -OutputDirectory F:/PicLens
 將整個交付目錄搬至 Arch；依 [Linux README](../../apps/linux/README.md)先自行安裝工具，再以一般帳號執行：
 
 ```bash
-cd /path/to/piclens-4.0.0-handoff
+cd /path/to/new-arch-handoff
 sha256sum -c SHA256SUMS
 makepkg --verifysource
 makepkg

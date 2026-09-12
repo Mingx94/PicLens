@@ -11,7 +11,7 @@
 
 ## 平台入口
 
-| 目標 | 規劃位置 | 第一階段必須交付 |
+| 目標 | 專案位置 | 入口內容 |
 |---|---|---|
 | Windows／WPF | `apps/windows/` | solution、專案、SDK 與套件鎖定、測試入口、建置和執行命令 |
 | Arch／Qt Quick | `apps/linux/` | CMake 專案、presets、Qt 相依、CTest 入口、建置和執行命令 |
@@ -39,4 +39,4 @@
 
 只修改文件時，檢查 diff、Markdown 連結與規格對照，不要求執行 Rust 或新版建置。提交、推送及公開發佈依使用者當次授權執行。
 
-在兩版通過退場條件之前保留舊程式。舊檔案與工具的定位見[舊版基準](../reference/legacy-baseline.md)，最終清理由兩份 TODO 的共同收尾條件控制。
+舊程式、工具與建置快取已依使用者指示清除。需要對照行為時，依[舊版基準](../reference/legacy-baseline.md)從 Git 歷史讀取；兩版尚未完成的原生驗收仍由各自 TODO 記錄。
