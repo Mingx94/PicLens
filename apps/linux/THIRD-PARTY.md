@@ -1,6 +1,6 @@
 # Arch Qt 版第三方元件
 
-PicLens 程式授權為 repo 根目錄的 MIT `LICENSE`。下表是預期使用的元件；最終以套件檔案、連結結果及實際內嵌資產核對，不代表已完成發布授權稽核。
+PicLens 程式授權為 repo 根目錄的 MIT `LICENSE`。下表已依 2026-09-12 的 Arch 套件 metadata、安裝檔案、動態連結結果及實際內嵌資產核對。
 
 | 元件 | 使用方式 | 授權與來源 |
 |---|---|---|
@@ -12,4 +12,4 @@ PicLens 程式授權為 repo 根目錄的 MIT `LICENSE`。下表是預期使用�
 | Noto Sans CJK TC | 共用來源 tarball 含字型；若未編入 App，不是執行相依 | SIL OFL 1.1，完整文字：`assets/Fonts/NotoSansCJKtc-OFL.txt`；若內嵌／安裝字型也必須帶此授權 |
 | PicLens 品牌圖示 | 現有 repo 品牌 PNG 的原樣副本 | 依 repo MIT；`packaging/arch/piclens.png` 為 48×48 圖示 |
 
-Arch 套件使用系統 Qt／codec，不部署 Windows DLL、Rust 執行檔或開發機 Qt 外掛。發布前保存 `pacman -Q`、套件內容、連結依賴與上述完整授權檔。若增加靜態連結或第三方資產，重新核對並更新本表。
+Arch 套件使用系統 Qt／codec，不部署 Windows DLL、Rust 執行檔或開發機 Qt 外掛。本次套件保存 repo `LICENSE`、本表與 Lucide 完整授權文字；執行相依為 `qt6-base`、`qt6-declarative`、`qt6-svg`、`qt6-imageformats`、`qt6-wayland`、`libwebp`、`glib2`。若增加靜態連結或第三方資產，必須重新核對並更新本表。
