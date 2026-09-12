@@ -1,0 +1,42 @@
+# Local worktree handoff template. Generate with New-Handoff.ps1 first.
+pkgname=piclens
+pkgver=4.0.0
+pkgrel=1
+pkgdesc='Local image viewer and organizer using Qt Quick'
+arch=('x86_64')
+url='https://github.com/Mingx94/PicLens'
+license=('MIT')
+depends=('qt6-base>=6.8' 'qt6-declarative>=6.8' 'qt6-svg>=6.8'
+         'qt6-imageformats>=6.8' 'qt6-wayland>=6.8' 'libwebp' 'glib2')
+makedepends=('cmake' 'ninja' 'pkgconf')
+source=("piclens-${pkgver}-worktree.tar.gz")
+sha256sums=('@SOURCE_SHA256@')
+
+build() {
+  cmake -S "$srcdir/piclens-$pkgver/apps/linux" -B "$srcdir/build" -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib -DBUILD_TESTING="${PICLENS_BUILD_TESTING:-ON}"
+  cmake --build "$srcdir/build"
+}
+
+check() {
+  local isolated
+  isolated=$(mktemp -d "$srcdir/ctest.XXXXXX")
+  mkdir -p "$isolated/home" "$isolated/data" "$isolated/config" "$isolated/cache"
+  HOME="$isolated/home" XDG_DATA_HOME="$isolated/data" \
+    XDG_CONFIG_HOME="$isolated/config" XDG_CACHE_HOME="$isolated/cache" \
+    PICLENS_DATA_ROOT="$isolated/profile" QT_QPA_PLATFORM=offscreen \
+    ctest --test-dir "$srcdir/build" --output-on-failure --no-tests=error --timeout 120
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install "$srcdir/build"
+  # Fail closed if the CMake install contract has not been integrated.
+  test -x "$pkgdir/usr/bin/piclens"
+  test -x "$pkgdir/usr/libexec/piclens/piclens-worker"
+  test -f "$pkgdir/usr/share/applications/piclens.desktop"
+  test -f "$pkgdir/usr/share/icons/hicolor/48x48/apps/piclens.png"
+  test -f "$pkgdir/usr/share/metainfo/io.github.Mingx94.PicLens.metainfo.xml"
+  test -f "$pkgdir/usr/share/licenses/piclens/LICENSE"
+  test -f "$pkgdir/usr/share/licenses/piclens/THIRD-PARTY.md"
+}

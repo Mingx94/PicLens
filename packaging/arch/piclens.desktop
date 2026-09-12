@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=PicLens
+Comment=View and organize local images
+Comment[zh_TW]=瀏覽與整理本機圖片
+Exec=piclens
+TryExec=piclens
+Icon=piclens
+Terminal=false
+Categories=Graphics;Viewer;
+StartupNotify=true

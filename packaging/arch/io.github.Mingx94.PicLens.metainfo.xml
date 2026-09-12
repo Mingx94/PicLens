@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.Mingx94.PicLens</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>PicLens</name>
+  <summary>View and organize local images</summary>
+  <description><p>PicLens provides a folder-based image gallery and an embedded viewer for local images.</p></description>
+  <launchable type="desktop-id">piclens.desktop</launchable>
+  <url type="homepage">https://github.com/Mingx94/PicLens</url>
+  <provides><binary>piclens</binary></provides>
+</component>

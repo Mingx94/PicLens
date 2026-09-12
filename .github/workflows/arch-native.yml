@@ -1,0 +1,53 @@
+name: Arch Qt release
+on:
+  push:
+    tags: ['arch/v*']
+
+concurrency:
+  group: arch-qt-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Match annotated tag and export release source
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python3 packaging/arch/handoff.py --release-tag "$RELEASE_TAG" --output dist/arch-release
+      - name: Build Arch package without tests
+        run: |
+          docker run --rm \
+            --env "BUILD_UID=$(id -u)" \
+            --mount "type=bind,source=$GITHUB_WORKSPACE/dist/arch-release,target=/work" \
+            --mount "type=bind,source=$GITHUB_WORKSPACE/packaging/arch/build-release.sh,target=/build-release.sh,readonly" \
+            archlinux:base-devel bash /build-release.sh
+      - name: Hash and publish unsigned assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cd dist/arch-release
+          version="${RELEASE_TAG#arch/v}"
+          pkgrel=$(python3 -c 'import json; print(json.load(open("SOURCE-MANIFEST.json"))["pkgrel"])')
+          package="piclens-$version-$pkgrel-x86_64.pkg.tar.zst"
+          test -s "$package"
+          assets=("$package" "piclens-$version-source.tar.gz" PKGBUILD SOURCE-MANIFEST.json build-environment.txt)
+          sha256sum "${assets[@]}" > SHA256SUMS
+          gh release create "$RELEASE_TAG" "${assets[@]}" SHA256SUMS \
+            --verify-tag --title "PicLens $version (Arch Linux)" \
+            --notes "Arch Linux x86_64 / Qt Quick. Unsigned package and source archive; SHA-256 files included. Automated functional, desktop and installer tests were not run."

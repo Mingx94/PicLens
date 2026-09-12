@@ -1,6 +1,6 @@
 # PicLens 文件
 
-本文件集描述 Windows／WPF 與 Arch Linux／Qt Quick 的完整重寫。兩版放在同一個 repo，分別實作；最終移除 Rust 與 egui。Windows WPF 程式已建立；Arch 尚未開始。實作與驗證狀態由兩份 TODO 記錄。
+本文件集描述 Windows／WPF 與 Arch Linux／Qt Quick 的完整重寫。兩版放在同一個 repo，分別實作；最終移除 Rust 與 egui。兩版程式已建立；Arch Qt 版須移至 Arch 完成桌面與套件驗收。實作與驗證狀態由兩份 TODO 記錄。
 
 ## 實作入口
 

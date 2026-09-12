@@ -16,7 +16,7 @@
 | Windows／WPF | `apps/windows/` | solution、專案、SDK 與套件鎖定、測試入口、建置和執行命令 |
 | Arch／Qt Quick | `apps/linux/` | CMake 專案、presets、Qt 相依、CTest 入口、建置和執行命令 |
 
-Windows 專案已建立，實際命令見 [Windows README](../../apps/windows/README.md)。Arch 目錄尚未建立；實作時需提供相同層級的獨立建置與驗證入口。
+兩平台均有獨立建置與驗證入口。實際命令見 [Windows README](../../apps/windows/README.md) 與 [Arch README](../../apps/linux/README.md)。Windows Qt 預先開發可驗證共用 C++／QML 程式，Arch 專用檔案操作及桌面整合仍須在 Arch 驗收。
 
 ## 共用案例
 
