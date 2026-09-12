@@ -112,6 +112,13 @@ QQuickItem *findSearchField(QObject *root)
     });
 }
 
+QQuickItem *findSearchClearButton(QQuickItem *searchField)
+{
+    return findItem(searchField, [](QQuickItem *item) {
+        return item->property("hint").toString() == QStringLiteral("清除搜尋");
+    });
+}
+
 QQuickItem *findDelegate(QObject *root, const QString &path)
 {
     auto *window = qobject_cast<QQuickWindow *>(root);
@@ -392,6 +399,74 @@ private slots:
         QVERIFY(trash);
         QVERIFY(!rename->property("enabled").toBool());
         QVERIFY(!trash->property("enabled").toBool());
+    }
+
+    void searchClearControlUsesActualInputAndPreservesProjection()
+    {
+        Harness h;
+        QVERIFY(h.filesReady());
+        QVERIFY(h.load());
+        h.controller.start(h.library);
+        waitForGallery(h, 8);
+
+        auto *grid = findGrid(h.window, h.controller.library());
+        auto *search = findSearchField(h.window);
+        auto *tree = qobject_cast<Rows *>(h.controller.tree());
+        QVERIFY(grid);
+        QVERIFY(search);
+        QVERIFY(tree);
+        QTRY_VERIFY_WITH_TIMEOUT(tree->rowCount() > 0, 5000);
+
+        auto *clear = findSearchClearButton(search);
+        QVERIFY(clear);
+        QVERIFY(!clear->isVisible());
+        QCOMPARE(h.controller.search(), QString());
+
+        const QString rootPath = h.controller.rootPath();
+        const QVariantList treeRows = tree->rows;
+
+        search->forceActiveFocus();
+        for (const auto ch : QStringLiteral("alpha"))
+            QTest::keyClick(h.window, ch.toLatin1());
+        QTRY_COMPARE(h.controller.search(), QStringLiteral("alpha"));
+        QTRY_COMPARE(h.controller.count(), 1);
+        QTRY_VERIFY_WITH_TIMEOUT(clear->isVisible(), 2000);
+        QCOMPARE(clear->property("hint").toString(), QStringLiteral("清除搜尋"));
+        QVERIFY(clear->property("enabled").toBool());
+        if (auto *accessible = QAccessible::queryAccessibleInterface(clear)) {
+            QCOMPARE(accessible->role(), QAccessible::PushButton);
+            QCOMPARE(accessible->text(QAccessible::Name), QStringLiteral("清除搜尋"));
+        }
+
+        const qreal rightPadding = search->property("rightPadding").toReal();
+        QVERIFY(clear->width() > 0);
+        QVERIFY(rightPadding >= clear->width() + 4.0);
+        QVERIFY(clear->x() + clear->width() <= search->width());
+        QVERIFY(search->width() - rightPadding <= clear->x());
+
+        QTest::mouseClick(h.window, Qt::LeftButton, Qt::NoModifier,
+                          itemCenter(clear, h.window));
+        QTRY_COMPARE(h.controller.search(), QString());
+        QTRY_COMPARE(h.controller.count(), 8);
+        QTRY_VERIFY_WITH_TIMEOUT(!clear->isVisible(), 2000);
+        QTRY_VERIFY_WITH_TIMEOUT(search->hasActiveFocus(), 2000);
+        QCOMPARE(h.controller.rootPath(), rootPath);
+        QCOMPARE(tree->rows, treeRows);
+        QTRY_VERIFY_WITH_TIMEOUT(findDelegate(h.window, h.path("alpha.png"))
+                                 && findDelegate(h.window, h.path("beta.png"))
+                                 && findDelegate(h.window, h.path("gamma.png"))
+                                 && findDelegate(h.window, h.path("子資料夾")), 3000);
+
+        for (const auto ch : QStringLiteral("beta"))
+            QTest::keyClick(h.window, ch.toLatin1());
+        QTRY_COMPARE(h.controller.search(), QStringLiteral("beta"));
+        QTRY_COMPARE(h.controller.count(), 1);
+        QTRY_VERIFY_WITH_TIMEOUT(clear->isVisible(), 2000);
+
+        grid->forceActiveFocus();
+        QTest::keyClick(h.window, Qt::Key_F, Qt::ControlModifier);
+        QTRY_VERIFY_WITH_TIMEOUT(search->hasActiveFocus(), 2000);
+        QTRY_COMPARE(search->property("selectedText").toString(), QStringLiteral("beta"));
     }
 
     void resetClearsSelectionAndThumbnailBindings()

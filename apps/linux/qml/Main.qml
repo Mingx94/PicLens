@@ -301,6 +301,24 @@ ApplicationWindow {
                             selectByMouse: true
                             onTextEdited: app.search = text
                             Accessible.name: "搜尋圖庫"
+                            rightPadding: searchClearButton.width + 8
+                            ActionButton {
+                                id: searchClearButton
+                                anchors.right: parent.right
+                                anchors.rightMargin: 4
+                                anchors.verticalCenter: parent.verticalCenter
+                                theme: appTheme
+                                implicitWidth: 28
+                                implicitHeight: 28
+                                glyph: "x"
+                                hint: "清除搜尋"
+                                visible: app.search.length > 0
+                                enabled: !app.busy
+                                onClicked: {
+                                    app.search = "";
+                                    searchField.forceActiveFocus();
+                                }
+                            }
                         }
                     }
                     RowLayout {
