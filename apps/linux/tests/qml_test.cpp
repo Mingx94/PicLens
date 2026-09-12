@@ -6,12 +6,14 @@
 #include <QColor>
 #include <QDir>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickItem>
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QSignalSpy>
+#include <QStyleHints>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QUrl>
@@ -94,6 +96,15 @@ QQuickItem *findGallery(QObject *root)
     });
 }
 
+QQuickItem *findTilePointer(QObject *root)
+{
+    return findItem(root, [](QQuickItem *item) {
+        return item->property("pressPoint").isValid()
+            && item->property("moved").isValid()
+            && item->property("deferredSelection").isValid();
+    });
+}
+
 QQuickItem *findSearchField(QObject *root)
 {
     return findItem(root, [](QQuickItem *item) {
@@ -162,8 +173,10 @@ public:
         if (!window)
             return false;
         window->show();
-        QCoreApplication::processEvents();
-        return true;
+        if (!QTest::qWaitForWindowExposed(window, 5000))
+            return false;
+        window->requestActivate();
+        return QTest::qWaitForWindowActive(window, 5000);
     }
 
     QString path(const QString &name) const { return library + "/" + name; }
@@ -446,13 +459,27 @@ private slots:
         QVERIFY(sourceDelegate);
         auto *targetDelegate = findDelegate(h.window, target);
         QVERIFY(targetDelegate);
+        auto *sourcePointer = findTilePointer(sourceDelegate);
+        QVERIFY(sourcePointer);
         const auto sourcePoint = itemCenter(sourceDelegate, h.window);
         const auto targetPoint = itemCenter(targetDelegate, h.window);
 
+        const int dragThreshold = QGuiApplication::styleHints()->startDragDistance();
+        QVERIFY(dragThreshold > 0);
+        QTest::mousePress(h.window, Qt::LeftButton, Qt::NoModifier, sourcePoint);
+        QTest::mouseMove(h.window, sourcePoint + QPoint(dragThreshold - 1, 0));
+        QVERIFY(!gallery->property("dragging").toBool());
+        QTest::mouseRelease(h.window, Qt::LeftButton, Qt::NoModifier,
+                            sourcePoint + QPoint(dragThreshold - 1, 0));
+        QVERIFY(!sourcePointer->property("pressed").toBool());
+
+        h.controller.clearSelection();
+        h.controller.select(h.row(alpha), 0);
         QTest::mouseClick(h.window, Qt::LeftButton, Qt::ControlModifier, sourcePoint);
         QTRY_COMPARE(h.controller.selectionCount(), 2);
         QTest::mousePress(h.window, Qt::LeftButton, Qt::NoModifier, sourcePoint);
-        QTest::mouseMove(h.window, sourcePoint + QPoint(32, 32));
+        QTest::mouseMove(h.window,
+                         sourcePoint + QPoint(dragThreshold + 1, dragThreshold + 1));
         QTRY_VERIFY_WITH_TIMEOUT(gallery->property("dragging").toBool(), 1000);
         QTest::mouseMove(h.window, targetPoint);
         QTest::qWait(50);
@@ -461,9 +488,14 @@ private slots:
         });
         QVERIFY(dropArea);
         QVERIFY(dropArea->property("enabled").toBool());
-        QVERIFY(QMetaObject::invokeMethod(gallery, "endDrag", Qt::DirectConnection,
-                                           Q_ARG(QVariant, QVariant(false))));
+        sourcePointer->ungrabMouse();
+        QTRY_VERIFY_WITH_TIMEOUT(!gallery->property("dragging").toBool(), 1000);
+        QTRY_VERIFY_WITH_TIMEOUT(!sourcePointer->property("pressed").toBool(), 1000);
+        QCOMPARE(gallery->property("dragPath").toString(), QString());
+        QCOMPARE(h.controller.selectionCount(), 2);
+        QVERIFY(sourcePointer->property("moved").toBool());
         QTest::mouseRelease(h.window, Qt::LeftButton, Qt::NoModifier, targetPoint);
+        QCOMPARE(h.controller.selectionCount(), 2);
         h.controller.dropRename(target);
 
         QTRY_VERIFY_WITH_TIMEOUT(h.controller.confirmOpen(), 5000);
