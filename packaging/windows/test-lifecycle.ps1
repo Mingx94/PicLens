@@ -18,10 +18,9 @@ $perUserShortcut = Join-Path $env:APPDATA 'Microsoft/Windows/Start Menu/Programs
 $perMachineShortcut = Join-Path $env:ProgramData 'Microsoft/Windows/Start Menu/Programs/PicLens/PicLens.lnk'
 $installedExe = if ($InstallScope -eq 'perUser') { $perUserExe } else { $perMachineExe }
 $installedShortcut = if ($InstallScope -eq 'perUser') { $perUserShortcut } else { $perMachineShortcut }
-$shortcutRegistryMarker = 'HKCU:\Software\PicLens'
 $scopeRegistryMarker = if ($InstallScope -eq 'perUser') { 'HKCU:\Software\PicLens' } else { 'HKLM:\Software\PicLens' }
+$shortcutRegistryMarker = $scopeRegistryMarker
 $scopeProperties = if ($InstallScope -eq 'perUser') { @('ALLUSERS=2', 'MSIINSTALLPERUSER=1') } else { @('ALLUSERS=1') }
-if ($PreviousMsiPath -and $InstallScope -ne 'perMachine') { throw '既有 MSI 是所有使用者安裝；升級測試必須使用 -InstallScope perMachine。' }
 if ((Test-Path -LiteralPath $perUserExe) -or (Test-Path -LiteralPath $perMachineExe)) { throw '此測試需要沒有既有 PicLens 安裝的乾淨環境。' }
 $evidence = Join-Path $repo ('artifacts/wpf-msi-lifecycle-' + [guid]::NewGuid().ToString('N'))
 $profile = Join-Path $evidence 'profile'
@@ -50,9 +49,10 @@ $activePackage = $null
 try {
     if ($PreviousMsiPath) {
         $previous = (Resolve-Path -LiteralPath $PreviousMsiPath).Path
-        Msi $previous 'i' 'previous-install'; $activePackage = $previous
+        Msi $previous 'i' 'previous-install' $scopeProperties; $activePackage = $previous
     }
-    Msi $candidate 'i' 'candidate-install' $scopeProperties; $activePackage = $candidate
+    $candidateProperties = if ($PreviousMsiPath) { @() } else { $scopeProperties }
+    Msi $candidate 'i' 'candidate-install' $candidateProperties; $activePackage = $candidate
     if (-not (Test-Path -LiteralPath $installedExe)) { throw '安裝後找不到 PicLens.exe。' }
     if (-not (Test-Path -LiteralPath $installedShortcut)) { throw '安裝後找不到開始功能表捷徑。' }
     if (-not (HasRegistryValue $shortcutRegistryMarker 'installed')) { throw '安裝後找不到開始功能表捷徑的登錄標記。' }

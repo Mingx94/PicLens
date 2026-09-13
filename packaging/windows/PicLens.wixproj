@@ -2,6 +2,8 @@
   <PropertyGroup>
     <OutputType>Package</OutputType>
     <SuppressPdbOutput>true</SuppressPdbOutput>
+    <!-- ProgramMenuFolder and HKMU follow the same selected install context, but ICE57 does not evaluate ALLUSERS redirection. -->
+    <SuppressIces>ICE57</SuppressIces>
     <InstallerPlatform>x64</InstallerPlatform>
     <DefineConstants>AppVersion=$(AppVersion);PayloadDir=$(PayloadDir)</DefineConstants>
   </PropertyGroup>

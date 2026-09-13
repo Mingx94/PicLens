@@ -25,42 +25,36 @@
         Type="raw"
         Bitness="always64" />
     </Property>
+    <Property Id="PICLENS_EXISTING_LEGACY_PER_MACHINE" Secure="yes">
+      <DirectorySearch
+        Id="FindLegacyPicLensPerMachineFolder"
+        Path="[ProgramFiles64Folder]PicLens"
+        Depth="0">
+        <FileSearch Id="FindLegacyPicLensPerMachineExecutable" Name="PicLens.exe" />
+      </DirectorySearch>
+    </Property>
     <Property Id="PICLENS_INSTALL_SCOPE" Value="perUser" Secure="yes" />
-    <SetProperty
-      Id="PICLENS_INSTALL_SCOPE"
-      Action="UseExistingPerMachineChoice"
-      Value="perMachine"
-      After="AppSearch"
-      Sequence="first"
-      Condition="PICLENS_EXISTING_PER_MACHINE OR (WIX_UPGRADE_DETECTED AND NOT PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE)" />
     <SetProperty
       Id="ALLUSERS"
       Action="UseExistingPerMachineScope"
       Value="1"
-      After="UseExistingPerMachineChoice"
-      Sequence="first"
-      Condition="PICLENS_EXISTING_PER_MACHINE OR (WIX_UPGRADE_DETECTED AND NOT PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE)" />
-    <SetProperty
-      Id="PICLENS_INSTALL_SCOPE"
-      Action="UseExistingPerUserChoice"
-      Value="perUser"
       After="AppSearch"
       Sequence="first"
-      Condition="PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE" />
+      Condition="PICLENS_EXISTING_PER_MACHINE OR PICLENS_EXISTING_LEGACY_PER_MACHINE" />
     <SetProperty
       Id="ALLUSERS"
       Action="UseExistingPerUserScope"
       Value="2"
-      After="UseExistingPerUserChoice"
+      After="UseExistingPerMachineScope"
       Sequence="first"
-      Condition="PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE" />
+      Condition="PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE AND NOT PICLENS_EXISTING_LEGACY_PER_MACHINE" />
     <SetProperty
       Id="MSIINSTALLPERUSER"
       Action="UseExistingPerUserInstallContext"
       Value="1"
       After="UseExistingPerUserScope"
       Sequence="first"
-      Condition="PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE" />
+      Condition="PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE AND NOT PICLENS_EXISTING_LEGACY_PER_MACHINE" />
 
     <Icon Id="AppIcon.ico" SourceFile="$(var.PayloadDir)\AppIcon.ico" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
@@ -92,7 +86,7 @@
         IconIndex="0" />
       <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
       <RegistryValue
-        Root="HKCU"
+        Root="HKMU"
         Key="Software\PicLens"
         Name="installed"
         Type="integer"
@@ -176,10 +170,14 @@
     <UIRef Id="WixUI_Common" />
 
     <InstallUISequence>
+      <FindRelatedProducts After="UseExistingPerUserInstallContext" />
       <Show
         Dialog="PicLensInstallScopeDlg"
         Before="CostInitialize"
-        Condition="NOT Installed AND NOT WIX_UPGRADE_DETECTED AND NOT PICLENS_EXISTING_PER_MACHINE AND NOT PICLENS_EXISTING_PER_USER" />
+        Condition="NOT Installed AND NOT WIX_UPGRADE_DETECTED AND NOT PICLENS_EXISTING_PER_MACHINE AND NOT PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_LEGACY_PER_MACHINE" />
     </InstallUISequence>
+    <InstallExecuteSequence>
+      <FindRelatedProducts After="UseExistingPerUserInstallContext" />
+    </InstallExecuteSequence>
   </Package>
 </Wix>
