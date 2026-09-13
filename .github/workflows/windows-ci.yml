@@ -46,6 +46,8 @@ jobs:
       - name: Run Windows tests
         working-directory: apps/windows
         run: dotnet test PicLens.Windows.slnx -c Release --no-build --no-restore
+      - name: Validate MSI authoring
+        run: ./packaging/windows/test-authoring.ps1
       - name: Build MSI and portable ZIP
         run: ./packaging/windows/build.ps1
       - name: Upload unsigned packages

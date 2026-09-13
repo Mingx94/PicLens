@@ -56,9 +56,11 @@ dotnet run --project src/PicLens.App -- --data-root F:\PicLens\artifacts\wpf-pro
 
 從 repo root 執行 `./packaging/windows/build.ps1`。輸出 `dist/PicLens-<version>-windows-x86_64.msi`、同名 ZIP 與各自 SHA-256；`<version>` 取自 `Directory.Build.props`。封裝 self-contained .NET runtime，不要求終端使用者另裝 .NET；預設未簽署。
 
+MSI 開啟後可選「只為我安裝」或「為這部電腦的所有使用者安裝」，新安裝預設只為目前使用者。前者安裝到 `%LOCALAPPDATA%\Programs\PicLens`，不要求系統管理員權限；後者安裝到 `%ProgramFiles%\PicLens`，會要求 UAC 權限。兩種方式的設定、快取與紀錄仍分別放在各使用者的 `%LOCALAPPDATA%\PicLens`。既有 PicLens MSI 是所有使用者安裝，升級時會沿用該範圍。
+
 MSI 保留既有 UpgradeCode；實際舊版升級及乾淨機安裝仍須依授權驗證。建置腳本不安裝、不推送、不發布。Windows 發布 workflow 僅在推送 `windows/v<version>` annotated tag 時執行版本核對、建置封裝與發布；PR／main 的驗證 workflow 只執行乾淨建置、測試與封裝，不安裝套件。
 
-在可丟棄的乾淨 Windows 環境，可執行 `./packaging/windows/test-lifecycle.ps1 -MsiPath <msi> -ZipPath <zip> -PreviousMsiPath <舊版-msi> -ConfirmSystemChanges`。這會實際安裝、修復、升級及解除安裝；省略 `-PreviousMsiPath` 時，升級會記為 `not-tested`。一般本機建置不可執行此腳本。
+在可丟棄的乾淨 Windows 環境，分別執行 `./packaging/windows/test-lifecycle.ps1 -MsiPath <msi> -ZipPath <zip> -InstallScope perUser -ConfirmSystemChanges` 與 `-InstallScope perMachine`。加入 `-PreviousMsiPath <舊版-msi>` 時必須使用 `perMachine`，並會實際驗證舊版升級；省略舊 MSI 時，升級會記為 `not-tested`。腳本也會驗證對應範圍的程式路徑、開始功能表捷徑、捷徑元件標記與安裝範圍標記。一般本機建置不可執行此腳本。
 
 回收使用 IFileOperation 與回收檢查；不提供永久刪除替代路徑。網路／非固定磁碟的回收會回報不支援，保留來源。
 

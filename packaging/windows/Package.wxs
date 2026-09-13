@@ -1,10 +1,185 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-<Package Name="PicLens" Manufacturer="PicLens" Version="$(var.AppVersion)" UpgradeCode="{4B3899A4-2E9E-4B4F-9CF5-36F8D8D6767D}" Scope="perMachine">
-<MajorUpgrade DowngradeErrorMessage="已安裝較新的 PicLens。"/>
-<Icon Id="AppIcon.ico" SourceFile="$(var.PayloadDir)\AppIcon.ico"/><Property Id="ARPPRODUCTICON" Value="AppIcon.ico"/><MediaTemplate EmbedCab="yes"/>
-<StandardDirectory Id="ProgramFiles64Folder"><Directory Id="INSTALLFOLDER" Name="PicLens"/></StandardDirectory>
-<StandardDirectory Id="ProgramMenuFolder"><Directory Id="ApplicationProgramsFolder" Name="PicLens"/></StandardDirectory>
-<Feature Id="Main" Title="PicLens"><ComponentGroupRef Id="AppFiles"/><ComponentRef Id="StartMenuShortcut"/></Feature>
-<ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER"><Files Include="$(var.PayloadDir)\**"/></ComponentGroup>
-<Component Id="StartMenuShortcut" Directory="ApplicationProgramsFolder" Guid="*"><Shortcut Id="ApplicationStartMenuShortcut" Name="PicLens" Target="[INSTALLFOLDER]PicLens.exe" WorkingDirectory="INSTALLFOLDER" Icon="AppIcon.ico" IconIndex="0"/><RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/><RegistryValue Root="HKCU" Key="Software\PicLens" Name="installed" Type="integer" Value="1" KeyPath="yes"/></Component>
-</Package></Wix>
+  <Package
+    Name="PicLens"
+    Manufacturer="PicLens"
+    Version="$(var.AppVersion)"
+    UpgradeCode="{4B3899A4-2E9E-4B4F-9CF5-36F8D8D6767D}"
+    Codepage="UTF-8"
+    Scope="perUserOrMachine">
+    <MajorUpgrade DowngradeErrorMessage="已安裝較新的 PicLens。" />
+    <Property Id="PICLENS_EXISTING_PER_MACHINE" Secure="yes">
+      <RegistrySearch
+        Id="FindPicLensPerMachineScope"
+        Root="HKLM"
+        Key="Software\PicLens"
+        Name="installScope"
+        Type="raw"
+        Bitness="always64" />
+    </Property>
+    <Property Id="PICLENS_EXISTING_PER_USER" Secure="yes">
+      <RegistrySearch
+        Id="FindPicLensPerUserScope"
+        Root="HKCU"
+        Key="Software\PicLens"
+        Name="installScope"
+        Type="raw"
+        Bitness="always64" />
+    </Property>
+    <Property Id="PICLENS_INSTALL_SCOPE" Value="perUser" Secure="yes" />
+    <SetProperty
+      Id="PICLENS_INSTALL_SCOPE"
+      Action="UseExistingPerMachineChoice"
+      Value="perMachine"
+      After="AppSearch"
+      Sequence="first"
+      Condition="PICLENS_EXISTING_PER_MACHINE OR (WIX_UPGRADE_DETECTED AND NOT PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE)" />
+    <SetProperty
+      Id="ALLUSERS"
+      Action="UseExistingPerMachineScope"
+      Value="1"
+      After="UseExistingPerMachineChoice"
+      Sequence="first"
+      Condition="PICLENS_EXISTING_PER_MACHINE OR (WIX_UPGRADE_DETECTED AND NOT PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE)" />
+    <SetProperty
+      Id="PICLENS_INSTALL_SCOPE"
+      Action="UseExistingPerUserChoice"
+      Value="perUser"
+      After="AppSearch"
+      Sequence="first"
+      Condition="PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE" />
+    <SetProperty
+      Id="ALLUSERS"
+      Action="UseExistingPerUserScope"
+      Value="2"
+      After="UseExistingPerUserChoice"
+      Sequence="first"
+      Condition="PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE" />
+    <SetProperty
+      Id="MSIINSTALLPERUSER"
+      Action="UseExistingPerUserInstallContext"
+      Value="1"
+      After="UseExistingPerUserScope"
+      Sequence="first"
+      Condition="PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE" />
+
+    <Icon Id="AppIcon.ico" SourceFile="$(var.PayloadDir)\AppIcon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="PicLens" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="PicLens" />
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="PicLens">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="InstallScopeMarker" />
+    </Feature>
+
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PayloadDir)\**" />
+    </ComponentGroup>
+    <Component Id="StartMenuShortcut" Directory="ApplicationProgramsFolder" Guid="*">
+      <Shortcut
+        Id="ApplicationStartMenuShortcut"
+        Name="PicLens"
+        Target="[INSTALLFOLDER]PicLens.exe"
+        WorkingDirectory="INSTALLFOLDER"
+        Icon="AppIcon.ico"
+        IconIndex="0" />
+      <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
+      <RegistryValue
+        Root="HKCU"
+        Key="Software\PicLens"
+        Name="installed"
+        Type="integer"
+        Value="1"
+        KeyPath="yes" />
+    </Component>
+    <Component Id="InstallScopeMarker" Directory="INSTALLFOLDER" Guid="*">
+      <RegistryValue
+        Root="HKMU"
+        Key="Software\PicLens"
+        Name="installScope"
+        Type="integer"
+        Value="1"
+        KeyPath="yes" />
+    </Component>
+
+    <UI>
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Segoe UI" Size="9" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Segoe UI" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Segoe UI" Size="9" Bold="yes" />
+      <TextStyle Id="PicLensInstallerTitleFont" FaceName="Segoe UI" Size="14" Bold="yes" />
+      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+
+      <DialogRef Id="ErrorDlg" />
+      <DialogRef Id="FatalError" />
+      <DialogRef Id="FilesInUse" />
+      <DialogRef Id="MsiRMFilesInUse" />
+      <DialogRef Id="PrepareDlg" />
+      <DialogRef Id="ProgressDlg" />
+      <DialogRef Id="ResumeDlg" />
+      <DialogRef Id="UserExit" />
+
+      <Dialog Id="PicLensInstallScopeDlg" Width="370" Height="230" Title="PicLens 安裝程式">
+        <Control
+          Id="Title"
+          Type="Text"
+          X="20"
+          Y="18"
+          Width="330"
+          Height="24"
+          Transparent="yes"
+          NoPrefix="yes"
+          Text="{\PicLensInstallerTitleFont}選擇安裝範圍" />
+        <Control
+          Id="Description"
+          Type="Text"
+          X="20"
+          Y="48"
+          Width="330"
+          Height="30"
+          Transparent="yes"
+          NoPrefix="yes"
+          Text="程式與捷徑會安裝到選定的範圍；設定仍分別保存在每位使用者的個人資料夾。" />
+        <Control
+          Id="InstallScope"
+          Type="RadioButtonGroup"
+          X="28"
+          Y="84"
+          Width="320"
+          Height="58"
+          Property="PICLENS_INSTALL_SCOPE">
+          <RadioButtonGroup Property="PICLENS_INSTALL_SCOPE">
+            <RadioButton Value="perUser" X="0" Y="0" Width="300" Height="18" Text="只為我安裝（不需要系統管理員權限）" />
+            <RadioButton Value="perMachine" X="0" Y="32" Width="300" Height="18" Text="為這部電腦的所有使用者安裝（需要系統管理員權限）" />
+          </RadioButtonGroup>
+        </Control>
+        <Control Id="BottomLine" Type="Line" X="0" Y="190" Width="370" Height="0" />
+        <Control Id="Install" Type="PushButton" X="236" Y="202" Width="56" Height="18" Default="yes" Text="安裝">
+          <Publish Property="ALLUSERS" Value="2" Order="1" Condition="PICLENS_INSTALL_SCOPE = &quot;perUser&quot;" />
+          <Publish Property="MSIINSTALLPERUSER" Value="1" Order="2" Condition="PICLENS_INSTALL_SCOPE = &quot;perUser&quot;" />
+          <Publish Property="ALLUSERS" Value="1" Order="3" Condition="PICLENS_INSTALL_SCOPE = &quot;perMachine&quot;" />
+          <Publish Event="EndDialog" Value="Return" Order="4" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="202" Width="56" Height="18" Cancel="yes" Text="取消">
+          <Publish Event="EndDialog" Value="Exit" />
+        </Control>
+      </Dialog>
+
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999" />
+    </UI>
+    <UIRef Id="WixUI_Common" />
+
+    <InstallUISequence>
+      <Show
+        Dialog="PicLensInstallScopeDlg"
+        Before="CostInitialize"
+        Condition="NOT Installed AND NOT WIX_UPGRADE_DETECTED AND NOT PICLENS_EXISTING_PER_MACHINE AND NOT PICLENS_EXISTING_PER_USER" />
+    </InstallUISequence>
+  </Package>
+</Wix>

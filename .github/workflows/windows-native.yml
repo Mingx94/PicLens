@@ -36,6 +36,8 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           global-json-file: apps/windows/global.json
+      - name: Validate MSI authoring
+        run: ./packaging/windows/test-authoring.ps1
       - name: Build MSI and portable ZIP
         run: ./packaging/windows/build.ps1
       - name: Publish unsigned assets
