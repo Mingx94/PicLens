@@ -4,24 +4,23 @@ Project: PicLens
 
 Notebook: .agentflow/devlog.md — root.
 
-Current commit: implementation `83d7e3d9fa900f676fc7ea34c6d99de5b9fb11e0` on main; pushed to origin/main with record commit 4d58e29.
+Current commit: implementation 89f2549f21f8627fa180dbfb96b44e0199fd3ada and this closeout record are delivered on origin/main.
 
-Tests/scenarios: Debug 6/6 45.78s; Release 6/6 51.86s; private Arch makepkg 6/6 41.49s; independent review Debug 6/6 42.79s and focused QML/imaging pass; X11/KDE each 23 checks; PTY 8 cases; installed package smoke/removal pass.
+Tests/scenarios: Windows MSI authoring contract; full WPF and WiX package build; MSI database sequence and locator inspection; two independent cross-check starts.
 
 Configuration: ag.json — schema v7; validated for codex this round.
 
-Proven: All 53 Arch TODO items completed. TODO.arch.md deleted and references updated. Native KDE picker, 200% AT-SPI/Orca, X11/KDE Wayland/IME and 9-file cold/warm full paint acceptance passed; cold max482ms, warm max296ms. Final cross-check and Host gate PASS.
+Proven: selectable dual-scope MSI authoring, scope recovery before related-product detection, final package build, MSI table contract, local Agentflow Windows mode fix, repaired Git hook, and source delivery.
 
-Open: No Arch TODO remains. A-004 complete. Prior Windows W7.3-W7.5 remain outside this Ask.
+Open: live MSI install, UAC, repair, upgrade, and uninstall lifecycle; persistence of the local Agentflow cache patch across plugin updates.
 
-Next: none for A-004; all accepted tasks are complete.
+Next: await owner direction on a disposable live MSI lifecycle and a persistent upstream Agentflow patch.
 
-Artifacts: .agentflow/artifacts/A-004-arch-remaining; docs/linux/arch-validation.md; dist/arch-validation-A004. Private desktops share host kernel; software display and AT-SPI speech output are not physical display/audio proof. Perf retains OS page cache and measures scene graph submission.
+Artifacts: dist/PicLens-4.0.2-windows-x86_64.msi; dist/PicLens-4.0.2-windows-x86_64.zip; .agentflow/artifacts/A-005-windows-install-scope/cross-check-report.md.
 
 Archived eras: none.
 
 Streams: none.
-
 ---
 
 # → Ask / A-001
@@ -690,5 +689,132 @@ Host gate: PASS
 ---
 
 # → Ask / A-005
+
++ godev
+  windows 在安裝的時候 有些安裝檔可以選為我安裝或是為這部電腦所有人安裝
+  我這個專案的安裝檔可以像那樣嗎?
+
++ 需要更改打包方式嗎?
+
++ 那麼請你修改
+
++ 剛剛的 hook 可以再試一次嗎?
+
++ 重試 agentflow 失敗的地方
+
++ `temporary notebook mode could not be preserved`   有辦法修正嗎?
+
++ 修改 Agentflow
+
++ 繼續完成以上未完成的
+
++ commit and push
+
++ 允許
+
+---
+
+## [RUN-001] Event — 2026-09-13 19:07:02 +0800 (A-005)
+
+- Direct route: implemented the owner-authorized Windows compatibility fix only in Agentflow's cached `notebook-write.js`; PicLens product source was not changed by this follow-up.
+
+- Reproduced `temporary notebook mode could not be preserved` before the fix. The Windows branch now compares writable semantics only; non-Windows platforms retain the exact POSIX mode check.
+
+- Validation passed: `node --check`, skill `quick_validate.py`, `agf.js start`, six ordered `append-input` calls, and notebook tail inspection. A-005 now contains the full owner request history.
+
+- Scope inspection found only `skills/agentflow/scripts/notebook-write.js` modified in the installed plugin checkout. The pre-existing untracked `.codex-marketplace-install.json` was left untouched.
+
+- Limitation: this is a local plugin-cache patch and can be overwritten by a future Agentflow update. The PicLens MSI changes from the same Ask remain uncommitted and unpushed.
+
+## [RUN-002] Event — 2026-09-13 19:28:26 +0800 (A-005)
+
+- MSI lifecycle preflight found an existing per-machine PicLens 4.0.2 installation with product code `{B6C2B0EB-7DB0-4EA1-8146-5962B81D7CD5}`. No lifecycle install was started.
+
+- Saved the cached original MSI to `dist/msi-lifecycle-recovery/PicLens-4.0.2-original.msi`; SHA-256 `2D7BB29AAC458EF6C3634BF905A877BDEABE63E0B566BE7F1D5E3931FF4A8672` matches the Windows Installer cache.
+
+- The attempt to temporarily uninstall the existing package was rejected before execution because the owner had not explicitly authorized removal of the current installation. The installed program and shortcut remain intact.
+
+- Blocked pending explicit authorization to temporarily uninstall the existing PicLens, run per-user/per-machine/upgrade lifecycle tests, and restore the original package afterward.
+
+## [RUN-003] Event — 2026-09-13 23:46:04 +0800 (A-005)
+
+- Repaired the project pre-commit hook from the missing Agentflow `local` cache path to the installed `8.2.0` devlog guard. Direct guard execution and the subsequent Git commit both passed.
+
+## [RUN-004] Event — 2026-09-13 23:46:04 +0800 (A-005)
+
+- Created and pushed source commit `b6aa38d09bd11c036a07ca94152ba8a23ec693a1`. The first independent `gpt-5.6-sol/low` review ran in a disposable clone with no remote and returned BLOCKING for upgrade-detection ordering, insufficient regression coverage, and an HKCU Start Menu key-path risk; no finding was waived.
+
+## [RUN-005] Event — 2026-09-13 23:46:04 +0800 (A-005)
+
+- Corrected all three findings in `89f2549f21f8627fa180dbfb96b44e0199fd3ada`: scope recovery now precedes `FindRelatedProducts` in both sequences, legacy per-machine installs are detected, redundant scope-choice actions were removed, Start Menu markers use HKMU, and upgrade lifecycle tests no longer pass scope properties to the candidate. The focused contract test passed; the final package build passed with 0 warnings and 0 errors. MSI tables confirmed AppSearch=50, recovery=51..53, FindRelatedProducts=54, dialog=799, and CostInitialize=800. Final MSI SHA-256 is `61CC362167BCB2AEADBDE2B16023859594A4AA861744E9625A4A84518ECB8DDB`; ZIP SHA-256 is `B68B6D14687660FEFD27BC68276C9E02376F51B41BBE00393CF2EF94B2EA6ABB`.
+
+## [RUN-006] Event — 2026-09-13 23:46:04 +0800 (A-005)
+
+- The second independent review inspected the full and correction ranges and returned Verdict, Outcome, Minimality, and Conformance PASS for exact implementation commit `89f2549f21f8627fa180dbfb96b44e0199fd3ada`. Report SHA-256 `FEA8094CC44382263BD33BDA3B0CE6FF9DC56FF1EA10E664B98AF91C151C7BD9` was verified. Host review: PASS — inspected every final source path, exact MSI table evidence, review output, repository status, and remote divergence; no unrelated source changes or reversions remain. The source commit was pushed to `origin/main`, and pre-closeout divergence was 0/0.
+
+# ← Reply / A-005
+
+* _2026-09-13 23:46:04 +0800 (gpt-5.6-sol/xhigh)_
+
+## [SUMMARY]
+
+- The existing WiX MSI now lets users choose per-user or per-machine installation; no packaging technology replacement was needed.
+- Windows upgrade scope recovery, Start Menu registry context, focused tests, CI wiring, documentation, Agentflow notebook writes, and the Git hook were completed.
+- Source commits `b6aa38d` and `89f2549` were pushed to `origin/main`; the final independent review passed all four verdicts.
+- Live MSI install, UAC, repair, upgrade, and uninstall remain unverified because the current installed PicLens was not authorized for removal.
+
+## [FINAL REPORT]
+
+1. Can this installer offer a per-user or all-users choice?
+
+   - Yes. The MSI now presents both choices and defaults to per-user installation.
+
+2. Does the packaging method need to change?
+
+   - No. The project keeps WiX/MSI and adds dual-scope authoring plus the existing WiX UI extension.
+
+3. Modify the installer
+
+   - Succeeded. Fresh UI and silent properties, scope-specific paths and markers, and scope-preserving upgrades are authored and documented.
+
+4. Retry the hook
+
+   - Succeeded. The pre-commit hook now points to Agentflow `8.2.0`, and the product commits passed it.
+
+5. Retry the failed Agentflow work
+
+   - Succeeded. Agentflow startup and ordered input recording work again on Windows.
+
+6. Fix `temporary notebook mode could not be preserved`
+
+   - Succeeded locally. Windows now verifies writable semantics while non-Windows keeps exact POSIX mode checks.
+
+7. Modify Agentflow
+
+   - The installed plugin cache was patched and validated with `node --check`, skill validation, and `agf.js start`. A future plugin update can overwrite this local cache patch.
+
+8. Continue all unfinished work
+
+   - Product source, package build, table inspection, tests, review, commits, and push are complete. The live MSI lifecycle is still limited because it would require removing the existing machine-wide PicLens installation.
+
+9. Commit and push
+
+   - Completed. Implementation commits `b6aa38d` and `89f2549` are on `origin/main`; this final Agentflow record is delivered by the same closeout.
+
+10. Allow the specified push and external review
+
+   - Completed under that authorization. The reviewer used an independent clone with no Git remote and returned all PASS verdicts after the corrections.
+
+
+## Questions (batched — each with a suggested default)
+
+1. May the existing machine-wide PicLens installation be temporarily removed for live per-user, per-machine, upgrade, repair, UAC, and uninstall testing?
+
+   - Suggested default: Keep the current installation intact and run this lifecycle later in a disposable Windows environment.
+   - ans:
+
+---
+
+# → Ask / A-006 (Michael Tsai)
 
 +
