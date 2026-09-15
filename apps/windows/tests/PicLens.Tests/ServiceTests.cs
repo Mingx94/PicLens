@@ -94,6 +94,24 @@ public sealed class ServiceTests
     }
 
     [Fact]
+    public void PixelTransportAllowsAbove256MiBAndRejectsAbove512MiBBeforePayloadAllocation()
+    {
+        using var f = new Fixture();
+        string Header(string name, int width, int height)
+        {
+            string path = Path.Combine(f.Root, name);
+            using var writer = new BinaryWriter(File.Create(path));
+            writer.Write(0x504C5058); writer.Write(width); writer.Write(height); writer.Write(checked(width * 4));
+            return path;
+        }
+
+        var incomplete = Assert.Throws<IOException>(() => ImageService.ReadPixels(Header("above-old-limit.pixels", 8193, 8193)));
+        Assert.Contains("不完整", incomplete.Message);
+        var oversized = Assert.Throws<IOException>(() => ImageService.ReadPixels(Header("above-new-limit.pixels", 16385, 8193)));
+        Assert.Contains("允許範圍", oversized.Message);
+    }
+
+    [Fact]
     public void LosslessWebpPreservesPixels()
     {
         using var f = new Fixture(); var png = f.Image("source.png"); using var original = Codec.Decode(png, 0);

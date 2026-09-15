@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading.Channels;
+using PicLens;
 namespace PicLens.Services;
 
 public sealed class WorkerPool : IAsyncDisposable
@@ -111,10 +112,12 @@ public sealed class ImageService(Profile profile, WorkerPool workers) : IAsyncDi
         using var reader = new BinaryReader(File.OpenRead(path));
         if (reader.ReadInt32() != 0x504C5058) throw new IOException("圖片資料標頭不正確。");
         int width = reader.ReadInt32(), height = reader.ReadInt32(), stride = reader.ReadInt32();
-        if (width <= 0 || height <= 0 || stride != (long)width * 4 || (long)stride * height > 256L * 1024 * 1024)
+        long byteCount = (long)stride * height;
+        if (width <= 0 || height <= 0 || stride != (long)width * 4 || byteCount > OriginalImageLimits.MaxBytes)
             throw new IOException("圖片資料超出允許範圍。");
-        byte[] bytes = reader.ReadBytes(checked(stride * height));
-        if (bytes.Length != stride * height) throw new IOException("圖片資料不完整。");
+        if (reader.BaseStream.Length - reader.BaseStream.Position < byteCount) throw new IOException("圖片資料不完整。");
+        byte[] bytes = reader.ReadBytes(checked((int)byteCount));
+        if (bytes.Length != byteCount) throw new IOException("圖片資料不完整。");
         return new(width, height, stride, bytes);
     }
     async Task CleanupLoop()
