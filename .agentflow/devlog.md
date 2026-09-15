@@ -4,19 +4,19 @@ Project: PicLens
 
 Notebook: .agentflow/devlog.md — root.
 
-Current commit: the 512 MiB implementation and final Agentflow record are committed locally.
+Current commit: the Windows 4.0.4 version commit and final Agentflow record are committed and pushed to origin/main.
 
-Tests/scenarios: 25 Windows service/viewer tests; two focused Qt limit tests; real 256.063 MiB Windows worker decode and ImageService transport; exact final independent review.
+Tests/scenarios: locked restore; warning-free Release build; 67 Windows tests; MSI authoring; exact-commit MSI and ZIP build with checksum and version readback; hosted Windows validation run 35001818437.
 
 Configuration: ag.json — schema v7; validated for codex this round.
 
-Proven: Windows and Linux accept bounded originals above 256 MiB up to 512 MiB and safely reject invalid or oversized dimensions.
+Proven: Windows 4.0.4 is built locally, independently reviewed, pushed to main, and validated by the hosted workflow.
 
-Open: the full Qt imaging suite retains the pre-existing Windows-preview recent-cache failure; the screenshot's exact source image was unavailable; no push was requested.
+Open: packages are unsigned; GitHub reported a non-blocking Node.js 20 deprecation annotation for v4 actions; no tag, release, install, or lifecycle test was requested.
 
 Next: await the owner.
 
-Artifacts: .agentflow/artifacts/A-008-larger-images/cross-check-report.md; .agentflow/artifacts/A-008-larger-images/tracker.md; commits 63a50f6, 7fa7364, and 7263c6a.
+Artifacts: dist/PicLens-4.0.4-windows-x86_64.msi; dist/PicLens-4.0.4-windows-x86_64.zip; .agentflow/artifacts/A-009-windows-version-build/cross-check-report.md; https://github.com/Mingx94/PicLens/actions/runs/35001818437.
 
 Archived eras: .agentflow/devlog.archive.md.
 
@@ -289,5 +289,134 @@ Streams: none.
 ---
 
 # → Ask / A-009 (Michael Tsai)
+
++ bump version and commit and push and build
+
++ push, 允許
+
+---
+
+## [RUN-001] Event — 2026-09-16 01:19:26 +0800 (A-009)
+
+- Route: direct. The smallest version bump is Windows 4.0.3 to 4.0.4 because A-008 delivered fixes; no tag, release, installer lifecycle mutation, or unrelated source change is requested.
+
+- `Directory.Build.props` is the version authority consumed by `packaging/windows/build.ps1`. The requested build will produce the versioned unsigned MSI, portable ZIP, and both SHA-256 files.
+
+- `git fetch origin --prune` passed. Local `main` and `origin/main` both equal `e349ceb265c6b0e75d37c613facd7b8d38937e4e` with 0/0 divergence. The working tree only contains the current Agentflow notebook record.
+
+- Work is tracked in `.agentflow/artifacts/A-009-windows-version-build/tracker.md`. The owner explicitly authorized commit and push; external-review authorization remains a separate gate if the final configuration change requires it.
+
+## [RUN-002] Event — 2026-09-16 01:22:04 +0800 (A-009)
+
+- Windows 4.0.4 builds successfully. Locked restore, Release solution build, all 67 tests, and the MSI authoring contract passed with zero build warnings or errors.
+
+- The full packaging script produced unsigned `PicLens-4.0.4-windows-x86_64.msi` and `.zip`. Both generated SHA-256 files match the binaries: MSI `a913b28aeabd83b50d9f4c6664652c99125c71fc7945f6357f5a5f6db8a283f1`; ZIP `8c63e3c05d4a3529d24c8cba03c46f5730f127102faf2adfab5d4c2e385df61e`.
+
+- Minimality check: the requested version outcome needs only the existing `Directory.Build.props` authority changed from 4.0.3 to 4.0.4. No package name, documentation, workflow, dependency, or source edit is needed; deleting that one change would leave every output at 4.0.3.
+
+- The initial package payload reports ProductVersion `4.0.4+e349ceb` because it was built before the new version commit. After committing, the package build will be rerun once so the delivered payload records the exact committed revision; tests and authoring will not be repeated because their inputs remain unchanged.
+
+## [RUN-003] Event — 2026-09-16 01:26:07 +0800 (A-009)
+
+- Created exact one-field version commit `c581decaf635fdc2803a48ba424d8a6fd652ddf5` with message `chore(windows): bump version to 4.0.4`. Local `main` is one commit ahead; no push has occurred.
+
+- Rebuilt the unsigned packages after the commit so the payload reports `4.0.4+c581dec`. MSI ProductVersion is 4.0.4, and the final MSI/ZIP hashes match their generated checksum files.
+
+- The targeted independent review is frozen at `.agentflow/artifacts/A-009-windows-version-build/cross-check-brief.md`, SHA-256 `b6e119b8956b844ba38a50f3199fb021af7eafd699f16fbc4259fdd8c1c123b0`. Planned dispatch is profile `codex-default`, tier `better`, model `gpt-5.6-sol/low` in a disposable no-remote clone.
+
+- Review launch is paused before clone creation or provider contact. The current Ask authorizes commit, push, and build, but does not explicitly authorize sending this private-repository commit to the external Codex reviewer. Push remains pending behind that required review.
+
+## [WIP-001] Checkpoint — 2026-09-16 01:26:07 +0800 (A-009)
+
+- **Finished:**
+
+  1. Bumped Windows to 4.0.4, passed the complete local Windows validation, built and verified the unsigned packages, and committed the exact one-field change as `c581dec`.
+
+- **Running now:**
+
+  1. No process is running. The frozen independent review is paused before launch for owner consent.
+
+- **Still to do:**
+
+  1. Run and accept the targeted no-remote review, push `main`, verify remote readback, and verify the exact hosted Windows validation run.
+
+- **Next work action:**
+
+  1. On explicit consent, launch `.agentflow/artifacts/A-009-windows-version-build/launch-review.cjs` and inspect the report and runner boundary.
+
+- [x] tracker.md | [x] devlog RUN | [x] scope matches tracker
+
+## [RUN-004] Event — 2026-09-16 01:35:51 +0800 (A-009)
+
+- Owner `push, 允許` explicitly authorized both the pending main push and the frozen external Codex review of exact commit `c581decaf635fdc2803a48ba424d8a6fd652ddf5`.
+
+- The targeted review completed with exit 0, closed stdin, no timeout or stall, no nested worker, and no surviving process group. Verdict, Outcome, Minimality, and Conformance each appear exactly once and are PASS; canonical report SHA-256 is `e34ca87f752f2e80b5adf1dafbefb5725d2314ed27563b68da809de06ebb78e4`.
+
+- Host review: PASS — the canonical and clone reports match byte-for-byte, name the exact implementation commit, and end with the required Self-check. Clone HEAD matched, no remote was configured, and only `agentflow-review.md` was added. The accepted clone was moved to the Windows Recycle Bin and is recoverable.
+
+- Refetch found no remote-only commit and one local-only commit. Pushed `main` without force; local HEAD, `origin/main`, and `ls-remote` all equal `c581decaf635fdc2803a48ba424d8a6fd652ddf5` with 0/0 divergence.
+
+- Hosted Windows validation run `35001818437` succeeded in 2m53s for exact pushed commit `c581dec`. Restore, Release build, all tests, MSI authoring, MSI/ZIP packaging, and unsigned artifact upload each passed. Artifact `windows-wpf-unsigned` exists at 210320325 bytes.
+
+- GitHub emitted a non-blocking Node.js 20 deprecation annotation for actions/checkout@v4, actions/setup-dotnet@v4, and actions/upload-artifact@v4 while forcing Node.js 24. No workflow or dependency change was requested or needed for this successful build.
+
+# ← Reply / A-009
+
+* _2026-09-16 01:36:55 +0800 (gpt-5.6-sol/xhigh)_
+
+## [SUMMARY]
+
+- PicLens Windows is now version 4.0.4. The exact version commit is built, reviewed, and pushed to `main`.
+
+- Local validation and hosted Windows validation both succeeded. The unsigned MSI and ZIP were built, and their checksum pairs match.
+
+- No tag, GitHub Release, signing, installation, or installer lifecycle action was requested or performed. GitHub emitted one non-blocking Node.js deprecation annotation for the v4 actions.
+
+## [FINAL REPORT]
+
+1. Bump the version
+
+   - Succeeded: changed the Windows version authority in `apps/windows/Directory.Build.props` from 4.0.3 to 4.0.4.
+
+   - The product diff is one field in one file. Existing generic package documentation and workflows needed no version-specific edit.
+
+2. Commit
+
+   - Succeeded: created `c581decaf635fdc2803a48ba424d8a6fd652ddf5` with message `chore(windows): bump version to 4.0.4`.
+
+   - The executable built from that commit reports ProductVersion `4.0.4+c581decaf635fdc2803a48ba424d8a6fd652ddf5`; the MSI reports ProductVersion 4.0.4.
+
+3. Push
+
+   - Succeeded without force. Local HEAD, `origin/main`, and remote readback matched `c581decaf635fdc2803a48ba424d8a6fd652ddf5` with 0/0 divergence before the final record-only closeout commit.
+
+   - The version commit remains in `origin/main` history. This closeout adds only the Agentflow record and does not change product source.
+
+4. Build
+
+   - Succeeded locally: locked restore, Release solution build, all 67 Windows tests, MSI authoring validation, and the complete MSI/ZIP packaging script passed. The Release build had zero warnings and zero errors.
+
+   - Final local unsigned package hashes match their generated files: MSI `fd12f2a495987ff87c1e67f5fe6aa35cf7f23736c4037153ffbcf12718a3a221`; ZIP `1760f12829f25e366a80fc74e83e5ed80aa21d69ab1a345ada42c8855e532b21`.
+
+   - Hosted Windows validation run `35001818437` succeeded for exact commit `c581dec` in 2m53s: https://github.com/Mingx94/PicLens/actions/runs/35001818437
+
+   - Every hosted step passed, including tests, MSI authoring, packaging, and upload of the 210320325-byte `windows-wpf-unsigned` artifact.
+
+   - Non-blocking warning: GitHub forced Node.js 24 for `actions/checkout@v4`, `actions/setup-dotnet@v4`, and `actions/upload-artifact@v4` because Node.js 20 is deprecated.
+
+5. Allow the independent review
+
+   - Succeeded after the owner's explicit `允許`. The targeted no-remote review inspected exact commit `c581dec`; Verdict, Outcome, Minimality, and Conformance all passed.
+
+   - Host inspection confirmed the report identity, exact one-file range, runner shutdown, and clone boundary. The accepted clone was moved to the Windows Recycle Bin and is recoverable.
+
+
+## Questions (batched — each with a suggested default)
+
+- None.
+
+---
+
+# → Ask / A-010 (Michael Tsai)
 
 +
