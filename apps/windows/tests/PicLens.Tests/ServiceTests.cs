@@ -82,8 +82,9 @@ public sealed class ServiceTests
     {
         using var f = new Fixture(); string path = Path.Combine(f.Root, "oversized.bmp");
         Assert.Equal(512L * 1024 * 1024, Codec.MaxBytes);
-        Assert.True(10000L * 10000 * 4 <= Codec.MaxBytes);
-        Assert.True(16385L * 8193 * 4 > Codec.MaxBytes);
+        Assert.True(Codec.FitsOriginalDimensions(10000, 10000));
+        Assert.False(Codec.FitsOriginalDimensions(16385, 8193));
+        Assert.False(Codec.FitsOriginalDimensions(int.MaxValue, int.MaxValue));
         using (var writer = new BinaryWriter(File.Create(path)))
         {
             writer.Write((ushort)0x4d42); writer.Write(54); writer.Write(0); writer.Write(54);
