@@ -38,14 +38,15 @@ Require-Node '//w:Dialog[@Id="PicLensInstallScopeDlg"]//w:Publish[@Property="ALL
 Require-Node '//w:Dialog[@Id="PicLensInstallScopeDlg"]//w:Publish[@Property="MSIINSTALLPERUSER" and @Value="1"]' '目前使用者選項未設定 MSIINSTALLPERUSER=1。' | Out-Null
 Require-Node '//w:Dialog[@Id="PicLensInstallScopeDlg"]//w:Publish[@Property="ALLUSERS" and @Value="1"]' '所有使用者選項未設定 ALLUSERS=1。' | Out-Null
 
-$expectedMachineCondition = 'PICLENS_EXISTING_PER_MACHINE OR PICLENS_EXISTING_LEGACY_PER_MACHINE'
+$expectedMachineCondition = 'NOT Installed AND (PICLENS_EXISTING_PER_MACHINE OR PICLENS_EXISTING_LEGACY_PER_MACHINE)'
 $machineScope = Require-Node '//w:SetProperty[@Id="ALLUSERS" and @Action="UseExistingPerMachineScope" and @Value="1" and @After="AppSearch"]' '所有使用者升級未在 AppSearch 後設定 ALLUSERS=1。'
 if ($machineScope.Condition -ne $expectedMachineCondition) { throw '所有使用者 ALLUSERS 條件不正確。' }
 
-$expectedUserCondition = 'PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE AND NOT PICLENS_EXISTING_LEGACY_PER_MACHINE'
+$expectedUserCondition = 'NOT Installed AND PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE AND NOT PICLENS_EXISTING_LEGACY_PER_MACHINE'
 $userScope = Require-Node '//w:SetProperty[@Id="ALLUSERS" and @Action="UseExistingPerUserScope" and @Value="2" and @After="UseExistingPerMachineScope"]' '目前使用者升級未設定 ALLUSERS=2。'
 if ($userScope.Condition -ne $expectedUserCondition) { throw '目前使用者升級範圍條件不正確。' }
-Require-Node '//w:SetProperty[@Id="MSIINSTALLPERUSER" and @Action="UseExistingPerUserInstallContext" and @Value="1" and @After="UseExistingPerUserScope"]' '目前使用者升級未設定 MSIINSTALLPERUSER=1。' | Out-Null
+$userContext = Require-Node '//w:SetProperty[@Id="MSIINSTALLPERUSER" and @Action="UseExistingPerUserInstallContext" and @Value="1" and @After="UseExistingPerUserScope"]' '目前使用者升級未設定 MSIINSTALLPERUSER=1。'
+if ($userContext.Condition -ne $expectedUserCondition) { throw '修復與解除安裝不可改寫 MSIINSTALLPERUSER。' }
 if ($null -ne $document.SelectSingleNode('//w:SetProperty[@Id="PICLENS_INSTALL_SCOPE"]', $namespace)) { throw '升級不需要改寫只供安裝畫面使用的範圍選項。' }
 
 Require-Node '//w:InstallUISequence/w:FindRelatedProducts[@After="UseExistingPerUserInstallContext"]' 'UI sequence 必須在恢復安裝範圍後搜尋相關產品。' | Out-Null

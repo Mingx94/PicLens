@@ -34,27 +34,28 @@
       </DirectorySearch>
     </Property>
     <Property Id="PICLENS_INSTALL_SCOPE" Value="perUser" Secure="yes" />
+    <!-- 修復與解除安裝由 Windows Installer 還原範圍，不可再改寫 ALLUSERS。 -->
     <SetProperty
       Id="ALLUSERS"
       Action="UseExistingPerMachineScope"
       Value="1"
       After="AppSearch"
       Sequence="first"
-      Condition="PICLENS_EXISTING_PER_MACHINE OR PICLENS_EXISTING_LEGACY_PER_MACHINE" />
+      Condition="NOT Installed AND (PICLENS_EXISTING_PER_MACHINE OR PICLENS_EXISTING_LEGACY_PER_MACHINE)" />
     <SetProperty
       Id="ALLUSERS"
       Action="UseExistingPerUserScope"
       Value="2"
       After="UseExistingPerMachineScope"
       Sequence="first"
-      Condition="PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE AND NOT PICLENS_EXISTING_LEGACY_PER_MACHINE" />
+      Condition="NOT Installed AND PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE AND NOT PICLENS_EXISTING_LEGACY_PER_MACHINE" />
     <SetProperty
       Id="MSIINSTALLPERUSER"
       Action="UseExistingPerUserInstallContext"
       Value="1"
       After="UseExistingPerUserScope"
       Sequence="first"
-      Condition="PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE AND NOT PICLENS_EXISTING_LEGACY_PER_MACHINE" />
+      Condition="NOT Installed AND PICLENS_EXISTING_PER_USER AND NOT PICLENS_EXISTING_PER_MACHINE AND NOT PICLENS_EXISTING_LEGACY_PER_MACHINE" />
 
     <Icon Id="AppIcon.ico" SourceFile="$(var.PayloadDir)\AppIcon.ico" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
