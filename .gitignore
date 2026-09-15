@@ -9,19 +9,16 @@
 *.userosscache
 *.sln.docstates
 artifacts/
-
 # Build logs
 [Ll]og/
 [Ll]ogs/
 *.log
 *.binlog
-
 # Test results
 [Tt]est[Rr]esult*/
 *.trx
 *.coverage
 *.coveragexml
-
 # NuGet
 .nuget/
 *.nupkg
@@ -29,7 +26,6 @@ artifacts/
 *.nuget.props
 *.nuget.targets
 project.lock.json
-
 # MSIX packaging output
 AppPackages/
 BundleArtifacts/
@@ -38,27 +34,22 @@ BundleArtifacts/
 *.appx
 *.appxbundle
 *.appxupload
-
 # Publish output
 publish/
 /dist/
 *.pubxml
 PublishScripts/
-
 # Code analysis and tooling
 _ReSharper*/
 *.DotSettings.user
 *.dotCover
 .idea/
-
 # Generated files
 Generated\ Files/
 *_wpftmp.csproj
-
 # Production Qt build outputs and local presets
 build/
 CMakeUserPresets.json
-
 # Local temporary files
 .tmp/
 .claude/
