@@ -3,14 +3,14 @@ namespace PicLens.Imaging;
 
 public static class Codec
 {
-    public const long MaxBytes = 256L * 1024 * 1024;
+    public const long MaxBytes = 512L * 1024 * 1024;
     public static SKBitmap Decode(string path, int edge)
     {
         using var codec = SKCodec.Create(path) ?? throw new IOException("無法辨識圖片格式。");
         if (codec.FrameCount > 1) throw new IOException("動畫圖片目前不支援預覽。");
         var size = codec.Info;
         if (size.Width <= 0 || size.Height <= 0 || (long)size.Width * size.Height * 4 > MaxBytes)
-            throw new IOException("原圖超過 256 MiB 像素上限。");
+            throw new IOException("原圖超過 512 MiB 像素上限。");
         var bitmap = new SKBitmap(new SKImageInfo(size.Width, size.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul));
         var result = codec.GetPixels(bitmap.Info, bitmap.GetPixels());
         if (result != SKCodecResult.Success) { bitmap.Dispose(); throw new IOException($"圖片解碼失敗：{result}"); }

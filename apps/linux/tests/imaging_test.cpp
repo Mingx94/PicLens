@@ -114,7 +114,7 @@ private slots:
         QDataStream stream(&bmp); stream.setByteOrder(QDataStream::LittleEndian);
         stream.writeRawData("BM", 2);
         stream << quint32(54) << quint16(0) << quint16(0) << quint32(54) << quint32(40)
-               << qint32(10000) << qint32(10000) << quint16(1) << quint16(24)
+               << qint32(16385) << qint32(8193) << quint16(1) << quint16(24)
                << quint32(0) << quint32(0) << qint32(0) << qint32(0) << quint32(0) << quint32(0);
         bmp.close();
         Imaging imaging(QString::fromUtf8(PICLENS_WORKER), dir.path() + "/cache");
@@ -123,9 +123,15 @@ private slots:
         QTRY_COMPARE_WITH_TIMEOUT(spy.size(), 3, 10000);
         for (const auto &result : spy) {
             QVERIFY(!qvariant_cast<FramePtr>(result[1]));
-            const auto expected = result[0] == "oversize" ? QStringLiteral("256 MiB") : QStringLiteral("動畫");
+            const auto expected = result[0] == "oversize" ? QStringLiteral("512 MiB") : QStringLiteral("動畫");
             QVERIFY2(result[2].toString().contains(expected), qPrintable(result[2].toString()));
         }
+    }
+    void originalPixelBudgetAllowsLargerImages() {
+        QCOMPARE(OriginalByteLimit, 512LL * 1024 * 1024);
+        QVERIFY(fitsOriginalDimensions(10000, 10000));
+        QVERIFY(!fitsOriginalDimensions(16385, 8193));
+        QVERIFY(!fitsOriginalDimensions(0, 8193));
     }
     void animatedWebpAlphaAndCorruptionAreRecognized() {
         QTemporaryDir dir; QVERIFY(dir.isValid());

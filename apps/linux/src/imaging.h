@@ -9,6 +9,11 @@
 
 namespace piclens {
 
+inline constexpr qint64 OriginalByteLimit = 512LL * 1024 * 1024;
+inline constexpr bool fitsOriginalDimensions(int width, int height) {
+    return width > 0 && height > 0 && qint64(width) * height <= OriginalByteLimit / 4;
+}
+
 // All pixels are owned by immutable, shared payloads. Tiles have one replicated
 // border pixel on each side, RGBA8888 premultiplied, tightly packed width * 4.
 // rect is the interior in full-image coordinates; pixels includes the border.

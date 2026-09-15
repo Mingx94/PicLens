@@ -147,7 +147,7 @@ public sealed class WpfTests
         var canvas = new ViewerCanvas(); int originals = 0; string status = "";
         var viewer = new ViewerController((_, edge, _) => edge != 0
             ? Task.FromResult(new Pixels(2, 1, 8, new byte[8]))
-            : Interlocked.Increment(ref originals) == 1 ? Task.FromException<Pixels>(new IOException("超過 256 MiB")) : pending.Task, profile, canvas);
+            : Interlocked.Increment(ref originals) == 1 ? Task.FromException<Pixels>(new IOException("超過 512 MiB")) : pending.Task, profile, canvas);
         viewer.StateChanged += (_, info) => status = info;
         try
         {

@@ -11,9 +11,9 @@
 #include <webp/encode.h>
 #include <algorithm>
 #include <cstring>
+#include "imaging.h"
 
 namespace {
-constexpr qint64 MaxRgba = 256LL * 1024 * 1024;
 constexpr int TileInterior = 2046; // including both borders fits a 2048 texture
 bool fail(const QString &message) { QTextStream(stderr) << message << '\n'; return false; }
 
@@ -28,9 +28,9 @@ QImage decode(const QString &path, int edge) {
         fail(QStringLiteral("不支援動畫圖片")); return {};
     }
     const QSize size = reader.size();
-    if (size.width() <= 0 || size.height() <= 0 ||
-        (edge == 0 && qint64(size.width()) * size.height() > MaxRgba / 4)) {
-        fail(QStringLiteral("原圖超過 256 MiB 或尺寸無效")); return {};
+    if ((edge == 0 && !piclens::fitsOriginalDimensions(size.width(), size.height())) ||
+        (edge > 0 && (size.width() <= 0 || size.height() <= 0))) {
+        fail(QStringLiteral("原圖超過 512 MiB 或尺寸無效")); return {};
     }
     if (pixelEdge > 0 && (size.width() > pixelEdge || size.height() > pixelEdge))
         reader.setScaledSize(size.scaled(pixelEdge, pixelEdge, Qt::KeepAspectRatio));
@@ -38,8 +38,8 @@ QImage decode(const QString &path, int edge) {
     if (image.isNull()) { fail(reader.errorString()); return {}; }
     if (pixelEdge > 0 && (image.width() > pixelEdge || image.height() > pixelEdge))
         image = image.scaled(pixelEdge, pixelEdge, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    if (qint64(image.width()) * image.height() > MaxRgba / 4) {
-        fail(QStringLiteral("原圖超過 256 MiB")); return {};
+    if (!piclens::fitsOriginalDimensions(image.width(), image.height())) {
+        fail(QStringLiteral("原圖超過 512 MiB")); return {};
     }
     return image;
 }

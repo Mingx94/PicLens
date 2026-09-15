@@ -18,7 +18,6 @@
 namespace piclens {
 namespace {
 constexpr qint64 RecentLimit = 32LL * 1024 * 1024;
-constexpr qint64 OriginalLimit = 256LL * 1024 * 1024;
 constexpr int Interior = 2046;
 struct Request { QString path, token; int edge, priority; quint64 serial; };
 struct Identity {
@@ -43,8 +42,7 @@ FramePtr readFrame(const QString &path, const Identity &identity, QString &error
     QDataStream stream(&file); stream.setByteOrder(QDataStream::LittleEndian);
     quint32 magic; qint32 width, height, count;
     stream >> magic >> width >> height >> count;
-    if (magic != 0x504C5431 || width <= 0 || height <= 0 ||
-        qint64(width) * height > OriginalLimit / 4 ||
+    if (magic != 0x504C5431 || !fitsOriginalDimensions(width, height) ||
         (identity.edge > 0 && (width > identity.edge || height > identity.edge)) ||
         count != ((width + Interior - 1) / Interior) * ((height + Interior - 1) / Interior)) {
         error = QStringLiteral("無效的像素傳輸標頭"); return {};

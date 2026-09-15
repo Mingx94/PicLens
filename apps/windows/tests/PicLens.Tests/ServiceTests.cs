@@ -78,16 +78,19 @@ public sealed class ServiceTests
     }
 
     [Fact]
-    public void OversizedBitmapIsRejectedBeforePixelAllocation()
+    public void OriginalPixelBudgetIs512MiBAndOversizeIsRejectedBeforeAllocation()
     {
         using var f = new Fixture(); string path = Path.Combine(f.Root, "oversized.bmp");
+        Assert.Equal(512L * 1024 * 1024, Codec.MaxBytes);
+        Assert.True(10000L * 10000 * 4 <= Codec.MaxBytes);
+        Assert.True(16385L * 8193 * 4 > Codec.MaxBytes);
         using (var writer = new BinaryWriter(File.Create(path)))
         {
             writer.Write((ushort)0x4d42); writer.Write(54); writer.Write(0); writer.Write(54);
-            writer.Write(40); writer.Write(8193); writer.Write(8193); writer.Write((ushort)1); writer.Write((ushort)24);
+            writer.Write(40); writer.Write(16385); writer.Write(8193); writer.Write((ushort)1); writer.Write((ushort)24);
             for (int i = 0; i < 6; i++) writer.Write(0);
         }
-        Assert.Contains("256 MiB", Assert.Throws<IOException>(() => Codec.Decode(path, 0)).Message);
+        Assert.Contains("512 MiB", Assert.Throws<IOException>(() => Codec.Decode(path, 0)).Message);
     }
 
     [Fact]
